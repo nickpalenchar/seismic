@@ -1,6 +1,6 @@
-// The cards the owner has marked on the canvas (Shift + click, Shift + lasso), to move them together
-// or put them into a group at once. A workstream counts as its plan, as in the lasso: it moves
-// only inside its plan.
+
+
+
 
 import type { Item } from '../core/types';
 
@@ -22,7 +22,7 @@ export const movesWith = (sel: string[], id: string) => (sel.includes(id) ? sel.
 export const shifted = (cards: { id: string; start: Pos }[], by: Pos) =>
   Object.fromEntries(cards.map((c) => [c.id, { x: Math.round(c.start.x + by.x), y: Math.round(c.start.y + by.y) }]));
 
-/** Set once the owner has marked cards: the hint on how, after moving a card alone, goes. */
+
 export const MARK_KNOWN = 'seismic-mark-known';
-/** Set once the owner has moved several marked cards together: the hint on how, beside the marked ones, goes. */
+
 export const MOVE_MARKED_KNOWN = 'seismic-move-marked-known';

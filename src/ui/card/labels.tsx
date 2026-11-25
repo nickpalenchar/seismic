@@ -1,6 +1,6 @@
-// A card's labels (`core/labels.ts`): on its face, the priority's flag and compact chips after it;
-// on the unfolded card, a picker for each. A label Seismic suggested and the owner has not touched is
-// drawn with the same dashed border as a proposal; any pick makes it theirs.
+
+
+
 
 import { Flag as FlagIcon } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
@@ -66,7 +66,7 @@ function Chip({ label, value, suggested }: { label: Exclude<Label, 'priority'>; 
   );
 }
 
-/** The radio value of "None", which no label value can be. */
+
 const NONE = '';
 
 const CHIPPED = ['category', 'subcategory', 'complexity'] as const;

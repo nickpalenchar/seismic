@@ -1,7 +1,7 @@
 (() => {
   if (window.top !== window) return;
 
-  // Keep the title-bar markup used by older workspace servers and the offline page.
+  
   const os = window.seismicApp.platform;
   const invoke = window.__TAURI_INTERNALS__.invoke;
   const region = 'data-tauri-drag-region';

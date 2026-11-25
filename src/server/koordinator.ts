@@ -1,7 +1,7 @@
 import { normalize, overlaps } from '../core/path-overlap';
-// The Koordinator decides when a card may start: not while its changes are likely to conflict on
-// merge with work in progress. It judges that from what each card will change (estimated before
-// the start) and has changed so far (files and the places in them); sharing a file is not enough.
+
+
+
 
 import { judgeCardLabels } from './llms/agents/agentJobs/judgeCardLabels';
 import { nameCard } from './llms/agents/agentJobs/nameCard';
@@ -24,41 +24,41 @@ import { LANGUAGE_NAMES } from '../core/locale';
 import { clip, messageOf } from '../core/text';
 import { type Label, type Labels, suggestable, type SuggestToggles } from '../core/labels';
 
-/** What the owner said that may hold a lasting preference, and what the learner reads it with (`ruleLearner.ts`). */
+
 export type { InputContext, OwnerInput } from './llms/agents/agentJobs/learnRuleFromInput';
 export type { Scope } from './llms/agents/agentJobs/estimateCardScope';
 
-/** What the Koordinator needs of the repository a card belongs to. */
+
 export interface RepoHands {
   workers: WorkerSupervisor;
   workstations: CardWorkstations;
   adapter: RepoAdapter;
-  /** Where the Koordinator reads (scopes, questions): the repository's read checkout. */
+  
   path: string;
-  /** A folder without git: its cards all work in the folder itself, with no branches to merge. */
+  
   folder?: boolean;
 }
 
 export interface KoordinatorOptions {
   board: Board;
   runtime: AgentRuntime;
-  /** The repository of a card; a project may span several. */
+  
   repoFor: (card: Item) => RepoHands;
-  /** Where the Koordinator reads for what the owner says without a card: the home repository's read checkout. */
+  
   home: () => string;
-  /** Whether the owner paused the project's agents: a card the Koordinator lets start waits until they resume them (`{ paused }` in its queue). */
+  
   paused?: () => boolean;
-  /** Whether Seismic, or this project's agents, are about to restart: a card started meanwhile waits for it (`{ restart }` in its queue) instead of being checked. */
+  
   restarting?: () => boolean;
-  /** How long a plan's start, or taking a card's workstation, waits for the owner to take it back; START_ALL_HOLD_MS and EVICT_HOLD_MS by default. */
+  
   holdMs?: number;
-  /** After how many of the owner's inputs the retrospective runs; REVIEW_EVERY by default. */
+  
   reviewEvery?: number;
-  /** The files of screenshots by their ids. */
+  
   imageFiles?: (ids?: string[]) => string[];
-  /** Which labels the project lets Seismic suggest; a toggle not given is on, as are all without this. */
+  
   suggests?: () => Partial<SuggestToggles>;
-  /** Whether a starting card is checked for duplicates ("Suggest card merges"); on without this. */
+  
   suggestsMerges?: () => boolean;
 }
 
@@ -73,25 +73,25 @@ export class Koordinator {
     return `${this.language} unless an explicit standing preference names another language`;
   }
 
-  /** Decisions to start are taken one at a time, so two colliding cards cannot both slip through. */
+  
   private chain: Promise<unknown> = Promise.resolve();
-  /** The decisions on the chain that have not ended yet. */
+  
   private deciding = 0;
   private learning: Promise<unknown> = Promise.resolve();
   private draining = false;
-  /** A look again at cards waiting for a workstation, which can free up without a change of the board (a dirty clone cleaned up). */
+  
   private recheck?: ReturnType<typeof setTimeout>;
-  /** Cards being named now: asked again, the same session answers. */
+  
   private naming = new Map<string, Promise<void>>();
-  /** Cards whose labels a session was asked for: one call per card, whatever it answered. */
+  
   private labelled = new Set<string>();
 
-  /** The plans whose plan doc it reads now for which workstream builds on which. */
+  
   private readingDeps = new Map<string, Promise<void>>();
 
-  /** Cards whose workstation the owner takes from them, while the undo window runs (`evict`). */
+  
   private evictions = new Map<string, ReturnType<typeof setTimeout>>();
-  /** Cards giving up their workstation now, the undo window through: queued already, they start once that is done. */
+  
   private giving = new Set<string>();
 
   constructor(private o: KoordinatorOptions) {
@@ -145,8 +145,8 @@ export class Koordinator {
       } catch {
         return this.o.board.changed();
       }
-      // queued at once, so that a card waiting behind it for a likely conflict keeps waiting; at work
-      // already, it goes on once a workstation is free, whatever arrows the owner draws meanwhile
+      
+      
       const active = now.state !== 'planned';
       if (active && !now.queue) {
         this.setQueue(cardId, { workstation: 'none', begun: true });
@@ -211,7 +211,7 @@ export class Koordinator {
     const review = this.o.board.item(reviewId);
     if (!review || !unlanded(review)) return this.request(taskId);
     const t = this.o.board.t.koordinator;
-    // a review card's follow-up waits for its PR's merge, a code review's for the card's work to land
+    
     const pr = contributionOf(this.o.board.row(reviewId));
     const reason = pr ? t.followsReview(pr.number) : t.buildsOn;
     this.setQueue(taskId, { behind: [reviewId], reason, buildsOn: [reviewId] });
@@ -227,7 +227,7 @@ export class Koordinator {
   private requestAll(plan: Item): void {
     const open = this.o.board.items().filter((i) => i.parent === plan.id && i.state === 'planned' && !i.queue);
     if (!open.length) throw new BadRequest('nothingToStart', 'the plan has no planned workstream left to start');
-    // one the owner set aside to start later goes with them, so a workstream building on it waits for it
+    
     for (const w of open) if (snoozeOf(w)?.start) this.o.board.unsnooze(w.id, 'owner');
     if (this.o.restarting?.()) {
       for (const w of open) {
@@ -250,7 +250,7 @@ export class Koordinator {
   async arrange(planId: string): Promise<void> {
     if (this.o.board.deps(planId).current) return this.o.board.arrange(planId);
     this.o.board.setDeps(planId, { reading: 'owner' });
-    // the reading arranges the plan once it has it
+    
     await this.readDeps(planId).catch((e) => {
       throw new BadRequest('arrangeFailed', messageOf(e));
     });
@@ -332,8 +332,8 @@ export class Koordinator {
     const past = order[to]!;
     order.splice(n, 1);
     order.splice(to, 0, card);
-    // the times stay where they were, each card in the new order taking the next; cards that came in
-    // the same millisecond go by id, so one that would tie with the card before it gets a time of its own
+    
+    
     order.forEach((i, k) => {
       if (k && Date.parse(times[k]!) <= Date.parse(times[k - 1]!)) times[k] = new Date(Date.parse(times[k - 1]!) + 1).toISOString();
       if (times[k] !== i.queue!.since) this.setQueue(i.id, i.queue!, times[k]);
@@ -345,7 +345,7 @@ export class Koordinator {
   dequeue(cardId: string) {
     const card = this.card(cardId);
     if (card.kind === 'plan') {
-      // the start of all its workstreams, taken back before the Koordinator planned them
+      
       const back = this.unplanned(cardId);
       if (!back.length) throw new BadRequest('notQueued', 'no workstream of the plan waits to be planned');
       for (const w of back) this.setQueue(w.id, null);
@@ -354,7 +354,7 @@ export class Koordinator {
     }
     if (!card.queue) throw new BadRequest('notQueued', 'the card is not waiting');
     this.setQueue(cardId, null);
-    // a choice made for this start goes with it
+    
     this.o.board.work(cardId, { agent_setting: null });
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.koordinator.dequeued);
   }
@@ -366,7 +366,7 @@ export class Koordinator {
    * Runs in the background, one at a time.
    */
   learn(card: Item | null, kind: OwnerInput, text: string, context: InputContext = {}) {
-    // what surrounded the input is read now: by its turn, the agent may have answered it
+    
     const around = this.around(card, kind, text, context);
     this.learning = this.learning.then(() => this.distill(card, kind, text, context, around)).catch((e) => console.error('Koordinator (learning):', e));
     this.noticed();
@@ -380,7 +380,7 @@ export class Koordinator {
    */
   noticed() {
     const b = this.o.board;
-    // the first input counted starts the history; it was logged a moment ago
+    
     if (!b.setting(REVIEW_SINCE)) b.setSetting(REVIEW_SINCE, new Date(Date.now() - 60_000).toISOString());
     const count = Number(b.setting(REVIEW_COUNT) ?? 0) + 1;
     if (count < (this.o.reviewEvery ?? REVIEW_EVERY)) return b.setSetting(REVIEW_COUNT, String(count));
@@ -445,12 +445,12 @@ export class Koordinator {
 
   /** What the learner reads an input in: the card's text, the agent's last message before it, what the owner said in the last days. */
   private around(card: Item | null, kind: OwnerInput, text: string, { question }: InputContext): string[] {
-    // a card deleted meanwhile has no log to read
+    
     const events = card && this.o.board.item(card.id) ? this.o.board.events(card.id) : [];
-    // the newest first; a question the owner answered is shown as such
+    
     const said = question ? undefined : events.find((e) => AGENTS.includes(e.author) && SAYS.includes(e.kind));
     const recent = this.o.board.utterances(new Date(Date.now() - RECENT_DAYS * 86_400_000).toISOString(), RECENT_UTTERANCES + 1);
-    // the input itself is among them, as the newest with its words (a card's text is not)
+    
     const self = recent.findLastIndex((u) => u.text === text);
     if (self >= 0) recent.splice(self, 1);
     return [
@@ -523,11 +523,11 @@ export class Koordinator {
   }
 
   private async decide(cardId: string) {
-    // a card started without a title gets one first: its worker, branch and the owner know it by it
+    
     await this.name(cardId);
     this.suggestAtStart(cardId);
     const card = this.o.board.item(cardId);
-    // taken out of the queue or deleted while waiting for its turn
+    
     if (!card || card.state !== 'planned' || !card.queue || !('checking' in card.queue)) return;
     if (card.repoDown) return this.repoGone(card);
     const active = this.inProgress(card.repo);
@@ -535,9 +535,9 @@ export class Koordinator {
     const pending = this.pending(card, active, ahead);
     const candidates = this.duplicateCandidates(card);
     if (!active.length && !ahead.length && !pending.length && !candidates.length) {
-      // held by the owner's arrows alone, it is judged once they let it go
+      
       if (drawnWaits(card, this.o.board.items()).length) return void this.queueOrStart(cardId, [], [], '', '');
-      // nothing it could collide with or build on: start at once, and estimate the scope for the cards after it
+      
       this.startNow(cardId, this.o.board.t.koordinator.nothingRuns);
       if (this.o.board.item(cardId)?.state !== 'working') return;
       try {
@@ -555,7 +555,7 @@ export class Koordinator {
     }
     const now = this.o.board.item(cardId);
     if (!now?.queue) return;
-    // its repository stopped running while the Koordinator read
+    
     if (now.repoDown) return this.repoGone(now);
     this.o.board.work(cardId, { scope: JSON.stringify({ files: scope.files, reason: scope.reason, ...(scope.duplicates.length ? { duplicateCheck: { title: card.title, body: card.body, ids: scope.duplicates } } : {}) }) });
     if (scope.duplicates.length) {
@@ -563,8 +563,8 @@ export class Koordinator {
       this.o.board.log(cardId, 'state', 'koordinator', this.o.board.t.koordinator.possibleDuplicate(scope.duplicates.map((id) => this.o.board.item(id)?.title ?? id).join(', ')));
       return;
     }
-    // the workstreams it builds on, and the cards in progress or queued ahead whose changes it
-    // expects to conflict with the card's
+    
+    
     const behind = [...active, ...ahead, ...pending].filter((a) => scope.buildsOn.includes(a.id) || scope.conflictsWith.includes(a.id)).map((a) => a.id);
     const t = this.o.board.t.koordinator;
     const buildsOn = behind.filter((id) => scope.buildsOn.includes(id));
@@ -582,7 +582,7 @@ export class Koordinator {
    */
   private queueOrStart(cardId: string, inferred: string[], buildsOn: string[], reason: string, why: string, name?: (id: string) => string | undefined): boolean {
     const items = this.o.board.items();
-    // an arrow drawn while it was judged may make a card it was to wait for wait for it instead
+    
     inferred = inferred.filter((id) => {
       const i = items.find((x) => x.id === id);
       return !(i && waitsOn(i, cardId, items, true));
@@ -622,15 +622,15 @@ export class Koordinator {
     if (batch[0]!.repoDown) return batch.forEach((w) => this.repoGone(w));
     for (const w of batch) this.suggestAtStart(w.id);
     if (batch.length === 1) {
-      // one is judged as any card
+      
       this.setQueue(batch[0]!.id, { checking: true });
       return this.decide(batch[0]!.id);
     }
     const ids = new Set(batch.map((w) => w.id));
     const repo = batch[0]!.repo;
     const active = this.inProgress(repo);
-    // what waits already came first, as for a single card, unless it waits for one of them; freed
-    // cards keep their places, so what was queued after the last of them is not ahead
+    
+    
     const last = batch.map((w) => w.queue!.since).sort().at(-1)!;
     const ahead = items
       .filter((i) => i.repo === repo && !ids.has(i.id) && inQueue(i) && (planCard || i.queue!.since < last) && !batch.some((w) => waitsOn(i, w.id, items, true)))
@@ -639,9 +639,9 @@ export class Koordinator {
     try {
       plan = await this.schedule(planCard, batch, active, ahead);
     } catch (e) {
-      // judged one by one instead, each seeing the others it may build on; one taken out of the
-      // queue or started anyway while the turn ran stays as the owner left it, and one started again
-      // meanwhile (a new `since`) goes to the joint turn of that start
+      
+      
+      
       const left = batch.filter((w) => {
         const q = this.o.board.item(w.id)?.queue;
         return !!q && 'checking' in q && q.together === key && q.since === w.queue!.since;
@@ -655,13 +655,13 @@ export class Koordinator {
       return;
     }
     if (this.o.board.item(batch[0]!.id)?.repoDown) return this.unplanned(key).forEach((w) => this.repoGone(w));
-    // taken out of the queue or started anyway meanwhile
+    
     const still = (id: string) => {
       const q = this.o.board.item(id)?.queue;
       return !!q && 'checking' in q && q.together === key;
     };
-    // the turn's order becomes the queue's: a card waits only for what comes before it, so none
-    // wait for each other
+    
+    
     const times = batch.map((w) => w.queue!.since!);
     const before = new Set([...active, ...ahead].map((i) => i.id));
     const names = new Map([...active, ...ahead, ...batch].map((i) => [i.id, i.parent && i.plan?.label && (!planCard || i.parent === key) ? `${i.plan.label} ${this.o.board.t.quote(i.title)}` : this.o.board.t.quote(i.title)]));
@@ -720,8 +720,8 @@ export class Koordinator {
       this.o.board.log(cardId, 'state', 'seismic', { none: this.o.board.t.koordinator.noWorkstation, dirty: this.o.board.t.koordinator.dirtyWorkstations, slots: this.o.board.t.koordinator.noSlot }[shortage]);
     };
     try {
-      // git makes its workstation ready in the background; what goes wrong there its card says itself, but that the clone
-      // it took was not clean and no other is, which queues it as when there is none at once
+      
+      
       const saved = this.o.board.row(cardId).agent_setting;
       this.o.repoFor(card).workers.start(cardId, saved ? JSON.parse(saved) : undefined).catch(refused);
     } catch (e) {
@@ -741,33 +741,33 @@ export class Koordinator {
 
   private drain() {
     const items = this.o.board.items();
-    // a card queued behind another that waits itself holds on while that one waits, and once it
-    // has started, until it has landed: a card started or judged again here stays in this set
-    // parked cards count here too: their waits are kept while they are parked, to hold again once unparked
+    
+    
+    
     const active = new Set(items.filter((i) => running(i) || inQueue(i)).map((i) => i.id));
     const parked = new Set(items.filter(inParkingLot).map((i) => i.id));
-    // the card waiting longest goes first: one queued later must not take its turn
+    
     const waiting = queueOrder(items).filter(movable);
-    // a repository whose workstations are taken by a card waiting longer is not asked again
+    
     const full = new Set<string | undefined>();
-    // cards waiting for a clone on one machine (`near`) that has none: asked again after a while, as for a full repository
+    
     let again = false;
     const paused = !!this.o.paused?.();
-    // cards whose waits ended in this pass
+    
     const freed: Item[] = [];
-    // the owner's question to a finished card whose agent needs a full clone goes before queued cards
+    
     for (const f of items.filter((i) => i.agent?.waitsForClone && !i.repoDown)) {
       const hands = this.o.repoFor(f);
       if (full.has(f.repo) || !hands.workstations.leasable(true) || !hands.workers.takeClone(f.id)) full.add(f.repo);
     }
     for (const w of waiting) {
-      // one whose repository does not run waits on until it is back; one giving up its workstation, until it has;
-      // one let start, until the owner resumes the project's agents
+      
+      
       if (w.repoDown || this.giving.has(w.id) || w.idea?.proposal?.merge || (w.idea?.mergingInto && mergeRank(w) <= 1)) continue;
       const begun = 'begun' in w.queue! && !!w.queue.begun;
       if (!('behind' in w.queue!) && !('restart' in w.queue!)) {
-        // (a restart wait stays: the check after the restart applies the arrow)
-        // an arrow the owner drew since it was let start holds it as one drawn before
+        
+        
         const drawn = drawnWaits(w, items);
         if (drawn.length) {
           this.setQueue(w.id, { behind: drawn, reason: this.o.board.t.koordinator.drawn, manualWait: drawn });
@@ -776,7 +776,7 @@ export class Koordinator {
         }
       }
       if ('restart' in w.queue!) {
-        // the restart is through (or called off): it is checked now as when it was started
+        
         if (!this.o.restarting?.()) {
           this.setQueue(w.id, { checking: true }, w.queue!.since);
           this.serial(() => this.decide(w.id));
@@ -788,13 +788,13 @@ export class Koordinator {
         continue;
       }
       if ('workstation' in w.queue!) {
-        // the slots the paused agents freed are not for it: it waits for them to resume
+        
         if (paused) {
           this.setQueue(w.id, { paused: true, ...(begun && { begun }) }, w.queue!.since);
           this.o.board.log(w.id, 'state', 'seismic', this.o.board.t.koordinator.projectPaused);
           continue;
         }
-        // a card whose branch a clone keeps takes one on that clone's machine: none there leaves the others to the cards behind it
+        
         const near = this.o.board.row(w.id).kept_in;
         if (full.has(w.repo) || !this.o.repoFor(w).workstations.leasable(false, near)) {
           if (near) again = true;
@@ -806,19 +806,19 @@ export class Koordinator {
         continue;
       }
       const q = w.queue as { behind: string[]; reason: string; buildsOn?: string[]; manualWait?: string[] };
-      // a review card whose PR was closed without a merge leaves nothing to build on: what followed
-      // up on it goes back to planned, for the owner to decide on
+      
+      
       const unmerged = items.find((i) => q.buildsOn?.includes(i.id) && i.state === 'done' && contributionOf(this.o.board.row(i.id))?.closed);
       if (unmerged) {
         this.setQueue(w.id, null);
         this.o.board.log(w.id, 'state', 'seismic', this.o.board.t.koordinator.reviewClosed(this.o.board.t.quote(unmerged.title)));
         continue;
       }
-      // the waits the Koordinator inferred hold while what they wait for is in progress or queued, or
-      // has not landed where it builds on it; the owner's arrows hold beside them while drawn, so
-      // removing one leaves exactly the waits inferred. A parked card holds nothing, but its wait
-      // stays on the queue, so it holds again once unparked, unless that card waits for this one
-      // by then (judged while it was parked, a card may have come to wait behind this one)
+      
+      
+      
+      
+      
       const inferred = q.behind.filter((id) => {
         const i = items.find((x) => x.id === id);
         return !q.manualWait?.includes(id) && (active.has(id) || (q.buildsOn?.includes(id) && unlanded(i))) && !(i && waitsOn(i, w.id, items, true));
@@ -830,17 +830,17 @@ export class Koordinator {
       if (holding.length && same(still, q.behind) && same(manualWait, q.manualWait ?? []) && same(buildsOn, q.buildsOn ?? [])) continue;
       if (holding.length) {
         this.setQueue(w.id, { behind: still, reason: inferred.some((id) => !parked.has(id)) ? q.reason : this.o.board.t.koordinator.drawn, ...(buildsOn.length && { buildsOn }), ...(manualWait.length && { manualWait }) });
-        // an arrow the owner drew to it while it waited holds it too, which it says
+        
         const drawnNow = manualWait.filter((id) => !q.behind.includes(id));
         if (drawnNow.length) this.logWait(w.id, [], '', drawnNow, (id) => this.nameOf(items.find((i) => i.id === id) ?? this.o.board.card(id)!));
         continue;
       }
       freed.push(w);
     }
-    // what it waited for is done; with nothing else running it starts, else it is judged again
-    // against what runs now, which may have started after it was judged. Cards freed at once (the
-    // follow-up tasks of a merged PR, say) are judged together: one may build on another, or
-    // collide with it, whichever came first in the queue.
+    
+    
+    
+    
     for (const repo of new Set(freed.map((w) => w.repo))) {
       const group = freed.filter((w) => w.repo === repo);
       if (group.length > 1) {
@@ -870,7 +870,7 @@ export class Koordinator {
     }
   }
 
-  // ---------------------------------------------------------------- naming
+  
 
   /**
    * A card the owner left without a title (`nameless`) gets one from its text and screenshots, by a
@@ -882,7 +882,7 @@ export class Koordinator {
     if (!card || !nameless(card)) return Promise.resolve();
     let naming = this.naming.get(cardId);
     if (!naming) {
-      // the same call judges the labels left to suggest
+      
       const asked = this.labelsToAsk(cardId);
       naming = this.writeTitle(card, asked)
         .then(({ title, labels }) => {
@@ -899,7 +899,7 @@ export class Koordinator {
   private writeTitle(card: Item, asked: Label[]): Promise<{ title: string; labels: Labels }> {
     return nameCard({
       runtime: this.o.runtime,
-      // a title reads as well from the home repository while the card's does not run
+      
       cwd: card.repoDown ? this.o.home() : this.o.repoFor(card).path,
       language: this.language,
       asked,
@@ -910,7 +910,7 @@ export class Koordinator {
     });
   }
 
-  // ---------------------------------------------------------------- labels
+  
 
   /** The project's toggles as they are now; all on where it has none. */
   suggests(): Partial<SuggestToggles> {
@@ -946,7 +946,7 @@ export class Koordinator {
       .catch(() => {});
   }
 
-  // ---------------------------------------------------------------- the estimate
+  
 
   /** Whether a starting card is checked for duplicates; on unless the project switched "Suggest card merges" off. */
   private suggestsMerges(): boolean {
@@ -955,9 +955,9 @@ export class Koordinator {
 
   /** Unfinished tasks in this repository, including ones still planned or awaiting approval. */
   private duplicateCandidates(card: Item): Item[] {
-    // the project switched merge suggestions off: nothing to check against, so no duplicate is recorded
+    
     if (!this.suggestsMerges()) return [];
-    // a card that has begun work (a branch) is started again to go on with it, never merged into another
+    
     const row = this.o.board.row(card.id);
     if (row.branch) return [];
     const previous = row.scope;
@@ -990,7 +990,7 @@ export class Koordinator {
       pending,
       candidates,
       tags,
-      // with merge suggestions off the agent is told nothing about duplicates
+      
       merges: this.suggestsMerges(),
       folder: !!hands.folder,
       language: this.spokenLanguage,
@@ -1023,7 +1023,7 @@ export class Koordinator {
       language: this.spokenLanguage,
       preferences: this.o.board.preferencesText(),
       others: () => this.others(batch[0]!, active, ahead, tags),
-      // the cards the owner started wait with it
+      
       onLimit: (until, retry) => {
         for (const w of batch) this.o.board.waitsForLimit({ card: w.id }, until, retry);
       },
@@ -1054,11 +1054,11 @@ export class Koordinator {
   /** The cards in progress and queued ahead, as a turn of the Koordinator reads them. */
   private async others(card: Item, active: Item[], ahead: Item[], tags: CardTags): Promise<string[]> {
     const folder = !!this.o.repoFor(card).folder;
-    // in a folder nothing is merged later: every path counts
+    
     const soft = folder ? [] : this.o.repoFor(card).adapter.softPaths;
     const described = folder ? (c: Change) => `${c.file} (${c.regions[0] ?? 'changed'})` : describe;
     const hard = (f: string) => !soft.some((s) => overlaps(normalize(f), s));
-    // git reads the branches side by side, without holding up the server
+    
     const changes = await Promise.all(active.map((a) => this.o.repoFor(a).workstations.changes(a.id)));
     return [
       active.length
@@ -1092,7 +1092,7 @@ export class Koordinator {
     ];
   }
 
-  // ---------------------------------------------------------------- helpers
+  
 
   private serial(fn: () => unknown) {
     this.deciding++;
@@ -1128,15 +1128,15 @@ export class Koordinator {
 
 
 
-/** After how many of the owner's inputs the retrospective runs, at most how many rules it proposes, and how much history it reads. */
+
 export const REVIEW_EVERY = 20;
 const REVIEW_HISTORY = 300;
-/** The settings that keep the retrospective's count across restarts, and when its history begins. */
+
 const REVIEW_COUNT = 'review_inputs';
 const REVIEW_SINCE = 'review_since';
 
 
-/** How the retrospective names who did something on a card, and what. */
+
 const WHO: Record<CardEvent['author'], string> = {
   owner: 'the owner',
   worker: 'the agent',
@@ -1154,15 +1154,15 @@ const STEPS: Partial<Record<CardEvent['kind'], string>> = {
   error: ', an error: ',
 };
 
-/** How far back the learner reads what the owner said, and at most how much of it. */
+
 const RECENT_DAYS = 3;
 const RECENT_UTTERANCES = 30;
 
-/** Who on a card speaks for an agent, and in which of its log lines. */
+
 const AGENTS: CardEvent['author'][] = ['worker', 'explorer'];
 const SAYS: CardEvent['kind'][] = ['say', 'question', 'review', 'report', 'talk'];
 
-/** How the learner hears what the owner said in the last days. */
+
 const UTTERED: Record<Utterance['kind'], string> = {
   hint: 'to the agent',
   answer: "answering the agent's question",
@@ -1174,8 +1174,8 @@ const UTTERED: Record<Utterance['kind'], string> = {
 const describe = (c: Change) =>
   `${c.file} (${c.regions.length ? (c.regions[0] === 'deleted' ? 'deleted' : `lines ${c.regions.slice(0, 8).join('; ')}${c.regions.length > 8 ? '; …' : ''}`) : 'new'})`;
 
-/** The tag a turn of the Koordinator knows a card by. */
-/** A card waited on that still holds back what builds on it: there, and its work not on the main branch yet. */
+
+
 /** In progress, parked or not: approved work counts until it has landed (a PR not yet merged still holds its files); a prototype never lands, so it collides with nothing. */
 const running = (i: Item) => ACTIVE.includes(i.state) && i.kind !== 'plan' && !i.idea?.prototypeOf;
 

@@ -33,12 +33,12 @@ test('a patch reads as hunks, each line numbered on its sides, a blank context l
     ['context', 5, 5],
     ['context', 6, 6],
   ]);
-  // a line starting with `--` inside a hunk is an added line, not a file header
+  
   expect(hunks[1]!.lines.map((l) => [l.kind, l.text])).toEqual([
     ['context', 'x();'],
     ['added', '--y();'],
     ['context', 'z();'],
-  ]);  // the marker after the last line says no newline follows it
+  ]);  
   expect(hunks[1]!.lines.at(-1)!.noEol).toBe(true);
   expect(hunks[1]!.lines.filter((l) => l.noEol)).toHaveLength(1);
 });
@@ -48,7 +48,7 @@ test('a changed line marks the words that differ from the line it replaces', () 
   const marked = (l: typeof removed) => l!.marks!.map(([a, b]) => l!.text.slice(a, b));
   expect(marked(removed)).toEqual(['world']);
   expect(marked(added)).toEqual(['there']);
-  // a line rewritten through and through gets no marks
+  
   const [old, neu] = parseHunks(['@@ -1 +1 @@', '-alpha beta gamma', '+completely other words']).at(0)!.lines;
   expect(old!.marks).toBeUndefined();
   expect(neu!.marks).toBeUndefined();
@@ -65,7 +65,7 @@ test('the unchanged lines between hunks and after the last come from the new fil
     ['12', 11, 12],
     ['13', 12, 13],
   ]);
-  // a new file's hunk starts at line 0 of the old side
+  
   expect(gap(parseHunks(['@@ -0,0 +1,2 @@', '+a', '+b']), 0)).toEqual({ from: 1, to: 1, shift: 0 });
 });
 
@@ -85,10 +85,10 @@ test('a file’s language comes from its extension or name', () => {
 });
 
 test('the patch tells whether the file ends with its last hunk or goes on past it', () => {
-  // three unchanged lines after the change, as git shows them: the file may go on
+  
   expect(endsFile(parseHunks(['@@ -1,4 +1,4 @@', '-a', '+A', ' b', ' c', ' d']))).toBe(false);
-  // fewer: the file ends there
+  
   expect(endsFile(parseHunks(['@@ -8,3 +8,3 @@', ' g', '-h', '+H']))).toBe(true);
-  // no newline after the last line: the file ends there too
+  
   expect(endsFile(parseHunks(['@@ -1,4 +1,4 @@', '-a', '+A', ' b', ' c', ' d', '\\ No newline at end of file']))).toBe(true);
 });

@@ -1,4 +1,4 @@
-// A card's conversation, from its events.
+
 
 import { LANGUAGES } from '../core/locale';
 import { MESSAGES } from '../core/messages';
@@ -7,55 +7,55 @@ import { answering, askable, type CardEvent, type Demo, finishingUp, type Item, 
 import { readAnswer } from './answer';
 import type { Field } from './api';
 
-/** One entry of the conversation: a message, with how the agent got to it folded under it, or a small line. */
+
 export interface Turn {
   e: CardEvent;
-  /** What led to the message: tool calls, thoughts, status lines, the Koordinator's confirmations. */
+  
   steps: CardEvent[];
-  /** A state change or an error between the messages. */
+  
   line?: true;
-  /** A worker's question: the answer it got. */
+  
   answer?: string;
-  /** A question: the options the owner picked for it, marked on it. */
+  
   picks?: string[];
-  /** The owner's answer whose picks its question marks: what the message says beside them, their own words. */
+  
   words?: string;
-  /**
-   * A question nobody waits on any more that the owner picked nothing for: how it ended (`ended`).
-   * `again`: the agent asked it again further down (`next`, that event's id); `settled`: the owner's
-   * words after it, which the agent replied to without asking it again; `left`: the owner said
-   * nothing to it before the card went on.
-   */
+  
+
+
+
+
+
   end?: 'again' | 'settled' | 'left';
-  /** A question asked again further down: where. */
+  
   next?: number;
-  /** Only the agent's steps, without words: a turn it ended silently, in a conversation nobody works on any more. */
+  
   quiet?: true;
-  /**
-   * A worker's reply: the handover that came next in the same turn, after an earlier one, with the
-   * steps that led to it. It says only what changed since that one, so it stands under the reply.
-   */
+  
+
+
+
   then?: Turn;
 }
 
 export interface Talk {
   shown: Turn[];
-  /** The steps of a turn without a message yet. */
+  
   pending: CardEvent[];
-  /** What the owner said that the agent has not read yet, in the order said: it stands below its work, until it reads it. */
+  
   unread: CardEvent[];
-  /**
-   * Seismic's reply to what the agent at work passed on (`to_seismic`), and what Seismic said after it,
-   * while no message of the agent's came yet: it stands below the agent's work, until that message.
-   */
+  
+
+
+
   passedOn: Turn[];
-  /** The questions the card waits on (`openQuestions`), each with the steps that led to it: they stand at the end, to be answered. */
+  
   asked: Turn[];
-  /** What came after the last of them, when none of it is the agents': the owner's words the agent read after asking, which stay below the questions. */
+  
   below: Turn[];
 }
 
-/** Seismic's lines that mark where the work stands (the demo linked on the pull request among them), or why an idea clicked to build was not; its other notes (restarts, sessions, what happens on the pull request) fold away. */
+
 const MILESTONE =
   /^(Landed on main:|Agent started|Pull request merged|Landed on main after the approval|Pull request closed without a merge|The project now stands|The plan now stands|Not built|Part landed|The Seismic checkout was on|Ticked off in the plan doc|Commented the demo’s link|Added the demo’s link|Could not pull main after the merge: it conflicts|Merging PR #\d+ conflicts|Conflict with PR #\d+ resolved|Pulled main from the remote|Pushed main)/;
 
@@ -70,7 +70,7 @@ const toAgent = (e: CardEvent) => (e.kind === 'hint' || e.kind === 'answer' || e
 
 const place = (e: CardEvent, prev: CardEvent | undefined): 'owner' | 'agent' | 'aside' | 'line' | 'step' | 'after' => {
   if (toAgent(e)) return 'owner';
-  // a proposal or follow-up stands as an action, outside the agent's folded steps
+  
   if (e.made) return 'aside';
   switch (e.kind) {
     case 'changes':
@@ -82,9 +82,9 @@ const place = (e: CardEvent, prev: CardEvent | undefined): 'owner' | 'agent' | '
     case 'review':
       return 'agent';
     case 'say':
-      // the Koordinator's confirmation of what the owner just said folds away; what it looked up for
-      // them stands, and so does a reply that answers them without acting (a question of theirs, why
-      // it could not read them), and its answer that Seismic cannot do what they asked, with its link to report that
+      
+      
+      
       if (e.author === 'owner') return 'owner';
       if (e.wish || e.reply) return 'aside';
       return (e.author === 'koordinator' || e.author === 'plan') && !(prev?.kind === 'say' && prev.author === 'owner') ? 'aside' : 'step';
@@ -124,20 +124,20 @@ export function demoHandover(demo: Demo, shown: Turn[]): Turn | undefined {
 export function talkTurns(all: CardEvent[], opts: { open?: Question[]; over?: boolean; paused?: boolean; working?: boolean; answers?: boolean } = {}): Talk {
   const shown: Turn[] = [];
   let steps: CardEvent[] = [];
-  // the owner said something to the agent, and the worker has not answered yet
+  
   let open = false;
   const events = closedBeforeLimit(asRead(all.filter((e) => !e.unread)));
   const lastPause = events.findLast(pauseLine);
-  // the usage limit holds at its last line while nothing of the agent's came after it
+  
   const lastLimit = events.findLast(limitLine);
   const limitHolds = !!lastLimit && !events.slice(events.indexOf(lastLimit) + 1).some(agentAuthor);
-  // the worker handed over since it started
+  
   let handedOver = false;
-  // Seismic's replies to what the agent passed on, held for the agent's next message
+  
   let held: Turn[] = [];
-  // the steps of Seismic's look-up, for the answer it looks up
+  
   let looking: CardEvent[] = [];
-  // Seismic's reply that it looks the question up, where it stands
+  
   let lookingUnder: Turn | undefined;
   const lookUp = (e: CardEvent) => !opts.answers && e.kind === 'activity' && lookUpAuthor(e);
   const looked = (e: CardEvent) => {
@@ -152,9 +152,9 @@ export function talkTurns(all: CardEvent[], opts: { open?: Question[]; over?: bo
     shown.push(...held);
     held = [];
   };
-  // the agent's last message, past the replies of Seismic's that moved under it
+  
   const lastAgent = () => shown.findLast((x) => !moved.has(x) && !x.e.made);
-  // the agent's steps so far, closed above what comes next
+  
   const close = () => {
     const run = closed(steps);
     if (run) {
@@ -176,8 +176,8 @@ export function talkTurns(all: CardEvent[], opts: { open?: Question[]; over?: bo
     }
     else if (where === 'step') steps.push(e);
     else if (where === 'after') {
-      // closing words after a reply or handover fold under it, the last of its steps; so do the
-      // steps the agent took after it in the same turn (a card it proposed, say)
+      
+      
       const last = shown.findLast((x) => !x.line && agentAuthor(x.e));
       if (last && last === lastAgent()) {
         (last.then ?? last).steps.push(...steps, e);
@@ -188,20 +188,20 @@ export function talkTurns(all: CardEvent[], opts: { open?: Question[]; over?: bo
     else if (where === 'aside' && (e.forwarded || held.length)) held.push({ e, steps: looked(e) });
     else if (where === 'line' || where === 'aside') {
       release();
-      // what the agent did until the owner or the usage limit paused it stays above that line once it
-      // went on; while it is paused there, its bubble shows it
+      
+      
       if ((pauseLine(e) && !(opts.paused && e === lastPause)) || snoozeLine(e) || (limitLine(e) && !(limitHolds && e === lastLimit))) close();
       shown.push({ e, steps: where === 'aside' ? looked(e) : [], ...(where === 'line' ? { line: true as const } : {}) });
     }
     else if (where === 'agent') {
       const prev = lastAgent();
-      // a later handover right after the worker's reply says what changed since the one before: it
-      // stands under the reply
+      
+      
       if (e.kind === 'review' && handedOver && prev?.e.kind === 'talk' && prev.e.author === 'worker' && !prev.then) prev.then = { e, steps };
-      // a turn that ended without a reply took its last words as the reply
+      
       else {
         const own = steps.filter((s) => !(s.kind === 'say' && s.text === e.text.trim()));
-        // Seismic's own message (its answer on a proposal) has its look-up's steps among its steps
+        
         const lookedUp = looked(e);
         shown.push({ e, steps: lookedUp.length ? [...own, ...lookedUp].sort((x, y) => events.indexOf(x) - events.indexOf(y)) : own });
       }
@@ -210,7 +210,7 @@ export function talkTurns(all: CardEvent[], opts: { open?: Question[]; over?: bo
       if (e.kind === 'review') handedOver = true;
       release();
     } else {
-      // a spoken command that became a note or an answer stands once, as that
+      
       if (e.kind === 'say' && duplicate(all, all.indexOf(e))) return;
       if (toAgent(e)) close();
       release();
@@ -218,16 +218,16 @@ export function talkTurns(all: CardEvent[], opts: { open?: Question[]; over?: bo
       if (toAgent(e)) open = true;
     }
   });
-  // a look-up not answered yet: its steps so far under Seismic's reply that it looks it up
+  
   if (looking.length && lookingUnder && !lookingUnder.line && lookUpAuthor(lookingUnder.e)) lookingUnder.steps.push(...looking);
-  // while the agent works, they wait below its work for its message; else its steps since stand as one
+  
   let passedOn: Turn[] = [];
   if (opts.working) passedOn = held;
   else if (held.length) {
     if (opts.over) close();
     release();
   }
-  // an idea's and a proposal's questions are answered in the owner's words; a worker's on their own
+  
   named(shown);
   for (const turn of shown) if (turn.e.kind === 'question' && !turn.picks) Object.assign(turn, answered(events, turn.e));
   marked(shown);
@@ -405,7 +405,7 @@ function ended(turn: Turn, events: CardEvent[], at: Map<CardEvent, number>, show
   const after = events.slice(at.get(turn.e)! + 1);
   const again = after.find((e) => e.kind === 'question' && parseQuestion(e.text).text === q.text);
   if (again) return { end: 'again', next: again.id };
-  // the agent at work is still the one that asked, not a worker started on the idea built or the proposal taken on
+  
   const still = working && !after.some(started);
   const words = after.find(ownerSays);
   if (!words) return still ? {} : { end: 'left' };
@@ -438,7 +438,7 @@ function named(shown: Turn[]) {
   for (let i = 0; i < shown.length; i++) {
     const a = shown[i]!;
     if (a.line || a.e.author !== 'owner' || a.e.picks || !a.e.text.startsWith('**')) continue;
-    // the questions asked so far, the last time each was
+    
     const asked = [...new Map(shown.slice(0, i).filter((x) => x.e.kind === 'question').map((x) => [parseQuestion(x.e.text).text, x])).values()];
     const { picks, words } = readAnswer(a.e.text, asked.map((x) => parseQuestion(x.e.text)));
     if (!picks.length) continue;
@@ -470,7 +470,7 @@ export function parseQuestion(text: string): { text: string; options: string[] }
  */
 export function ownerField(item: Pick<Item, 'state' | 'need' | 'question' | 'agent' | 'idea' | 'archivedAt' | 'queue'>): Field | null {
   if (item.state === 'waiting') return item.need === 'question' ? 'answer' : item.need === 'demo' && item.question ? 'demo' : 'feedback';
-  // a finished card's agent is resumed for what the owner asks about it; a planned card holds the note for the agent that takes it on
+  
   return item.state === 'working' || item.state === 'inPr' || item.agent?.finishing || askable(item) || holdsNotes(item) ? 'note' : null;
 }
 
@@ -542,7 +542,7 @@ export const seismicWorks = (talk: Exchange[]) =>
  */
 export const worked = (i: Pick<Item, 'state' | 'agent' | 'review'>) => i.state !== 'idea' && i.state !== 'proposal' && (!!i.agent?.branch);
 
-/** What decides a card's layout. */
+
 type Laid = Pick<Item, 'state' | 'agent' | 'review' | 'demo' | 'idea' | 'queue'> & Partial<Pick<Item, 'source' | 'id' | 'archivedAt'>>;
 
 /**
@@ -574,7 +574,7 @@ export const split = (i: Laid) => i.state === 'idea' || i.state === 'proposal' |
 export const waitsFirstStart = (i: Pick<Item, 'state' | 'agent' | 'review' | 'queue'> & Partial<Pick<Item, 'id' | 'archivedAt'>>) =>
   holdsNotes(i) && !worked(i) && (!!i.queue || !(i.id && beingWritten.has(i.id)));
 
-/** The cards created on this page that have stayed open since: the owner is writing their task. */
+
 export const beingWritten = new Set<string>();
 
 /** A task an agent works or worked on without a result yet: its conversation stands alone, the card only as wide as it. */

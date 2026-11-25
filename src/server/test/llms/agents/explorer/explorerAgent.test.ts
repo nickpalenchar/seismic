@@ -3,7 +3,7 @@ import { MESSAGES } from '../../../../../core/messages';
 import { FakeRuntime } from '../../../helpers/testing';
 import { type ExplorerContext, explorerAgent } from '../../../../llms/agents/explorer/explorerAgent';
 
-/** What the tools read when they are built: the board's languages. Calling them needs a running `Explorers` (`ideas.test.ts`). */
+
 const host = { o: { board: { conversation: () => 'en', language: () => 'en', t: MESSAGES.en } }, live: new Map(), answer: () => {} } as never;
 
 /** Only what the prompt and the options are read from: the tools need a running `Explorers` (`ideas.test.ts` covers them). */

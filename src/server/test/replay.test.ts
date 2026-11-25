@@ -67,15 +67,15 @@ test('a recorded session plays back with the ids and paths of the staging, its s
     { type: 'tool', name: 'mcp__seismic__report', input: { status: `Building ${NOW}` } },
     { type: 'idle' },
   ]);
-  // Seismic's own tool ran, with today's card
+  
   expect(now.calls).toEqual([{ status: `Building ${NOW}` }]);
-  // the second turn waits for its message
+  
   await Bun.sleep(50);
   expect(now.events).toHaveLength(4);
   session.send(`Comments on ${NOW}: start at two.`);
   await until(() => now.events.length === 6);
   expect(now.events.slice(4)).toEqual([{ type: 'text', text: 'Took them in.' }, { type: 'idle' }]);
-  // a message past the recording gets a turn that ends at once
+  
   session.send('Landed on main.');
   await until(() => now.events.length === 7);
   expect(now.events[6]).toEqual({ type: 'idle' });
@@ -88,7 +88,7 @@ test('changed instructions or a changed tool refuse the playback, with why', asy
   const cases: [Parameters<typeof agent>[3], RegExp][] = [
     [{ system: `You work carefully on the card ${NOW}, on the branch seismic/split-the-bill-${NOW.slice(0, 6)}.` }, /instructions of the koordinator changed .*line 1/],
     [{ schema: { status: z.string(), at: z.number() } }, /schema of the koordinator's tool report changed/],
-    // the recording no longer fits what the tool takes now
+    
     [{ refuse: true }, /report refuses now what it took in the recording: Not shown/],
   ];
   for (const [i, [o, why]] of cases.entries()) {
@@ -138,7 +138,7 @@ test('a handover plays the recorded commits into the workstation of today and it
     ],
     onEvent: (e) => events.push(e),
   });
-  // recorded: the worker commits on its branch and records a demo outside the workstation
+  
   const a = join(root, 'a');
   gitRepo(join(a, 'ws'), { 'calc.js': 'export const tip = 0.15;\n' });
   identify(join(a, 'ws'));
@@ -156,7 +156,7 @@ test('a handover plays the recorded commits into the workstation of today and it
   fake.last.emit({ type: 'idle' });
   expect(then[0]).toMatchObject({ log: 'Split the bill', video: 'the video' });
 
-  // played back: a workstation whose main is another commit of the same files, and no demo yet
+  
   const b = join(root, 'b');
   gitRepo(join(b, 'ws'), { 'calc.js': 'export const tip = 0.15;\n' });
   identify(join(b, 'ws'));
@@ -168,7 +168,7 @@ test('a handover plays the recorded commits into the workstation of today and it
   await until(() => events.some((e) => e.type === 'idle'));
   expect(now).toEqual([{ summary: 'Done.', demo: { dir: join(b, 'demos', 'split') }, log: 'Split the bill', video: 'the video' }]);
   expect(readFileSync(join(b, 'ws', 'split.js'), 'utf8')).toContain('bill / people');
-  // the demo's work files stay out of the recording
+  
   expect(existsSync(join(b, 'demos', 'split', '.work'))).toBe(false);
 });
 
@@ -188,7 +188,7 @@ test('the ids a text held then and holds now stand for each other, their starts 
   expect(swap.text(`seismic/split-the-bill-${THEN.slice(0, 6)} at /tmp/seismic-scratch-4481/home/workspaces/tipjar/${THEN.slice(0, 8)}, after 1a2b3c4d`)).toBe(
     `seismic/split-the-bill-${NOW.slice(0, 6)} at /tmp/seismic-scratch-4502/home/workspaces/tipjar/${NOW.slice(0, 8)}, after 9f8e7d6c`,
   );
-  // words are no ids, and texts that differ in more than their ids teach nothing
+  
   expect(swap.text('a decade of facade')).toBe('a decade of facade');
   swap.learn('card 0a0a0a0a and 1b1b1b1b', 'card 2c2c2c2c');
   expect(swap.text('0a0a0a0a')).toBe('0a0a0a0a');
@@ -217,11 +217,11 @@ test("a worker's commits go into the workstation at its next call; rewritten one
   recordingRuntime(fake, rec, join(a, 'home')).start(worker(a, []), 'Build it.');
   commit(join(a, 'ws'), 'one.txt', 'First step');
   await fake.last.call('report', { status: 'One step' });
-  // amended
+  
   writeFileSync(join(a, 'ws', 'one.txt'), 'First step, amended\n');
   git(join(a, 'ws'), 'commit', '-qa', '--amend', '--no-edit');
   await fake.last.call('report', { status: 'Amended' });
-  // the same files again under another commit (a rebase onto a main that did not move)
+  
   git(join(a, 'ws'), 'commit', '-q', '--amend', '--no-edit', '--date=2001-01-01T00:00:00');
   await fake.last.call('report', { status: 'Rebased' });
   fake.last.emit({ type: 'idle' });
@@ -271,7 +271,7 @@ test('a session that ended by itself ends when played back', async () => {
   const fake = new FakeRuntime();
   recordingRuntime(fake, rec, join(root, 'a', 'home')).start(agent(join(root, 'a'), THEN, heard()), 'Go.');
   fake.last.emit({ type: 'error', message: 'Claude Code exited' });
-  // the SDK's session settles without close
+  
   (fake.last as unknown as { finish: () => void }).finish();
   await until(() => readRecording(rec).sessions[0]!.entries.some((e) => e.type === 'end'));
   const now = heard();

@@ -1,5 +1,5 @@
-// What changed on shared demo pages since some of them were shared (src/core/page-changes.ts):
-// on a card's shared page (or that its repository's theme changed), and in the Koordinator's notice of outdated pages, with how many lack each.
+
+
 
 import { cn } from 'cn';
 import { type OutdatedBy, PAGE_CHANGES, THEME_CHANGED } from '../core/page-changes';
@@ -12,7 +12,7 @@ export function PageChangeList({ changes, className }: { changes: { id: Outdated
         const kinds = PAGE_CHANGES.find((c) => c.id === id)?.kinds ?? [];
         return (
           <li key={id} className="flex gap-2 items-baseline">
-            {/* a change of the repository's theme has no day of Seismic's */}
+            { }
             {id !== THEME_CHANGED && <span className="when flex-none min-w-12 text-muted-foreground tabular-nums">{shortDay(`${id.slice(0, 10)}T12:00`)}</span>}
             <span>
               {kinds.length === 1 && <b>{t.pageChanges.only[kinds[0]!]}: </b>}

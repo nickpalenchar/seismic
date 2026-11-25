@@ -1,7 +1,7 @@
-// Voice in on this machine, for real: Piper (the demos' voice) speaks a command, the speech
-// recognition hears it. Runs with `SEISMIC_LIVE_VOICE=<home>`: Piper is installed under that home if
-// it is not yet, the recognition comes through uv (the first run fetches it). The backend is
-// Parakeet unless `SEISMIC_WHISPER_BACKEND` names Whisper (`mlx`, `faster`, `whisper`).
+
+
+
+
 
 import { expect, test } from 'bun:test';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -26,16 +26,16 @@ test.skipIf(!home)(
       const prepared = performance.now();
       await ear.prepare();
       console.log(`${ear.backend} loaded in ${((performance.now() - prepared) / 1000).toFixed(1)} s`);
-      // Piper's English voice
+      
       let started = performance.now();
       await speak('Start the task Export for landlords.', 'en', join(dir, 'english.wav'));
       const english = await ear.transcribe(join(dir, 'english.wav'), 'Export for landlords');
       console.log(`heard in English: ${english.text}`);
       expect(english.text.toLowerCase()).toMatch(/start the task,? export for landlords/);
-      // a recording without a sound is not transcribed
+      
       writeFileSync(join(dir, 'silence.wav'), silentWav(1));
       expect((await ear.transcribe(join(dir, 'silence.wav'), '')).text).toBe('');
-      // the setup assistant's sentence, timed as it times it
+      
       started = performance.now();
       const check = await ear.transcribe(resource('voice', CHECK_CLIP.file), '');
       const seconds = (performance.now() - started) / 1000;

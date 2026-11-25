@@ -1,9 +1,9 @@
-// Tooltip (shadcn/ui's Tooltip, on Radix Tooltip): the short text a control shows on hover or keyboard
-// focus. One `TooltipProvider` (in `UiRoot`) gives them all the same delay, and moving from one to the
-// next shows it at once. Radix opens a tooltip on pointer movement of a mouse or pen, never of a
-// finger, and on keyboard focus, so a tap goes straight to the control. `IconButton` shows its label
-// through it. A disabled control keeps its tooltip: the pointer events Radix listens to still reach it
-// (unlike the click).
+
+
+
+
+
+
 
 import { Tooltip as TooltipPrimitive } from 'radix-ui';
 import type { ComponentProps, ReactNode } from 'react';
@@ -16,9 +16,9 @@ export const TooltipProvider = ({ children }: { children: ReactNode }) => (
 );
 
 export type TooltipProps = {
-  /** The text it shows. Anything with links or buttons in it is a popover's job, not a tooltip's. */
+  
   content: ReactNode;
-  /** The element it describes; it must take a ref and props, as a `<button>` does. */
+  
   children: ReactNode;
   side?: 'top' | 'right' | 'bottom' | 'left';
   align?: 'start' | 'center' | 'end';

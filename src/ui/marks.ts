@@ -1,14 +1,14 @@
-// Marks the owner puts on a screenshot before sending it (shots.tsx Lightbox): a frame around a
-// region (a drag) and a pin on a spot (a click), numbered together in the order set, in the image's
-// own pixels, so they stay put at any size. A pin shows its number in a circle, a frame in a square
-// badge at its corner, one shape with the frame, so a small frame does not read as a pin. The page
-// draws them as SVG over the image, `drawMarks` into the image the agent gets; both from the same
-// sizes.
+
+
+
+
+
+
 
 export type Mark = { kind: 'frame'; x: number; y: number; w: number; h: number } | { kind: 'pin'; x: number; y: number };
 export type Point = { x: number; y: number };
 
-/** A drag shorter than this, in screen pixels, is a click. */
+
 export const CLICK_PX = 5;
 
 export const RED = '#e02b1e';
@@ -18,7 +18,7 @@ export const EDGE = '#fff';
 export const markOf = (a: Point, b: Point, moved: number): Mark =>
   moved < CLICK_PX ? { kind: 'pin', x: a.x, y: a.y } : { kind: 'frame', x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(b.x - a.x), h: Math.abs(b.y - a.y) };
 
-/** The rounding of a rectangle's corners, top left, top right, bottom right, bottom left. */
+
 export type Corners = [number, number, number, number];
 
 /**
@@ -30,7 +30,7 @@ export type Corners = [number, number, number, number];
 export function badgeOf(m: Extract<Mark, { kind: 'frame' }>, s: ReturnType<typeof markSize>) {
   const side = 2 * s.radius;
   const out = s.line / 2;
-  // the rounding of the frame's outer edge
+  
   const r = s.corner + out;
   const c = s.corner;
   const above = m.y - side + out;
@@ -87,7 +87,7 @@ export function drawMarks(ctx: Ctx, marks: Mark[], w: number, h: number) {
       ctx.stroke();
       return number(i + 1, m.x, m.y);
     }
-    // the white rim around frame and badge first, then their red over it, so none runs between them
+    
     const b = badgeOf(m, s);
     const frame = () => {
       ctx.beginPath();

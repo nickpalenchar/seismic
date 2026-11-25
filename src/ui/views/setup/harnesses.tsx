@@ -1,4 +1,4 @@
-/** Connected harnesses in Configuration, with their current usage and the setup wizard. */
+
 import { useEffect, useRef, useState } from 'react';
 import { HARNESSES, type Harness, type Usage } from '../../../core/types';
 import { api } from '../../api';

@@ -1,4 +1,4 @@
-// Browser fixture: mount the real card detail against the test server's card and API.
+
 import { createRoot } from 'react-dom/client';
 import type { Item, RepoRef } from '../../core/types';
 import { setProject } from '../api';

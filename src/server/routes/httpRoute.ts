@@ -1,16 +1,16 @@
-/**
- * The base of a route of Seismic's HTTP API: one URL with the methods it answers. A route's file
- * mirrors its URL under `routes/` (`:x` → `_x`, the last segment is the file); `toBun` turns it
- * into the entry `Bun.serve` takes. What a handler returns goes out as JSON, `undefined` as a 204,
- * and a `BadRequest` or `NotFound` it throws as `{ code, error }`.
- */
+
+
+
+
+
+
 import { BadRequest } from '../board';
 import type { Config } from '../config';
 import type { OwnerSettings } from '../ownerSettings';
 import type { ProjectRuntime } from '../project';
 import { NotFound } from './notFound';
 
-/** A request with the params of its route's URL. */
+
 export type RouteRequest = Request & { params: Record<string, string> };
 
 type Handler = (request: RouteRequest) => unknown | Promise<unknown>;
@@ -19,12 +19,12 @@ type BunHandler = (request: RouteRequest) => Promise<Response>;
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 type Method = (typeof METHODS)[number];
 
-/** What the routes need of the server: the project runtime a card is on (`deleted`: also one deleted, to be restored). */
+
 export interface RouteDependencies {
   projectOfCard: (cardId: string, options?: { deleted?: boolean }) => ProjectRuntime | undefined;
-  /** The owner's system-level settings; none where Seismic runs without a configuration of its own. */
+  
   ownerSettings?: OwnerSettings;
-  /** Seismic's configuration (its projects and their repositories); none where it runs without one of its own. */
+  
   configuration?: Config;
 }
 
@@ -43,7 +43,7 @@ export async function respond(fn: () => unknown | Promise<unknown>): Promise<Res
 }
 
 export abstract class HttpRoute {
-  /** The URL as `Bun.serve` matches it (`/api/v1/cards/:cardId/share`). */
+  
   abstract readonly path: string;
   GET?: Handler;
   POST?: Handler;

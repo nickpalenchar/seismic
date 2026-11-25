@@ -1,8 +1,8 @@
-// The setup's first step in the desktop app, on this machine's first start alone: "How do you want
-// to use Seismic?". "On this machine" goes on to the setup's steps here, "Remote connection" shows
-// the remote workspaces the app knows and the form that pairs another. A remote Seismic without
-// projects does not ask: it goes on to set itself up. "Learn more" stands outside the radio's label,
-// so a click on it opens the guide without choosing.
+
+
+
+
+
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Sign } from '../../logo';
@@ -42,7 +42,7 @@ export function HowStep({ onHere }: { onHere: () => void }) {
   const [choice, setChoice] = useState<'here' | 'remote'>('here');
   const [problem, setProblem] = useState('');
   const local = onThisMachine(all);
-  // a remote Seismic's page sets that machine up without asking
+  
   useEffect(() => {
     if (all && !local) onHere();
   }, [all, local]);
@@ -125,7 +125,7 @@ export function HowStep({ onHere }: { onHere: () => void }) {
   );
 }
 
-/** The setup fills the page on the first start: the only place "Exit setup" shows. */
+
 export const FirstStart = createContext(false);
 
 /**
@@ -149,7 +149,7 @@ export function ExitSetup() {
   const exit = () => {
     setGoing(true);
     setProblem('');
-    // once it opens, the window shows that workspace and this page goes
+    
     desks.open(to.id).then(
       () => setGoing(false),
       (e) => (setGoing(false), setProblem(deskError(e, to.origin ?? ''))),

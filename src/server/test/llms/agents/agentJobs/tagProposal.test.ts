@@ -35,7 +35,7 @@ beforeEach(() => {
   });
   project = new ProjectRuntime({ repos: [{ path: repo }] }, { store, home: dir, runtime, forge: noForge, config });
   server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, config);
-  // a finished card with its demo, archived; an open one; a Question card, which is no change
+  
   const c = project.board.project.id;
   const [done] = store.addCards([
     { project_id: c, kind: 'task', state: 'live', title: 'Invoices as PDF', body: 'Customers download their invoice.', x: 0, y: 0 },
@@ -85,7 +85,7 @@ describe('a proposal for the tags of a site', () => {
     expect(brief).not.toContain('How many orders');
     expect(s.spec.system).toContain('in English');
 
-    // a dimension without values is no proposal; colons and commas would break the field's lines
+    
     expect(await s.call('tags', { tags: { Area: [] }, why: '' })).toContain('again');
     await s.call('tags', { tags: { 'Area: of the app': ['Cart', 'Invoices, PDF', ' '], Audience: ['Customers'] }, why: 'The cards change the cart and the invoices.' });
     await until(async () => !(await call('GET', at(repo))).body.job?.running);
@@ -95,7 +95,7 @@ describe('a proposal for the tags of a site', () => {
       why: 'The cards change the cart and the invoices.',
     });
 
-    // taken into the field, it goes
+    
     await call('DELETE', at(repo));
     expect((await call('GET', at(repo))).body.job).toBeNull();
   });

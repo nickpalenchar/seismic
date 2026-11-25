@@ -1,9 +1,9 @@
-// The frost look's one piece of behaviour (its rules are tailwind.css's: the `moving` variant and the pane's blur): while the canvas moves (a pan, a zoom, a camera
-// flight), `moving` on the page's root takes the blur from behind the cards, which would otherwise
-// re-sample the board under every card on every frame. It watches the world's transform rather than
-// hooking into the camera, so the canvas code stays as it is.
 
-/** How long the world must have stood still before the blur comes back. */
+
+
+
+
+
 export const SETTLE_MS = 160;
 
 /** Sets `moving` on `root` while `world`'s style changes, until it has stood still for `settle` ms. */

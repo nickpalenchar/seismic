@@ -1,6 +1,6 @@
-// What a card changed in a folder without git: the line in place of its branch, the list above its
-// conversation where no files show beside it, and "Discard changes", with a moment to take
-// that back before it happens.
+
+
+
 
 import { useEffect, useState } from 'react';
 import { type CardDiff, diffSize, shownChanges } from '../core/diff';
@@ -16,9 +16,9 @@ import { t } from './strings';
 import { X } from 'lucide-react';
 import { Button, LinkButton } from './components/button';
 
-/** How often an open card at work reads its change list again: its agent changes the folder as it goes. */
+
 const LOOK_MS = 5000;
-/** How long "Discard changes" waits for a second click that calls it off before it goes ahead: putting the files back cannot be taken back. */
+
 const DISCARD_WAIT_S = 8;
 
 /** The card's change list in its folder, read again as the card moves on, while its agent works, and on `reload`. */
@@ -131,7 +131,7 @@ export function DiscardChanges({ diff, act, onDone }: { diff: CardDiff | null; a
     return () => clearTimeout(h);
   }, [left]);
   if (!undoable && left === null) return null;
-  // the button stays itself while it counts down: a second click on it, or its ×, calls it off
+  
   const counting = left !== null;
   return (
     <>

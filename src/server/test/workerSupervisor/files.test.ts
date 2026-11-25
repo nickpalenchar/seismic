@@ -32,14 +32,14 @@ describe('the files a card names as its result', () => {
     const refused = await runtime.last.call('ready_for_review', { summary: 'Fertig.', demo: artifact(), files: [{ path: 'notes.md', caption: 'Notizen' }] });
     expect(refused).toContain('Not handed over: notes.md is not among the files your card made or changed');
     expect(board.item(c.id)!.state).toBe('working');
-    // an absolute path in the workstation counts as the path in the repository
+    
     const done = await runtime.last.call('ready_for_review', { summary: 'Fertig.', demo: artifact(), files: [{ path: join(ws, 'docs', 'report.md'), caption: 'Der  Bericht\n' }] });
     expect(done).toContain('Recorded');
     expect(board.item(c.id)!.demo?.files).toEqual([{ path: 'docs/report.md', caption: 'Der Bericht' }]);
     workers.message(c.id, 'Noch die Einleitung kürzen.');
     expect(await runtime.last.call('ready_for_review', { summary: 'Gekürzt.' })).toContain('Recorded');
     expect(board.item(c.id)!.demo?.files).toEqual([{ path: 'docs/report.md', caption: 'Der Bericht' }]);
-    // an empty list takes them back
+    
     workers.message(c.id, 'Doch kein Bericht.');
     expect(await runtime.last.call('ready_for_review', { summary: 'Gut.', files: [] })).toContain('Recorded');
     expect(board.item(c.id)!.demo?.files).toBeUndefined();
@@ -50,17 +50,17 @@ describe('the files a card names as its result', () => {
     const ws = realpathSync(board.row(c.id).workstation!);
     expect(await workers.file(c.id, 'docs/report.md')).toEqual({ path: join(ws, 'docs', 'report.md') });
     expect(await workers.file(c.id, './README.md')).toEqual({ path: join(ws, 'README.md') });
-    // unchanged, but the report shows it
+    
     expect(await workers.file(c.id, 'docs/chart.png')).toEqual({ path: join(ws, 'docs', 'chart.png') });
     expect(await workers.file(c.id, 'notes.md')).toBeNull();
     expect(await workers.file(c.id, '.git/config')).toBeNull();
     expect(await workers.file(c.id, '../main/notes.md')).toBeNull();
-    // a link the card made stands for no other file of the workstation
+    
     symlinkSync('../notes.md', join(ws, 'docs', 'link.md'));
     expect((await workers.diff(c.id, false))!.files.map((f) => f.file)).toContain('docs/link.md');
     expect(await workers.file(c.id, 'docs/link.md')).toBeNull();
-    // a name that reads as another in a diff's header passes for none
-    // (`diff --git a/x b/notes.md b/x b/notes.md`, with no `+++` line for a binary file)
+    
+    
     mkdirSync(join(ws, 'x b'));
     writeFileSync(join(ws, 'x b', 'notes.md'), new Uint8Array([0, 1, 2]));
     expect(await workers.file(c.id, 'notes.md')).toBeNull();
@@ -72,7 +72,7 @@ describe('the files a card names as its result', () => {
     const at = await spaces.fileOf('gone', 'docs/chart.png', 'main');
     expect(at && 'data' in at && new TextDecoder().decode(at.data)).toBe('png');
     expect(await spaces.fileOf('gone', 'docs/none.png', 'main')).toBeNull();
-    // to open it, the checkout's copy
+    
     expect(await spaces.fileOf('gone', 'docs/chart.png', 'main', true)).toMatchObject({ path: expect.stringMatching(/docs\/chart\.png$/) });
   });
 
@@ -106,9 +106,9 @@ describe('a page the worker names from its demo directory', () => {
     const { c, ws } = await reportCard();
     const demo = artifact();
     writeFileSync(join(demo.dir, 'schema-change.html'), '<p>schema</p>');
-    // only an existing file in the demo's directory, by its absolute path
+    
     expect(await runtime.last.call('ready_for_review', { summary: 'S', demo, files: [{ path: join(demo.dir, 'none.html'), caption: 'x' }] })).toContain("is no file in your demo's directory");
-    // one with the name of a file of the change would be mistaken for it
+    
     writeFileSync(join(demo.dir, 'README.md'), 'not the readme');
     expect(await runtime.last.call('ready_for_review', { summary: 'S', demo, files: [{ path: join(demo.dir, 'README.md'), caption: 'x' }] })).toContain('has the path of a file of your change');
     const done = await runtime.last.call('ready_for_review', {
@@ -125,9 +125,9 @@ describe('a page the worker names from its demo directory', () => {
       { path: 'docs/report.md', caption: 'Bericht' },
     ]);
     expect(await workers.file(c.id, 'schema-change.html')).toEqual({ path: join(realpathSync(demo.dir), 'schema-change.html') });
-    // the demo's other files are not results
+    
     expect(await workers.file(c.id, 'index.html')).toBeNull();
-    // a later handover without a demo names one of the demo on the card
+    
     workers.message(c.id, 'Noch einmal.');
     expect(await runtime.last.call('ready_for_review', { summary: 'S', files: [{ path: join(demo.dir, 'schema-change.html'), caption: 'Schema' }] })).toContain('Recorded');
     expect(board.item(c.id)!.demo?.files).toEqual([{ path: 'schema-change.html', caption: 'Schema', dir: demo.dir }]);

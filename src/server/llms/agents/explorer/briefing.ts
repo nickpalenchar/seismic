@@ -1,17 +1,17 @@
-/**
- * What the exploration agent is told when its session starts from scratch: the card, the decisions,
- * and for an idea discussed before (its session gone) where it stands.
- */
+
+
+
+
 import type { CardEvent, Item } from '../../../../core/types';
 import { clip } from '../../../../core/text';
 import { decisionLog } from '../../../advisor';
 import type { ExplorerHost } from './tools';
 import { MAX_VARIANTS } from './tools';
 
-/** What the briefing reads of the `Explorers` that runs the idea. */
+
 export type BriefingHost = Pick<ExplorerHost, 'o'>;
 
-/** How many messages of the conversation so far a session from scratch reads. */
+
 const EARLIER_MESSAGES = 20;
 
 /** A prototype's state, as a session from scratch hears it. */
@@ -47,7 +47,7 @@ export function explorerBriefing(self: BriefingHost, card: Item, shots: string[]
 function standing(self: BriefingHost, card: Item, said: number[]): string {
   const { brief, mocks = [], variants = [], split } = self.o.board.idea(card.id);
   const repo = card.idea?.newRepo;
-  // in the order the agent read them: words it read later stand after the reply it read them at
+  
   const place = (e: CardEvent) => (e.readAfter ? e.readAfter + 0.5 : e.id);
   const talk = self.o.board
     .talkOf(card.id, EARLIER_MESSAGES + said.length)

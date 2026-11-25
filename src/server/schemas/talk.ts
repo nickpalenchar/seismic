@@ -9,18 +9,18 @@ import { chats } from './chats';
 import { changes, type Db, now } from './common';
 import { projects } from './projects';
 
-/** Words the usage limit keeps the Koordinator from reading (`talk.held`): until when, and how it reads them then (`Commander`'s). */
+
 export interface HeldTalk {
   until: string;
   reading: unknown;
 }
 
-/** A card the Koordinator waits on (`talk.waits`), and the step it said it takes once the card gets there. */
+
 export interface TalkWaitRow extends TalkWait {
   then: string;
 }
 
-/** What the owner said to the Koordinator and what it answered: its memory across sessions. */
+
 export const talk = sqliteTable(
   'talk',
   {
@@ -65,7 +65,7 @@ export const talk = sqliteTable(
 
 type TalkRecord = typeof talk.$inferSelect;
 
-/** The next place in the order words came from the Koordinator, over all exchanges: set when a reply or answer is written. */
+
 const nextArrival = sql`(SELECT COALESCE(MAX(t.arrived), 0) + 1 FROM talk t)`;
 
 const toTalk = (r: TalkRecord): TalkView => ({
@@ -75,7 +75,7 @@ const toTalk = (r: TalkRecord): TalkView => ({
   ...(r.requestId ? { requestId: r.requestId } : {}),
   ...(r.replyAgent ? { replyAgent: r.replyAgent } : {}),
   ...(r.answerAgent ? { answerAgent: r.answerAgent } : {}),
-  // empty while the Koordinator reads the words
+  
   ...(r.reply ? { reply: r.reply } : {}),
   ...(r.cardId ? { cardId: r.cardId } : {}),
   ...(r.undone ? { undone: true } : {}),
@@ -84,7 +84,7 @@ const toTalk = (r: TalkRecord): TalkView => ({
   ...(r.answerBy ? { answerBy: r.answerBy } : {}),
   ...(r.unread ? { unread: true as const } : {}),
   ...(r.images ? { images: r.images } : {}),
-  // a looked-up question is a thread of its own until it follows up on one
+  
   ...(r.question ? { thread: r.thread ?? r.id } : {}),
   ...(r.follows ? { follows: r.follows } : {}),
   ...(r.files ? { files: r.files } : {}),
@@ -102,7 +102,7 @@ const toTalk = (r: TalkRecord): TalkView => ({
   ...(r.made ? { made: r.made } : {}),
 });
 
-/** The exchange a thread's exchange belongs to: the one that started its thread. */
+
 const root = alias(talk, 'r');
 
 /** The Koordinator's memory's queries (`Store.talk`). */

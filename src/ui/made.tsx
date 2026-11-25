@@ -1,6 +1,6 @@
-// A card made from a conversation, set apart from what is said: an action with the card's live
-// cover, in a card's conversation (a proposal, a follow-up) and in Seismic's chat (a task or idea it
-// created). One component, so both look and open the card the same way.
+
+
+
 
 import { SquarePlus } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
@@ -13,7 +13,7 @@ import { plain } from './markdown';
 import { Msg } from './message';
 import { t } from './strings';
 
-/** The card made: its id, its title then, and the project it went onto when that is another. */
+
 export interface MadeRef {
   card: string;
   title: string;
@@ -39,8 +39,8 @@ export function MadeCover({ made, who, what, at, ev, fresh, items, open, watch }
   watch?: string;
 }) {
   const [elsewhere, setElsewhere] = useState<Item | null>();
-  // A card on another project can change there (a proposal accepted or withdrawn). Read it again
-  // when the watched card's conversation changes, and when returning from another tab.
+  
+  
   useEffect(() => {
     if (!made.project) return;
     let active = true;

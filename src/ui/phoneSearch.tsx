@@ -1,6 +1,6 @@
-// The phone's search over the cards of the project in view: a full-screen page with its field at
-// the top, the matching cards as faces below it, and an X that closes it. The same matching as the
-// desktop's finder (`finderResults`: titles and short codes), without its popover.
+
+
+
 
 import { Search, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -12,7 +12,7 @@ import { Command, CommandInput, CommandItem, CommandList } from './components/co
 import { barClass, viewClass } from './phoneEnvironment';
 import { t } from './strings';
 
-/** How many matches the page lists before "Load more", and how many more each tap brings. */
+
 const PAGE = 20;
 
 export function PhoneSearch({ items, query, onQuery, onOpen, onClose }: { items: Item[]; query: string; onQuery: (q: string) => void; onOpen: (i: Item) => void; onClose: () => void }) {

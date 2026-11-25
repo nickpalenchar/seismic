@@ -1,13 +1,13 @@
-// The message a field's words reply to, as in chat apps: the field under a card's conversation or
-// in Seismic's sheet shows it as a quote, and what the owner types or says next goes with it. It is
-// part of the field's draft (`draft.ts`), so it outlives closing the card and a page load.
+
+
+
 
 import type { CardEvent, TalkQuote, TalkRef } from '../core/types';
 import { draftOf, updateDraft, useDraft } from './draft';
 import { plain } from './markdown';
 import { parseQuestion } from './talk';
 
-/** A message as a quote shows it: who said it, what it was, its text, and where it stands in the conversation (`data-ev`). */
+
 export interface Quoted {
   by: CardEvent['author'];
   what?: 'question' | 'handover';
@@ -15,13 +15,13 @@ export interface Quoted {
   ev: string;
 }
 
-/** A reply: the message it goes to, as the server knows it (a card's event, or a message of the sheet), and its quote. */
+
 export interface Reply {
   to: number | TalkRef;
   quote: Quoted;
 }
 
-/** As much of a message as a quote keeps: it shows a few lines. */
+
 const KEPT = 400;
 const clean = (md: string) => plain(md).replace(/\s+/g, ' ').trim().slice(0, KEPT);
 

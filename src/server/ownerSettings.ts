@@ -1,10 +1,10 @@
-/**
- * The owner's system-level settings by name (`OWNER_SETTINGS`), each read and saved on its own
- * through the functions of `settings.ts` (the demo settings through `Config`), for the routes
- * under `/api/v1/settings`. What a save sets
- * going besides the file (the usage meters, the pages that follow "Ask for feedback") comes in from
- * the server.
- */
+
+
+
+
+
+
+
 import { type DemoSettingsView, OWNER_SETTINGS, type OwnerSetting, type OwnerSettingViews, type UsageMeterView } from '../core/types';
 import { BadRequest } from './board';
 import { NotFound } from './routes/notFound';
@@ -31,13 +31,13 @@ import {
 type Entry<N extends OwnerSetting> = { view: () => OwnerSettingViews[N]; save: (input: unknown) => OwnerSettingViews[N] };
 
 export interface OwnerSettingsOptions {
-  /** Seismic's home, which holds `settings.json`. */
+  
   home: string;
-  /** The demo settings (`Config.demo`, `Config.saveDemo`): with the voice's check and the space demos take. */
+  
   demo: { view: () => DemoSettingsView; save: (input: unknown) => DemoSettingsView };
-  /** The usage meter turned on or off: the bar's meters fetch the limits from then on, or stop. */
+  
   onUsageMeter?: (view: UsageMeterView) => void;
-  /** "Ask for feedback" changed: every project's cards follow at once. */
+  
   onFeedbackPrompt?: () => void;
 }
 

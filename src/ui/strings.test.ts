@@ -38,7 +38,7 @@ test('a card whose agent answered the owner without a new demo says so instead o
   expect(stateLabel({ state: 'waiting', need: 'demo', demo: { earlier: [{}, {}, {}] } })).toBe('4th demo ready');
   expect(stateLabel({ state: 'waiting', need: 'demo', demo: { earlier: [{ asked: true }] } })).toBe('Demo ready');
   expect(stateLabel({ state: 'waiting', need: 'demo', review: { answered: true } })).toBe('Agent answered, waiting for you');
-  // approved work main's checkout kept from landing
+  
   expect(stateLabel({ state: 'waiting', need: 'demo', review: { blocked: { files: ['a.ts'] } } })).toBe('Not landed (file conflict)');
   expect(stateLabel({ state: 'waiting', need: 'demo', review: { blocked: { files: ['a.ts'] } } }, true)).toBe('Not landed');
   expect(stateLabel({ state: 'waiting', need: 'review', review: { answered: true } })).toBe('Agent answered, waiting for you');

@@ -1,17 +1,17 @@
-// Shared schema input, comparison and diagram layout. No browser or runtime dependencies.
+
 export interface Field {
   name: string;
   type?: string;
-  /** Embedded document properties (also used for array item properties). */
+  
   fields?: Field[];
   optional?: boolean;
-  /** Its name before the change, for a renamed field. */
+  
   was?: string;
   pk?: boolean;
   unique?: boolean;
   nullable?: boolean;
   default?: string | number | boolean | null;
-  /** The entity it refers to, `entity` or `entity.field`. */
+  
   ref?: string;
 }
 
@@ -24,10 +24,10 @@ export interface Index {
 export type EntityKind = 'table' | 'columnar' | 'document';
 
 export interface Entity {
-  /** Omitted for existing SQL/table inputs. */
+  
   kind?: EntityKind;
   name: string;
-  /** Its name before the change, for a renamed entity. */
+  
   was?: string;
   fields: Field[];
   indexes?: Index[];
@@ -47,14 +47,14 @@ export interface SchemaChange {
 export type Status = 'added' | 'changed' | 'removed' | 'same';
 
 export interface FieldDiff {
-  /** Full property path before the change, including renamed parents. */
+  
   beforeName?: string;
   name: string;
   was?: string;
   status: Status;
   field: Field;
   before?: Field;
-  /** What changed, one phrase each ("type TEXT → INTEGER"). */
+  
   changes: string[];
 }
 
@@ -136,7 +136,7 @@ export function diffModels(before: Models, after: Models): EntityDiff[] {
     for (const i of ia.values()) indexes.push({ name: i.name, status: 'removed', index: i });
     const e = (b ?? a)!;
     const status: Status = !a ? 'added' : !b ? 'removed' : a.name !== b.name || (a.kind ?? 'table') !== (b.kind ?? 'table') || fields.some((f) => f.status !== 'same') || indexes.some((i) => i.status !== 'same') ? 'changed' : 'same';
-    // a new or dropped entity's fields and indexes come and go with it
+    
     const all = (s: Status) => (x: { status: Status }) => ({ ...x, status: s });
     return {
       name: e.name,
@@ -292,7 +292,7 @@ export function relations(shown: EntityDiff[]): Relation[] {
       if (to) out.push({ from: [e.name, f.name], to, status });
     };
     if (oldTarget && newTarget && oldTarget[0] === newTarget[0] && oldTarget[1] === newTarget[1]) {
-      // Unchanged self references add no context to the change.
+      
       if (newTarget[0] !== e.name || f.status !== 'same') emit(newTarget, 'same');
     } else {
       emit(oldTarget, 'removed');

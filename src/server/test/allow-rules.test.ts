@@ -75,11 +75,11 @@ test('a chain is covered where every part of it is', () => {
   expect(allowed(more, zshq(`${browser} start && ${browser} open 'http://127.0.0.1:4484/login?token=abc&next=%2F'`))).toBe(true);
   expect(allowed(more, zsh(`${browser} start; bun run typecheck\nbun install`))).toBe(true);
   expect(allowed(more, zshq(`${browser} eval "({pressed:document.querySelector('.x')?.getAttribute('aria-pressed')})"`))).toBe(true);
-  // the very command Codex asked about: five calls in one script, quotes and parentheses inside its quotes
+  
   expect(allowed(more, zshq(`${browser} start && ${browser} open 'http://127.0.0.1:4484/login?token=a&next=%2F%3Fc%3Ddemo' && ${browser} eval "({mode:document.querySelector('video')?.textTracks[0]?.mode})"`))).toBe(true);
-  // an escaped dollar in the outer quotes is the script's own expansion
+  
   expect(allowed(more, zshq(`${browser} eval "$HOME"`))).toBe(false);
-  // one part no rule covers, or any other way of joining them
+  
   expect(allowed(more, zsh(`${browser} start && git push`))).toBe(false);
   expect(allowed(more, zsh(`${browser} start || bun install`))).toBe(false);
   expect(allowed(more, zsh(`${browser} start | tee x`))).toBe(false);
@@ -94,7 +94,7 @@ test('variables in front of a command and output to a temporary file do not hide
   expect(allowed(rules, zsh('TMPDIR=/private/tmp/seismic-x bun test --parallel > /private/tmp/seismic-x.log 2>&1'))).toBe(true);
   expect(allowed(rules, zsh('bun test a >> /tmp/seismic-x.log'))).toBe(true);
   expect(plainCommands(zsh('FOO=1 BAR=2 bun test a > /tmp/x.log 2>&1'))).toEqual(['bun test a']);
-  // a variable that changes what a program is, a redirect to anywhere else, input, descriptors other than 1 and 2
+  
   for (const script of [
     'PATH=/tmp/evil bun test a',
     'NODE_OPTIONS=--require=/tmp/x bun test a',
@@ -111,7 +111,7 @@ test('variables in front of a command and output to a temporary file do not hide
     'bun test a > $HOME/x',
     'bun test "a > /etc/x" > /etc/y',
   ]) expect([script, allowed(rules, zsh(script))]).toEqual([script, false]);
-  // `>` between quotes is an argument, not a redirect
+  
   expect(allowed(rules, zsh('bun test "a > b"'))).toBe(true);
 });
 
@@ -127,7 +127,7 @@ test('a rule and a command name the home directory by ~/ or in full alike; a ~ e
   expect(allowed(nvm, zsh(`source ${home}/.nvm/nvm.sh && pnpm install --frozen-lockfile`))).toBe(true);
   expect(allowed([`source ${home}/.nvm/nvm.sh`, 'pnpm install *'], zsh('source ~/.nvm/nvm.sh && pnpm install x'))).toBe(true);
   for (const script of ['bun test ~root/x', 'bun test a~/b', 'bun test ~']) expect([script, allowed(rules, zsh(script))]).toEqual([script, false]);
-  // between quotes the shell keeps ~ as it is
+  
   expect(plainCommands(zsh('bun test "~/x"'))).toEqual(['bun test ~/x']);
 });
 
@@ -148,11 +148,11 @@ test('sourcing a file the agent cannot change and nvm use need no rule in front 
     expect(ok(`. ${dir}/env.sh && nvm use --silent lts/iron && pnpm -C x test`)).toBe(true);
     expect(ok('nvm use && pnpm -C x test')).toBe(true);
     expect(ok('nvm use --lts && pnpm -C x test')).toBe(true);
-    // a file the agent writes (its workstation, the demos, a temporary directory), relative, or through a link into one
+    
     symlinkSync(join(workstation, 'evil.sh'), join(dir, 'link.sh'));
     for (const file of [`${workstation}/env.sh`, `${demos}/env.sh`, `${temp}/env.sh`, `${dir}/missing.sh`, 'env.sh', './env.sh', `${dir}/link.sh`, `${workstation}/../env.sh`])
       expect([file, ok(`source ${file} && pnpm -C x test`)]).toEqual([file, false]);
-    // only in front, only with a covered command after it, nothing but setup
+    
     for (const script of [
       `source ${nvm}`,
       `source ${nvm} && nvm use 24`,
@@ -166,7 +166,7 @@ test('sourcing a file the agent cannot change and nvm use need no rule in front 
       `NVM_DIR=${workstation} source ${nvm} && pnpm -C x test`,
       `source ${nvm} && NVM_DIR=${workstation} nvm use 24 && pnpm -C x test`,
     ]) expect([script, ok(script)]).toEqual([script, false]);
-    // where it is not known what the agent writes, a source rides on no rule
+    
     expect(allowed(pnpm, zsh(`source ${nvm} && pnpm -C x test`))).toBe(false);
     expect(allowed(pnpm, zsh('nvm use 24 && pnpm -C x test'))).toBe(true);
   } finally {

@@ -1,6 +1,6 @@
-// The PATH the programs Seismic checks and starts are looked up on: what a process started from the
-// desktop may lack, and on Windows what an installer added since Seismic started (an installation
-// Seismic ran, or one the owner ran by hand), which only a new process would get from the registry.
+
+
+
 
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -37,7 +37,7 @@ async function windowsPath(env: Env) {
   if (out) addToPath(env, out.trim().split(';'));
 }
 
-/** The reading of the registry under way, which a check that starts meanwhile waits for too. */
+
 const reading = new WeakMap<Env, Promise<void>>();
 
 /** On Windows, the PATH as the registry has it now: before every check, so what was installed meanwhile, by Seismic or by hand, is found. */

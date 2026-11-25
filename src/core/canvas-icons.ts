@@ -1,10 +1,10 @@
-/**
- * The icons a canvas or a project may carry (`Canvas.icon`, `ProjectConfig.icon`): one emoji, or
- * `lucide:<name>` for one of a curated set of Lucide icons (kebab-case names as in lucide-react's icon
- * files), optionally in a colour of the palette: `lucide:<name>:<colour>` (`lucide:rocket:blue`). Without a colour it is drawn in the
- * text's colour. The picker shows them in this order: software and tech, projects and planning,
- * buildings, business, people and sports first, then the others by name.
- */
+
+
+
+
+
+
+
 export const CANVAS_LUCIDE_ICONS = [
   'code', 'terminal', 'square-terminal', 'file-code', 'git-branch', 'git-fork', 'git-merge',
   'git-pull-request', 'folder-git', 'bug', 'bot', 'cpu', 'database', 'server', 'hard-drive', 'container',
@@ -40,7 +40,7 @@ export const CANVAS_LUCIDE_ICONS = [
   'utensils', 'video', 'wand-sparkles', 'watch', 'waves', 'wind', 'wine',
 ] as const;
 
-/** The colours a Lucide icon may be drawn in, each legible on the light and the dark theme. */
+
 export const CANVAS_ICON_COLORS = {
   red: '#e5484d', orange: '#f76b15', amber: '#e2a100', green: '#30a46c', teal: '#12a594',
   blue: '#0090ff', indigo: '#3e63dd', purple: '#8e4ec6', pink: '#d6409f', gray: '#8b8d98',
@@ -64,9 +64,9 @@ export const lucideIconValue = (name: string, color?: CanvasIconColor | null) =>
 /** Whether `icon` is one a canvas may carry: a single emoji, or `lucide:` and a name of the curated set, with a colour of the palette or none. */
 export function isCanvasIcon(icon: string): boolean {
   if (icon.startsWith('lucide:')) return !!lucideIcon(icon);
-  if (/^[#*0-9]\uFE0F?\u20E3$/u.test(icon)) return true; // a keycap
+  if (/^[#*0-9]\uFE0F?\u20E3$/u.test(icon)) return true; 
   const graphemes = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(icon)];
-  // one grapheme that is a pictograph (with its modifiers and joiners) or a flag (two regional indicators)
+  
   return graphemes.length === 1 && (/\p{Extended_Pictographic}/u.test(icon) || /^\p{Regional_Indicator}{2}$/u.test(icon)) && !/[\p{L}\p{N}\s]/u.test(icon.replace(/[⃣️\p{Extended_Pictographic}]/gu, ''));
 }
 

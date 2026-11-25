@@ -1,20 +1,20 @@
-// The skills of a card's agent, for the menu that `/` opens in the field under its conversation:
-// typed at the start of a word, it lists the skills whose names fit what follows, and the one picked
-// stands in the text as `/name `, which the agent reads as the owner asking for it. Each card's list
-// is asked of the server when its field shows, and again after a while.
+
+
+
+
 
 import { useEffect, useSyncExternalStore } from 'react';
 import type { Skill } from '../core/types';
 import { api } from './api';
 import { know, known } from './known';
 
-/** Set once the owner has used the menu (moved through it with the arrow keys, or picked a skill): its hint under the field goes. */
+
 export const SKILLS_KNOWN = 'seismic-skills-known';
 
-/** How long a card's list serves before it is asked again. */
+
 const FRESH_MS = 60_000;
 
-/** The card's list as asked, undefined until it came. */
+
 const lists = new Map<string, { skills?: Skill[]; at: number }>();
 const listeners = new Set<() => void>();
 const changed = () => listeners.forEach((l) => l());
@@ -30,7 +30,7 @@ function ask(cardId: string) {
   api
     .skills(cardId)
     .then((skills) => lists.set(cardId, { skills, at: Date.now() }))
-    // none to offer, as if the agent knew none; asked again next time
+    
     .catch(() => lists.set(cardId, { skills: kept?.skills ?? [], at: 0 }))
     .finally(changed);
 }
@@ -49,7 +49,7 @@ export function useSkills(cardId: string | undefined, fresh?: unknown): Skill[] 
 export const usedSkills = () => know(SKILLS_KNOWN);
 export const knowsSkills = () => known(SKILLS_KNOWN);
 
-/** A `/` word the cursor stands at the end of: where it starts in the text, and what follows the slash. */
+
 export interface Slash {
   start: number;
   query: string;

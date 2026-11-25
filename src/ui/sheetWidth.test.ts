@@ -11,7 +11,7 @@ test('a sheet is as wide as dragged, but leaves the canvas room and keeps its mi
   expect(clampWidth(2400, 2560, 'sheet')).toBe(2560 - 240);
   expect(clampWidth(100, 2560, 'sheet')).toBe(320);
   expect(clampWidth(100, 2560, 'read')).toBe(380);
-  // a window too narrow for both: the sheet keeps its minimum
+  
   expect(clampWidth(500, 500, 'sheet')).toBe(320);
 });
 
@@ -19,7 +19,7 @@ test('without a choice the sheets have their own width and reading follows the w
   const s = store();
   expect(loadWidths(s)).toEqual({ sheet: SHEET_W, read: null });
   expect(widthsIn(loadWidths(s), 1440)).toEqual({ sheet: SHEET_W, read: readingDefault(1440) });
-  // reading widens the sheet, also one dragged wider than reading would be
+  
   expect(widthsIn({ sheet: 1000, read: null }, 2560)).toEqual({ sheet: 1000, read: 1000 });
 });
 

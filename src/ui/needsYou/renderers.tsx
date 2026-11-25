@@ -1,8 +1,8 @@
-// How each kind of wait shows as an entry in the inbox, the "Needs you" sheet and the phone's list:
-// one renderer per kind (`NeedsYouKind`), so a new kind does not compile until it has one. The card
-// kinds share the card's entry, its face at size S with what it waits for under its state and its
-// one-click replies (src/ui/quickReply.ts); a proposed rule and a setting proposal show their rows
-// of the Koordinator's sheet; the Koordinator's answer shows in the same lines as a card's entry.
+
+
+
+
+
 
 import { cn } from 'cn';
 import type { MouseEvent, ReactNode } from 'react';
@@ -23,21 +23,21 @@ import { proposalsClass } from '../prefsClasses';
 /** When it began: the time today, else the day. */
 export const when = (iso: string | number) => (new Date(iso).toDateString() === new Date().toDateString() ? clock(iso) : shortDay(iso));
 
-/** What an entry is rendered with, besides the entry itself. */
+
 export interface EntryProps {
   unread: boolean;
-  /** Its card is the one open now, or flying open: the entry is ringed. */
+  
   here: boolean;
-  /** The project shown now. */
+  
   current?: string;
-  /** A card's face subtle (the inbox) or regular ("Needs you"). */
+  
   subtle: boolean;
   onGo: (e: InboxEntry) => void;
   onReply: (project: string, i: Item, r: QuickReply) => void;
   onRead: (e: InboxEntry) => void;
   onProposalCard?: (project: string, i: Item) => void;
   onProposalConfig?: (project: string, repo: string, field: string) => void;
-  /** Where a card opened from its entry unfolds from and folds back to. */
+  
   els?: Map<string, HTMLElement>;
 }
 
@@ -113,13 +113,13 @@ function CardEntry({ e, unread, here, current, onGo, onReply, onRead, els, subtl
 function ProposalEntry({ e, unread, onRead, children }: { e: InboxEntry; unread: boolean; onRead: (e: InboxEntry) => void; children: ReactNode }) {
   return (
     <li className={cn(entryClass, proposalEntryClass, unread ? 'unread' : 'read')} onClick={(ev) => readOnButton(ev, () => onRead(e))}>
-      {/* the unread dot at the end of the project's line */}
+      { }
       <div className="where flex items-center gap-1 text-xs text-muted-foreground [&_svg]:flex-none [&_.unread-dot]:m-0 [&_.unread-dot]:ml-auto">
         <GitBranch size={12} aria-hidden />
         <span className="project font-semibold min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{e.projectName}</span>
         {unread && <UnreadDot />}
       </div>
-      {/* the rows stand in the entry's own tint, without a pane of their own */}
+      { }
       <ul className={cn(proposalsClass, 'mt-1 [&>li]:bg-transparent [&>li]:pt-2 [&>li]:px-0 [&>li]:pb-0 [&>li]:m-0')}>{children}</ul>
     </li>
   );
@@ -171,7 +171,7 @@ const answer: Renderer = (e, { unread, onGo, onRead }) => (
   </li>
 );
 
-/** Each kind's renderer: the card kinds share the card's entry. */
+
 export const renderers: Record<NeedsYouKind, Renderer> = {
   question: card,
   stuck: card,

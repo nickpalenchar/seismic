@@ -1,5 +1,5 @@
-// A card's demo: the directory the `demo` skill rendered into, or an HTML artifact the worker
-// made instead, read and served by Seismic.
+
+
 
 import { closeSync, existsSync, fstatSync, openSync, readdirSync, readFileSync, readSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -12,11 +12,11 @@ import { esc } from './demo-page';
 import type { FileAt } from './workstations';
 import { resource } from './resources';
 
-/**
- * The plugin Seismic loads into its workers' sessions: it brings the demo skill (`seismic:demo`), the
- * pipeline that records a demo. A Claude Code session without Seismic reaches the same skill through
- * the plugin or a user skill that points to `plugin/skills/demo`.
- */
+
+
+
+
+
 export const SEISMIC_PLUGIN = resource('plugin');
 const MANIFEST = join('.claude-plugin', 'plugin.json');
 
@@ -30,14 +30,14 @@ function manifestName(dir: string): string | undefined {
   }
 }
 
-/**
- * The namespace required by setup cards and worker briefs. A damaged or stale plugin does not
- * change those skill names or keep Seismic from starting: `checkPlugin` names the fault at start.
- */
+
+
+
+
 export const PLUGIN_NAME = 'seismic';
 export const DEMO_SKILL = `${PLUGIN_NAME}:demo`;
 
-/** The demo skill's instructions, for a session that does not know the skill to read. */
+
 export const DEMO_SKILL_FILE = join(SEISMIC_PLUGIN, 'skills', 'demo', 'SKILL.md');
 
 /** What is wrong with the plugin workers load, for the log at start; null when nothing is. */
@@ -70,10 +70,10 @@ export function demoSkillName(skills = join(process.env.CLAUDE_CONFIG_DIR ?? joi
   return readdirSync(skills).find((name) => realpath(join(skills, name, 'SKILL.md')) === own) ?? DEMO_SKILL;
 }
 
-/** The files of a video demo the UI loads; nothing else in the directory is served. */
+
 export const DEMO_FILES = ['demo.mp4', 'poster.jpg', 'captions.vtt'] as const;
 
-/** The page of an HTML artifact; the files beside it (images, styles) are served too. */
+
 export const ARTIFACT_PAGE = 'index.html';
 
 /** What is wrong with an HTML artifact's directory, for the worker to fix; null when nothing is. */
@@ -81,7 +81,7 @@ export function checkArtifact(dir: string): string | null {
   return existsSync(join(dir, ARTIFACT_PAGE)) ? null : `${ARTIFACT_PAGE} is missing in ${dir}`;
 }
 
-/** The skill starts narration this long after its scene; a chapter starts at the scene. */
+
 const NARRATION_LEAD = 0.35;
 
 /**
@@ -139,7 +139,7 @@ export function placeIn(dir: string, chapters: [number, string][], at: number): 
   return { ...(chapter ? { chapter } : {}), ...(narration ? { narration } : {}) };
 }
 
-/** The most of a demo file one byte-range answer carries: a minute and more of a demo video. */
+
 const RANGE_BYTES = 8 << 20;
 
 /** Serves one demo file: a video's with byte ranges so the player can seek, any file of an HTML artifact's directory. */
@@ -151,12 +151,12 @@ export function serveDemoFile(demo: { dir: string; kind: DemoKind }, name: strin
   if (!path) return notFound();
   const type = name.endsWith('.mp4') ? 'video/mp4' : name.endsWith('.jpg') ? 'image/jpeg' : 'text/vtt; charset=utf-8';
   const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.get('range') ?? '');
-  // The size and the read refer to the same open file: a retake may rewrite it meanwhile.
+  
   const fd = openSync(path, 'r');
   try {
     const size = fstatSync(fd).size;
     if (!range || (!range[1] && !range[2])) {
-      // the poster and the captions, read at once as a range is
+      
       if (size > RANGE_BYTES) return new Response(Bun.file(path), { headers: { 'content-type': type, 'accept-ranges': 'bytes' } });
       const body = readAt(fd, size, 0);
       return new Response(body, { headers: { 'content-type': type, 'content-length': String(body.length), 'accept-ranges': 'bytes' } });
@@ -164,12 +164,12 @@ export function serveDemoFile(demo: { dir: string; kind: DemoKind }, name: strin
     let start = range[1] ? Number(range[1]) : size - Number(range[2]);
     let end = range[1] && range[2] ? Number(range[2]) : size - 1;
     start = Math.max(0, start);
-    // the player asks again for what follows, so a part of the file at a time
+    
     end = Math.min(end, size - 1, start + RANGE_BYTES - 1);
     if (start > end) return new Response(null, { status: 416, headers: { 'content-range': `bytes */${size}` } });
-    // Read at once: a file streamed in pieces stalls whenever the event loop is busy (on Windows at about 1 MB/s).
+    
     const part = readAt(fd, end - start + 1, start);
-    // shorter than its size said: cut while it was read, so the answer carries what was there
+    
     const total = part.length < end - start + 1 ? fstatSync(fd).size : size;
     if (!part.length) return new Response(null, { status: 416, headers: { 'content-range': `bytes */${total}` } });
     return new Response(part, {
@@ -230,11 +230,11 @@ export function serveAnswerFile(dir: string, asked: string, download: boolean, r
   return serveSandboxed(dir, asked, req, '/files/', (path) => /\.html?$/i.test(path), download);
 }
 
-/**
- * What a worker's page may connect to beyond what its CSP covers (`Connection-Allowlist`, Chrome 152
- * on): only the address it was served from, so neither a `preconnect` nor WebRTC reaches another
- * server. It holds for the document, also once the page writes another into it.
- */
+
+
+
+
+
 export const OWN_CONNECTIONS = '(response-origin)';
 
 /** The headers of a page that loads nothing from the internet, nor files of its own where `own` (the address they are served from) is missing; see `pagePolicy`. */
@@ -271,11 +271,11 @@ function serveSandboxed(dir: string, asked: string, req: Request, route: string,
 
 /** A worker's file (on disk, or what a commit holds) as `serveSandboxed` sends it; `page`: it tells its frame its height. */
 function sandboxed(file: FileAt, name: string, req: Request, page: boolean, download: boolean): Response {
-  // the type by the name, for what a commit holds too
+  
   const type = Bun.file(name).type;
   if (!download && req.headers.get('sec-fetch-dest') === 'document' && /html|svg|xml/.test(type)) return framed(name);
   const body = 'path' in file ? Bun.file(file.path) : file.data;
-  // without an address to name, the page gets no files beside it rather than a policy that names something else
+  
   const headers = { 'content-type': type, ...sealedHeaders(servedFrom(req)), 'cache-control': 'no-cache', 'access-control-allow-origin': 'null' };
   if (download) return new Response(body, { headers: { ...headers, 'content-disposition': attachment(name) } });
   if (/\.html?$/i.test(name)) {
@@ -304,8 +304,8 @@ export async function serveCardFile(asked: string, download: boolean, req: Reque
   const name = basename(path);
   if (/\.pdf$/i.test(name)) {
     const body = 'path' in file ? Bun.file(file.path) : file.data;
-    // the viewer runs a PDF's scripts, and sent nothing on its own when tried (form submission, links, getURL, launchURL);
-    // in case a later one does, the policies of a worker's page say no further, which leave the viewer as it is
+    
+    
     const headers: Record<string, string> = {
       'content-type': 'application/pdf',
       'x-content-type-options': 'nosniff',
@@ -320,7 +320,7 @@ export async function serveCardFile(asked: string, download: boolean, req: Reque
   return sandboxed(file, name, req, /\.html?$/i.test(name), download);
 }
 
-/** Points the frame at the page's own address, the part after `#` included, which never reaches the server. */
+
 const FRAMED_SCRIPT = "document.querySelector('iframe').src = location.pathname + location.search + location.hash;";
 const FRAMED_HASH = `'sha256-${new Bun.CryptoHasher('sha256').update(FRAMED_SCRIPT).digest('base64')}'`;
 
@@ -331,12 +331,12 @@ function framed(title: string): Response {
   return new Response(html, { headers });
 }
 
-/**
- * The frame an idea's mock is shown in (`MockFrame` in src/ui/detail.tsx): empty, sandboxed and
- * connecting to nothing, until the page around it sends the mock's page (`{ seismicPage }`), which it
- * writes into itself; the policy stays with the document. A mock given as `srcdoc` would get no
- * `Connection-Allowlist`, which only a response can carry.
- */
+
+
+
+
+
+
 const MOCK_FRAME = `<!doctype html><script>addEventListener('message', function once(e) {
   if (e.source !== parent || typeof (e.data && e.data.seismicPage) !== 'string') return;
   removeEventListener('message', once);

@@ -49,7 +49,7 @@ describe('parking: the app of a card that waits for the owner', () => {
     expect(runtime.last.inbox.at(-1)).toContain('Seismic stopped the app in your workstation (`echo stopped >> parked.log`)');
     expect(runtime.last.inbox.at(-1)).toContain('start it again as the recipe in your brief says');
     expect(board.row(c.id).parked).toBeNull();
-    // only once: the message after that says nothing of it
+    
     runtime.last.emit({ type: 'idle' });
     workers.message(c.id, 'Danke.');
     expect(runtime.last.inbox.at(-1)).not.toContain('stopped the app');
@@ -255,10 +255,10 @@ describe('handing over with a demo', () => {
     const c = manual();
     await workers.start(c.id);
     expect(skillPlugins(runtime.last.spec.skills)).toEqual([SEISMIC_PLUGIN]);
-    // a demo's narration finds Seismic, which holds the voice across renders
+    
     expect(runtime.last.spec.env).toEqual({ SEISMIC_URL: 'http://127.0.0.1:4417' });
     expect(existsSync(DEMO_SKILL_FILE)).toBe(true);
-    // a session that does not know the skill reads its file
+    
     expect(runtime.last.inbox[0]).toContain(`recorded with the demo skill (\`${demoSkillName()}\`; if your session does not know it, read its file ${DEMO_SKILL_FILE} and follow that)`);
   });
 
@@ -267,7 +267,7 @@ describe('handing over with a demo', () => {
     setup({ ...generic, land: 'main', workstations: 'clones', demo: { language: 'en' } });
     await workers.start(manual().id);
     expect(runtime.last.spec.env).toEqual({ SEISMIC_URL: 'http://127.0.0.1:4417', DEMO_LANGUAGE: 'en' });
-    // named in its instructions too: an HTML artifact is written without the skill, which reads it
+    
     expect(runtime.last.spec.system).toContain("A demo (its narration, report, or an HTML artifact's words) is in English, whatever language the owner talks in. This repository's settings name English for its demos, which holds over the narration language of the demo settings.");
     expect(runtime.last.spec.system).toContain('Speak to the owner in English throughout this conversation');
   });
@@ -299,7 +299,7 @@ describe('handing over with a demo', () => {
     await workers.start(c.id);
     expect(runtime.last.inbox[0]).toContain('schema-change page');
     rmSync(dir, { recursive: true, force: true });
-    // the demo settings allow HTML and nothing else
+    
     setup({ ...generic, land: 'main', workstations: 'clones' });
     setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, demoArtifacts: () => ['html'] }));
     const h = manual();
@@ -310,7 +310,7 @@ describe('handing over with a demo', () => {
     expect(await runtime.last.call('ready_for_review', { summary: 'S', demo: { ...artifact(), kind: 'video' } })).toContain('do not allow a video');
     expect(await runtime.last.call('ready_for_review', { summary: 'S', demo: { ...artifact(), kind: 'html' } })).toContain('Recorded');
     rmSync(dir, { recursive: true, force: true });
-    // the repository's own list goes before the machine's
+    
     setup({ ...generic, land: 'main', workstations: 'clones' });
     setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones', demo: { artifacts: ['video'] } }, demoArtifacts: () => ['html'] }));
     await workers.start(manual().id);
@@ -333,7 +333,7 @@ describe('handing over with a demo', () => {
     expect(board.item(c.id)!.review?.answering).toBe(true);
     expect(board.item(c.id)!.demo?.latest!.answer).toBe('Semikolon, und bitte mit Kopfzeile.');
     expect(runtime.last.inbox.at(-1)).toContain('a change their words call for goes into a new handover');
-    // the demo stays with the card while it is reworked and after it is done
+    
     expect(board.demoFiles(c.id)).toEqual({ dir: d, kind: 'video' });
     expect(board.item(c.id)!.demo?.latest!.chapters).toHaveLength(2);
   });
@@ -351,10 +351,10 @@ describe('handing over with a demo', () => {
     expect(board.item(c.id)!.demo?.latest!.answer).toBe('Semikolon.');
     expect(runtime.last.inbox.at(-1)).toContain('answered the question in your demo report');
     expect(runtime.last.inbox.at(-1)).toContain('Semikolon.');
-    // while the worker takes in the answer, the card is not the owner's
+    
     expect(board.item(c.id)!.review?.answering).toBe(true);
     expect(needsYou(board.item(c.id)!)).toBe(false);
-    // the worker takes note and ends its turn: no nudge, the card keeps waiting, and is the owner's again
+    
     runtime.last.emit({ type: 'text', text: 'Bleibt beim Semikolon.' });
     runtime.last.emit({ type: 'idle' });
     expect(runtime.last.inbox).toHaveLength(n + 1);
@@ -375,7 +375,7 @@ describe('handing over with a demo', () => {
     workers.answer(c.id, 'Und mit Kopfzeile.', [], false, undefined, ['Semikolon', 'Tab']);
     expect(state(c.id)).toBe('waiting:demo');
     expect(board.item(c.id)!.question).toBeUndefined();
-    // a pick that is no option is the owner's own answer
+    
     expect(board.item(c.id)!.demo?.latest).toMatchObject({ options: ['Semikolon', 'Komma'], answer: 'Semikolon, Tab\n\nUnd mit Kopfzeile.', picks: ['Semikolon', 'Tab'] });
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'answer', picks: ['Semikolon', 'Tab'] });
     expect(runtime.last.inbox.at(-1)).toContain('They picked “Semikolon”. They answered in their own words: “Tab”.\n\nThey added in their own words:\n\nUnd mit Kopfzeile.');
@@ -426,7 +426,7 @@ describe('handing over with a demo', () => {
     await runtime.last.call('ready_for_review', { summary: 'S', demo: demo(demoDir()) });
     runtime.last.emit({ type: 'idle' });
     workers.answer(c.id, 'Komma, bitte.');
-    // a turn the session ends before it took in the answer leaves the card with the worker
+    
     runtime.last.emit({ type: 'idle' });
     expect(needsYou(board.item(c.id)!)).toBe(false);
     runtime.last.emit({ type: 'tool', name: 'Edit', input: {} });
@@ -445,7 +445,7 @@ describe('handing over with a demo', () => {
     await runtime.last.call('ready_for_review', { summary: 'S', demo: { dir: demoDir(), chapters: ['Vorher', 'Nachher'] } });
     runtime.last.emit({ type: 'idle' });
     expect(board.item(c.id)!.review?.answered).toBeUndefined();
-    // a reply alone
+    
     workers.message(c.id, 'Warum zwei Spalten?');
     expect(board.item(c.id)!.review?.answered).toBeUndefined();
     runtime.last.emit({ type: 'tool', name: 'Read', input: {} });
@@ -454,16 +454,16 @@ describe('handing over with a demo', () => {
     expect(state(c.id)).toBe('waiting:demo');
     expect(board.item(c.id)!.review?.answered).toBe(true);
     expect(needsYou(board.item(c.id)!)).toBe(true);
-    // further words: the card is at work again, not answered
+    
     workers.message(c.id, 'Und die Kopfzeile?');
     expect(board.item(c.id)!.review?.answering).toBe(true);
     expect(board.item(c.id)!.review?.answered).toBeUndefined();
-    // a handover that keeps the demo answers them too
+    
     await runtime.last.call('ready_for_review', { summary: 'Kopfzeile ergänzt.' });
     runtime.last.emit({ type: 'idle' });
     expect(state(c.id)).toBe('waiting:demo');
     expect(board.item(c.id)!.review?.answered).toBe(true);
-    // a new demo is what the owner looks at next
+    
     workers.message(c.id, 'Zeig mal.');
     await runtime.last.call('ready_for_review', { summary: 'Mit Video.', demo: { dir: demoDir(), chapters: ['Vorher', 'Nachher'] } });
     runtime.last.emit({ type: 'idle' });
@@ -481,14 +481,14 @@ describe('handing over with a demo', () => {
     runtime.last.call('reply', { text: 'Weil die Tabelle sonst zu breit wird.' });
     runtime.last.emit({ type: 'idle' });
     expect(board.item(c.id)!.review?.answered).toBe(true);
-    // a turn that breaks off with an error, without a word for the owner
+    
     workers.message(c.id, 'Stimmen die Werte?');
     runtime.last.emit({ type: 'error', message: 'API Error: 500' });
     runtime.last.emit({ type: 'idle' });
     expect(state(c.id)).toBe('waiting:demo');
     expect(board.item(c.id)!.review?.answered).toBeUndefined();
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'seismic', text: board.t.worker.unanswered });
-    // a session that ends before its turn does
+    
     workers.message(c.id, 'Und jetzt?');
     runtime.last.close();
     await until(() => !board.item(c.id)!.review?.answering);
@@ -496,7 +496,7 @@ describe('handing over with a demo', () => {
     expect(board.item(c.id)!.review?.answered).toBeUndefined();
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: board.t.worker.unanswered });
     expect(needsYou(board.item(c.id)!)).toBe(true);
-    // an error after the turn ended (a session that cannot be resumed reports it twice) leaves no worker shown in a turn
+    
     workers.message(c.id, 'Noch da?');
     const gone = runtime.last;
     gone.emit({ type: 'error', message: 'No conversation found' });
@@ -505,7 +505,7 @@ describe('handing over with a demo', () => {
     gone.close();
     await until(() => !board.item(c.id)!.agent?.inTurn);
     expect(board.item(c.id)!.review?.answered).toBeUndefined();
-    // words that end the turn answer it, without a reply
+    
     workers.message(c.id, 'Und jetzt?');
     runtime.last.emit({ type: 'text', text: 'Ja, sie stimmen.' });
     runtime.last.emit({ type: 'idle' });
@@ -520,18 +520,18 @@ describe('handing over with a demo', () => {
     workers.message(c.id, 'Auf dem Telefon geht es nicht.');
     runtime.last.emit({ type: 'tool', name: 'Bash', input: { command: 'bun test', run_in_background: true } });
     runtime.last.call('reply', { text: 'Nachgestellt und behoben; Tests laufen, eine neue Übergabe folgt.' });
-    // the test run ended before the turn did: the turn ends with nothing in the background
+    
     runtime.last.emit({ type: 'idle' });
     expect(board.item(c.id)!.review?.answered).toBe(true);
-    // its notification wakes the worker, which reruns what failed
+    
     runtime.last.emit({ type: 'tool', name: 'Bash', input: { command: 'bun test' } });
     expect(board.item(c.id)).toMatchObject({ state: 'waiting', need: 'demo', review: { answering: true } });
     expect(board.item(c.id)!.review?.answered).toBeUndefined();
     expect(needsYou(board.item(c.id)!)).toBe(false);
-    // more steps in the same turn change nothing
+    
     runtime.last.emit({ type: 'text', text: 'Läuft.' });
     expect(board.item(c.id)!.review?.answering).toBe(true);
-    // the new handover keeps the demo: the card is the owner's again
+    
     await runtime.last.call('ready_for_review', { summary: 'Behoben.' });
     runtime.last.emit({ type: 'idle' });
     expect(board.item(c.id)!.review?.answered).toBe(true);
@@ -555,7 +555,7 @@ describe('handing over with a demo', () => {
     expect(item.agent?.inTurn).toBeUndefined();
     expect(item.agent?.background).toMatchObject([{ description: 'Start dev server' }]);
     expect(needsYou(item)).toBe(true);
-    // a turn that ends without a word for the owner while its work runs is still at their words
+    
     workers.message(c.id, 'Und die Tests?');
     runtime.last.emit({ type: 'tool', name: 'Bash', input: { command: 'bun test', run_in_background: true } });
     runtime.last.emit({ type: 'idle', background: 2 });
@@ -568,7 +568,7 @@ describe('handing over with a demo', () => {
     await workers.start(c.id);
     await runtime.last.call('ready_for_review', { summary: 'S', demo: { dir: demoDir(), chapters: ['Vorher', 'Nachher'] } });
     runtime.last.emit({ type: 'idle' });
-    // the app it served for the owner runs since an earlier turn
+    
     workers.message(c.id, 'Starte den Testserver.');
     runtime.last.emit({ type: 'tool', name: 'Bash', input: { command: 'bun run dev', run_in_background: true } });
     runtime.last.emit({ type: 'background', tasks: [{ id: 'b1', description: 'Start dev server' }] });
@@ -585,11 +585,11 @@ describe('handing over with a demo', () => {
     expect(item).toMatchObject({ review: { answering: true }, agent: { inTurn: true } });
     expect(item.review?.answered).toBeUndefined();
     expect(needsYou(item)).toBe(false);
-    // the work it said it waits for is not the app, even should it name the app's address again
+    
     runtime.last.emit({ type: 'tool', name: 'mcp__seismic__app_running', input: { url: 'http://localhost:5173' } });
     runtime.last.emit({ type: 'idle', background: 2 });
     expect(board.item(c.id)).toMatchObject({ review: { answering: true }, agent: { inTurn: true } });
-    // that work done, the worker goes on and hands over
+    
     runtime.last.emit({ type: 'background', tasks: [{ id: 'b1', description: 'Start dev server' }] });
     runtime.last.emit({ type: 'text', text: 'Tests grün, Video fertig.' });
     await runtime.last.call('ready_for_review', { summary: 'S2', demo: { dir: demoDir(), chapters: ['Vorher', 'Nachher'] } });
@@ -664,13 +664,13 @@ describe('handing over with a demo', () => {
     expect(board.item(c.id)!.demo?.earlier).toEqual([{ kind: 'html', chapters: [], single: true, handover: handover.id, at: handover.at, n: 0 }]);
     expect(board.demoFiles(c.id, 0)).toEqual({ dir: first.dir, kind: 'html' });
     expect(board.demoFiles(c.id)).toEqual({ dir: second, kind: 'video' });
-    // a handover without a new demo keeps both as they are
+    
     await runtime.last.call('ready_for_review', { summary: 'Text geändert.' });
     expect(board.item(c.id)!.demo?.earlier).toHaveLength(1);
-    // a demo rendered again into the same directory replaced the files of the one before: nothing to go back to
+    
     await runtime.last.call('ready_for_review', { summary: 'Neu aufgenommen.', demo: demo(second) });
     expect(board.item(c.id)!.demo?.earlier!.map((d) => d.n)).toEqual([0]);
-    // demos are deleted to free space: one whose files are gone is no longer offered, from the project's next change on
+    
     rmSync(first.dir, { recursive: true, force: true });
     board.work(c.id, { status_line: 'Liest' });
     await board.filesChecked();
@@ -687,7 +687,7 @@ describe('handing over with a demo', () => {
     const question = board.events(c.id).findLast((e) => e.kind === 'question')!;
     expect(board.item(c.id)!.demo?.latest).toEqual({ kind: 'html', chapters: [], single: true, asked: true, handover: question.id, at: question.at });
     expect(board.demoFiles(c.id)).toEqual({ dir: drafts.dir, kind: 'html' });
-    // the answer leaves them in view while the worker goes on with the direction chosen
+    
     workers.answer(c.id, 'A');
     expect(state(c.id)).toBe('working');
     expect(board.item(c.id)!.demo?.latest!.asked).toBe(true);
@@ -740,7 +740,7 @@ describe('handing over with a demo', () => {
     workers.message(c.id, 'Bitte als Auswertung.');
     expect(await runtime.last.call('ready_for_review', { summary: 'S', demo: html })).toContain('needs its page');
     expect(await runtime.last.call('ready_for_review', { summary: 'S', demo: { ...html, page } })).toContain('End your turn');
-    // its index.html alone: it also goes out as one HTML file
+    
     expect(board.item(c.id)!.demo?.latest).toMatchObject({ kind: 'html', page, single: true });
   });
 
@@ -749,11 +749,11 @@ describe('handing over with a demo', () => {
     setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, shares: () => shares }));
     const c = manual();
     await workers.start(c.id);
-    // the project's demo site is initialized only now
+    
     shares = true;
     const tool = runtime.last.spec.tools!.find((t) => t.name === 'ready_for_review')!;
     const page = { title: 'Zählerstände als CSV', text: 'Vermieter laden die Zählerstände jetzt als CSV herunter.' };
-    // the agent's runtime checks the call against the tool's schema, which drops the page it does not know
+    
     const args = z.object(tool.schema as z.ZodRawShape).parse({ summary: 'S', data_models: 'unchanged', data_models_reason: 'UI only.', demo: { ...demo(demoDir()), page } });
     expect(await tool.run(args)).toContain('End your turn');
     expect(state(c.id)).toBe('waiting:demo');
@@ -824,7 +824,7 @@ describe('handing over with a demo', () => {
     expect(state(c.id)).toBe('working');
     expect(await runtime.last.call('ready_for_review', { summary: 'Gibt es schon.', demo: artifact() })).toContain('End your turn');
     expect(state(c.id)).toBe('waiting:demo');
-    // after feedback, a handover without a new demo keeps the one on the card
+    
     runtime.last.emit({ type: 'idle' });
     workers.message(c.id, 'Wo genau?');
     expect(await runtime.last.call('ready_for_review', { summary: 'In der Kopfzeile.' })).toContain('End your turn');
@@ -862,7 +862,7 @@ describe('comments on places in the demo video', () => {
       { at: 7.2, chapter: 'Export', narration: 'Jetzt der Export.', still: frame, demo },
       { at: 14, chapter: 'Export', narration: 'Die Datei hat eine Kopfzeile.', demo },
     ]);
-    // the worker hears nothing yet, and the card is still the owner's
+    
     expect(runtime.last.inbox).toHaveLength(n);
     expect(board.item(c.id)!.demo?.held).toEqual(said.map((e) => e.id));
     expect(needsYou(board.item(c.id)!)).toBe(true);
@@ -880,7 +880,7 @@ describe('comments on places in the demo video', () => {
     expect(runtime.last.images.at(-1)).toEqual([images.path(frame)!]);
     expect(board.item(c.id)!.demo?.held).toBeUndefined();
     expect(board.item(c.id)!.review?.answering).toBe(true);
-    // released again, nothing more goes
+    
     workers.released(c.id);
     await Bun.sleep(20);
     expect(runtime.last.inbox).toHaveLength(n + 1);
@@ -898,7 +898,7 @@ describe('comments on places in the demo video', () => {
     expect(gone).toEqual([first!.id]);
     expect(board.events(c.id).some((e) => e.id === first!.id)).toBe(false);
     expect(board.item(c.id)!.demo?.held).toEqual([second!.id]);
-    // what went already, or was never held, cannot be deleted
+    
     expect(() => workers.unsay(c.id, first!.id)).toThrow(BadRequest);
     workers.released(c.id, true);
     expect(runtime.last.inbox).toHaveLength(n + 1);
@@ -912,7 +912,7 @@ describe('comments on places in the demo video', () => {
     const c = await waiting();
     const comment = (workers.message(c.id, 'Zu schnell.', [], false, undefined, { at: 2 }), board.events(c.id).at(-1)!);
     expect(comment.unread).toBe(true);
-    // the worker still takes in earlier words on its handover
+    
     const step = board.log(c.id, 'say', 'worker', 'Editing the adapter code now.');
     expect(board.events(c.id).find((e) => e.id === comment.id)!.unread).toBe(true);
     workers.released(c.id, true);
@@ -960,7 +960,7 @@ describe('comments on places in the demo video', () => {
   test('an approval takes them, also one clicked as the card closes', async () => {
     const c = await waiting();
     workers.message(c.id, 'Etwas kleiner.', [], false, undefined, { at: 1 });
-    // the card folds with the click: its video stops being watched while the approval is on its way
+    
     workers.released(c.id);
     await workers.approve(c.id);
     await Bun.sleep(20);
@@ -983,7 +983,7 @@ describe('comments on places in the demo video', () => {
     workers.message(c.id, 'Hier war es noch falsch.', [], false, undefined, { at: 7, demo: first });
     expect(board.events(c.id).at(-1)!.spot).toEqual({ at: 7, chapter: 'Export', narration: 'Jetzt der Export.', demo: first, earlier: true });
     expect(runtime.last.inbox.at(-1)).toContain('[Earlier demo video, one a later handover of yours replaced, at 0:07, chapter “Export”, narration: “Jetzt der Export.”]\nHier war es noch falsch.');
-    // one on the card's demo names it too, for a click on it once a later handover replaced that one as well
+    
     runtime.last.emit({ type: 'idle' });
     board.work(c.id, { state: 'working', need: null });
     workers.message(c.id, 'Gut so.', [], false, undefined, { at: 1 });
@@ -1004,7 +1004,7 @@ describe('comments on places in the demo video', () => {
 
   test('while the worker works, one goes to it at once, with its place and frame', async () => {
     const c = await waiting();
-    // at work again, after a note say
+    
     board.work(c.id, { state: 'working', need: null });
     const frame = still();
     workers.message(c.id, 'Und hier.', [], false, undefined, { at: 6.5, still: frame });

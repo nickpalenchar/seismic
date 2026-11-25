@@ -1,7 +1,7 @@
-// Trusting a repository's commands: what of its own
-// files Seismic runs or contacts without a click, or its agents' sessions run outside Claude Code's
-// permission checks, counts only as the owner last confirmed it. A command new on the default
-// branch, or changed there, is held until the owner confirms it in "Configuration".
+
+
+
+
 
 import { lstatSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -70,7 +70,7 @@ export function trustTakenOver(trusted: RepoCommands | null, after: SharedSettin
   const next: RepoCommands = { ...trusted };
   let changed = false;
   const app = now.app;
-  // each of the two is the owner's or trusted; one that went, though trusted, needs confirming: a stop without its keep could stop what it kept
+  
   const theirs = (f: 'stop' | 'keep') => (app?.[f] === undefined ? trusted?.app?.[f] === undefined : app[f] === own.app?.[f] || app[f] === trusted?.app?.[f]);
   if (app && !same(app, trusted?.app) && theirs('stop') && theirs('keep')) {
     next.app = app;

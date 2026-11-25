@@ -1,7 +1,7 @@
-/**
- * How a harness attaches the skills of a spec: Claude Code loads their plugins, so the agent invokes
- * them as slash commands; the others cannot, and are told the skill files in the system prompt.
- */
+
+
+
+
 import type { SeismicSkill } from './seismicSkill';
 
 /** The plugin directories to load for these skills, each once. */

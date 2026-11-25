@@ -1,7 +1,7 @@
-// Voice in through a cloud service, for a machine whose own recognition is too slow: one client for
-// the OpenAI-style `/audio/transcriptions` endpoint (Groq, Mistral, OpenAI or any compatible
-// server), with its base URL, model and API key in `voice.json` in Seismic's home, never in a
-// repository. What Seismic measured of the recognition on this machine is kept there too.
+
+
+
+
 
 import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, extname, join } from 'node:path';
@@ -18,12 +18,12 @@ export interface CloudVoice {
   key: string;
 }
 
-/** What `voice.json` holds. */
+
 interface VoiceFile {
-  /** Recordings go to the cloud service rather than to the recognition on this machine. */
+  
   use?: 'cloud' | 'local';
   cloud?: CloudVoice & { tested?: CloudVoiceView['tested'] };
-  /** The last measurement of the recognition on this machine. */
+  
   speed?: VoiceSpeed;
 }
 
@@ -39,7 +39,7 @@ export function readVoiceFile(home: string): VoiceFile {
 export function writeVoiceFile(home: string, f: VoiceFile) {
   const file = join(home, VOICE_FILE);
   writeFileSync(file, `${JSON.stringify(f, null, 2)}\n`, { mode: 0o600 });
-  // a file written before with other rights keeps them through writeFileSync
+  
   if (process.platform !== 'win32' && existsSync(file)) chmodSync(file, 0o600);
 }
 
@@ -63,12 +63,12 @@ export function cloudFrom(input: unknown, stored?: CloudVoice): CloudVoice {
   const preset = CLOUD_PRESETS.find((p) => p === o.preset);
   if (!preset) throw new BadRequest('invalid', `preset must be one of ${CLOUD_PRESETS.join(', ')}`);
   const fixed = CLOUD_VOICES[preset];
-  // Groq's and Mistral's endpoints are theirs; "OpenAI" stands for any compatible one
+  
   const own = (v: unknown, fallback: string) => (preset === 'openai' && typeof v === 'string' && v.trim() ? v.trim() : fallback);
   const baseUrl = own(o.baseUrl, fixed.baseUrl).replace(/\/+$/, '');
   if (!/^https?:\/\/\S+$/.test(baseUrl)) throw new BadRequest('invalid', 'the base URL must start with http:// or https://');
   const typed = typeof o.key === 'string' ? o.key.trim() : '';
-  // the stored key goes only where it went before: to another endpoint only once typed for it
+  
   const key = typed || (stored?.preset === preset && stored.baseUrl === baseUrl ? stored.key : '');
   if (!key) throw new BadRequest('invalid', 'an API key');
   return { preset, baseUrl, model: own(o.model, fixed.model), key };
@@ -97,7 +97,7 @@ export function serviceName(c: Pick<CloudVoice, 'preset' | 'baseUrl'>) {
 
 const TYPES: Record<string, string> = { '.webm': 'audio/webm', '.mp4': 'audio/mp4', '.m4a': 'audio/mp4', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.mp3': 'audio/mpeg' };
 
-/** How long a request may take before it counts as failed: the owner waits under the mic meanwhile. */
+
 export const CLOUD_TIMEOUT_MS = 30_000;
 
 /**

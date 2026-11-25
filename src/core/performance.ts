@@ -1,35 +1,35 @@
-// The owner's responses on agents' work, grouped by whom they credit: harness, model and effort.
-// Shared by the dashboard and its tests. Work by several configurations and work nobody recorded
-// get rows of their own and are never counted for a model; rows are ordered by what they are, not
-// by how well they did, and a row with few ratings says so rather than ranking.
+
+
+
+
 import { AGENT_EFFORTS, type Feedback, type WorkConfig } from './types';
 
-/** Fewer ratings than this in a row (or in all) are too few to compare. */
+
 export const FEW = 5;
 
 export interface PerformanceFilter {
   project?: string;
   repo?: string;
-  /** A plan's id. */
+  
   plan?: string;
-  /** Only responses given since (ISO time). */
+  
   since?: string;
 }
 
 export interface PerformanceRow {
-  /** `harness|model|effort` of the credited configuration, `mixed` or `missing`. */
+  
   key: string;
   kind: 'config' | 'mixed' | 'missing';
   config?: WorkConfig;
   responses: Feedback[];
-  /** The ratings given, each rounded to a whole star from 1 to 5. */
+  
   ratings: number[];
-  /** How many ratings gave 1 to 5 stars, the first for 1. */
+  
   counts: [number, number, number, number, number];
   mean: number | null;
   median: number | null;
   comments: number;
-  /** Fewer than `FEW` ratings. */
+  
   few: boolean;
 }
 
@@ -37,7 +37,7 @@ export interface Performance {
   rows: PerformanceRow[];
   responses: number;
   ratings: number;
-  /** Responses that credit no single configuration: by several, or by an unknown one. */
+  
   uncredited: number;
 }
 
@@ -98,7 +98,7 @@ export function performance(list: Feedback[]): Performance {
     row.mean = r.length ? r.reduce((a, b) => a + b, 0) / r.length : null;
     row.median = r.length ? (r.length % 2 ? r[(r.length - 1) / 2]! : (r[r.length / 2 - 1]! + r[r.length / 2]!) / 2) : null;
     row.few = r.length < FEW;
-    // the latest first, where a row lists its responses
+    
     row.responses.sort((a, b) => (b.updatedAt ?? b.at).localeCompare(a.updatedAt ?? a.at));
   }
   const sorted = [...rows.values()].sort(order);
@@ -120,7 +120,7 @@ export function filterChoices(list: Feedback[]) {
 }
 
 export interface TrendPoint {
-  /** The bucket: a month `2026-10`, a day `2026-10-28`, or the Monday of a week `2026-10-26`. */
+  
   period: string;
   mean: number;
   n: number;
@@ -132,11 +132,11 @@ const mondayOf = (iso: string) => {
   return new Date(d.getTime() - ((d.getUTCDay() + 6) % 7) * DAY).toISOString().slice(0, 10);
 };
 
-/**
- * Each row's average rating per period (by when a response was last given), and the periods from the first to the last
- * with any. Periods are days when everything lies within two weeks, weeks within about three months, else months: coarser
- * buckets would show a young history as one point.
- */
+
+
+
+
+
 export type TrendUnit = 'day' | 'week' | 'month';
 export function trend(rows: PerformanceRow[]): { unit: TrendUnit; periods: string[]; series: { key: string; points: TrendPoint[] }[] } {
   const when = (f: Feedback) => f.updatedAt ?? f.at;
@@ -179,7 +179,7 @@ export function trend(rows: PerformanceRow[]): { unit: TrendUnit; periods: strin
   return { unit, periods, series: series.filter((s) => s.points.length) };
 }
 
-/** The upper bounds in days of the ages a dot's size tells apart, the newest first; older than the last is the smallest. */
+
 export const AGES = [3, 7, 30, 60] as const;
 
 /** How old a response is, as one of five steps: 0 up to 3 days, 1 up to a week, 2 up to a month, 3 up to two months, 4 older. */

@@ -1,17 +1,17 @@
-// Re-voices a rendered demo in another language: the same picture, the narration, chapter titles
-// and report page translated and spoken anew. Works on any demo that kept its frames (`.work/`
-// with `frames/` and `frames.txt`), whichever version of the director recorded it: it reads what
-// the render left in the directory, not the demo script.
-//
-// `node revoice.ts <demo dir> <language>`, or `node demo.ts --revoice <language>` in the demo's
-// directory. The first run writes the words to translate (`.work/revoice/source.json`) and says
-// where the translation goes; the agent running the skill translates them, and the next run
-// synthesises the clips in that language's voice, stretches each scene's narrated stretch to the
-// new clip's length, so what happened on a word still happens on it, and rebuilds `demo.mp4`,
-// `captions.vtt`, `chapters.vtt`, the stills, the poster and `index.html` in place. The demo as
-// recorded stays in `.work/revoice/original/`, which every later run reads from.
-//
-// Plain Node with type stripping, like the director.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -22,25 +22,25 @@ import { LANGUAGE_NAMES, LANGUAGES, type Language } from './locale.ts';
 import { inLanguage, readDemoSettings, withVoice } from './settings.ts';
 import { checkSetup, describeSetup } from './setup.ts';
 
-/** What a demo says, in one language: what is translated. */
+
 export interface Words {
-  /** The report page's title. */
+  
   title: string;
-  /** Per scene, in order: its chapter title and its narration, audio tags and all. */
+  
   scenes: { title: string; say: string }[];
   report: Report;
 }
 
-/** A cue of a WebVTT file: from, to (seconds) and its text. */
+
 export interface Cue {
   start: number;
   end: number;
   text: string;
 }
 
-/** The files of a render that re-voicing replaces; the recorded ones are kept in `original/`. */
+
 const RENDERED = ['demo.mp4', 'captions.vtt', 'chapters.vtt', 'index.html', 'poster.jpg'] as const;
-/** A scene whose narration gets this much longer or shorter changes pace visibly: worth a look at its stills. */
+
 const PACE_WARN = 0.35;
 
 export function cuesOf(vtt: string): Cue[] {
@@ -54,7 +54,7 @@ export function cuesOf(vtt: string): Cue[] {
     });
 }
 
-/** An entry of an ffconcat list: a frame and how long it is held (the last one: none). */
+
 export interface Held {
   file: string;
   seconds?: number;
@@ -71,7 +71,7 @@ export function framesOf(list: string): Held[] {
   return out;
 }
 
-/** A stretch of the video played `ratio` times as long. */
+
 export interface Stretch {
   from: number;
   to: number;
@@ -129,7 +129,7 @@ export function reportOf(html: string): { language?: Language; title: string; re
   const summary = [...html.matchAll(/<p class="summary">([\s\S]*?)<\/p>/g)].map((m) => unesc(m[1]!));
   if (!summary.length) throw new Error('index.html is no report page of the director: it has no summary');
   const entries = [...(/<dl>([\s\S]*?)<\/dl>/.exec(html)?.[1] ?? '').matchAll(/<dt>([\s\S]*?)<\/dt><dd>([\s\S]*?)<\/dd>/g)].map((m) => [unesc(m[1]!), m[2]!] as const);
-  // a demo whose `meta` was one line rather than an object got a row per character
+  
   const spelt = entries.length > 1 && entries.every(([k], i) => k === String(i));
   const meta = spelt ? { '': unesc(entries.map(([, v]) => v).join('')) } : Object.fromEntries(entries.map(([k, v]) => [k, unesc(v)]));
   const question = one(/<div class="decision"><h2>[^<]*<\/h2>([\s\S]*?)<\/div>/);
@@ -185,7 +185,7 @@ export async function revoice(dir: string, language: string | undefined) {
   holdRenderLock(work);
   const here = path.join(work, 'revoice');
   const original = path.join(here, 'original');
-  // what was kept of an earlier re-voicing holds while the frames are those it was made from; a render since replaced them
+  
   const keptList = path.join(original, 'frames.txt');
   if (fs.existsSync(path.join(original, 'index.html')) && !fs.existsSync(keptList)) fs.copyFileSync(list, keptList);
   const kept = fs.existsSync(keptList) && read(keptList) === read(list);
@@ -221,7 +221,7 @@ export async function revoice(dir: string, language: string | undefined) {
   if (setup.items.some((i) => i.state === 'missing')) throw new Error(`cannot re-voice yet:\n${describeSetup(setup)}`);
   const clips: Clip[] = synthesize(words.scenes.map((s) => s.say), here, settings);
 
-  // Each scene's narrated stretch takes as long as its new clip; lead, gaps, what follows the words and the cuts' flashes stay as recorded.
+  
   const stretches = captions.map((c, i) => ({ from: c.start, to: c.end, ratio: clips[i]!.seconds / Math.max(0.1, c.end - c.start) }));
   const at = stretched(stretches);
   const frames = framesOf(read(list));

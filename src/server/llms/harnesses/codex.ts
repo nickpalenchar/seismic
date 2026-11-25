@@ -1,6 +1,6 @@
-/**
- * Native installed Codex app-server adapter. Worker routing and portability live separately.
- */
+
+
+
 import { autoReviewRun, bypassRun, readOnlyRun } from '../agents/permission';
 import { bothNames, seismicEnv } from '../../../core/env';
 import { basename, dirname, isAbsolute, join } from 'node:path';
@@ -18,12 +18,12 @@ import { CapabilityCheck } from '../models/capabilityCheck';
 import { SeismicModel } from '../models/seismicModel';
 import { answered, cleanEnv, type AgentEvent, type AgentRuntime, type AgentSpec } from '../../runtime';
 
-// Codex reserves mcp__ names for actual MCP servers. Keep its wire name separate from the
-// canonical identity consumed by Seismic's existing orchestration.
+
+
 const wirePrefix = 'seismic_';
-// A resumed thread keeps the tool definitions it was started with, so a session started before the
-// rename still calls `obeya_report` and the like: those dispatch to today's tools. The execution
-// tools carried a prefix of their own then, doubled on the wire.
+
+
+
 const renamed: Record<string, string> = { obeya_obeya_run: 'seismic_run', obeya_obeya_git: 'seismic_git', obeya_to_obeya: 'seismic_to_seismic', seismic_to_obeya: 'seismic_to_seismic' };
 const currentName = (name: string) => renamed[name] ?? name.replace(/^obeya_/, wirePrefix);
 const threadResult = z.object({ thread: z.object({ id: z.string().min(1) }), model: z.string() });
@@ -42,7 +42,7 @@ const backgroundPage = z.object({ data: z.array(z.object({ itemId: z.string(), c
 const turnEvent = z.object({ turn: z.object({ id: z.string(), status: z.string(), error: z.object({ message: z.string(), codexErrorInfo: z.unknown() }).nullable().optional() }) });
 const toolCall = z.object({ threadId: z.string(), turnId: z.string(), callId: z.string(), namespace: z.string().nullable(), tool: z.string(), arguments: z.unknown() });
 const jsonObject = z.record(z.string(), z.unknown());
-// Codex marks the review notifications unstable: only what Seismic shows of them is read
+
 const autoReview = z.object({ review: z.object({ status: z.string(), rationale: z.string().nullish() }), action: jsonObject });
 
 /** What Codex's automatic review judged, as the tool call the conversation names. */
@@ -87,7 +87,7 @@ export function codexLimit(message: string, snapshots: z.infer<typeof rateLimitS
     if (month < 0 || !Number.isInteger(month)) return {};
     return { resetsAt: new Date(Number(m[3]), month, Number(m[2]), hour, Number(m[5])).getTime() };
   }
-  // today, or tomorrow for a time already past
+  
   const at = new Date(now);
   at.setHours(hour, Number(m[5]), 0, 0);
   if (at.getTime() < now - 60_000) at.setDate(at.getDate() + 1);
@@ -136,8 +136,8 @@ type Connect = (spec: AgentSpec, handlers: CodexHandlers) => CodexConnection;
 const connectInstalled: Connect = (spec, handlers) => {
   const executable = installedCodex();
   if (!executable) throw new Error('Installed Codex executable unavailable; set SEISMIC_CODEX to its native executable path');
-  // An earlier Seismic crashed and its sweep could not end this workstation's old session: a new one
-  // could write beside it. The sweep tries again when Seismic next starts.
+  
+  
   const left = sessionRegistry()?.unaccounted(spec.cwd);
   if (left?.length) throw new Error(`An earlier session in this workstation left processes that are still running (${left.map((l) => l.label).join('; ')}); Seismic tries to end them when it starts`);
   return codexConnection({
@@ -177,7 +177,7 @@ function supported(spec: AgentSpec) {
     spec.plugins?.length ? 'Claude plugins' : '',
     spec.dirs?.some((d) => !isAbsolute(d)) ? 'non-local additional workstation roots' : '',
     spec.watch ? 'before/after mutation hooks' : '',
-    // Also covers interpreters selected by a CLI shim's /usr/bin/env shebang.
+    
     Object.keys(spec.env ?? {}).some((key) => key.toLowerCase() === 'path') ? 'per-session executable search path' : '',
   ].filter(Boolean);
   if (unsupported.length) throw new Error(`Codex does not support: ${unsupported.join(', ')}`);
@@ -199,7 +199,7 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
       const completed = new Set<string>();
       const toolResults = new Map<string, Promise<unknown>>();
       const permissions = new Map<string | number | symbol, AbortController>();
-      // the account's limits as Codex last reported them, by limit
+      
       const limits = new Map<string, z.infer<typeof rateLimitSnapshot>>();
       const cancelPermissions = (obsolete = false) => {
         for (const controller of permissions.values()) controller.abort(obsolete ? 'permission-obsolete' : undefined);
@@ -236,17 +236,17 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
         closing = true;
         cancelPermissions();
         clearTimeout(poll);
-        // Try the semantic cleanup first, but do not wait a full RPC timeout to begin process
-        // shutdown. EOF plus the transport's escalation bounds a stuck app-server as well.
+        
+        
         const deadline = setTimeout(() => connection.close(), 1000);
         void (async () => {
           try {
             try {
               if (thread && turn) await connection.request('turn/interrupt', { threadId: thread, turnId: turn });
-            } catch { /* a turn can end between close() and interrupt */ }
+            } catch {  }
             try {
               if (thread) await connection.request('thread/backgroundTerminals/clean', { threadId: thread });
-            } catch { /* still close the transport if cleanup is unsupported or fails */ }
+            } catch {  }
           } finally { clearTimeout(deadline); connection.close(); }
         })();
       }
@@ -272,8 +272,8 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
         const changed = JSON.stringify(tasks) !== JSON.stringify(background);
         if (changed) emit({ type: 'background', tasks });
         background = tasks;
-        // Codex's shell terminal doesn't itself create a new turn when it exits, unlike Claude's
-        // background task. Wake the coding loop to inspect its outcome rather than report success.
+        
+        
         if (ended.length) queue.push({ text: `Background commands have ended: ${ended.map((t) => t.description).join('; ')}. Inspect their results and continue your task.`, images: [] });
         clearTimeout(poll);
         if (tasks.length) poll = setTimeout(() => { settle = true; void pump(); }, 1000);
@@ -288,7 +288,7 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
               settle = false;
               const changed = await backgrounds();
               if (closing) break;
-              // Unchanged polls must not reset the worker's background timeout.
+              
               if (!turn && (changed || idlePending)) emit({ type: 'idle', background: background.length, more: queue.length > 0 });
               idlePending = false;
             }
@@ -303,8 +303,8 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
                 const result = z.object({ turnId: z.string() }).parse(await connection.request('turn/steer', { threadId: thread, expectedTurnId: expected, input }));
                 if (result.turnId !== expected) throw new Error('Codex accepted input for an unexpected turn');
               } catch (error) {
-                // Only a definite server rejection is retryable. A timeout or transport failure
-                // may have accepted input; replaying it can duplicate instructions or actions.
+                
+                
                 if (error instanceof CodexRpcError && completed.has(expected)) continue;
                 throw error;
               }
@@ -318,7 +318,7 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
         finally { pumping = false; }
       }
       function notification(method: string, params: Record<string, unknown>) {
-        // the account's limits are the app-server's, not the thread's
+        
         if (method === 'account/rateLimits/updated') {
           const parsed = rateLimitsUpdate.safeParse(params);
           if (parsed.success) limits.set(parsed.data.rateLimits.limitId ?? 'codex', parsed.data.rateLimits);
@@ -354,7 +354,7 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
             idlePending = true;
             void pump();
           } else if (method === 'item/autoApprovalReview/completed') {
-            // Codex's own review refused what the worker wanted outside its sandbox: shown as auto mode's refusals are
+            
             const review = autoReview.safeParse(params);
             if (review.success && params.turnId === turn && (review.data.review.status === 'denied' || review.data.review.status === 'timedOut')) emit({ type: 'denied', ...reviewedAction(review.data.action), by: 'classifier', ...(review.data.review.rationale ? { reason: review.data.review.rationale } : {}) });
           } else if (method === 'item/agentMessage/delta') {
@@ -364,7 +364,7 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
             const item = jsonObject.parse(params.item);
             if (item.type === 'commandExecution') emit({ type: 'tool', name: 'Bash', input: { command: item.command, cwd: item.cwd } });
             else if (item.type === 'fileChange') emit({ type: 'tool', name: 'Edit', input: { changes: item.changes } });
-            // Seismic tools are emitted at dispatch, not twice (here and item/tool/call).
+            
           }
           if (method === 'item/completed' && params.turnId === turn) {
             const item = jsonObject.parse(params.item);
@@ -374,8 +374,8 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
               if (update) send(update);
             }
           }
-          // Error notifications with willRetry belong to Codex's retry loop. Only turn/completed
-          // establishes an idle/error boundary; individual items and transient errors never do.
+          
+          
         } catch (error) { fail(error); }
       }
       async function serverRequest(method: string, params: Record<string, unknown>, requestId?: string | number): Promise<unknown> {
@@ -402,12 +402,12 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
         if (method === 'item/commandExecution/requestApproval' || method === 'item/fileChange/requestApproval') {
           const name = method.includes('commandExecution') ? 'Bash' : 'Edit';
           const reason = typeof params.reason === 'string' ? params.reason : undefined;
-          // Persist the action and its authority, not ephemeral RPC identities. A restarted
-          // thread reissues the same approval with new turn/item ids; a one-use owner grant
-          // must still match, but a changed command or permission scope must not.
+          
+          
+          
           const { threadId: _, turnId: __, itemId: ___, reason: ____, availableDecisions: _____, startedAtMs: ______, approvalId: _______, ...input } = params;
-          // Codex's availableDecisions may restrict a proposed amendment to a choice this spike
-          // doesn't understand. Never approve amendments, broad grants, or session-wide authority.
+          
+          
           const decisions = params.availableDecisions;
           const canAccept = params.grantRoot == null && (!Array.isArray(decisions) || decisions.includes('accept'));
           const key = requestId ?? Symbol();
@@ -418,7 +418,7 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
             if (closing || controller.signal.aborted || params.turnId !== turn) return { decision: 'decline' };
             if (answer.allow) return { decision: 'accept' };
             emit({ type: 'denied', name, input, by: spec.askOwner && canAccept ? 'owner' : 'mode', reason: answer.message });
-            // Codex's decline, unlike Claude's tool result, carries no explanation to the model.
+            
             if (spec.askOwner && canAccept && answer.message) send(answer.message);
             return { decision: 'decline' };
           } finally { permissions.delete(key); }
@@ -427,7 +427,7 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
           emit({ type: 'denied', name: 'permissions', input: params, by: 'mode', reason: 'Extended permission profiles are not supported by the Codex worker' });
           return { permissions: {}, scope: 'turn' };
         }
-        // Native requestUserInput isn't Seismic's shared question workflow. Agents must use ask.
+        
         throw new CodexRpcError(-32601, `Unsupported Codex request: ${method}; use the Seismic tools`);
       }
       void (async () => {
@@ -446,7 +446,7 @@ export function createCodexRuntime(connect: Connect = connectInstalled): AgentRu
             ...(spec.dirs?.length ? { 'sandbox_workspace_write.writable_roots': spec.dirs } : {}),
             ...(connection.pid ? { 'shell_environment_policy.set': bothNames({ AGENT_PID: String(connection.pid) }) } : {}),
           };
-          // a read-only agent (a code review) reads and runs what only reads, and asks nobody
+          
           const readOnly = readOnlyRun(spec);
           const bypass = !readOnly && bypassRun(spec);
           const params = { cwd: spec.cwd, model: model.model, developerInstructions: spec.system, approvalPolicy: readOnly || bypass ? 'never' : 'on-request', approvalsReviewer: autoReviewRun(spec) && !readOnly ? 'auto_review' : 'user', sandbox: readOnly ? 'read-only' : bypass ? 'danger-full-access' : codexSandbox(), config };
@@ -573,7 +573,7 @@ export function codexUsage(connect: Connect = connectInstalled): UsageSource {
         await ready;
         return codexUsageOf(await c.request('account/rateLimits/read', {}));
       } catch (e) {
-        // signed out: nothing to show, and a fresh app-server next round
+        
         if (e instanceof CodexRpcError && /authentication required/i.test(e.message)) {
           if (connection === c) close();
           return null;

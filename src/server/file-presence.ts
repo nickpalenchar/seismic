@@ -1,22 +1,22 @@
-/**
- * Whether files are there, for code that builds a snapshot and cannot wait for the disk. A path is
- * looked at once, when it is first asked for; after that the answer comes from memory, and `refresh`
- * looks at every path asked for lately again, off the event loop, and says when an answer changed.
- * So a snapshot makes no file system call for a file it has seen.
- */
+
+
+
+
+
+
 
 import { existsSync } from 'node:fs';
 import { access } from 'node:fs/promises';
 
-/** Whether a file is there. */
+
 export type Present = (path: string) => boolean;
 
 export class FilePresence {
   private known = new Map<string, boolean>();
-  /** When each path was last asked for: one nobody asked for in a while is forgotten, so the paths of cards long gone do not pile up. */
+  
   private asked = new Map<string, number>();
   private running: Promise<void> | null = null;
-  /** The look that follows the running one, shared by every refresh asked for meanwhile. */
+  
   private queued: Promise<void> | null = null;
   private last = 0;
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -81,7 +81,7 @@ export class FilePresence {
     const now = await Promise.all(paths.map((p) => access(p).then(() => true, () => false)));
     let changed = false;
     paths.forEach((p, i) => {
-      // forgotten or looked at by `there` meanwhile: that answer stands
+      
       if (this.known.get(p) === undefined || this.known.get(p) === now[i]) return;
       this.known.set(p, now[i]!);
       changed = true;

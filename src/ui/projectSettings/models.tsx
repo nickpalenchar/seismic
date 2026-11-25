@@ -1,6 +1,6 @@
-// The project's own harness, model and effort for a group of its agents, over Configuration's "Agents
-// and models": a row of three choices, each quiet while it takes Configuration's. "Agents and models"
-// of the settings sheet shows every group, "Code reviews" the reviewer's alone.
+
+
+
 
 import { Fragment } from 'react';
 import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, agyBaseChoice, catalogModel, modelEffort, modelEfforts, harnessChoice, projectAgentSetting, type AgentEffort, type AgentModel, type AgentRole, type ModelInfo, type Harness, type HarnessAvailability, type ProjectAgents, type ProjectSettingsView } from '../../core/types';
@@ -10,13 +10,13 @@ import { t } from '../strings';
 import { Select, SelectItem } from '../components/select';
 import { cn } from 'cn';
 
-/** A choice of the agents' harness, model and effort: as wide as its column, quiet while it takes Configuration's. */
+
 const choiceClass = 'min-w-0 w-full';
 
-/** The models of Codex and Antigravity, read once the sheet opens. */
+
 export type Catalogs = Partial<Record<'codex' | 'agy', ModelInfo[]>> & { connected?: HarnessAvailability };
 
-/** Changes the group's own choice; `null` takes it back to Configuration's. */
+
 export type Choose = (role: AgentRole, change: Partial<ProjectAgents[AgentRole]> | null) => void;
 
 /** The project's own agents with `change` for `role`; a group left with nothing of its own goes. */
@@ -106,7 +106,7 @@ export function AgentChoice({ role, view, catalogs, busy, choose }: { role: Agen
         : <Select className={cn(choiceClass, ownEffort ? 'own' : 'text-muted-foreground')} aria-label={effortLabel} value={effortValue} disabled={busy || (!!other && !chosenModel)} onValueChange={(picked) => {
         const effort = picked as AgentEffort | '';
         if (other) {
-          // Editing a confirmed legacy variant takes it apart so its suffix cannot override this edit.
+          
           const model = other === 'agy' && (own.agy?.model || (effort && inheritedAgy.model !== inherited.model))
             ? selectedAgy.model : own[other]?.model;
           const next = { model, effort: effort || undefined };

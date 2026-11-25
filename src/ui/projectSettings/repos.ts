@@ -1,14 +1,14 @@
-// The project's repositories as the settings sheet edits them: read with their check when it opens,
-// each change kept here at once and saved shortly after, on its own repository's entry (`PUT
-// /api/c/:project/repos`). A change to where its agents work (worktrees or clones, the clones, slots
-// and hosts) restarts the repository's agents: it waits for the owner's word, and the rest saves on.
+
+
+
+
 
 import { useEffect, useRef, useState } from 'react';
 import type { ProjectReposView, RepoConfig } from '../../core/types';
 import { api } from '../api';
 import { failText, t } from '../strings';
 
-/** How long after the last change a repository's entry is saved: a word typed is one save, not one per key. */
+
 const SAVE_AFTER_MS = 600;
 
 /** What of a repository's entry restarts its agents when it changes, as it is saved (empty entries left out). */
@@ -35,24 +35,24 @@ export function withPlaceOf(edited: RepoConfig, saved: RepoConfig): RepoConfig {
 
 export interface ProjectRepos {
   view: ProjectReposView | null;
-  /** The repositories as edited here, in the configuration's order. */
+  
   repos: RepoConfig[];
   edit: (i: number, next: RepoConfig) => void;
-  /** Whether saving the repository at `i` as edited restarts its agents: it waits for `confirm` or `discard`. */
+  
   restarts: (i: number) => boolean;
   confirm: (i: number) => void;
   discard: (i: number) => void;
-  /** Reads them again, with their check: after git was set up, commands were trusted, settings were taken over for everyone. */
+  
   reload: () => Promise<void>;
-  /** Whether the repository at `i` holds an edit not saved yet: waiting for its save, being saved, refused, or waiting to restart agents. */
+  
   unsaved: (i: number) => boolean;
-  /**
-   * Saves what waits for the repository at `i` now and says whether it is saved as shown, for what
-   * reads the saved configuration ("For everyone", "Update with agent"); a change that restarts its
-   * agents is not saved by it, and says so.
-   */
+  
+
+
+
+
   settle: (i: number) => Promise<boolean>;
-  /** A save that was refused, to try again. */
+  
   failed: { status: string; retry: () => void } | null;
   busy: boolean;
   status: string;
@@ -62,12 +62,12 @@ export interface ProjectRepos {
 export function useProjectRepos(project: string, on: boolean, covered: boolean): ProjectRepos {
   const [view, setView] = useState<ProjectReposView | null>(null);
   const [repos, setRepos] = useState<RepoConfig[]>([]);
-  // the edits not saved yet, by repository path: they stay across a reading afresh, and a refused save keeps them
+  
   const [edited, setEdited] = useState<Map<string, RepoConfig>>(new Map());
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [failed, setFailed] = useState<{ path: string; status: string; place: boolean } | null>(null);
-  // the saves outlive renders: what is edited now, what is saved, the saves waiting
+  
   const now = useRef({ repos, view, edited });
   now.current = { repos, view, edited };
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -82,7 +82,7 @@ export function useProjectRepos(project: string, on: boolean, covered: boolean):
   const load = () => {
     return api.projectRepos(project).then((v) => {
       setView(v);
-      // an edit not saved yet stays over what is read: the owner still sees, and can save or discard, what they changed
+      
       const list = v.project.repos.map((r) => now.current.edited.get(r.path) ?? r);
       now.current = { ...now.current, view: v, repos: list };
       setRepos(list);
@@ -93,7 +93,7 @@ export function useProjectRepos(project: string, on: boolean, covered: boolean):
     setStatus('');
     load();
   }, [on, covered, project]);
-  // another project: its own repositories, none of this one's edits
+  
   useEffect(() => {
     keepEdited(new Map());
     setFailed(null);
@@ -107,7 +107,7 @@ export function useProjectRepos(project: string, on: boolean, covered: boolean):
       if (!edit || !before) return false;
       const body = place ? edit : withPlaceOf(edit, before);
       const whole = JSON.stringify(body) === JSON.stringify(edit);
-      // nothing left to save (changed back to what is saved): a refusal before is over too
+      
       if (JSON.stringify(body) === JSON.stringify(before)) {
         setFailed((f) => (f?.path === path && (place || !f.place || whole) ? null : f));
         if (whole) forget(path, edit);
@@ -120,11 +120,11 @@ export function useProjectRepos(project: string, on: boolean, covered: boolean):
         now.current = { ...now.current, view: v };
         setView(v);
         setFailed((f) => (f?.path === path && (place || !f.place || whole) ? null : f));
-        // saved as it is still shown, place included: nothing of it waits any more
+        
         if (whole) forget(path, edit);
         return whole;
       } catch (e) {
-        // the edit stays, shown as not saved, with a way to try again
+        
         setFailed((f) => ({ path, place: place || (f?.path === path && f.place), status: failText(e, { detail: ['config', 'invalid'] }) }));
         return false;
       } finally {
@@ -148,7 +148,7 @@ export function useProjectRepos(project: string, on: boolean, covered: boolean):
     }
     timers.current.clear();
   };
-  // closing the sheet, or another project: what waits is saved now
+  
   useEffect(() => {
     if (!on) flush();
     return flush;
@@ -208,8 +208,8 @@ export function useProjectRepos(project: string, on: boolean, covered: boolean):
       clearTimeout(timers.current.get(path));
       timers.current.delete(path);
       await save(path, false);
-      // Other edits can enqueue saves while this request runs. Drain the chain, then compare
-      // the latest visible entry with the saved one, rather than trusting an earlier request.
+      
+      
       let pending;
       do {
         pending = chain.current;
@@ -217,7 +217,7 @@ export function useProjectRepos(project: string, on: boolean, covered: boolean):
       } while (pending !== chain.current);
       const done = !now.current.edited.has(path) && !!savedAt(path) &&
         JSON.stringify(editedAt(path)) === JSON.stringify(savedAt(path));
-      // what is left waits for "Save and restart agents"; a refused save says why itself
+      
       if (!done && savedAt(path) && editedAt(path) && shape(editedAt(path)!) !== shape(savedAt(path)!)) setStatus(t.projectSettings.restartFirst);
       return done;
     },

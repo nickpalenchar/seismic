@@ -1,4 +1,4 @@
-// Registered views keep their contents mounted; the shared shell owns dock controls.
+
 import { cn } from 'cn';
 import { useEffect, useRef, useState, type ReactNode, type ComponentType } from 'react';
 import { clampWidth, loadWidths, saveWidths, widthsIn, SHEET_W, type SheetWidths } from './sheetWidth';
@@ -14,13 +14,13 @@ export interface DockView {
   icon: ComponentType<{ size?: number }>;
   component: () => ReactNode;
   width?: 'read';
-  /** Seismic closes through its chat button in the same corner. */
+  
   buttonCloses?: boolean;
   escape?: () => void;
   close?: () => void;
-  /** Plan workstreams and their document share a mounted component and its local state. */
+  
   slot?: string;
-  /** Inbox, agents and settings stay usable above the card dimmer. */
+  
   besideCard?: boolean;
 }
 
@@ -29,7 +29,7 @@ export function useDock(initial: DockId | null) {
   const ref = useRef(active);
   const registry = useRef<DockView[]>([]);
   const selectNow = (id: DockId | null) => { ref.current = id; render(id); };
-  // what closes or replaces the open view waits for an unsaved draft in it (`leaving`)
+  
   const select = (id: DockId | null) => (id === ref.current ? selectNow(id) : leave(() => selectNow(id)));
   const view = (id: DockId) => [active === id, (on: boolean) => {
     if (on) select(id);
@@ -53,10 +53,10 @@ export function useDock(initial: DockId | null) {
   return { active, ref, select, view, widths, setWidths, resizing, setResizing, registry, register, close, escape, width, besideCard };
 }
 
-/** Closes the open sheet, where the button that opened it was; in a narrow window, inside the floating sheet's corner. */
+
 const closeClass = 'fixed top-[14px] right-[14px] z-27 animate-[fade_.3s_ease-out_.2s_backwards] [@media(max-width:760px)]:top-[72px] [@media(max-width:760px)]:right-[22px]';
 
-/** The grip on the open sheet's left edge: drag to widen or narrow it, double-click for the default. None in a narrow window. */
+
 const gripClass =
   "fixed top-0 bottom-0 w-3 z-26 cursor-ew-resize touch-none opacity-0 pointer-events-none [transition:opacity_.2s,right_.45s_cubic-bezier(.3,.9,.3,1)] resizing:[transition:none] [@media(max-width:760px)]:hidden after:content-[''] after:absolute after:left-1 after:top-1/2 after:w-1 after:h-11 after:-mt-6 after:rounded-xs after:bg-planned after:opacity-55 after:[transition:background_.15s,opacity_.15s,height_.15s,margin-top_.15s] hover:after:bg-muted-foreground hover:after:opacity-100 hover:after:h-16 hover:after:-mt-8 resizing:after:bg-muted-foreground resizing:after:opacity-100 resizing:after:h-16 resizing:after:-mt-8";
 

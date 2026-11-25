@@ -1,10 +1,10 @@
-// "Needs you": the cards that wait for the owner, docked on the right behind the floating row's bell.
-// The shown project's cards come first, as the inbox lists them (the latest changed first, snoozed
-// ones at the end); every other project with cards waiting follows as a header with its count, folded until
-// clicked open. "Hide other projects" leaves those headers out, remembered per browser. Each card is
-// its inbox entry as its kind renders it (src/ui/needsYou/renderers.tsx): its face at size S, its
-// one-click replies and "Go to card".
-// Seismic's answers and rule or setting proposals are the inbox's alone.
+
+
+
+
+
+
+
 
 import { cn } from 'cn';
 import { ChevronRight, ListChecks } from 'lucide-react';
@@ -26,7 +26,7 @@ type CardOnly = InboxEntry & { card: Item };
 
 export function NeedsYouSheet({ on, entries, current, open, onGo, onReply, isRead, onRead }: Omit<InboxProps, 'onProposalCard' | 'onProposalConfig' | 'els'> & { on: boolean; current: string }) {
   const [hideOthers, setHideOthers] = useStoredState<boolean>('seismic-needs-you-hide-others', false);
-  // the other projects opened in this sheet, until the page reloads
+  
   const [unfolded, setUnfolded] = useState<string[]>([]);
   const cards = entries.filter((e): e is CardOnly => !!e.card);
   const here = cards.filter((e) => e.project === current);

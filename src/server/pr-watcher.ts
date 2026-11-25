@@ -1,16 +1,16 @@
-// Watches the open pull requests of a project and passes what happens on them to the card's
-// worker: new review comments, failed checks, conflicts. Once nothing is left for the worker, Seismic
-// merges it (the owner's approval covered that), unless the repository's settings leave the merge
-// to the people on the forge (`autoMerge` off). A card may have several pull requests (one in
-// another repository its work also needed): each is watched alike, and the card is live once all of
-// them are merged.
+
+
+
+
+
+
 
 import type { RepoAdapter } from '../adapters/types';
 import { type Board, contributionOf, type PrState, type StoredContribution } from './board';
 import { confidence, lastAsked, MIN_CONFIDENCE, passing, reviewOf, reviewStale, waitsOf, type Forge, type PrStatus } from './forge';
 import type { PrWait } from '../core/types';
 
-/** How long reading a PR fails before its card says so. */
+
 const READ_ERROR_AFTER_MS = 10 * 60_000;
 import type { WorkerSupervisor } from './workerSupervisor/workerSupervisor';
 import { messageOf } from '../core/text';
@@ -20,25 +20,25 @@ const watched = (state: string | undefined) => state === 'inPr' || state === 'wa
 export class PrWatcher {
   private timer: ReturnType<typeof setInterval> | undefined;
   private polling = false;
-  /** Stopped (its project closed): a round still waiting for the forge leaves the cards alone. */
+  
   private stopped = false;
-  /** When the last round began. */
+  
   private polled = 0;
 
   constructor(
     private board: Board,
     private workers: WorkerSupervisor,
     private forge: Forge,
-    /** Where the forge's calls run for a card (its workstation, else the Seismic checkout). */
+    
     private cwd: (cardId: string) => string,
-    /**
-     * The repository's settings, asked each round since they may change while the watcher runs:
-     * accounts whose comments are not review feedback (`prNoise`), and whether Seismic merges (`autoMerge`).
-     */
+    
+
+
+
     private settings: () => Pick<RepoAdapter, 'prNoise' | 'autoMerge'> = () => ({}),
-    /** On a project with several repositories: the one whose pull requests this watches. */
+    
     private repo?: string,
-    /** Called at the end of every round (the read checkout fetches then). */
+    
     private onRound?: () => void,
   ) {}
 
@@ -79,10 +79,10 @@ export class PrWatcher {
     try {
       const open = this.board
         .snapshot()
-        // a card whose PR is merged already may wait for the owner again (its worker asks while it finishes): it is not watched again
+        
         .items.filter((i) => watched(i.state) && !this.board.row(i.id).landed && (!this.repo || i.repo === this.repo))
         .flatMap((i) => this.openPrs(i.id).map((url) => ({ id: i.id, url })));
-      // a card whose PRs are all merged but one closed meanwhile, which the owner left closed: nothing holds it up
+      
       for (const i of this.board.snapshot().items) {
         if (i.state !== 'inPr' || this.board.row(i.id).landed || (this.repo && i.repo !== this.repo) || this.openPrs(i.id).length) continue;
         if (!this.allMerged(i.id) || this.workers.busyCards().includes(i.id)) continue;
@@ -109,8 +109,8 @@ export class PrWatcher {
     if (!now) return;
     const { state, pr } = now;
     if (!status) {
-      // failing for a while (a login missing, say, not the network gone for a moment), the card
-      // says why once: otherwise it would wait for a merge it never sees
+      
+      
       const reason = messageOf(error);
       console.error(`PR ${url}:`, reason);
       const failing = pr.readError ?? { since: Date.now() };
@@ -185,17 +185,17 @@ export class PrWatcher {
     const noise = settings.prNoise ?? [];
     if (contribution) return this.reactToContributor(cardId, state, pr, s, contribution, noise);
     const next: PrState = { ...pr, checks: s.checks, review: reviewOf(s, noise) };
-    // which pull request a message is about, where the card has several
+    
     const which = this.prsOf(cardId).length > 1 ? ` (${pr.url})` : '';
-    // while the owner is being asked, news waits: it is passed on once the card is back in the PR
+    
     if (state === 'inPr') {
       if (s.state === 'CLOSED') {
-        // a further one, closed, holds up nothing: the owner says whether it is opened again
+        
         this.save(cardId, which && this.prsOf(cardId)[0]?.url !== pr.url ? { ...next, closed: true } : next);
         return this.workers.prClosed(cardId);
       }
-      // an approval without words asks the worker for nothing
-      // a comment rewritten into something other than a passing verdict is news again (a summary that now asks for a fix)
+      
+      
       const key = (c: PrStatus['comments'][number]) => (c.edited && !passing(c) ? `${c.id}@${c.edited}` : c.id);
       const comments = s.comments.filter((c) => !pr.seen.includes(key(c)) && c.author !== s.author && !noise.includes(c.author) && (c.body.trim() || c.verdict === 'changes'));
       if (comments.length) {
@@ -228,7 +228,7 @@ export class PrWatcher {
           `Your pull request${which} conflicts with its base branch. Bring it up to date with the latest base the way the repository does it (merge or rebase; push a rebase with --force-with-lease), resolve the conflicts, run the checks, push, and end your turn. Use ask if a conflict needs a product decision.`,
         );
       } else if (s.mergeable === 'MERGEABLE') delete next.conflictHead;
-      // a branch protection that wants the branch up to date with its base before a merge
+      
       if (s.mergeState === 'BEHIND' && s.mergeable !== 'CONFLICTING' && pr.behindHead !== s.head) {
         next.behindHead = s.head;
         told = true;
@@ -238,9 +238,9 @@ export class PrWatcher {
           `Your pull request${which} is behind its base branch, and the repository merges only a branch that is up to date with it. Bring it up to date the way the repository does it (merge or rebase; push a rebase with --force-with-lease), run the checks, push, and end your turn.`,
         );
       }
-      // ready only while the worker has nothing in hand: what it was told may still change the PR
+      
       const idle = !told && !this.workers.busyCards().includes(cardId);
-      // a push the reviewer has not seen, and nobody asked for another look: the worker asks, once per commit
+      
       if (idle && reviewStale(s, noise) && lastAsked(s, noise) < s.changedAt! && pr.staleHead !== s.head) {
         next.staleHead = s.head;
         told = true;
@@ -256,7 +256,7 @@ export class PrWatcher {
       if (ready) delete next.waits;
       else next.waits = waits;
       if (ready && low && low.score / low.of < MIN_CONFIDENCE) {
-        // the reviewer doubts it: the owner decides, and merges or tells the worker what is missing
+        
         const held = { score: `${low.score}/${low.of}`, by: low.by };
         if (pr.readyHead !== s.head || pr.held?.score !== held.score)
           this.board.log(cardId, 'state', 'seismic', this.board.t.pr.held(held.by, held.score));
@@ -265,7 +265,7 @@ export class PrWatcher {
         delete next.mergeError;
         delete next.manual;
       } else if (ready && settings.autoMerge === false) {
-        // the repository leaves the merge to the people on the forge: the owner merges there
+        
         if (pr.readyHead !== s.head || pr.held || !pr.manual) this.board.log(cardId, 'state', 'seismic', this.board.t.pr.readyManual);
         next.readyHead = s.head;
         next.manual = true;
@@ -276,13 +276,13 @@ export class PrWatcher {
         next.readyHead = s.head;
         delete next.held;
         delete next.manual;
-        // the owner's approval covered the merge: Seismic merges, and tries again each round while the forge refuses
+        
         let commit: string | void;
         try {
           commit = await this.forge.merge(this.cwd(cardId), pr.url!, s.head);
         } catch (e) {
           if (!this.current(cardId, pr.url!)) return;
-          // the worker took up something meanwhile (on another of the card's PRs, say): not ready while it is at it
+          
           if (this.workers.busyCards().includes(cardId)) {
             delete next.readyHead;
             next.waits = ['agent'];
@@ -293,7 +293,7 @@ export class PrWatcher {
           next.mergeError = reason;
           return this.save(cardId, next);
         }
-        // merged on the forge: a card that moved on meanwhile, or one on a project closed since, sees it at its next round
+        
         if (!this.current(cardId, pr.url!)) return;
         delete next.mergeError;
         this.save(cardId, next);
@@ -356,7 +356,7 @@ export class PrWatcher {
       }
     }
     this.save(cardId, next);
-    // the remote's main moves with others' pushes, the local one with landings: what the merge would collide with, looked at afresh
+    
     if (state === 'waiting') this.workers.recheckClash(cardId);
   }
 

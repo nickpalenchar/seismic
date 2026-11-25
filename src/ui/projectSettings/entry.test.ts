@@ -4,14 +4,14 @@ import { entryDraft, mergedEntry, withEntry } from './entry';
 
 test('the edited entry goes over the entry as saved now: settings saved since stay, what the editor sets wins', () => {
   const begun: ProjectConfig = { name: 'Shop', icon: '🛒', repos: [{ path: '/a', settings: { land: 'main' } }, { path: '/b' }] };
-  // typed since: a new name, no icon, a path, a repository added
+  
   const { icon: _, ...rest } = begun;
   const draft = { ...rest, name: 'Store', oldNames: ['Shop'], repos: [
     { path: '/a', originalPath: '/a', settings: { land: 'main' as const } },
     { path: '/b2', originalPath: '/b' },
     { path: '/c', originalPath: null, clones: 2 },
   ] };
-  // saved meanwhile by the sheet's other sections: a repository setting, a project setting
+  
   const fresh: ProjectConfig = { ...begun, agents: { worker: { model: 'opus' } }, repos: [{ path: '/a', settings: { land: 'pr' } }, { path: '/b', settings: { autoMerge: true } }] };
   expect(mergedEntry(draft, fresh)).toEqual({
     name: 'Store',
@@ -19,7 +19,7 @@ test('the edited entry goes over the entry as saved now: settings saved since st
     agents: { worker: { model: 'opus' } },
     repos: [{ path: '/a', settings: { land: 'pr' } }, { path: '/b2', settings: { autoMerge: true } }, { path: '/c', clones: 2 }],
   });
-  // a repository whose settings were dropped meanwhile has none
+  
   expect(mergedEntry(entryDraft({ repos: [{ path: '/a', settings: { land: 'main' } }] }), { repos: [{ path: '/a' }] })).toEqual({ repos: [{ path: '/a' }] });
 });
 

@@ -1,6 +1,6 @@
-// What the tests of the worker supervisor share (test/workerSupervisor/workerSupervisor.test.ts and the other tests there, split so that
-// `bun test --parallel` runs them side by side): a checkout with a clone, a board and the workers
-// on it, set up afresh for each test. Tests read the bindings below; they replace one with its setter.
+
+
+
 
 import { afterEach, beforeEach } from 'bun:test';
 import type { PageTags } from '../../../core/types';
@@ -27,14 +27,14 @@ export let runtime: FakeRuntime;
 export let workers: WorkerSupervisor;
 export let spaces: Workstations;
 export let store: Store;
-/** With `setup(adapter, true)`: the bare repository the clones come from and push to. */
+
 export let origin: string;
-/** The cards `onMerged` was called for. */
+
 export let merged: string[];
 
-/** The language of Seismic's interface in these tests. */
+
 export let language: 'en';
-/** The owner's conversation language in these tests; the fixture's interface language where none is set. */
+
 export let conversation: 'en' | undefined;
 
 export const setWorkers = (w: WorkerSupervisor) => void (workers = w);
@@ -42,7 +42,7 @@ export const setDocs = (d: PlanDoc[]) => void (docs = d);
 export const setLanguage = (l: 'en') => void (language = l);
 export const setConversation = (l: 'en') => void (conversation = l);
 
-/** `withOrigin`: clones come from a bare `origin`, as from a remote, instead of from the checkout. */
+
 /** `share`: the project shares demos on a site, with this vocabulary of tags where it names one. */
 export function setup(adapter: RepoAdapter, withOrigin = false, share?: { tags?: PageTags }) {
   dir = mkdtempSync(join(tmpdir(), 'seismic-workers-'));
@@ -52,7 +52,7 @@ export function setup(adapter: RepoAdapter, withOrigin = false, share?: { tags?:
   if (withOrigin) git(dir, 'clone', '--quiet', '--bare', main, origin);
   store = new Store(':memory:');
   docs = [doc];
-  // the checkout is the Lesestand: work lands on its main
+  
   const holds = (_repo: string, commit: string) => Bun.spawnSync([GIT, '-C', main, 'merge-base', '--is-ancestor', commit, 'HEAD'], { stderr: 'ignore' }).exitCode === 0;
   language = 'en';
   conversation = undefined;
@@ -64,7 +64,7 @@ export function setup(adapter: RepoAdapter, withOrigin = false, share?: { tags?:
     for (const w of workstations.list()) identify(w.path);
   }
   runtime = new FakeRuntime();
-  // this test's own: a merge an earlier test's workers report late goes to that test's list
+  
   const ours: string[] = (merged = []);
   workers = new WorkerSupervisor({
     board,
@@ -93,7 +93,7 @@ export function eachTest() {
     }),
   );
   afterEach(async () => {
-    // git freeing a workstation in the background is done before its repository goes
+    
     await workers?.freed();
     rmSync(dir, { recursive: true, force: true });
   });

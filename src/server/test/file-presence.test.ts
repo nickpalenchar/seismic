@@ -14,12 +14,12 @@ test('a file is looked at once; the answer stays until a refresh looks again', a
   const file = join(dir, 'poster.jpg');
   expect(p.there(file)).toBe(false);
   writeFileSync(file, 'x');
-  // as last seen: no file system call for it
+  
   expect(p.there(file)).toBe(false);
   await p.refresh();
   expect(p.there(file)).toBe(true);
   expect(flips).toBe(1);
-  // nothing changed: nobody hears of it
+  
   await p.refresh();
   expect(flips).toBe(1);
   rmSync(file);
@@ -45,7 +45,7 @@ test('refreshes with nothing asked in between do not forget what was seen', asyn
   await p.refresh();
   await p.refresh();
   writeFileSync(file, 'x');
-  // still known as it was seen: no file system call
+  
   expect(p.there(file)).toBe(false);
 });
 
@@ -60,7 +60,7 @@ test('refreshes asked for while one runs share the look that follows it, and res
   const second = p.refresh();
   expect(second).not.toBe(first);
   expect(p.refresh()).toBe(second);
-  // awaiting the one asked for meanwhile waits for the look that follows, which sees the file
+  
   await second;
   expect(p.there(file)).toBe(true);
   expect(flips).toBe(1);

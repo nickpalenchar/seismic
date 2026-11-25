@@ -1,7 +1,7 @@
-// Other devices reaching Seismic (src/server/remote.ts): the dialog "Connect a phone" the phone icon
-// in the bar opens, with the QR code that pairs a phone, and the section "Other devices" of the
-// configuration, with the setting, what the network lacks, the address and the paired devices. Both
-// show the setting and the network the same way (`Reach`), and only on this machine itself.
+
+
+
+
 
 import { Fragment, type ReactNode, useEffect, useState } from 'react';
 import { encode } from 'uqr';
@@ -15,11 +15,11 @@ import { SegmentedControl } from './components/segmented';
 import { Select, SelectItem } from './components/select';
 import { statusClass } from './setupClasses';
 
-/** A line that something is in order, behind a tick in the approved colour. */
+
 const okClass = "before:content-['✓_'] before:text-approved";
-/** The address to type, a little larger than the code around it. */
+
 const addressClass = 'acc-address text-sm!';
-/** A step that is still missing, close under the line it is about. */
+
 const stepClass = 'hint acc-step mt-1! mb-0! mx-0!';
 
 /** Text with `code` in backticks, as the strings write commands. */
@@ -68,7 +68,7 @@ function Reach({ view, onView }: { view: AccessView; onView: (v: AccessView) => 
     }
   };
   const via = view.remote?.via ?? null;
-  // what the owner set for keeping the machine awake goes along when the way changes
+  
   const awake = view.remote?.awake ? { awake: view.remote.awake } : {};
   const always = view.remote?.awake === 'always';
   const ts = view.tailscale;
@@ -241,7 +241,7 @@ export function PhoneDialog({ onClose, onSection }: { onClose: () => void; onSec
   const [view, setView] = useAccess(true);
   const [asked, setAsked] = useState(false);
   const pairing = view?.pairing ?? null;
-  // a code as soon as there is an address, and a new one when it expired unused
+  
   useEffect(() => {
     if (!view?.address || pairing || asked) return;
     setAsked(true);

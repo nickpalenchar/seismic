@@ -1,10 +1,10 @@
-// What the owner is about to say or write, one draft per field: the text, the screenshots, the
-// options picked for the questions above it and (in `reply.ts`) the message it replies to. The field of the open card and the one in Seismic's sidebar
-// keep theirs here rather than in the field itself, so the microphone sends what stands in the field
-// and dictates into it, and a draft outlives closing the card. Without a field to speak to, the
-// screenshots for the next recording lie beside the microphone, in a draft of their own (`MIC`).
-// These drafts (text, screenshots, picks, the message replied to) are written down per tab and project (`keepDrafts`), so they outlive a page load too:
-// switching to another project and back, or a restart. So are the marks on screenshots (`Markup`).
+
+
+
+
+
+
+
 
 import { renamedDraftKey } from './browserState';
 import type { AgentSetting, FindingPick } from '../core/types';
@@ -18,32 +18,32 @@ export type StartAgentChoice = AgentSetting & { followProjectModel?: true };
 export interface Draft {
   text: string;
   images: string[];
-  /** Screenshots and other files still uploading; blocks sending until all settle. */
+  
   uploading: number;
-  /** Screenshot uploads among `uploading`, whose placeholders belong in the thumbnail strip. */
+  
   uploadingImages: number;
-  /** The screenshots whose marked version is still uploading, to take their place. */
+  
   marking: string[];
   error: string;
-  /** A recording dictated into the field: while the owner speaks, then while Whisper writes it down. */
+  
   dictation: '' | 'listening' | 'writing';
-  /** What the field says about the last dictation: nothing was heard, say. */
+  
   note: string;
-  /** The options picked for each of the questions above the field, and which questions they are (`questionsKey`). */
+  
   picks?: Picks;
-  /** The message the words reply to (`reply.ts`). */
+  
   reply?: Reply;
-  /** On a review card: what the owner decided for its findings, by number, which goes with the words. */
+  
   findings?: Record<string, FindingPick>;
-  /** The owner's own words on single findings, by number, which go verbatim with the finding's decision. */
+  
   findingNotes?: Record<string, string>;
-  /** Context still being typed, by finding number: it becomes a note with Save. */
+  
   findingNoteEdits?: Record<string, string>;
-  /** Which code review the finding choices and context above were written for (`FindingList`). */
+  
   reviewKey?: string;
-  /** The paths of dropped files among the words (`insertFiles`), which go back beside the microphone with the screenshots (`moveFiles`). */
+  
   files?: string[];
-  /** The agent picked in the Start button's menu, for the next start (`start-agent.tsx`). */
+  
   agent?: StartAgentChoice;
 }
 
@@ -67,7 +67,7 @@ export function findingDraft(d: Pick<Draft, 'findings' | 'findingNotes' | 'findi
 export interface Picks {
   of: string;
   picks: string[][];
-  /** The owner's own answer to each question, written beside its last choice. */
+  
   others?: string[];
 }
 
@@ -76,7 +76,7 @@ export const questionsKey = (questions: unknown[]) => JSON.stringify(questions);
 
 type Kept = Pick<Draft, 'text' | 'images' | 'picks' | 'reply' | 'files' | 'findings' | 'findingNotes' | 'findingNoteEdits' | 'reviewKey' | 'agent'>;
 const keptOf = ({ text, images, picks, reply, files, findings, findingNotes, findingNoteEdits, reviewKey, agent }: Draft): Kept | null => {
-  // the owner's own answers count while written, picked or not
+  
   const picked = picks?.picks.some((p) => p.length) || picks?.others?.some((o) => o.trim()) ? picks : undefined;
   const decided = findings && Object.keys(findings).length ? findings : undefined;
   const noted = findingNotes && Object.keys(findingNotes).length ? findingNotes : undefined;
@@ -93,23 +93,23 @@ const EMPTY: Draft = { text: '', images: [], uploading: 0, uploadingImages: 0, e
 export const cardDraft = (id: string) => `card:${id}`;
 /** The draft of the comment on a card's approved work, for its feedback (`feedback.tsx`). */
 export const rateDraft = (id: string) => `rate:${id}`;
-/** The draft of the field in Seismic's sidebar. */
+
 export const SEISMIC_DRAFT = 'seismic';
 /** The draft of the field under Seismic's conversation of a project, in the phone view, which shows every project. */
 export const seismicDraft = (project: string) => `${SEISMIC_DRAFT}:${project}`;
-/** The screenshots beside the microphone, where no field is spoken to. */
+
 export const MIC_DRAFT = 'mic';
-/** The field of the draft for Seismic's makers (`wish.tsx`). */
+
 export const WISH_DRAFT = 'wish';
 
 const drafts = new Map<string, Draft>();
-/** The text field of each draft on the page. */
+
 const fields = new Map<string, HTMLTextAreaElement>();
-/** The fields that take no screenshots. */
+
 const noImages = new Set<string>();
-/** Where the cursor stood when a dictation started, for when the field has lost it by the time the words come. */
+
 const carets = new Map<string, [number, number]>();
-/** Where the cursor stood when the field on the page last lost it, for a quote put in from the conversation (`cite`). */
+
 const left = new Map<string, number>();
 const listeners = new Set<() => void>();
 const changed = () => {
@@ -127,18 +127,18 @@ const storeKey = (project: string) => `seismic-drafts-${project}`;
 const markupsKey = (project: string) => `seismic-markups-${project}`;
 let kept: { store: Store; project: string } | null = null;
 
-/**
- * A screenshot the owner marked in a field: the original and the marks on it, by the id of the
- * marked image that the field holds in its place. Reopened, the original shows with its marks
- * still apart, to undo them; the agent gets the marked image.
- */
+
+
+
+
+
 export interface Markup {
   original: string;
   marks: Mark[];
 }
-/** The latest markups, any field's (a planned card's task too): the newest last. */
+
 const markups = new Map<string, Markup>();
-/** How many markups are kept: the newest, more than the fields open at a time hold. */
+
 const KEPT_MARKUPS = 100;
 
 export const markupOf = (id: string): Markup | undefined => markups.get(id);
@@ -163,7 +163,7 @@ export function setMarkup(id: string, markup: Markup | null) {
  */
 export function keepDrafts(store: Store, project: string) {
   if (kept?.project === project && kept.store === store) return;
-  // the owner switched projects within the page: the drafts of the one before are written down under its name already
+  
   if (kept) {
     for (const key of [...drafts.keys()]) if (lasting(key)) drafts.delete(key);
     markups.clear();
@@ -230,7 +230,7 @@ export function updateDraft(key: string, change: Partial<Draft> | ((d: Draft) =>
  */
 export function draftIn(key: string): { here: () => boolean; update: (change: Partial<Draft> | ((d: Draft) => Partial<Draft>)) => void } {
   const at = kept;
-  // the same project's drafts, also once the owner has switched away and back
+  
   const here = () => (kept?.project === at?.project && kept?.store === at?.store) || !lasting(key);
   return {
     here,
@@ -317,7 +317,7 @@ export function useDraftField(key: string, el: () => HTMLTextAreaElement | null,
     return () => {
       f.removeEventListener('blur', blur);
       if (fields.get(key) !== f) return;
-      // a field shown afresh has no cursor yet: a quote goes at its end
+      
       left.delete(key);
       fields.delete(key);
       noImages.delete(key);
@@ -387,11 +387,11 @@ export function dictate(key: string, words: string) {
 export function insert(key: string, words: string) {
   const el = fields.get(key);
   if (el && el === document.activeElement) return typeAtCursor(el, words);
-  // the draft, not the field, which shows a path put in just before only once React has drawn it
+  
   const { text } = draftOf(key);
   const at = Math.min(left.get(key) ?? text.length, text.length);
   const piece = spaced(text.slice(0, at), words, text.slice(at));
-  // the next ones go after it, as typed ones would
+  
   if (left.has(key)) left.set(key, at + piece.length);
   updateDraft(key, { text: text.slice(0, at) + piece + text.slice(at) });
 }
@@ -419,7 +419,7 @@ export function withoutWords(text: string, words: string[]) {
     if (i < 0) continue;
     let [start, end] = [i, i + w.length];
     while (end < text.length && /[ \t]/.test(text[end]!)) end++;
-    // at the end of a line, the space before it
+    
     if (end === text.length || text[end] === '\n') while (start > 0 && /[ \t]/.test(text[start - 1]!)) start--;
     text = text.slice(0, start) + text.slice(end);
   }
@@ -470,7 +470,7 @@ export function cite(key: string, quote: string) {
 /** Types `s` into the focused field at its cursor, as a keystroke would: React hears it, ⌘Z takes it back. */
 export function typeInto(el: HTMLTextAreaElement, s: string) {
   if (document.execCommand('insertText', false, s)) return;
-  // a browser without it: set the text the way React notices
+  
   el.setRangeText(s, el.selectionStart, el.selectionEnd, 'end');
   el.dispatchEvent(new Event('input', { bubbles: true }));
 }

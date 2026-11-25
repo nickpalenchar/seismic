@@ -5,7 +5,7 @@ import { atomic, type Db, now } from './common';
 import { projects } from './projects';
 import { talk } from './talk';
 
-/** The owner's chats with Seismic on a project; new words go into the one opened last. */
+
 export const chats = sqliteTable(
   'chats',
   {
@@ -41,7 +41,7 @@ export class Chats {
       if (!last) return { chat: this.current(projectId), timedOut: false };
       const timedOut = Date.now() - Date.parse(last.opened) > 20 * 60_000;
       const id = timedOut ? this.start(projectId) : last.id;
-      // An empty chat is reused by start(), so it needs its opening recorded too.
+      
       if (id === last.id) this.db.update(chats).set({ opened: this.nextOpening(projectId) }).where(eq(chats.id, id)).run();
       return { chat: id, timedOut };
     });

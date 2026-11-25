@@ -1,4 +1,4 @@
-// Card sizes and default placement. Cards keep a fixed, readable size; a plan wraps its children.
+
 
 import { finished, finishingUp, type Item, type PlanDir } from './types';
 
@@ -9,11 +9,11 @@ export const CARD_SIZE: Record<Exclude<Shape, 'plan'>, readonly [number, number]
   chip: [300, 88],
 };
 
-/** Inside a plan: children start below the header, with this margin around them. */
+
 export const PLAN_PAD = 30;
 export const PLAN_HEAD = 78;
 const PLAN_MIN: readonly [number, number] = [420, 150];
-/** A plan the owner collapsed: its head, and a row of marks for its workstreams. */
+
 export const PLAN_COLLAPSED: readonly [number, number] = [440, 84];
 const CHIPS_PER_ROW = 3;
 const TASKS_PER_ROW = 3;
@@ -27,7 +27,7 @@ const PLAN_GAP = 60;
 export function shapeOf(i: Pick<Item, 'kind' | 'state' | 'parent' | 'agent'>): Shape {
   if (i.kind === 'plan') return 'plan';
   if (i.parent && finished(i.state) && !finishingUp(i)) return 'chip';
-  // a Question card too: it has a task's size, and a look of its own
+  
   return 'task';
 }
 
@@ -42,7 +42,7 @@ export function planSize(children: Pick<Item, 'kind' | 'state' | 'parent' | 'age
   return [w, h];
 }
 
-/** An unworked card merged with another card: both cards side by side, joined by the arrow with the merge mark on it. */
+
 export const MERGED_SIZE: readonly [number, number] = [2 * CARD_SIZE.task[0] + 88, CARD_SIZE.task[1]];
 
 export function sizeOf(i: Item, all: Item[]): [number, number] {
@@ -106,12 +106,12 @@ export function placeWorkstreams(ws: { done: boolean }[], startY = PLAN_HEAD): {
   return out;
 }
 
-/** What arranging a plan's workstreams needs of each, in the plan's order. */
+
 export type Arrangeable = Pick<Item, 'id' | 'kind' | 'state' | 'parent' | 'agent' | 'plan'>;
 
-/** Between two columns of workstreams there is room for the arrows from one to the next. */
+
 const COLUMN_GAP = 70;
-/** A column holds this many cards; more of one depth go into a second column beside it. */
+
 const ROWS_PER_COLUMN = 4;
 
 /**
@@ -149,7 +149,7 @@ export function dependencyColumns(ws: Arrangeable[]): { chips: string[]; layers:
       };
       const sorted = layer.map((w, n) => ({ w, n, m: mean(w) })).sort((a, b) => (a.m === b.m ? a.n - b.n : a.m - b.m)).map((x) => x.w);
       sorted.forEach((w, n) => row.set(w.id, n % ROWS_PER_COLUMN));
-      // a depth with more cards than a column holds goes on in a column beside it
+      
       return Array.from({ length: Math.ceil(sorted.length / ROWS_PER_COLUMN) }, (_, n) => sorted.slice(n * ROWS_PER_COLUMN, (n + 1) * ROWS_PER_COLUMN).map((w) => w.id));
     });
   return { chips: ws.filter((w) => shapeOf(w) === 'chip').map((w) => w.id), layers: arranged };
@@ -217,10 +217,10 @@ export function freeSpotNear(want: { x: number; y: number }, size: readonly [num
   return best;
 }
 
-/**
- * Where a new card should go: centred as near this point as there is room, inside `view` (the project the owner has in view) if there is room there,
- * on `canvas` (a `Canvas` id; the project's `main` when left out).
- */
+
+
+
+
 export interface Place {
   x: number;
   y: number;
@@ -241,7 +241,7 @@ export function parsePlace(s: string | null | undefined): Place | undefined {
   return { x, y, ...(vw !== undefined && vw > 0 && vh! > 0 ? { view: { x: vx!, y: vy!, w: vw, h: vh! } } : {}), ...(canvas ? { canvas } : {}) };
 }
 
-/** How wide the note on a plan directory is (`PlanDir`). */
+
 export const PLAN_DIR_NOTE_W = 380;
 
 /** How tall the note on a plan directory is, about: it has a row for each doc it lists. */

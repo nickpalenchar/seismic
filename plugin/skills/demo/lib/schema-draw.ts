@@ -1,4 +1,4 @@
-// Relation overlay: index endpoints once and coalesce layout notifications.
+
 export const DRAW = `(() => {
   const data = JSON.parse(document.getElementById('relations').textContent);
   const diagram = document.querySelector('.diagram');

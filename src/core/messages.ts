@@ -1,12 +1,12 @@
-// What the server says to the owner, in English (a table per language, like the UI's
-// strings in src/ui/strings.ts): the lines it writes into a card's log, the questions it puts to
-// the owner, the Koordinator's own confirmations and what it speaks. A line goes into the log in
-// the language that applies when it is written and stays so.
+
+
+
+
 
 import { type Language, LANGUAGE_NAMES } from './locale';
 import { SEVERITIES, type Severity, type Awaited, type AwaitedState, type Snooze } from './types';
 
-/** What a worker pauses for: Seismic restarting, Seismic stopping, or only its repository's agents restarting (a change to its configuration). */
+
 export type Pause = 'restart' | 'stop' | 'repo';
 
 const en = {
@@ -177,7 +177,7 @@ const en = {
     unparkedFromLot: 'Taken out of the parking lot.',
     parkKept: 'The app in the workstation keeps running while the card waits: it holds data that should stay. To have it stopped anyway, tell the agent.',
     parkFailed: (output: string) => `Stopping the app in the workstation failed: ${output}`,
-    /** The page the owner's browser gets for a card whose app no longer runs. */
+    
     appGone: 'The app of this card no longer runs. To have the agent start it again, tell it on the card.',
     stoppedPrOpen: (n: number) => `Stopped. Pull request #${n} stays open.`,
     restartDue: (pause: Pause) => `Seismic is about to ${pause === 'stop' ? 'stop' : pause === 'repo' ? "restart this repository's agents" : 'restart'}; the agent pauses at the next safe point.`,
@@ -489,7 +489,7 @@ const en = {
       `The repository has changes that are not committed yet, captured from the checkout \`${path}\`:\n\n${files.map((f) => `- \`${f}\``).join('\n')}${more ? `\n- … and ${more} more` : ''}\n\nThe complete patch, including new and binary files, is saved separately on this card and supplied to your agent. Work out what was being worked on and finish it: apply the captured patch in your branch, add what is missing, run the checks and commit it. Ask me if what was intended stays unclear.`,
     reason: 'The repository has changes that are not committed yet.',
   },
-  /** The card that turns a doc in the plan directory that is not a plan into one. */
+  
   preparePlanDoc: {
     title: (file: string) => `Prepare ${file.slice(file.lastIndexOf('/') + 1)} as a plan`,
     body: (file: string) =>

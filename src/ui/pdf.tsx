@@ -1,14 +1,14 @@
-// A PDF drawn with pdf.js, page under page, where the browser shows none in a frame (a phone's: Chrome
-// on Android shows an empty frame, and Safari on the iPhone is no more reliable). pdf.js comes from the
-// server (src/server/pdfjs.ts) only there, outside the page's bundle. No scripts, links or forms of
-// the PDF run: pages are drawn as images.
+
+
+
+
 
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { useEffect, useRef, useState } from 'react';
 import { PDFJS_BASE as BASE } from '../core/files';
 import { t } from './strings';
 
-// a name the bundler leaves alone, so the import happens in the browser
+
 const MODULE = `${BASE}pdf.min.mjs`;
 let loaded: Promise<typeof import('pdfjs-dist')> | undefined;
 
@@ -22,7 +22,7 @@ function pdfjs(): Promise<typeof import('pdfjs-dist')> {
   return loaded;
 }
 
-/** The most pixels a page's canvas gets: Safari draws nothing in a larger one. */
+
 const MAX_PIXELS = 12e6;
 
 export function PdfPages({ url, title }: { url: string; title: string }) {
@@ -59,7 +59,7 @@ export function PdfPages({ url, title }: { url: string; title: string }) {
 function PdfPage({ doc, n }: { doc: PDFDocumentProxy; n: number }) {
   const box = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
-  // width over height, known before the page is drawn so the pages below do not move; busy until then
+  
   const [ratio, setRatio] = useState<number | 'failed'>();
   const [near, setNear] = useState(false);
   const [width, setWidth] = useState(0);

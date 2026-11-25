@@ -1,8 +1,8 @@
-// Files the owner drops into what they write that are no screenshots (a PDF, a log, a spreadsheet):
-// the field gets the file's own path, for the agent to read it there and to move or change it. The
-// app knows that path; a browser does not tell it, so Seismic looks for the file by its name, size and
-// time in the folders files are dropped from, and where it finds no single one, keeps a copy under
-// its home and the field gets that copy's path.
+
+
+
+
+
 
 import { mkdirSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
@@ -12,19 +12,19 @@ import { MAX_FILE_BYTES } from '../core/types';
 import { BadRequest } from './board';
 import { which } from './path';
 
-/** What a browser tells of a dropped file: its name, its size, and when it was last changed (ms since the epoch). */
+
 export interface Dropped {
   name: string;
   size: number;
   modified: number;
 }
 
-/** How far a file's time may lie from the one the browser gives (FAT keeps it to two seconds). */
+
 const SAME_TIME_MS = 2000;
-/** The most entries a search through the folders looks at, and how deep it goes into them. */
+
 const WALK_MAX = 30_000;
 const WALK_DEPTH = 4;
-/** How long Spotlight may take. */
+
 const SPOTLIGHT_MS = 3000;
 
 /**
@@ -49,7 +49,7 @@ export async function findDropped(f: Dropped, home = homedir()): Promise<string 
   for (const p of await spotlight(f.name, home)) add(p);
   if (!found.size) {
     const walked = await walk(f.name, home);
-    // a search cut short may have missed another that fits
+    
     if (!walked.whole) return null;
     for (const p of walked.found) add(p);
   }
@@ -112,7 +112,7 @@ export class Files {
   }
 }
 
-/** The images a drop in the app may hand to the page by their path, for it to attach them as screenshots, with their media types. */
+
 const LOCAL_IMAGES: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', heic: 'image/heic', heif: 'image/heif', tif: 'image/tiff', tiff: 'image/tiff' };
 
 /** An image on this machine dropped in the app, by its absolute path: its file and media type, or null for anything else. */

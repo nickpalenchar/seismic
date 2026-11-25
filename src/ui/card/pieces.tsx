@@ -1,6 +1,6 @@
-// The pieces a card's face is made of, which each size composes (src/ui/card/face.tsx): the title,
-// the line under it, the state line with its marks, the pin and the unread dot. The label chips are
-// in labels.tsx.
+
+
+
 
 import { Car, CircleHelp, GitMerge, Lightbulb, RotateCw } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -50,7 +50,7 @@ export const StateMarks = ({ marks }: { marks: StateMark[] }) => (
   </>
 );
 
-/** The colours of the states a stopped card remembers that no state class (`s-…`) gives. */
+
 const TONES: Record<string, string> = {
   's-asking': 'c-asking',
   'tone-paused': 'c-muted',
@@ -85,7 +85,7 @@ export function Title({ item, className, inline, children }: { item: Item; class
   return inline ? <span className={cls}>{children ?? shownTitle(item)}</span> : <div className={cls}>{children ?? shownTitle(item)}</div>;
 }
 
-/** A pin's fill, in the colour of what the owner is asked (`--pin`). */
+
 const PIN = 'bg-(--pin)';
 const pinInk = (pin: NonNullable<CardSummary['pin']>) => (pin.mark === '✦' ? '[--pin:var(--proposal)] [--pin-fg:var(--proposal-foreground)] w-[17px] px-0!' : pin.failed ? '[--pin:var(--destructive)] [--pin-fg:var(--destructive-foreground)]' : pin.asking ? '[--pin:var(--asking)] [--pin-fg:var(--asking-foreground)]' : '[--pin:var(--waiting)] [--pin-fg:var(--waiting-foreground)]');
 

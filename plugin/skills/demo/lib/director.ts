@@ -1,11 +1,11 @@
-// Records a narrated feature demo: a scripted walk through the running app, spoken in the voice the
-// demo settings name (`settings.ts`), rendered as an MP4 with chapters and captions, plus a
-// one-page report beside it.
-//
-// A demo file default-exports nothing; it calls `runDemo(spec, import.meta.dirname)` and is run
-// with plain `node demo.ts`. Everything lands in the demo file's directory. `node demo.ts --dry`
-// only plays the scenes against the app, to find a scene that fails before a render does;
-// `node demo.ts --revoice en` narrates the rendered demo anew in another language (`revoice.ts`).
+
+
+
+
+
+
+
+
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -19,26 +19,26 @@ import { CLOCK, type Cut, type Frame, frameDurations, laterLabel, mmss, onPaintT
 import { ttsArgs, voiceSpec } from './voices.ts';
 
 export interface Scene {
-  /** Chapter title in the player. */
+  
   title: string;
-  /** Spoken while `run` executes, in the narration language, written as it should sound. */
+  
   say: string;
   run?: (d: Director) => Promise<void>;
 }
 
 export interface Report {
-  /**
-   * What the change does, for someone who has not seen it, then what the owner needs to know beyond
-   * the video (what it leaves out and why, what is open or unverified, a defect in someone else's
-   * change): a few short paragraphs, separated by a blank line.
-   */
+  
+
+
+
+
   summary: string;
-  /**
-   * A question only the director can answer — a trade-off, a wording choice, what to do about a
-   * finding. Omitted when the only ask is the usual "release or give feedback".
-   */
+  
+
+
+
   question?: string;
-  /** Provenance lines: commit, stack, data. */
+  
   meta: Record<string, string>;
 }
 
@@ -46,37 +46,37 @@ export interface DemoSpec {
   title: string;
   baseUrl: string;
   viewport?: { width: number; height: number };
-  /** A touch screen, as a phone's: the app's phone view needs it (a coarse pointer). */
+  
   touch?: boolean;
-  /**
-   * A video for a public page rather than one to share: the page at twice its pixels, as on a
-   * Retina screen, nearly lossless frames, and gentle compression. About ten times the file size.
-   */
+  
+
+
+
   sharp?: boolean;
-  /** Runs once in an unrecorded context; its cookies and storage carry into the recording. */
+  
   login?: (page: Page) => Promise<void>;
-  /** Brings the recorded page to the opening shot. Not part of the video. */
+  
   open: (d: Director) => Promise<void>;
   scenes: Scene[];
   report: Report;
 }
 
-/** Narration starts this long after its scene, so the eye lands before the voice does. */
+
 const LEAD_SECONDS = 0.35;
-/** Silence after a scene's narration before the next one starts. */
+
 const GAP_SECONDS = 0.6;
-/** A scene this much longer than its narration and gap has a stretch worth cutting (`Director.skip`). */
+
 const SILENCE_WARN = 5;
-/** A wait shorter than this stays in the video rather than being cut (`Director.skip`). */
+
 const MIN_CUT_SECONDS = 5;
-/** A call into the recording page that takes longer has hung: the page answers never, and the render would wait forever. */
+
 const PAGE_TIMEOUT_SECONDS = 20;
-/** The clock strip repaints the page every frame: a screencast without a frame this long has stopped. */
+
 const STALL_SECONDS = 20;
-/** The director's own once-a-second timer this late: the director stood still, as through a sleep of this computer. */
+
 const STILL_SECONDS = 5;
 const SAVED = demoSettingsHere();
-/** The settings of this render: `DEMO_VOICE` names another provider, or a `.wav` to clone. */
+
 const SETTINGS = withVoice(SAVED, process.env.DEMO_VOICE);
 const LANGUAGE: NarrationLanguage = SETTINGS.language;
 const LIB = import.meta.dirname;
@@ -85,12 +85,12 @@ export interface Clip {
   id: string;
   file: string;
   seconds: number;
-  /**
-   * What a voice that hears its clips back (Qwen3) heard, a line per sentence: `stumbled` where
-   * every take differed from the script by a stretch, `misheard` the words heard as others.
-   */
+  
+
+
+
   heard?: { script: string; heard: string | null; stumbled?: true; misheard?: [string, string][] }[];
-  /** Why such a voice heard nothing of the clip. */
+  
   unheard?: string;
 }
 
@@ -131,15 +131,15 @@ export class Director {
   readonly page: Page;
   readonly baseUrl: string;
   readonly workDir: string;
-  /** A dry run (`--dry`) has no narration, so `untilSpoken` does not wait. */
+  
   readonly #paced: boolean;
   #sceneStart = 0;
   #sceneSpeech = 0;
-  /** Stretches `skip` cut out (two per jump: before and after its fade), and how much of them fell into the current scene. */
+  
   readonly cuts: Cut[] = [];
   #skippedInScene = 0;
 
-  // No parameter properties: Node runs this file by type stripping, which does not transform them.
+  
   constructor(page: Page, baseUrl: string, workDir: string, paced = true) {
     this.page = page;
     this.baseUrl = baseUrl;
@@ -149,7 +149,7 @@ export class Director {
 
   /** `page.evaluate`, failing once the page has not answered for `PAGE_TIMEOUT_SECONDS`. */
   evaluate<R, A = undefined>(fn: (arg: A) => R | Promise<R>, arg?: A): Promise<R> {
-    // Playwright hands an element handle to `fn` as the element; the overlay takes either untyped.
+    
     return answered(this.page.evaluate(fn as never, arg) as Promise<R>, 'a call into the page');
   }
 
@@ -165,7 +165,7 @@ export class Director {
   /** Waits until `fraction` of this scene's narration has been spoken. */
   async untilSpoken(fraction = 1) {
     if (!this.#paced) return;
-    // A cut stops the clock of the video, not of the narration: what was cut is added on.
+    
     const due = this.#sceneStart + LEAD_SECONDS + this.#sceneSpeech * fraction + this.#skippedInScene;
     const left = due - now();
     if (left > 0) await this.wait(left * 1000);
@@ -192,7 +192,7 @@ export class Director {
     }
     const done = fn().then(() => true);
     if (await Promise.race([done, this.wait(MIN_CUT_SECONDS * 1000).then(() => false)])) return;
-    // Long enough: what was waited so far goes without a trace, the rest falls into the white.
+    
     const fadeFrom = now();
     await this.evaluate(() => window.__demo.whiteOut());
     await this.wait(300);
@@ -350,8 +350,8 @@ export class Director {
 
 declare global {
   interface Window {
-    // Defined by overlay.js.
-    // biome-ignore lint: the overlay is untyped browser script
+    
+    
     __demo: any;
   }
 }
@@ -366,16 +366,16 @@ function now() {
   return Date.now() / 1000;
 }
 
-/**
- * The spells the director stood still, each from when (wall clock) and how long, and whether this
- * computer slept meanwhile (known on a Mac). A laptop with its lid closed sleeps on battery
- * whatever keeps it awake otherwise, and wakes for a few seconds now and then: renders failed
- * mid-take with "no frame for 20 s", which looked like a hanging page (2026-10-17). The display
- * sleeping costs a render nothing.
- */
+
+
+
+
+
+
+
 const stillSpells: { at: number; seconds: number; slept: boolean }[] = [];
 let lastTick = now();
-/** Since when (wall clock, s) the director watches whether it stands still; a failure names the spells since. */
+
 let watchedSince = now();
 let watching: ReturnType<typeof setInterval> | undefined;
 
@@ -500,7 +500,7 @@ export function synthesize(says: string[], dir: string, settings: DemoSettings =
   fs.writeFileSync(specFile, JSON.stringify(spec));
   console.log(`narration: ${jobs.length} clips, voice ${settings.voice}, language ${settings.language}`);
   const args = [...ttsArgs(spec), specFile, settings.language, jobsFile, dir];
-  // tts.py's progress (the voice loading, waiting for the lock) shows as it happens.
+  
   const r = spawnSync('uv', args, { stdio: ['ignore', 'inherit', 'inherit'] });
   if (r.status !== 0) throw new Error(`tts.py failed (${r.error?.message ?? r.status}); its output is above`);
   return (JSON.parse(fs.readFileSync(path.join(dir, 'tts.json'), 'utf8')) as { clips: Clip[] }).clips;
@@ -571,7 +571,7 @@ async function failure(step: string, page: Page, dir: string, error: unknown) {
     () => false,
   );
   await closeBrowser(page.context().browser());
-  // Playwright's message names the call and the locator it waited for; its colours are noise here.
+  
   const cause = (error instanceof Error ? error.message : String(error)).replace(/\x1b\[[0-9;]*m/g, '').trim();
   tick();
   const still = stillCause(watchedSince);
@@ -671,13 +671,13 @@ async function startScreencast(ctx: BrowserContext, page: Page, dir: string, siz
   const since = now();
   const watch = setInterval(() => {
     tick();
-    // the frames from before the sleep and after it no longer fit the narration
+    
     const slept = sleepCause(since);
     if (slept) stall(new Error(slept));
     else if (now() - lastFrame > STALL_SECONDS) stall(new Error(`the recording page sent no frame for ${STALL_SECONDS} s: it hangs`));
   }, 1000);
   watch.unref();
-  // a renderer that starts later (another site in the page) is raised too
+  
   const raise = () => prioritize(ctx.browser(), os.constants.priority.PRIORITY_ABOVE_NORMAL);
   await raise();
   const raising = setInterval(raise, 5000);
@@ -698,11 +698,11 @@ async function startScreencast(ctx: BrowserContext, page: Page, dir: string, siz
   });
   await answered(start, 'starting the screencast');
   return {
-    /** On the time they were painted once the screencast stops (`paintTimes`). */
+    
     frames,
-    /** Resolves once the screencast has sent its first frame. */
+    
     first,
-    /** Rejects once the screencast has stopped sending frames. */
+    
     stalled,
     stop: async () => {
       clearInterval(watch);
@@ -726,11 +726,11 @@ async function startScreencast(ctx: BrowserContext, page: Page, dir: string, siz
 export function paintTimes(frames: Frame[], dir: string, size: { width: number; height: number }): (number | null)[] {
   const width = CLOCK.bits * CLOCK.cell;
   const y = size.height - CLOCK.bottom - Math.ceil(CLOCK.cell / 2);
-  // in the frame's pixels (iw/ih), read back at one pixel per point
+  
   const [sx, sy] = [`iw/${size.width}`, `ih/${size.height}`];
   const crop = `crop=w=${width}*${sx}:h=1:x=${CLOCK.left}*${sx}:y=${y}*${sy},scale=${width}:1:flags=neighbor`;
-  // gray before the crop: ffmpeg 6 crops a 4:2:0 JPEG to even heights only, so a row of one pixel
-  // failed every frame there and no frame was put on its paint time
+  
+  
   const r = spawnSync(
     'ffmpeg',
     ['-loglevel', 'error', '-f', 'image2', '-start_number', '0', '-i', path.join(dir, '%06d.jpg'), '-vf', `format=gray,${crop}`, '-f', 'rawvideo', 'pipe:1'],
@@ -750,7 +750,7 @@ function frameWidth(file: string) {
 function frameList(frames: Frame[], t0: number, tEnd: number, cuts: Cut[], file: string) {
   const held = frameDurations(frames, t0, tEnd, cuts);
   if (!held.length) throw new Error(`none of the screencast's ${frames.length} frames falls into the take`);
-  // Relative, with forward slashes: ffmpeg reads them on every platform, a Windows drive path not always.
+  
   const entry = (f: string) => `file '${path.relative(path.dirname(file), f).split(path.sep).join('/')}'`;
   const lines = ['ffconcat version 1.0'];
   for (const h of held) lines.push(entry(h.file), `duration ${h.seconds.toFixed(4)}`);
@@ -774,15 +774,15 @@ export async function runDemo(spec: DemoSpec, demoDir: string) {
   if (revoicing >= 0) return (await import('./revoice.ts')).revoice(demoDir, process.argv[revoicing + 1]);
   const override = process.env.DEMO_VOICE;
   const voiceName = override?.endsWith('.wav') ? path.basename(override, '.wav') : override;
-  // The voice of the settings renders next to the script; another one gets its own subdirectory,
-  // so two renders of one demo can be compared side by side.
+  
+  
   const outDir = !voiceName || override === SAVED.voice ? demoDir : path.join(demoDir, voiceName);
   const viewport = spec.viewport ?? { width: 1440, height: 900 };
   const work = path.join(outDir, '.work');
   fs.mkdirSync(work, { recursive: true });
   holdRenderLock(work);
   if (process.argv.includes('--dry')) return dryRun(spec, viewport, work);
-  // Everything the render needs is there before it starts, or it stops with the whole list.
+  
   const setup = await checkSetup(SETTINGS, { narrationOnly: process.argv.includes('--narration') });
   if (setup.items.some((i) => i.state === 'missing')) throw new Error(`cannot render yet:\n${describeSetup(setup)}`);
   const framesDir = path.join(work, 'frames');
@@ -799,11 +799,11 @@ export async function runDemo(spec: DemoSpec, demoDir: string) {
   }
 
   const { browser, ctx, page, d } = await openPage(spec, viewport, work, true);
-  // this take's cuts, none so far (`Director.#cut`): after the login, which may stage a playback of the take before
+  
   fs.writeFileSync(path.join(work, 'cuts.json'), '[]');
   const cast = await startScreencast(ctx, page, framesDir, viewport, spec.sharp ? 2 : 1);
-  // The take starts once a frame has come: at twice the pixels the first one took seconds, and what
-  // the page showed until then was missing from the video.
+  
+  
   try {
     await Promise.race([cast.first, cast.stalled]);
   } catch (error) {
@@ -817,8 +817,8 @@ export async function runDemo(spec: DemoSpec, demoDir: string) {
     let start = 0;
     console.log(sceneName(i, spec));
     try {
-      // A scene can wait without touching the page (`untilSpoken`, `wait`): a page that hangs then
-      // shows as a screencast without frames.
+      
+      
       const played = (async () => {
         await d.clearHighlights();
         start = d.beginScene(clip.seconds);
@@ -830,7 +830,7 @@ export async function runDemo(spec: DemoSpec, demoDir: string) {
     } catch (error) {
       throw await failure(sceneName(i, spec), page, work, error);
     }
-    // In video time: what `skip` cut out is gone from the scenes after it.
+    
     const at = videoTime(start, t0, d.cuts);
     marks.push({ title: scene.title, start: at, speechStart: at + LEAD_SECONDS, speechEnd: at + LEAD_SECONDS + clip.seconds });
   }
@@ -842,7 +842,7 @@ export async function runDemo(spec: DemoSpec, demoDir: string) {
     throw await failure('the end of the take', page, work, error);
   }
   await closeBrowser(browser);
-  // the encoding at normal priority: below it, a busy machine starved it for minutes
+  
   await prioritize(null, os.constants.priority.PRIORITY_NORMAL);
   const total = videoTime(tEnd, t0, d.cuts);
   const cut = cast.frames.find((f) => Math.round(f.width) !== viewport.width || Math.round(f.height) !== viewport.height);
@@ -859,7 +859,7 @@ export async function runDemo(spec: DemoSpec, demoDir: string) {
   if (d.cuts.length) console.log(`cut ${d.cuts.length / 2}× (${Math.round(d.cuts.reduce((s, c) => s + c.to - c.from, 0))} s of waiting)`);
 }
 
-/** A scene's place in the video: where it starts, and where its narration does and ends. */
+
 export interface Mark {
   title: string;
   start: number;
@@ -867,22 +867,22 @@ export interface Mark {
   speechEnd: number;
 }
 
-/** What a take is made into: its frames (`list`, an ffconcat list), its clips and where each scene and clip sits. */
+
 export interface Take {
-  /** Where `demo.mp4`, the captions, chapters, stills and the report page go. */
+  
   outDir: string;
-  /** Where the narration track is mixed. */
+  
   work: string;
   list: string;
   clips: Clip[];
   marks: Mark[];
-  /** The video's length, in seconds. */
+  
   total: number;
   viewport: { width: number; height: number };
-  /** Twice the pixels and gentle compression (`DemoSpec.sharp`). */
+  
   sharp: boolean;
   title: string;
-  /** Each scene's narration, for the captions. */
+  
   says: string[];
   report: Report;
   language: NarrationLanguage;
@@ -894,7 +894,7 @@ export interface Take {
  */
 export function assemble({ outDir, work, list, clips, marks, total, viewport, sharp, title, says, report, language }: Take) {
   const scale = sharp ? 2 : 1;
-  // Narration track: every clip at its scene's offset, levelled once as a whole.
+  
   const narration = path.join(work, 'narration.wav');
   const inputs = clips.flatMap((c) => ['-i', c.file]);
   const delays = clips.map((_, i) => {
@@ -909,10 +909,10 @@ export function assemble({ outDir, work, list, clips, marks, total, viewport, sh
     '-y', '-loglevel', 'error',
     '-f', 'concat', '-safe', '0', '-i', list,
     '-i', narration,
-    // the clock strip, painted over from the pixels around it
+    
     '-vf', `fps=30,scale=${viewport.width * scale}:${viewport.height * scale},delogo=x=${scale}:y=${(viewport.height - CLOCK.bottom - CLOCK.cell - 2) * scale}:w=${(CLOCK.bits * CLOCK.cell + 2) * scale}:h=${(CLOCK.cell + 4) * scale},format=yuv420p`,
-    // Screen content: CRF 30 keeps text sharp at about 2.5 MB per minute; a public video (`sharp`)
-    // gets CRF 18, where no compression shows on the page's flat colours and fine type.
+    
+    
     '-c:v', 'libx264', '-preset', 'slow', '-crf', sharp ? '18' : '30', '-tune', 'stillimage',
     '-c:a', 'aac', '-b:a', sharp ? '160k' : '96k',
     '-movflags', '+faststart', '-shortest',
@@ -922,12 +922,12 @@ export function assemble({ outDir, work, list, clips, marks, total, viewport, sh
   const vtt = ['WEBVTT', ''];
   marks.forEach((m, i) => vtt.push(`${vttTime(m.speechStart)} --> ${vttTime(m.speechEnd)}`, untagged(says[i]!), ''));
   fs.writeFileSync(path.join(outDir, 'captions.vtt'), vtt.join('\n'));
-  // The scenes as chapters, for a player outside Seismic (the hero video on seismic.im reads them).
+  
   const chapters = ['WEBVTT', ''];
   marks.forEach((m, i) => chapters.push(`${vttTime(m.start)} --> ${vttTime(i + 1 < marks.length ? marks[i + 1]!.start : total)}`, m.title, ''));
   fs.writeFileSync(path.join(outDir, 'chapters.vtt'), chapters.join('\n'));
 
-  // One still per scene, taken just before it ends: what the agent checks against the narration.
+  
   const reviewDir = path.join(outDir, 'review');
   fs.rmSync(reviewDir, { recursive: true, force: true });
   fs.mkdirSync(reviewDir);
@@ -960,7 +960,7 @@ function esc(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 }
 
-/** The report page's own words, in the narration language. */
+
 const PAGE_WORDS: Record<
   NarrationLanguage,
   { captions: string; question: string }
@@ -979,7 +979,7 @@ export function reportPage(title: string, r: Report, marks: { title: string; sta
   const chapters = marks
     .map((m) => `<li><button data-t="${m.start.toFixed(2)}"><span class="t">${mmss(m.start)}</span>${esc(m.title)}</button></li>`)
     .join('');
-  // a demo script is not type-checked: `meta` given as one line stays one line
+  
   const rows: [string, string][] = typeof r.meta === 'string' ? [['', r.meta]] : Object.entries(r.meta);
   const meta = rows
     .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`)

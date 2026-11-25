@@ -23,19 +23,19 @@ let board: Board;
 let runtime: FakeRuntime;
 let executed: Command[];
 let heardAudio: string[];
-/** What the fake Whisper writes, given the vocabulary it was prompted with. */
+
 let whisper: (vocabulary: string) => string | Transcript;
 let server: ReturnType<typeof serve>;
 let project: ProjectRuntime;
 let warmed: number;
-// how long a command waits for an undo; long enough that a loaded machine still undoes in time
+
 const DELAY_MS = 200;
 
-// A project in clone mode without any clone registered: every start fails for want of a workstation.
+
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'seismic-server-'));
   const main = join(dir, 'main');
-  // settings of its own that work in clones, none registered; the project is named after the directory
+  
   gitRepo(main, { 'README.md': 'hi\n', '.seismic/settings.json': '{ "workstations": "clones" }\n' });
   runtime = new FakeRuntime();
   project = new ProjectRuntime({ repos: [{ path: main }] }, { store: new Store(':memory:'), home: dir, runtime, forge: noForge, commandDelayMs: DELAY_MS });
@@ -61,7 +61,7 @@ afterEach(() => {
   setSystemTime();
 });
 
-// what the page, the app's shell and scripts send: the owner's key (owner.ts)
+
 const { fetch, WebSocket } = asOwner(() => server);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const card = () => board.create({ title: 'A', x: 0, y: 0 });
@@ -69,7 +69,7 @@ const post = (path: string, body: string) => fetch(new URL(path, server.url), { 
 const codeOf = async (res: Promise<Response>) => ((await (await res).json()) as { code: string }).code;
 const api = (path: string) => `/api/c/main${path}`;
 const act = (id: string, a: CardAction | { action: string; text?: unknown }) => post(api(`/cards/${id}/act`), JSON.stringify(a));
-// a card action with a URL of its own (`routes/v1/cards/_cardId/`)
+
 const v1 = (id: string, action: 'start' | 'stop' | 'approve' | 'dequeue', body: unknown = {}) => post(`/api/v1/cards/${id}/${action}`, JSON.stringify(body));
 
 describe('refused requests', () => {
@@ -83,13 +83,13 @@ describe('refused requests', () => {
     const c = card();
     expect(await codeOf(act(c.id, { action: 'answer', text: 'x' }))).toBe('noQuestion');
     expect(await codeOf(act(c.id, { action: 'answer', text: '  ' }))).toBe('emptyText');
-    // an option picked is an answer without words
+    
     expect(await codeOf(act(c.id, { action: 'answer', text: '', picks: ['Ja'] }))).toBe('noQuestion');
     expect(await codeOf(v1(c.id, 'approve'))).toBe('notReady');
     expect(await codeOf(v1(c.id, 'start', { skipWaitForCards: true }))).toBe('notQueued');
     expect(await codeOf(act(c.id, { action: 'dismiss' }))).toBe('notProposal');
     expect(await codeOf(v1('nope', 'start'))).toBe('unknownCard');
-    // the actions with a URL of their own are no longer taken by /act
+    
     for (const action of ['start', 'force', 'stop', 'approve', 'dequeue'] as const) expect(await codeOf(act(c.id, { action }))).toBe('invalid');
     expect(await codeOf(act(c.id, { action: 'fly' }))).toBe('invalid');
     expect(await codeOf(post(api(`/cards/${c.id}/act`), '{'))).toBe('invalid');
@@ -120,7 +120,7 @@ describe('refused requests', () => {
 
 describe('who may', () => {
   const at = (path: string, headers: Record<string, string>, init: RequestInit = {}) => fetch(new URL(path, server.url), { ...init, headers });
-  // what any web page may send without a preflight
+  
   const newCard = (headers: Record<string, string>) =>
     at(api('/cards'), { 'content-type': 'text/plain', ...headers }, { method: 'POST', body: JSON.stringify({ title: 'Fremd', x: 0, y: 0 }) });
   const own = () => server.url.origin;
@@ -135,7 +135,7 @@ describe('who may', () => {
     expect((await newCard({ origin: 'https://evil.example', 'sec-fetch-site': 'cross-site' })).status).toBe(403);
     expect((await newCard({ host: 'rebound.evil.example', origin: 'http://rebound.evil.example', 'sec-fetch-site': 'same-origin' })).status).toBe(421);
     expect((await newCard({ host: `rebound.evil.example:${server.port}` })).status).toBe(421);
-    // a foreign origin without Sec-Fetch-Site (an older browser), and one of another port on this machine
+    
     expect((await newCard({ origin: 'https://evil.example' })).status).toBe(403);
     expect((await newCard({ origin: `http://127.0.0.1:${server.port! + 1}` })).status).toBe(403);
     expect((await newCard({ origin: 'null', 'sec-fetch-site': 'cross-site' })).status).toBe(403);
@@ -146,9 +146,9 @@ describe('who may', () => {
     expect((await newCard({ origin: own(), 'sec-fetch-site': 'same-origin' })).status).toBe(200);
     expect((await newCard({ host: `localhost:${server.port}`, origin: `http://localhost:${server.port}` })).status).toBe(200);
     expect((await newCard({ host: `[::1]:${server.port}` })).status).toBe(200);
-    // a worker on another machine, through a forwarded port of its own
+    
     expect((await newCard({ host: '127.0.0.1:41234' })).status).toBe(200);
-    // the app quitting: no Origin, no Sec-Fetch-Site
+    
     expect(await (await at('/api/stop', {}, { method: 'POST' })).json()).toEqual({ stopping: false });
     expect((await at('/api/stop', { origin: 'https://evil.example' }, { method: 'POST' })).status).toBe(403);
     expect(board.snapshot().items.length).toBe(4);
@@ -159,7 +159,7 @@ describe('who may', () => {
     expect(page.status).toBe(200);
     expect(await page.text()).toContain('<html');
     expect((await at('/', { 'sec-fetch-site': 'cross-site', 'sec-fetch-dest': 'iframe' })).status).toBe(403);
-    // a link on another site opens the page in the window, but not the API
+    
     const link = { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document' };
     expect((await at('/', link)).status).toBe(200);
     expect((await at(api('/cards'), link)).status).toBe(403);
@@ -176,16 +176,16 @@ describe('who may', () => {
     const demo = artifact();
     writeFileSync(join(demo.dir, 'chart.svg'), '<svg xmlns="http://www.w3.org/2000/svg"/>');
     board.work(c.id, { state: 'waiting', need: 'review', demo: { latest: demo } });
-    // the frame itself, from the project, with the owner's cookie: to the path with its directory's cap
+    
     const frame = await at(api(`/cards/${c.id}/demo/index.html`), { 'sec-fetch-site': 'same-origin', 'sec-fetch-dest': 'iframe' }, { redirect: 'manual' });
     expect(frame.status).toBe(302);
     const capped = frame.headers.get('location')!;
     expect(capped).toMatch(new RegExp(`^${api(`/cards/${c.id}/demo/~`)}[0-9a-f]{32}/index\\.html$`));
-    // what the page in it loads: from an origin of its own, without the cookie, beside it under the cap
+    
     const frameless = (path: string, headers: Record<string, string> = {}) => globalThis.fetch(new URL(path, server.url), { headers: { origin: 'null', 'sec-fetch-site': 'cross-site', ...headers } });
     expect((await frameless(capped)).status).toBe(200);
     expect(await (await frameless(capped.replace('index.html', 'chart.svg'))).text()).toContain('<svg');
-    // nothing without the cap, nor with another card's
+    
     expect((await frameless(api(`/cards/${c.id}/demo/chart.svg`))).status).toBe(401);
     expect((await frameless(capped.replace(c.id, card().id))).status).toBe(401);
     expect((await frameless(capped.replace('index.html', 'chart.svg'), { host: 'rebound.evil.example' })).status).toBe(421);
@@ -215,7 +215,7 @@ describe('who may', () => {
       const first = await at(api(path), { 'sec-fetch-site': 'same-origin', 'sec-fetch-dest': 'iframe' }, { redirect: 'manual' });
       expect(first.status).toBe(302);
       const capped = first.headers.get('location')!;
-      // the handover stays in the address the frame ends up at
+      
       expect(capped).toEndWith(new URL(path, 'http://x').search);
       const res = await at(capped, { 'sec-fetch-site': 'same-origin', 'sec-fetch-dest': 'iframe' });
       expect(res.headers.get('cache-control')).toBe('no-cache');
@@ -230,7 +230,7 @@ describe('who may', () => {
 });
 
 describe('only the owner', () => {
-  // another program or account on this machine: neither the key nor the cookie
+  
   const bare = (path: string, init: RequestInit = {}) => globalThis.fetch(new URL(path, server.url), { redirect: 'manual', ...init });
   const opens = (headers: Record<string, string>) =>
     new Promise<boolean>((done) => {
@@ -270,11 +270,11 @@ describe('only the owner', () => {
     expect((await bare('/', { headers: { cookie } })).status).toBe(200);
     expect((await bare(api('/project'), { headers: { cookie } })).status).toBe(200);
     expect(await opens({ cookie, origin: server.url.origin })).toBe(true);
-    // another browser (Chrome beside Safari) with the same link, until the server stops; the same link from a second start
+    
     expect((await bare(url)).headers.get('set-cookie')).toBe(set);
     expect(await link('/?c=main')).toBe(url);
     expect(await onward(await bare(url, { headers: { cookie } }))).toBe('/?c=main');
-    // a cookie of the Seismic on another port, or with another key, names nobody
+    
     expect((await bare(api('/project'), { headers: { cookie: cookie.replace(`seismic-${server.port}`, `seismic-${server.port! + 1}`) } })).status).toBe(401);
     expect((await bare(api('/project'), { headers: { cookie: `seismic-${server.port}=guessed` } })).status).toBe(401);
   });
@@ -293,9 +293,9 @@ describe('only the owner', () => {
   test('a page a link from another site opened goes there again from its own, which carries the cookie', async () => {
     const cookie = (await bare(await link())).headers.get('set-cookie')!.split(';')[0]!;
     const opened = { 'sec-fetch-site': 'cross-site', 'sec-fetch-mode': 'navigate', 'sec-fetch-dest': 'document' };
-    // the browser does not send the Strict cookie with it
+    
     expect(await onward(await bare('/?c=main', { headers: opened }))).toBe('/?c=main');
-    // a path that looks like another host stays one of Seismic's
+    
     expect(await onward(await bare(`${server.url.origin}//evil.example/`, { headers: opened }))).toBe('/evil.example/');
     expect((await bare('/?c=main', { headers: { 'sec-fetch-site': 'same-origin', 'sec-fetch-mode': 'navigate' } })).status).toBe(401);
     expect((await bare('/?c=main', { headers: { 'sec-fetch-site': 'same-origin', 'sec-fetch-mode': 'navigate', cookie } })).status).toBe(200);
@@ -477,7 +477,7 @@ describe('groups', () => {
 describe('plan docs', () => {
   test("a plan's plan doc is read as written; other cards have none", async () => {
     const md = '# Export\n\n## Goal\n\nCSV for landlords.\n\n## Workstreams\n\n- [ ] **W1:** CSV. Columns as in `docs/x.md`.\n\n## Notes\n\nMore.\n';
-    // where plan docs are read: the Lesestand of the repository (a worktree on its default branch)
+    
     const read = project.repos[0]!.read.path;
     mkdirSync(join(read, 'docs', 'plan'), { recursive: true });
     writeFileSync(join(read, 'docs', 'plan', 'export.md'), md);
@@ -510,7 +510,7 @@ describe('voice', () => {
     expect(body.confirm).toBe('Neue Karte „Export“, der Agent fängt an.');
     expect(body.token).toBeTruthy();
     expect((body as { undoMs?: number }).undoMs).toBe(DELAY_MS);
-    // Seismic does not speak
+    
     expect(body.audio).toBeUndefined();
     expect(executed).toEqual([]);
     await until(() => executed.length);
@@ -677,7 +677,7 @@ describe('voice', () => {
       [c.id, 'gib das frei', [], false],
       [c.id, 'Mach den Knopf größer', [], true],
     ]);
-    // an idea's exploration agent listens too; a planned card has nobody but the Koordinator
+    
     const idea = board.create({ title: 'Export', x: 0, y: 0, idea: true });
     await post(api(`/command?card=${idea.id}`), JSON.stringify({ text: 'Was kostet das?' }));
     expect(told.at(-1)).toEqual([idea.id, 'Was kostet das?', [], false]);
@@ -765,11 +765,11 @@ describe('voice', () => {
       return f;
     };
     expect(await voice('', form(' Siehe Log: '))).toMatchObject({ quiet: true });
-    // a browser sends the form's line breaks as CRLF
+    
     await voice('', form('Zwei Dinge.\r\n- erstens'));
     expect(told).toEqual(['Siehe Log: und hier fehlt der zweite Knopf', 'Zwei Dinge.\n- erstens\n\nund hier fehlt der zweite Knopf']);
     expect(heardAudio).toEqual(['AUDIO', 'AUDIO', 'AUDIO']);
-    // nothing heard: nothing goes out, and the field keeps its words
+    
     whisper = () => '';
     expect(await voice('&listen', 'AUDIO')).toMatchObject({ unheard: true, confirm: 'I heard nothing.' });
     expect(await voice('', form('Siehe Log:'))).toMatchObject({ unheard: true });
@@ -785,7 +785,7 @@ describe('voice', () => {
     whisper = () => 'und hier';
     await fetch(new URL(api(`/voice?card=${c.id}&at=12.5&still=x.jpg`), server.url), { method: 'POST', body: 'AUDIO' });
     await fetch(new URL(api(`/voice?card=${c.id}`), server.url), { method: 'POST', body: 'AUDIO' });
-    // in an earlier demo, named by the handover it came with
+    
     await fetch(new URL(api(`/voice?card=${c.id}&at=3&demo=7`), server.url), { method: 'POST', body: 'AUDIO' });
     expect(told).toEqual([{ at: 83.2 }, { at: 12.5, still: 'x.jpg' }, undefined, { at: 3, demo: 7 }]);
   });
@@ -920,10 +920,10 @@ describe('other files', () => {
     expect(path.startsWith(join(project.files.dir, ''))).toBe(true);
     expect(path).toMatch(/[0-9a-f-]{36}\/Rechnung-März-2026\.pdf$/);
     expect(new Uint8Array(readFileSync(path))).toEqual(pdf);
-    // the same name twice: two files
+    
     const again = (await (await upload(pdf, 'Rechnung März 2026.pdf')).json()) as { path: string };
     expect(again.path).not.toBe(path);
-    // a name cannot lead out of its directory
+    
     const out = (await (await upload(pdf, '../../seismic.db')).json()) as { path: string };
     expect(dirname(dirname(out.path))).toBe(project.files.dir);
   });
@@ -951,14 +951,14 @@ describe('„Merk dir“', () => {
     const c = card();
     const waiting = board.proposePreference('Fragen mit höchstens drei Optionen.', {});
     const moved = board.addPreference('Tests auf Deutsch.');
-    // said with a card open, and moving one of the owner's rules
+    
     run({ do: 'remember', text: 'Tests auf Deutsch benennen.', repos: [repo], replaces: moved, card: c.id });
     expect(board.preferences('active')).toEqual([]);
     expect(board.preferences('filed')).toMatchObject([{ text: 'Tests auf Deutsch benennen.', target: repo, cardId: c.id }]);
     const collect = board.collecting(repo)!;
     expect(collect).toMatchObject({ title: 'Add to CLAUDE.md', repo });
     expect(collect.body).toEndWith('- Tests auf Deutsch benennen.');
-    // written in the sheet; a proposal still waits, so the card collects on
+    
     expect((await post(api('/preferences'), JSON.stringify({ text: 'Commits auf Englisch.', target: repo }))).status).toBe(204);
     expect(board.collecting(repo)!.body).toEndWith('- Tests auf Deutsch benennen.\n- Commits auf Englisch.');
     expect(await codeOf(post(api('/preferences'), JSON.stringify({ text: 'X.', target: 'nope' })))).toBe('invalid');
@@ -975,7 +975,7 @@ describe('the Developer section', () => {
     let busy = [{ project: 'main', card: 'k1' }];
     const restarter = new Restarter({ busy: () => busy, go: (reason) => gone.push(reason), patienceMs: 60_000, intervalMs: 10 });
     const transcriber = { transcribe: async () => ({ text: '', doubtful: false }) };
-    // without the supervisor (--dev) neither goes
+    
     server.stop(true);
     server = serve([project], { transcriber }, 0, false, undefined, restarter);
     expect(await (await fetch(new URL('/api/developer', server.url))).json()).toEqual({ restart: false, rebuild: false, why: 'dev' });
@@ -1008,7 +1008,7 @@ describe('a newer version of the app', () => {
     const shown = () => messages.filter((m): m is Extract<ServerMessage, { type: 'update' }> => m.type === 'update');
     await until(() => shown().length === 1);
     expect(shown()[0]!.update).toBeNull();
-    // nothing to install yet
+    
     expect(await codeOf(post('/api/app-update/install', ''))).toBe('invalid');
 
     expect(await codeOf(post('/api/app-update', JSON.stringify({ notes: 'x' })))).toBe('invalid');
@@ -1016,7 +1016,7 @@ describe('a newer version of the app', () => {
     expect(await (await post('/api/app-update', JSON.stringify(report))).json()).toEqual({ version: '0.2.0', notes: '- Faster.\n- Smaller.', date: Date.UTC(2026, 9, 12) });
     await until(() => shown().length === 2);
     expect(shown()[1]!.update).toMatchObject({ version: '0.2.0' });
-    // the same again every few seconds tells the page nothing new
+    
     await post('/api/app-update', JSON.stringify(report));
     await sleep(50);
     expect(shown()).toHaveLength(2);
@@ -1045,7 +1045,7 @@ describe('a newer version of the app', () => {
     expect(updates.current()).toEqual({ version: '0.2.0', download: 'https://github.com/nickpalenchar/seismic/releases/tag/v0.2.0' });
     expect(await codeOf(post('/api/app-update/install', ''))).toBe('invalid');
     expect(restarter.due()).toBeNull();
-    // the bar leads to Seismic's releases only, whoever reports another address
+    
     await post('/api/app-update', JSON.stringify({ version: '9.9.9', download: 'https://example.com/seismic.deb' }));
     expect(updates.current()).toEqual({ version: '9.9.9' });
   });
@@ -1058,10 +1058,10 @@ describe('a newer version of the app', () => {
     server.stop(true);
     server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter, undefined, undefined, undefined, updates);
     expect(await (await post('/api/app-update', JSON.stringify({ rebuilt: true }))).json()).toEqual({ updating: true });
-    // no button in the bar: the restart shows what it waits for
+    
     expect(updates.current()).toBeNull();
     expect(restarter.due()?.reason).toBe('update');
-    // the shell says it again every few seconds while it waits
+    
     await post('/api/app-update', JSON.stringify({ rebuilt: true }));
     busy = [];
     await until(() => gone.length === 1);
@@ -1077,7 +1077,7 @@ describe('a newer version of the app', () => {
     restarter.request('code');
     expect(await (await post('/api/app-takeover', '')).json()).toEqual({ taking: true });
     await until(() => restarter.due()?.reason === 'takeover');
-    // the supervisor would start it again in place, still without the app: it ends for the app instead
+    
     expect(restarter.due()?.reason).toBe('takeover');
     restarter.request('code');
     expect(restarter.due()?.reason).toBe('takeover');
@@ -1103,13 +1103,13 @@ describe('a newer version of the app', () => {
   test('a window handover stays until its page took it, and a newer one outlives the older copy taken', () => {
     const handover = new HandOver();
     handover.give('local', { token: '1', entries: [['seismic-drafts-shop', 'first']] });
-    // a read cut short at startup takes nothing away
+    
     expect(handover.read('local')?.entries).toEqual([['seismic-drafts-shop', 'first']]);
     expect(handover.read('local')?.token).toBe('1');
     handover.give('local', { token: '2', entries: [['seismic-drafts-shop', 'second']] });
     handover.taken('local', '1');
     expect(handover.read('local')?.token).toBe('2');
-    // it expires by itself
+    
     expect(handover.read('local', Date.now() + 3 * 60_000)).toBeNull();
     expect(handover.read('local')).toBeNull();
   });
@@ -1120,7 +1120,7 @@ describe('a newer version of the app', () => {
     server.stop(true);
     server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0, false, undefined, restarter, undefined, undefined, undefined, new AppUpdates());
     const ask = async (kept = '') => (await post('/api/app-rebuilt', JSON.stringify({ kept }))).json();
-    // a worker in the middle of a turn does not hold it off: the server and its workers run on
+    
     expect(await ask()).toEqual({ now: true, kept: false });
     restarter.hold('page1', ['voice']);
     expect(await ask()).toEqual({ now: false, kept: false });
@@ -1131,7 +1131,7 @@ describe('a newer version of the app', () => {
     await post('/api/app-rebuilt/handover', JSON.stringify({ token: '7', entries }));
     expect(await ask('6')).toEqual({ now: true, kept: false });
     expect(await ask('7')).toEqual({ now: true, kept: true });
-    // the page of the new shell reads it, as often as it needs, until it says it took it
+    
     const read = async () => (await fetch(new URL('/api/app-rebuilt/handover', server.url))).json();
     expect(await read()).toEqual({ token: '7', entries });
     expect(await read()).toEqual({ token: '7', entries });
@@ -1139,7 +1139,7 @@ describe('a newer version of the app', () => {
     expect(await read()).toEqual({ token: '7', entries });
     await fetch(new URL('/api/app-rebuilt/handover?token=7', server.url), { method: 'DELETE' });
     expect(await read()).toBeNull();
-    // and the server never ended for it
+    
     expect(gone).toEqual([]);
     expect(restarter.due()).toBeNull();
   });
@@ -1166,7 +1166,7 @@ describe('new commits on the upstream of the checkout Seismic runs from', () => 
     await sources.check();
     await until(() => shown().length === 2);
     expect(shown()[1]!.source).toMatchObject({ upstream: 'origin/main', count: 1, commits: [{ subject: 'Faster' }] });
-    // an edit of the owner's in the way; once they come back from the terminal where they undid it, Seismic looks again
+    
     writeFileSync(join(clone, 'src/a.ts'), 'mine\n');
     await sources.check(false);
     await until(() => shown().length === 3);
@@ -1180,7 +1180,7 @@ describe('new commits on the upstream of the checkout Seismic runs from', () => 
     expect(git(clone, 'rev-parse', 'HEAD')).toBe(git(up, 'rev-parse', 'HEAD'));
     await until(() => shown().length === 5);
     expect(shown()[4]!.source).toBeNull();
-    // nothing left to pull
+    
     expect(await codeOf(post('/api/source-update/pull', ''))).toBe('invalid');
     ws.close();
   });
@@ -1245,7 +1245,7 @@ describe('a restart that waits', () => {
     const restarts = () => messages.filter((m): m is Extract<ServerMessage, { type: 'restart' }> => m.type === 'restart');
     await until(() => restarts().length === 1);
     expect(restarts()[0]!.restart).toBeNull();
-    // nothing waits: the owner's word changes nothing
+    
     expect(await (await post('/api/restart', '')).json()).toEqual({ restarting: false });
 
     restarter.request('code');
@@ -1280,7 +1280,7 @@ describe('a restart that waits', () => {
     hold(dictating, ['voice']);
     await until(() => restarter['holds'].size === 2);
 
-    // no worker is busy and the patience is out: only the owner holds it off
+    
     restarter.request('code');
     await until(() => last()?.owner.length === 2);
     expect(last()).toMatchObject({ cards: [], elsewhere: [], owner: ['video', 'voice'] });
@@ -1330,7 +1330,7 @@ describe('cards that need the owner', () => {
     await until(() => sent().length === 1);
     expect(titles(0)).toEqual({ main: [], other: ['B'] });
 
-    // a change to a waiting card on the other project reaches this one; one to a card that does not wait does not
+    
     second.board.patch(waiting.id, { title: 'B2' });
     await until(() => sent().length === 2);
     expect(titles(1)).toEqual({ main: [], other: ['B2'] });
@@ -1395,7 +1395,7 @@ describe('projects that start and stop while Seismic runs', () => {
     expect(rejoined.find((m) => m.type === 'projects')).toMatchObject({ projects: [{ id: 'main' }, { id: 'andere', name: 'Renamed' }] });
     rejoin.close();
 
-    // it leaves the configuration: nobody works on it, so it stops at once and its page is closed
+    
     set.apply([], []);
     await until(() => closed);
     expect(projectLists().at(-1)).toMatchObject({ projects: [{ id: 'main' }] });
@@ -1406,7 +1406,7 @@ describe('projects that start and stop while Seismic runs', () => {
 
 describe('landing approved work', () => {
   test('a slow push onto main leaves the server answering, and two approvals at once land one after the other', async () => {
-    // a repository whose origin takes its time with every push
+    
     const repo = join(dir, 'pushed');
     gitRepo(repo);
     const origin = join(dir, 'origin.git');
@@ -1437,12 +1437,12 @@ describe('landing approved work', () => {
 
     let answered = 0;
     const landings = [approve(a.id), approve(b.id)].map((r) => r.then((res) => (answered++, res)));
-    // while git pushes, the server answers other requests, on this project and the others
+    
     await until(() => existsSync(pushing));
     expect((await fetch(new URL(`/api/c/${pushed.board.project.id}/project`, server.url))).status).toBe(200);
     expect((await fetch(new URL(api('/project'), server.url))).status).toBe(200);
     expect(answered).toBe(0);
-    // approving again while it lands is refused
+    
     expect(await codeOf(approve(a.id))).toBe('notReady');
 
     for (const res of await Promise.all(landings)) expect(res.ok).toBe(true);
@@ -1455,7 +1455,7 @@ describe('landing approved work', () => {
 
 describe('starting a card', () => {
   test('while git makes its worktree or clone ready, slowly, the server answers and the card says so', async () => {
-    // git that takes its time: adding a worktree (a large repository), fetching into a clone (a slow network)
+    
     const marks = join(dir, 'marks');
     mkdirSync(marks);
     const slow = (mark: string, then = '') => `#!/bin/sh\ntouch '${join(marks, mark)}'\nsleep 2\n${then}`;
@@ -1477,7 +1477,7 @@ describe('starting a card', () => {
       const card = c.board.create({ title: 'Langsamer Start', x: 0, y: 0 });
       const before = Date.now();
       const started = c.repos[0]!.workers.start(card.id);
-      // the start takes the workstation and returns; git goes on in the background
+      
       expect(Date.now() - before).toBeLessThan(1000);
       return { c, card, started };
     });
@@ -1489,7 +1489,7 @@ describe('starting a card', () => {
       expect(Date.now() - before).toBeLessThan(1000);
       const shown = ((await res.json()) as { items: { id: string; state: string; agent?: { statusLine?: string } }[] }).items.find((i) => i.id === card.id);
       expect(shown).toMatchObject({ state: 'working', agent: { statusLine: c.board.t.worker.preparingWorkstation } });
-      // its worker waits for the workstation
+      
       expect(runtime.sessions.some((s) => s.spec.cwd === c.board.row(card.id).workstation)).toBe(false);
     }
     expect((await fetch(new URL(api('/project'), server.url))).status).toBe(200);
@@ -1514,15 +1514,15 @@ describe('the Lesestand and the free clones', () => {
     const origin = gitRepo(join(dir, 'shop'), { 'docs/plan/export.md': doc('Export'), '.gitattributes': '*.md filter=slow\n' });
     const checkout = join(dir, 'checkout');
     git(dir, 'clone', '--quiet', origin, checkout);
-    // work goes out as pull requests: the Lesestand is a worktree of the checkout, apart from the pool's clone
+    
     const shop = new ProjectRuntime(
       { name: 'Shop', repos: [{ path: checkout, clones: 1, settings: { land: 'pr', workstations: 'clones' } }] },
       { store: new Store(':memory:'), home: join(dir, 'home-shop'), runtime, forge: noForge },
     );
     const plans = () => shop.board.snapshot().items.filter((i) => i.kind === 'plan').map((p) => p.title).sort();
     expect(plans()).toEqual(['Export']);
-    // git that takes its time: a checkout writing the plan docs into the Lesestand (a repository of thousands of files),
-    // `git status` in a free clone (a large repository, or one on another machine); each goes on once the test lets it
+    
+    
     const slow = (mark: string, then: string) => {
       const script = join(dir, `slow-${mark}`);
       writeFileSync(script, `#!/bin/sh\ntouch '${join(marks, mark)}'\nwhile [ ! -e '${join(marks, `${mark}.go`)}' ]; do sleep 0.05; done\ntouch '${join(marks, `${mark}.done`)}'\n${then}\n`, { mode: 0o755 });
@@ -1543,7 +1543,7 @@ describe('the Lesestand and the free clones', () => {
       }
     };
 
-    // main moves: the Lesestand follows in the background, the plan docs read before standing meanwhile
+    
     writeFileSync(join(origin, 'docs/plan/import.md'), doc('Import'));
     git(origin, 'add', '.');
     git(origin, 'commit', '--quiet', '-m', 'import');
@@ -1556,8 +1556,8 @@ describe('the Lesestand and the free clones', () => {
     await refreshed;
     expect(plans()).toEqual(['Export', 'Import']);
 
-    // a minute on (the project shown before looked at the free clone for the Workstations pill), whether a card
-    // may take it is answered at once, while git looks at it again in the background
+    
+    
     setSystemTime(new Date(Date.now() + RECHECK_MS));
     const before = Date.now();
     expect(shop.repos[0]!.workstations.leasable()).toBe(true);
@@ -1568,7 +1568,7 @@ describe('the Lesestand and the free clones', () => {
     await until(() => existsSync(join(marks, 'status.done')));
     hold('status');
     for (const f of ['status', 'status.done']) rmSync(join(marks, f));
-    // a card takes it at once; git looks at it again before its worker starts there
+    
     const card = shop.board.create({ title: 'Langsamer Blick', x: 0, y: 0 });
     const starting = Date.now();
     const started = shop.repos[0]!.workers.start(card.id);
@@ -1588,7 +1588,7 @@ describe('freeing and discarding workstations', () => {
   test('while git frees a worktree or cleans a discarded prototype’s clone, slowly, the server answers; the workstation is free once git is done', async () => {
     const marks = join(dir, 'marks');
     mkdirSync(marks);
-    // git that takes its time (a large repository, a clone on another machine): it goes on once the test lets it
+    
     const slow = (mark: string, then: string) => {
       const script = join(dir, `slow-${mark}`);
       writeFileSync(script, `#!/bin/sh\ntouch '${join(marks, mark)}'\nwhile [ ! -e '${join(marks, `${mark}.go`)}' ]; do sleep 0.05; done\n${then}\n`, { mode: 0o755 });
@@ -1601,7 +1601,7 @@ describe('freeing and discarding workstations', () => {
     };
     go('checkout');
     go('status');
-    // a prototype in the pool's only clone, and a card in a worktree of its own
+    
     const origin = gitRepo(join(dir, 'shop'), { 'guide.md': 'Guide\n', '.gitattributes': '*.md filter=slow\n' });
     const shop = new ProjectRuntime(
       { name: 'Shop', repos: [{ path: origin, clones: 1, settings: { land: 'pr', workstations: 'clones' } }] },
@@ -1612,7 +1612,7 @@ describe('freeing and discarding workstations', () => {
       { store: new Store(':memory:'), home: join(dir, 'home-tools'), runtime, forge: noForge },
     );
     const [clone] = shop.repos[0]!.workstations.list();
-    // writing a file of the default branch back into the clone, and `git status` in the worktree, wait for the test
+    
     git(clone!.path, 'config', 'filter.slow.smudge', slow('checkout', 'cat'));
     git(clone!.path, 'config', 'filter.slow.clean', 'cat');
     git(tools.repos[0]!.ref.path, 'config', 'core.fsmonitor', slow('status', 'exit 1'));
@@ -1626,7 +1626,7 @@ describe('freeing and discarding workstations', () => {
       }
     };
 
-    // the prototype changed the guide on its branch; discarded, its clone goes back to the default branch
+    
     const idea = shop.board.create({ idea: true, title: 'Export', x: 0, y: 0 });
     const prototype = shop.board.addPrototype(idea.id, 'Prototype: Export – button', 'Button');
     await shop.repos[0]!.workers.start(prototype.id);
@@ -1646,7 +1646,7 @@ describe('freeing and discarding workstations', () => {
     expect(shop.board.archived().find((i) => i.id === prototype.id)).toMatchObject({ idea: { prototypeEnd: 'discarded' } });
     await until(() => existsSync(join(marks, 'checkout')));
     await answers();
-    // half cleaned, the clone is no other card's yet
+    
     expect(shop.repos[0]!.workstations.list()).toEqual([{ path: clone!.path, card_id: prototype.id }]);
     expect(shop.repos[0]!.workstations.leasable()).toBe(false);
     go('checkout');
@@ -1655,7 +1655,7 @@ describe('freeing and discarding workstations', () => {
     expect(git(clone!.path, 'branch', '--list', 'seismic/*')).toBe('');
     expect(git(clone!.path, 'status', '--porcelain')).toBe('');
 
-    // a card deleted after it stopped with work committed: git looks whether its worktree holds anything uncommitted before it goes
+    
     const card = tools.board.create({ title: 'Lint', x: 0, y: 0 });
     await tools.repos[0]!.workers.start(card.id);
     await tools.repos[0]!.workers.prepared();
@@ -1696,7 +1696,7 @@ test("what a worker on another machine reaches: Seismic's narration clips, inlin
     const clip = { voice: { speaker: 'ryan' }, text: 'Hallo.', language: 'en' };
     expect((await post('/api/demo-settings/sample', { language: 'en', voice: 'command', command: 'touch /tmp/x' })).status).toBe(404);
     expect((await post('/api/config', {})).status).toBe(404);
-    // a WAV written to a path on this machine: not from there
+    
     expect((await post('/api/narration/clip', { ...clip, out: '/tmp/x.wav' })).status).toBe(400);
     expect(asked).toEqual([]);
     expect((await post('/api/narration/clip', { ...clip, inline: true })).status).toBe(200);

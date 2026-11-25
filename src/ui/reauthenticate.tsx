@@ -5,11 +5,11 @@ import { failText, t } from './strings';
 import { Button } from './components/button';
 import { Input } from './components/input';
 
-/** Whether this browser runs on the machine Seismic runs on, asked once per page. */
+
 let local: Promise<boolean> | undefined;
 const onThisMachine = () => (local ??= api.access().then((v) => v.local, () => true));
 
-/** Signing Claude in again, under the error that says it is signed out: hints on lines of their own, the buttons between. */
+
 const reauthClass = 'reauthenticate flex items-center flex-wrap gap-x-3 gap-y-2 mt-2.5 [--button-bg:var(--card)] [&>div]:basis-full [&_code]:[overflow-wrap:anywhere] [&_code]:whitespace-normal';
 
 /**

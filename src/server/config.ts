@@ -1,11 +1,11 @@
 import { serverExtensions as extensions } from '../extensions/server';
 import { validProjectName } from '../core/project-slug';
-// Seismic's configuration: the projects it serves, saved in `projects.json` under its home. The owner
-// reads and edits it in its sheet, the Koordinator on their word. A saved change applies while
-// Seismic runs (`Projects.apply`): what a repository's agents are set up by
-// restarts that repository's agents alone, once they paused. The
-// repositories' settings (`RepoSettings`) are read where they are used, apply at once, and saving
-// them alone restarts nothing but where they change where the workers work.
+
+
+
+
+
+
 
 import { copyFileSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -46,7 +46,7 @@ import { agentSetting, projectDefaults, projectSettingsShape, renamedBaselines, 
 import { canonical, commandsOf, heldGroups, trustHeld, trustTakenOver } from './trust';
 
 export const CONFIG_FILE = 'projects.json';
-/** What the configuration was called while projects were canvases; read once, when the new file is not there yet. */
+
 const OLD_CONFIG_FILE = 'canvases.json';
 
 /**
@@ -116,7 +116,7 @@ function tidyApp(s: RepoSettings['app']): RepoSettings['app'] {
   return Object.keys(out).length ? out : undefined;
 }
 
-/** The projects as the configuration lists them, from the dialog, the file and the Koordinator alike. */
+
 export const configShape = z.array(
   z
     .object({
@@ -139,9 +139,9 @@ export const configShape = z.array(
                     name: z
                       .string()
                       .regex(/^\s*[\w.-]*\s*$/, 'a host name is letters, digits, dots, dashes and underscores')
-                      // a directory of its own under Seismic's home holds the host's copies
+                      
                       .refine((n) => !/^\.{1,2}$/.test(n.trim()), 'a host name is more than dots'),
-                    // read by ssh as an option when it starts with a dash
+                    
                     ssh: z.string().refine((s) => !s.trim().startsWith('-'), 'an ssh target does not start with a dash'),
                     root: z.string(),
                     clones: z.number().int().min(0).max(20),
@@ -159,11 +159,11 @@ export const configShape = z.array(
     .strict(),
 );
 
-/**
- * A repository's entry as the project's settings sheet saves it: its path names it, the fields it holds
- * replace those of the entry. It may carry the entry's folder mode (`git`) as read, which is the entry's
- * own and stays as it is.
- */
+
+
+
+
+
 const repoEntryShape = configShape.element.shape.repos.element;
 
 /** Where the project `id` is in `projects`: by its id once resolved, else by the id it keeps. */
@@ -182,10 +182,10 @@ function tidy(projects: z.infer<typeof configShape>): ProjectConfig[] {
     ...tidyProjectSettings(settings),
     repos: repos.map((r) => {
       const workstations = (r.workstations ?? []).map((w) => w.trim()).filter(Boolean);
-      // a host without a name or a machine is a row still being filled in
+      
       const hosts = (r.hosts ?? []).map((h) => ({ name: h.name.trim(), ssh: h.ssh.trim(), root: h.root.trim() || '~/seismic', clones: h.clones, ...(h.slots !== undefined ? { slots: h.slots } : {}) })).filter((h) => h.name && h.ssh);
       const settings = tidySettings(r.settings);
-      // a folder without git has neither clones nor other machines: its cards all work in it
+      
       if (r.git === false) return { path: r.path.trim(), git: false as const, ...(settings ? { settings } : {}) };
       return {
         path: r.path.trim(),
@@ -280,38 +280,38 @@ function withoutGone(made: unknown, file = true): unknown {
 }
 
 export interface ConfigOptions {
-  /** Where it is saved. */
+  
   file: string;
-  /** Whether the running projects come from that file or from the command line. */
+  
   source: 'file' | 'args';
-  /** The configuration the server started with, paths as given. */
+  
   started: ProjectConfig[];
   store: Store;
-  /** The ids of the projects the server runs. */
+  
   running: () => string[];
-  /** The running server's settings; `commit` the one its checkout stands at (none for the compiled binary). */
+  
   server: { port: number; home: string; permissionMode: string; commit?: string | null };
-  /** Where this Seismic answers, so a sample's voice is held by it (`narration.ts`); none in tests. */
+  
   narrationUrl?: string;
-  /** The lock a heavy voice's sample waits for; the machine's (TTS_LOCK) unless a test gives its own. */
+  
   ttsLock?: string;
-  /**
-   * Starts Seismic again with the saved configuration, for projects that came from the command line
-   * (the file is the configuration from then on); absent where nothing restarts it (--dev).
-   */
+  
+
+
+
   restart?: () => void;
-  /**
-   * The running projects take the saved configuration over without a restart (`Projects.apply`):
-   * `ids` are its projects' ids, null where one does not resolve.
-   */
+  
+
+
+
   apply?: (projects: ProjectConfig[], ids: (string | null)[]) => void | Promise<void>;
-  /** The projects, and repositories of those that run, that do not run as the configuration has them (`Projects.failures`). */
+  
   failures?: () => StartFailure[];
-  /** Repositories' settings for everyone were committed: the running projects read them again. */
+  
   onSettings?: () => void;
-  /** Where "For everyone, into the repository" opens its pull request. */
+  
   forge?: Forge;
-  /** The demo directory's space and the deletion of old frames; none in tests. */
+  
   space?: DemoSpace;
 }
 
@@ -331,7 +331,7 @@ const demoShape = z
     voiceName: z.string().optional(),
     style: z.string().optional(),
     references: z.partialRecord(z.enum(LANGUAGES), z.string()).optional(),
-    // the one clip of a draft kept in the dialog from before `references`: `tidyDemoSettings` takes it as its language's
+    
     reference: z.string().optional(),
     keyFile: z.string().optional(),
     directory: z.string().optional(),
@@ -401,7 +401,7 @@ export const folderHarnessDetail = (harness: 'codex' | 'agy') =>
 
 export class Config {
   private restarting = false;
-  /** The file as last read, by its time and size: repositories' settings are read from it whenever they are used. */
+  
   private read?: { stamp: string; projects: ProjectConfig[] };
 
   constructor(private o: ConfigOptions) {}
@@ -442,7 +442,7 @@ export class Config {
    */
   takenOver(path: string, before: SharedSettings | undefined, after: SharedSettings | undefined) {
     if (!after) return;
-    // commands the owner set here are theirs in the file too: they need no confirming
+    
     const trusted = trustTakenOver(this.o.store.trustedCommands.get(path), after, this.repoSettings(path));
     if (trusted) this.o.store.trustedCommands.trust(path, trusted);
     const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
@@ -502,7 +502,7 @@ export class Config {
     const at = locate(projects, (r) => isAt(r, path));
     if (!at) throw new BadRequest('invalid', `no repository ${path} in the configuration`);
     const patch = settingPatch(field, value);
-    // on the configuration as it is then: a pull request opened meanwhile may have taken a while
+    
     const onMachine = () => {
       const now = this.current();
       const here = locate(now, (r) => isAt(r, path)) ?? at;
@@ -518,7 +518,7 @@ export class Config {
       await onMachine();
       return done;
     }
-    // where this machine set another value, the repository's applies here as well from now on
+    
     this.dropSettings(path, (s) => {
       if (field === 'run') delete s.app?.run;
       else delete s[field];
@@ -572,7 +572,7 @@ export class Config {
     }
     const { before: _, after, ...done } = await commitShared(path, patch);
     console.log(`Seismic: ${what} of ${path} for everyone, committed on ${'branch' in done ? done.branch : ''}`);
-    // all of it is in the file now, also what it held already
+    
     this.takenOver(path, undefined, after);
     return done;
   }
@@ -590,7 +590,7 @@ export class Config {
     if (!existsSync(repoPath)) throw new BadRequest('invalid', `no repository at ${parsed.data.path}`);
     const now = commandsOf(readShared(repoPath));
     if (canonical(now) !== canonical(parsed.data.seen)) throw new BadRequest('trustChanged', `${repoPath}: its commands changed on the default branch since they were shown`);
-    // only the groups the dialog showed: one this machine's values (saved or in the draft) stand in for it did not
+    
     this.o.store.trustedCommands.trust(repoPath, trustHeld(this.o.store.trustedCommands.get(repoPath), now, parsed.data.held.filter((g) => now[g] !== undefined)));
     console.log(`Seismic: the owner confirmed the commands of ${repoPath}`);
     this.o.onSettings?.();
@@ -608,7 +608,7 @@ export class Config {
     };
   }
 
-  /** The check of the configuration as saved while one runs: a page that loads and the dialog opening at the same time share it. */
+  
   private checking?: { projects: ProjectConfig[]; done: Promise<ConfigChecked> };
 
   /** `check` of the configuration as saved. */
@@ -632,16 +632,16 @@ export class Config {
    * blocking the server meanwhile.
    */
   async check(input: unknown, onboarding?: { worker: AgentSetting; harnesses: Harness[] }): Promise<ConfigChecked> {
-    // a draft the dialog kept from before may hold a site's language (the dialog never sends a share command)
+    
     const parsed = configShape.safeParse(withoutGone(input, false));
     if (!parsed.success) return { projects: [], resolved: [], problems: [{ code: 'invalid', detail: z.prettifyError(parsed.error) }] };
     const projects = tidy(parsed.data);
     const expanded = expandConfig(projects);
-    // a repository whose path is still empty is read nowhere (`resolveProject` finds its path missing)
+    
     const repos = expanded.flatMap((c) => c.repos).filter((r) => r.path);
-    // a workstation needs only to be a repository; one that is also a repository of the configuration is read as that
+    
     const paths = new Set(repos.map((r) => resolve(r.path)));
-    // a folder without git is read as it is
+    
     const folders = new Set(repos.filter((r) => r.git === false).map((r) => resolve(r.path)));
     const workstations = new Set(repos.flatMap((r) => (r.workstations ?? []).map((w) => resolve(w))).filter((w) => !paths.has(w)));
     const branches = repos.flatMap((r) => (r.settings?.branch && existsSync(r.path) ? [{ path: resolve(r.path), branch: r.settings.branch }] : []));
@@ -661,7 +661,7 @@ export class Config {
     const read = (path: string) => reads.get(path) ?? null;
     const problems: ConfigProblem[] = [];
     if (!projects.length) problems.push({ code: 'noProject', detail: 'Seismic needs at least one project' });
-    // a host's name stands for one machine across the configuration: its workstations are named by it
+    
     const machines = new Map<string, string>();
     const worker = onboarding?.worker ?? agentSetting(this.o.server.home, 'worker');
     const harnesses = onboarding?.harnesses ?? savedHarnesses(this.o.server.home);
@@ -672,7 +672,7 @@ export class Config {
             problems.push({ code: 'notClone', project, repo, detail: `workstation ${w} is not a git repository` });
             return;
           }
-          // the repository itself, or a clone of it: its origin is the repository's, or the repository (as `Workstations.register` has it)
+          
           const own = read(resolve(r.path))?.info;
           const origins = [own?.remote, own?.path].filter((x): x is string => !!x);
           const origin = originOf(resolve(w)) ?? '';
@@ -680,7 +680,7 @@ export class Config {
             problems.push({ code: 'otherClone', project, repo, detail: `${w} is not a clone of ${origins.join(' or ')} (its origin is ${origin || 'unset'})` });
         }),
       );
-      // workers that need a Git workstation have none in a folder without git: the project's harness, else Configuration's
+      
       const harness = projectAgentSetting('worker', worker, c.agents, harnesses).harness;
       c.repos.forEach((r, repo) => {
         if (r.git === false && needsGit(harness)) problems.push({ code: 'folderHarness', project, repo, detail: folderHarnessDetail(harness) });
@@ -698,9 +698,9 @@ export class Config {
       );
       try {
         const { id, name, repos } = resolveProject(c, this.o.store, undefined, undefined, read);
-        // the repositories in the order given, though the home one runs first
+        
         const given = c.repos.map((r) => repos.find((x) => x.config === r)!);
-        // what is wrong in a repository's settings for everyone is fixed there, not here: it keeps nothing from being saved
+        
         c.repos.forEach((r, repo) => {
           const { adapter, read: got } = given[repo]!;
           if (got.adapterModule)
@@ -748,7 +748,7 @@ export class Config {
         problems.push({ code: 'sameId', project, detail: `project ${project + 1} has the id "${r.id}" of project ${first + 1}; give it another name` });
         sameIds.add(project);
       }
-      // what does not run as it is configured, by the projects and repositories it resolves to
+      
       for (const f of failures.filter((f) => f.project === r?.id)) {
         if (f.repo === undefined) {
           problems.push({ code: 'projectDown', project, detail: f.detail });
@@ -758,7 +758,7 @@ export class Config {
         if (repo >= 0) problems.push({ code: f.before ? 'repoBefore' : 'repoDown', project, repo, detail: f.detail });
       }
     });
-    // a new project's name is checked before its repository is: the owner types it first
+    
     problems.push(...nameProblems(resolved.map((r, i) => r?.name ?? projects[i]!.name ?? null), projects.map((c) => c.oldNames), sameIds));
     return { projects, resolved, problems };
   }
@@ -802,7 +802,7 @@ export class Config {
     const settings = parseDemo(input);
     writeDemoSettings(settings, this.o.server.home);
     console.log(`Seismic: demo settings saved to ${resolve(this.o.server.home, DEMO_SETTINGS_FILE)}`);
-    // frames kept for a shorter time, or another directory: what is due goes at once
+    
     if (before.keepFrames !== settings.keepFrames || demoDirectory(before) !== demoDirectory(settings)) void this.o.space?.sweepSoon();
     return this.demo();
   }
@@ -860,7 +860,7 @@ export class Config {
     try {
       const out = join(dir, 'sample.wav');
       await sample(s, out, this.o.server.home, this.o.narrationUrl, this.o.ttsLock, text).catch((e: Error) => {
-        // tts.py says why on its last line: no key, no command, a service's refusal
+        
         const why = e.message.trim().split('\n').at(-1) ?? e.message;
         throw new BadRequest('voiceSample', why);
       });
@@ -870,11 +870,11 @@ export class Config {
     }
   }
 
-  /**
-   * Saves a configuration that works, and the running projects take it over.
-   * Where they came from the command line, Seismic starts again with it where
-   * something restarts it.
-   */
+  
+
+
+
+
   /**
    * "Try again": the running projects take the saved configuration over again, as after a
    * save, so what did not start as it has them tries again.
@@ -893,7 +893,7 @@ export class Config {
    * the configuration as it is saved; applies at once, as a save from the dialog does.
    */
   saveProject(id: string, input: unknown): Promise<ConfigSaved> {
-    // one after the other: each reads the configuration the one before saved, so none undoes another
+    
     const saved = this.projectSaves.then(() => this.saveProjectNow(id, input));
     this.projectSaves = saved.catch(() => {});
     return saved;
@@ -965,17 +965,17 @@ export class Config {
 
   async save(input: unknown): Promise<ConfigSaved> {
     const { projects: given, resolved, problems: all } = await this.check(input);
-    // a project the saved configuration has as it is does not stop the others from being saved
+    
     const now = new Set(this.current().map((c) => JSON.stringify(c)));
     const problems = blockingProblems(all, (i) => !now.has(JSON.stringify(given[i])));
     if (problems.length) throw new BadRequest('config', problems.map((p) => p.detail).join('; '));
-    // a project created now takes Project defaults for what it does not set itself: one this configuration
-    // already has (by its id, or its home repository, which a rename keeps) stays as it is
+    
+    
     const before = await this.check(this.current());
     const existing = new Set([...this.o.running(), ...before.resolved.flatMap((c) => c ? [c.id] : [])]);
     const homes = new Set(this.current().map((c) => c.repos[0] && resolve(expandHome(c.repos[0].path))));
     const renamed = withRenames(given, resolved, before.resolved);
-    // a name freed by a rename and taken by another project in the same save: its old addresses would lead to two
+    
     const taken = nameProblems(resolved.map((r) => r?.name ?? null), renamed.map((c) => c.oldNames), new Set());
     if (taken.length) throw new BadRequest('config', taken.map((p) => p.detail).join('; '));
     const projects = withProjectDefaults(renamed, projectDefaults(this.o.server.home), (c, i) => !existing.has(resolved[i]?.id ?? '') && !homes.has(c.repos[0] && resolve(expandHome(c.repos[0].path))));

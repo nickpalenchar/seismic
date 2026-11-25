@@ -12,7 +12,7 @@ test('recent snoozed plans cannot displace active plans from the first page', ()
   const sorted = [older, ...active, newest].sort(plannedOrder);
   expect(sorted.slice(0, 20).map((i) => i.id)).toEqual(active.toReversed().map((i) => i.id));
   expect(sorted.slice(20).map((i) => i.id)).toEqual(['snoozed-new', 'snoozed-old']);
-  // Waking a planned card puts it back among active plans at its creation date.
+  
   newest.hold = undefined;
   expect(sorted.sort(plannedOrder)[0]!.id).toBe('snoozed-new');
 });

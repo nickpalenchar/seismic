@@ -1,12 +1,12 @@
-// A desktop switch can retire the document doing an attachment upload. Keep the choice
-// with that document, including uploads whose editor or project has since changed.
+
+
 import { useSyncExternalStore } from 'react';
 import { ConfirmDialog, Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { Spinner } from './components/spinner';
 import { t } from './strings';
 
 const pending = new Set<AbortController>();
-// A shell switch owns the outgoing document through capture and native navigation.
+
 const switches = new Set<string>();
 const onIdle = new Set<() => void>();
 type Choice = 'ask' | 'wait' | 'discard' | 'back' | 'connecting';
@@ -45,8 +45,8 @@ export function afterAttachments(action: () => void) {
   navigateWhenIdle();
 }
 
-// The shell checks again with input hidden before sampling. Discard applies only to
-// the attachments pending when the owner makes the choice.
+
+
 export function attachmentSwitch(id: string, action: 'ask' | 'check' | 'connecting' | 'end') {
   if (action === 'end') {
     switches.delete(id);

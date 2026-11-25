@@ -1,8 +1,8 @@
-// Light or dark as the owner chose in the settings, else as the system: the stylesheets read it from
-// `data-theme` on the page's root (frost.css), so a choice applies without loading again.
-// A page loads it together with its language before it first renders; until the server answers, the
-// choice this browser saw last (index.html sets it before the first paint, from `THEME_KEY`), so a
-// board chosen dark on a light system does not first show light.
+
+
+
+
+
 
 import { useSyncExternalStore } from 'react';
 import { FALLBACK_LANGUAGE, languageOf } from '../core/locale';
@@ -12,7 +12,7 @@ import { getSetting } from './clients/seismic';
 import { applyMotion } from './motion';
 import { setLanguage } from './strings';
 
-/** Where this browser keeps the owner's last choice; index.html reads it under the same name. */
+
 export const THEME_KEY = 'seismic-theme';
 
 export function applyTheme(theme: Theme | null) {

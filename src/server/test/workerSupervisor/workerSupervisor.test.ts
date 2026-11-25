@@ -25,7 +25,7 @@ describe('workers', () => {
     for (let n = 0; n < 501; n++) board.log(card.id, 'report', 'worker', 'Progress');
     const brief = workers.startBrief(board.item(card.id)!);
     expect(brief).toContain('Finish this work and validate it.');
-    // too large for a prompt: the worker reads it from its workstation
+    
     expect(brief).not.toContain('+captured');
     expect(brief).toContain('git apply --binary "$(git rev-parse --git-path seismic-captured-changes.patch)"');
     expect(board.row(card.id).body!.length).toBeLessThan(20000);
@@ -34,7 +34,7 @@ describe('workers', () => {
     const at = board.row(card.id).workstation!;
     expect(readFileSync(git(at, 'rev-parse', '--path-format=absolute', '--git-path', 'seismic-captured-changes.patch'), 'utf8')).toBe(patch);
     expect(git(at, 'status', '--porcelain')).toBe('');
-    // a session that never reported itself starts anew after a restart: the file is put there again first
+    
     const file = git(at, 'rev-parse', '--path-format=absolute', '--git-path', 'seismic-captured-changes.patch');
     rmSync(file);
     board.work(card.id, { session_id: null });
@@ -95,9 +95,9 @@ describe('workers', () => {
     expect(runtime.last.inbox[0]).toContain('`bun install`');
     expect(runtime.last.inbox[0]).toContain('How to run the app: Start it with `bun run stack`; after an API change, `bun run api:restart`. The URL is in `.stack.env` under WEB_URL.');
     expect(runtime.last.inbox[0]).toContain('Run the app for it as the recipe above says.');
-    // a repository without demos gets Seismic's skills all the same: the one that writes its settings among them
+    
     expect(skillPlugins(runtime.last.spec.skills)).toEqual([SEISMIC_PLUGIN]);
-    // the only clone is taken
+    
     const d = manual();
     expect(() => workers.start(d.id)).toThrow(BadRequest);
   });
@@ -125,11 +125,11 @@ describe('workers', () => {
     expect(workers.busyCards().length).toBeGreaterThan(0);
     runtime.last.emit({ type: 'text', text: 'Dann CSV.' });
     runtime.last.emit({ type: 'idle' });
-    // the nudge starts a turn as well
+    
     expect(workers.busyCards().length).toBeGreaterThan(0);
     runtime.last.emit({ type: 'idle' });
     expect(workers.busyCards()).toEqual([]);
-    // a turn Seismic did not start, e.g. after a background command finished
+    
     runtime.last.emit({ type: 'text', text: 'Fertig gerendert.' });
     expect(workers.busyCards().length).toBeGreaterThan(0);
   });
@@ -150,11 +150,11 @@ describe('workers', () => {
     workers.restartDue({ reason: 'code', deadline: Date.now() + 15 * 60_000 });
     expect(busy.inbox.at(-1)).toContain('Seismic is about to restart (new code landed on main)');
     expect(busy.inbox.at(-1)).toContain('at most 15 more minutes');
-    // heard once, however often the restart's waiting list changes
+    
     const told = busy.inbox.length;
     workers.restartDue({ reason: 'code', deadline: Date.now() + 15 * 60_000 });
     expect(busy.inbox.length).toBe(told);
-    // the worker ends its turn without handing over: it paused, the owner is not asked
+    
     busy.emit({ type: 'idle' });
     expect(workers.busyCards()).toEqual([]);
     expect(busy.inbox.length).toBe(told);
@@ -169,24 +169,24 @@ describe('workers', () => {
     busy.emit({ type: 'text', text: 'Das Video rendert.' });
     workers.restartDue({ reason: 'code', deadline: Date.now() + 15 * 60_000 });
     expect(busy.inbox.at(-1)).toContain('take in its result and end that turn as well');
-    // still in its turn, before it paused: nothing more to hear
+    
     expect(busy.toolStep()).toBeUndefined();
     busy.emit({ type: 'text', text: 'Pausiert; das Rendern läuft weiter.' });
     busy.emit({ type: 'idle', background: 1 });
     expect(workers.busyCards().length).toBeGreaterThan(0);
-    // the render finishes and wakes the worker, which would go on from there
+    
     const told = busy.inbox.length;
     busy.emit({ type: 'tool', name: 'Bash', input: { command: 'tail -2 render.log' } });
     expect(busy.toolStep()).toContain('Seismic still waits for the restart (new code landed on main) you paused for, at most 15 more minutes');
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'The agent woke before Seismic\'s restart; Seismic tells it the restart still waits for it.' });
-    // once per turn
+    
     expect(busy.toolStep()).toBeUndefined();
     expect(busy.inbox.length).toBe(told);
     busy.emit({ type: 'idle' });
     expect(workers.busyCards()).toEqual([]);
     expect(state(c.id)).toBe('working');
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Paused until Seismic has restarted.' });
-    // a note from the owner before the restart says so with the note
+    
     workers.message(c.id, 'Nimm die dunkle Variante.');
     expect(busy.inbox.at(-1)).toContain('Nimm die dunkle Variante.');
     expect(busy.inbox.at(-1)).toContain('Seismic still waits for the restart');
@@ -241,10 +241,10 @@ describe('workers', () => {
     await workers.start(c.id);
     runtime.last.call('ask', { question: 'CSV oder Excel?', options: ['CSV', 'Excel'] });
     runtime.last.emit({ type: 'idle' });
-    // a pick the question does not offer is the owner's own answer, on one line, after the options
+    
     workers.answer(c.id, 'Und mit Kopfzeile.', [], false, undefined, ['Lieber\nPDF', 'CSV']);
     expect(runtime.last.inbox.at(-1)).toContain('Answer to your question (from the owner):\n\nThey picked “CSV”. They answered in their own words: “Lieber PDF”.\n\nThey added in their own words:\n\nUnd mit Kopfzeile.');
-    // the log holds the answer as one text, and what it picked
+    
     expect(board.events(c.id).findLast((e) => e.kind === 'answer')).toMatchObject({ text: 'CSV, Lieber PDF\n\nUnd mit Kopfzeile.', picks: ['CSV', 'Lieber PDF'] });
     runtime.last.emit({ type: 'idle' });
     runtime.last.call('ask', { question: 'Auch PDF?', options: ['Ja', 'Nein'] });
@@ -264,7 +264,7 @@ describe('workers', () => {
     await workers.start(c.id);
     runtime.last.call('ask', { question: 'CSV oder Excel?' });
     runtime.last.emit({ type: 'idle' });
-    // not in a turn: nothing to pause
+    
     workers.restartDue({ reason: 'config', deadline: Date.now() + 60_000 });
     const before = runtime.last.inbox.length;
     expect(runtime.last.inbox.at(-1)).not.toContain('about to restart');
@@ -273,7 +273,7 @@ describe('workers', () => {
     expect(runtime.last.inbox.at(-1)).toContain('Answer to your question');
     expect(runtime.last.inbox.at(-1)).toContain('Seismic is about to restart (the owner saved a new configuration)');
     expect(runtime.last.inbox.at(-1)).toContain('at most 1 more minute, and this turn keeps it waiting');
-    // not the notice for a worker in the middle of a step: the answer's work waits for the restart
+    
     expect(runtime.last.inbox.at(-1)).toContain('leave the work it asks for until Seismic resumes you');
     expect(runtime.last.inbox.at(-1)).not.toContain('finish the step you are in');
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', text: 'Seismic waits to restart; the agent goes on after the restart.' });
@@ -356,7 +356,7 @@ describe('workers', () => {
     expect(board.item(c.id)!.question).toBeUndefined();
     expect(runtime.last.inbox.at(-1)).toContain('withdraws your question (“CSV oder Excel?”)');
     expect(runtime.last.inbox.at(-1)).toContain('Exportier erst mal gar nichts');
-    // a remark is not a decision
+    
     expect(board.decisionsOn(c.id)).toEqual([]);
     expect(() => workers.answer(c.id, 'CSV')).toThrow(BadRequest);
   });
@@ -369,7 +369,7 @@ describe('workers', () => {
     expect(runtime.last.call('reply', { text: 'Mache ich: Excel kommt als zweites Format dazu.' })).toBe('Shown to the owner.');
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'talk', author: 'worker', text: 'Mache ich: Excel kommt als zweites Format dazu.' });
     expect(state(c.id)).toBe('working');
-    // a reply is no handover: the turn ending after it is nudged
+    
     runtime.last.emit({ type: 'text', text: 'Excel ist eingebaut.' });
     const before = runtime.last.inbox.length;
     runtime.last.emit({ type: 'idle' });
@@ -384,18 +384,18 @@ describe('workers', () => {
     workers.message(c.id, 'Bitte auch Excel.', ['/tmp/shot.png']);
     const note = board.events(c.id).at(-1)!;
     expect(note).toMatchObject({ kind: 'hint', unread: true });
-    // not in the session's input, where the CLI would take it at a moment Seismic does not learn
+    
     expect(s.inbox.join()).not.toContain('Bitte auch Excel.');
     s.emit({ type: 'tool', name: 'Edit', input: { file_path: 'export.ts' } });
     const edit = board.events(c.id).at(-1)!;
     const heard = s.toolStep()!;
     expect(heard).toContain('A note from the owner');
     expect(heard).toContain('Bitte auch Excel.');
-    // a tool result carries no images: the worker reads the file
+    
     expect(heard).toContain('read their files to see them (/tmp/shot.png)');
     expect(board.events(c.id).find((e) => e.id === note.id)).toMatchObject({ readAfter: edit.id });
     expect(board.events(c.id).find((e) => e.id === note.id)!.unread).toBeUndefined();
-    // taken once
+    
     expect(s.toolStep()).toBeUndefined();
   });
 
@@ -411,17 +411,17 @@ describe('workers', () => {
     expect(result).toContain('Answer them with reply where they call for an answer');
     expect(result).toContain('ask it anew');
     expect(result).toContain('Bitte vorher auf main rebasen.');
-    // the note stands below the question, where the worker read it, and the step's context carries it no more
+    
     const question = board.events(c.id).findLast((e) => e.kind === 'question')!;
     expect(board.events(c.id).find((e) => e.text === 'Bitte vorher auf main rebasen.')).toMatchObject({ readAfter: question.id });
     expect(s.toolStep()).toBeUndefined();
-    // it answers, and asks anew: the card waits for the new question
+    
     s.call('reply', { text: 'Mache ich, bevor ich neu rendere.' });
     s.call('ask', { question: 'Soll das Video nach dem Rebase Ton haben?', options: ['Ja', 'Nein'] });
     s.emit({ type: 'idle' });
     expect(state(c.id)).toBe('waiting:question');
     expect(board.item(c.id)!.question?.text).toBe('Soll das Video nach dem Rebase Ton haben?');
-    // without words waiting, the result just ends the turn
+    
     workers.answer(c.id, 'Ja');
     expect(s.call('ask', { question: 'Mit Untertiteln?' })).toContain('End your turn now without further work');
   });
@@ -448,10 +448,10 @@ describe('workers', () => {
     s.emit({ type: 'idle' });
     expect(s.inbox.length).toBe(before + 1);
     expect(s.inbox.at(-1)).toContain('Und die Spaltennamen auf Deutsch.');
-    // no nudge for the turn: the note's is the next
+    
     expect(s.inbox.join()).not.toContain('without a handover');
     expect(board.events(c.id).find((e) => e.text === 'Und die Spaltennamen auf Deutsch.')!.unread).toBeUndefined();
-    // between turns a note goes in at once, read
+    
     s.emit({ type: 'idle' });
     workers.message(c.id, 'Danke.');
     expect(s.inbox.at(-1)).toContain('Danke.');
@@ -470,7 +470,7 @@ describe('workers', () => {
     const heard = s.toolStep()!;
     expect(heard).not.toContain('Bitte auch Excel.');
     expect(heard).toContain('Und PDF.');
-    // once read, it stays
+    
     expect(() => workers.unsay(c.id, pdf!.id)).toThrow(BadRequest);
   });
 
@@ -492,14 +492,14 @@ describe('workers', () => {
     runtime.last.call('reply', { text: `Ich exportiere die Zählerstände als CSV mit Semikolon als Trenner, wie Excel es in Deutschland erwartet. ${'Mehr dazu. '.repeat(30)}` });
     const replied = board.events(c.id).at(-1)!;
     workers.message(c.id, 'Lieber Komma.', [], false, replied.id);
-    // the worker has the whole message in its session: the start of it says which one
+    
     expect(runtime.last.toolStep()).toContain('[In reply to your message: “Ich exportiere die Zählerstände als CSV mit Semikolon als Trenner, wie Excel es in Deutschland erwartet. Mehr dazu. Mehr dazu. Mehr dazu. Mehr dazu. Mehr dazu. …”]\n\nLieber Komma.');
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'hint', author: 'owner', text: 'Lieber Komma.', replyTo: replied.id });
-    // Seismic's words in the conversation the worker never had: it reads them whole
+    
     const aside = board.log(c.id, 'say', 'koordinator', 'Die Karte “Import” liegt auf einer anderen Leinwand.');
     workers.message(c.id, 'Dann lass es.', [], false, aside.id);
     expect(runtime.last.toolStep()).toContain("[In reply to Seismic's message in the card's conversation: “Die Karte “Import” liegt auf einer anderen Leinwand.”]\n\nDann lass es.");
-    // a question answered in reply to it says so too
+    
     runtime.last.call('ask', { question: 'CSV oder Excel?', options: ['CSV', 'Excel'] });
     const asked = board.events(c.id).findLast((e) => e.kind === 'question')!;
     workers.answer(c.id, 'CSV', [], false, asked.id);
@@ -528,7 +528,7 @@ describe('workers', () => {
     const c = manual();
     await workers.start(c.id);
     await runtime.last.call('ready_for_review', { summary: 'Export gebaut.', demo: artifact() });
-    // those after a handover repeat it
+    
     runtime.last.emit({ type: 'text', text: 'Übergeben: Export gebaut.' });
     runtime.last.emit({ type: 'idle' });
     workers.message(c.id, 'Die App läuft nicht mehr.');
@@ -555,7 +555,7 @@ describe('workers', () => {
     runtime.last.emit({ type: 'text', text: 'Excel is in, as I said.' });
     runtime.last.emit({ type: 'idle' });
     expect(words(d.id)).toEqual(['talk: Mache ich.', 'say: Now the Excel export.', 'closing: Excel is in, as I said.']);
-    // the next turn's words are words again
+    
     runtime.last.emit({ type: 'text', text: 'Weiter mit den Tests.' });
     expect(words(d.id).at(-1)).toBe('say: Weiter mit den Tests.');
   });
@@ -605,7 +605,7 @@ describe('workers', () => {
     expect(board.item(c.id)!.question).toEqual({ text: 'CSV oder Excel?', options: ['CSV', 'Excel'], pick: { options: ['Excel'], why: 'Die Buchhaltung arbeitet in Excel.' } });
     workers.answer(c.id, 'CSV');
     expect(runtime.last.inbox.at(-1)).toContain('CSV');
-    // a pick that names no option, or several on a single choice, is left out or cut to one
+    
     runtime.last.call('ask', { question: 'Trennzeichen?', options: ['Komma', 'Semikolon'], pick: ['Tab'], pick_why: 'Egal.' });
     expect(board.item(c.id)!.question!.pick).toBeUndefined();
     workers.answer(c.id, 'Komma');
@@ -616,7 +616,7 @@ describe('workers', () => {
   test("a workstream's worker gets its plan's decisions, and those taken while it works once", async () => {
     const w = board.snapshot().items.find((i) => i.plan?.label === 'W1')!;
     const plan = w.parent!;
-    // the plan's other cards: here the plan itself stands in for them
+    
     board.decide({ plan_id: plan, card_id: plan, question: 'Welche Spalten?', answer: 'Alle.', by: 'owner' });
     await workers.start(w.id);
     const s = runtime.last;
@@ -625,7 +625,7 @@ describe('workers', () => {
 
     s.call('ask', { question: 'Kopfzeile?', options: ['Ja', 'Nein'] });
     workers.answer(w.id, 'Ja');
-    // its own answer it heard as one
+    
     expect(s.toolStep()).toBeUndefined();
     board.decide({ plan_id: plan, card_id: plan, question: 'Datumsformat?', answer: 'ISO', by: 'owner' });
     expect(s.toolStep()).toBe('Decisions taken in this plan while you work:\n- Datumsformat? → ISO (owner)');
@@ -651,7 +651,7 @@ describe('workers', () => {
     await s.call('ready_for_review', { summary: 'Export als CSV.', demo: artifact() });
     s.emit({ type: 'idle' });
     expect(state(c.id)).toBe('waiting:demo');
-    // the owner chose "Fix it" on an item: the card keeps waiting while the worker is on it
+    
     const item: ReviewItem = { number: 1, title: 'Name', text: 'Name stimmt nicht.', severity: 'minor', status: 'fixing', log: [] };
     board.work(c.id, { review: { items: [item] } });
     s.emit({ type: 'idle' });
@@ -661,7 +661,7 @@ describe('workers', () => {
     s.emit({ type: 'idle' });
     expect(s.inbox.length).toBe(before + 1);
     expect(s.inbox.at(-1)).toContain('resubmit_review_item');
-    // ending again without settling the items goes to the owner
+    
     s.call('report', { status: 'Noch einmal' });
     s.emit({ type: 'idle' });
     expect(board.item(c.id)!.question?.text).toBe('Fertig.');
@@ -691,9 +691,9 @@ describe('workers', () => {
     expect(state(c.id)).toBe('waiting:question');
     expect(board.item(c.id)!.question).toMatchObject({ stuck: true });
     expect(board.item(c.id)!.question!.text).toContain('Codex would load repository configuration');
-    // no nudge went into a session that hears nothing any more
+    
     expect(dead.inbox).toHaveLength(1);
-    // the owner's answer starts the worker again
+    
     workers.message(c.id, 'Versuch es noch einmal.');
     await until(() => runtime.last !== dead);
     expect(runtime.last.inbox.at(-1)).toContain('Versuch es noch einmal.');
@@ -772,7 +772,7 @@ describe('workers', () => {
     expect(runtime.last.spec.setting).toMatchObject({ model: 'sonnet' });
     expect(runtime.last.inbox[0]).toContain('handed the card to another model');
     expect(board.events(c.id).some((e) => e.text.startsWith('Handed off to Claude Code · sonnet'))).toBe(true);
-    // waiting for the reset, not paused yet: handed off to another harness, it starts anew from the card's briefing
+    
     runtime.last.emit({ type: 'error', message: 'Session limit', limit: {} });
     runtime.last.emit({ type: 'idle' });
     expect(board.item(c.id)!.agent?.limitedUntil).toBeDefined();
@@ -827,7 +827,7 @@ describe('workers', () => {
     runtime.last.emit({ type: 'error', message: hit, limit: { resetsAt: Date.now() + 20 } });
     runtime.last.emit({ type: 'idle' });
     const sent = runtime.last.inbox.length;
-    // no nudge, no question to the owner: the card waits for the limit, and a restart need not wait for it
+    
     expect(state(c.id)).toBe('working');
     expect(workers.busyCards()).toEqual([]);
     expect(board.item(c.id)!.agent?.statusLine).toStartWith('Usage limit · continues at ');
@@ -837,7 +837,7 @@ describe('workers', () => {
     expect(runtime.last.inbox.length).toBe(sent + 1);
     expect(runtime.last.inbox.at(-1)).toContain('usage limit');
     expect(workers.busyCards().length).toBeGreaterThan(0);
-    // the limit still holds: it waits again, and its status line stays what it was before
+    
     runtime.last.emit({ type: 'error', message: hit, limit: { resetsAt: Date.now() + 10_000 } });
     runtime.last.emit({ type: 'idle' });
     expect(state(c.id)).toBe('working');
@@ -859,7 +859,7 @@ describe('workers', () => {
     runtime.last.emit({ type: 'error', message: "You've hit your session limit", limit: { resetsAt: Date.now() + 20 } });
     runtime.last.emit({ type: 'idle' });
     const sent = runtime.last.inbox.length;
-    // the card does not wait for the owner: its worker is still at their words, and says why it rests
+    
     expect(board.item(c.id)).toMatchObject({ state: 'waiting', need: 'demo', review: { answering: true } });
     expect(needsYou(board.item(c.id)!)).toBe(false);
     expect(board.item(c.id)!.agent?.statusLine).toStartWith('Usage limit · continues at ');
@@ -883,9 +883,9 @@ describe('workers', () => {
     const sent = runtime.last.inbox.length;
     expect(state(c.id)).toBe('working');
     expect(board.item(c.id)!.agent?.statusLine).toStartWith('Usage limit · continues at ');
-    // the render still runs in the session: a restart waits for it
+    
     expect(workers.busyCards().length).toBeGreaterThan(0);
-    // the owner's words the limit cut off need not wait for the render to end
+    
     await Bun.sleep(60);
     expect(runtime.last.inbox.length).toBe(sent + 1);
     expect(runtime.last.inbox.at(-1)).toContain('usage limit');
@@ -900,7 +900,7 @@ describe('workers', () => {
     runtime.last.emit({ type: 'error', message: "You've hit your session limit", limit: { resetsAt: Date.now() + 60_000 } });
     runtime.last.emit({ type: 'idle', background: 1 });
     expect(workers.busyCards().length).toBeGreaterThan(0);
-    // the session never says the work ended: after the wait for it, the worker only waits for the limit
+    
     await Bun.sleep(40);
     expect(workers.busyCards()).toEqual([]);
     expect(board.item(c.id)!.agent?.statusLine).toStartWith('Usage limit · continues at ');
@@ -926,7 +926,7 @@ describe('workers', () => {
     const c = manual();
     await workers.start(c.id);
     const before = runtime.last.inbox.length;
-    // a resumed session first ends a turn over what the previous one left, before the worker's own
+    
     runtime.last.emit({ type: 'idle' });
     expect(runtime.last.inbox.length).toBe(before);
     expect(workers.busyCards().length).toBeGreaterThan(0);
@@ -934,7 +934,7 @@ describe('workers', () => {
     runtime.last.emit({ type: 'text', text: 'Die Demo wird neu gerendert.' });
     runtime.last.emit({ type: 'idle', background: 1 });
     await Bun.sleep(20);
-    // the render outlasted the wait: the worker is nudged, its status is no question to the owner
+    
     expect(state(c.id)).toBe('working');
     expect(runtime.last.inbox.at(-1)).toContain('ready_for_review');
   });
@@ -959,9 +959,9 @@ describe('workers', () => {
     runtime.last.emit({ type: 'idle', background: 1 });
     expect(state(c.id)).toBe('working');
     expect(runtime.last.inbox.length).toBe(before);
-    // a restart now would cut the render off
+    
     expect(workers.busyCards().length).toBeGreaterThan(0);
-    // the render ends and wakes the worker, which hands over
+    
     runtime.last.emit({ type: 'text', text: 'Video fertig.' });
     await runtime.last.call('ready_for_review', { summary: 'Fertig.', demo: artifact() });
     runtime.last.emit({ type: 'idle' });
@@ -972,24 +972,24 @@ describe('workers', () => {
     const c = manual();
     await workers.start(c.id);
     runtime.last.emit({ type: 'background', tasks: [{ id: 'serve', description: 'Serve the app on port 8743 for 4 min' }] });
-    // at work, the serving is part of the turn
+    
     expect(board.item(c.id)).toMatchObject({ agent: { inTurn: true, background: [{ description: 'Serve the app on port 8743 for 4 min' }] } });
     await runtime.last.call('ready_for_review', { summary: 'Fertig.', demo: artifact() });
     expect(board.item(c.id)!.agent?.inTurn).toBe(true);
-    // as the server's push to the page does, the board is read at each change
+    
     board.onChange(() => board.snapshot());
     runtime.last.emit({ type: 'idle', background: 1 });
     expect(state(c.id)).toBe('waiting:demo');
-    // the turn is over: the serving still runs and holds the slot, but nothing is at work or to pause
+    
     const card = board.item(c.id)!;
     expect(card.agent?.inTurn).toBeUndefined();
     expect(card.agent?.background?.map((b) => b.description)).toEqual(['Serve the app on port 8743 for 4 min']);
     expect(pausable(card)).toBe(false);
     expect(workers.busyCards()).toEqual([c.id]);
-    // once it stops, nothing of it shows
+    
     runtime.last.emit({ type: 'background', tasks: [] });
     expect(board.item(c.id)!.agent?.background).toBeUndefined();
-    // a note from the owner starts a turn again: the agent is at work on it
+    
     runtime.last.emit({ type: 'background', tasks: [{ id: 'serve', description: 'Serve the app on port 8743 for 4 min' }] });
     runtime.last.emit({ type: 'idle', background: 1 });
     expect(board.item(c.id)!.agent?.inTurn).toBeUndefined();
@@ -1004,7 +1004,7 @@ describe('workers', () => {
     runtime.last.emit({ type: 'text', text: 'Ich warte auf den Server.' });
     runtime.last.emit({ type: 'idle', background: 1 });
     await Bun.sleep(20);
-    // as long as the work runs, the worker waits for it: nothing comes after its brief
+    
     const brief = runtime.last.inbox.length;
     expect(workers.busyCards().length).toBeGreaterThan(0);
     runtime.last.emit({ type: 'background', tasks: [] });
@@ -1035,11 +1035,11 @@ describe('workers', () => {
     await workers.start(c.id);
     runtime.last.call('ask', { question: 'Soll das Video Ton haben?' });
     runtime.last.emit({ type: 'idle', background: 1 });
-    // the question reaches the owner at once, but a restart now would cut the render off
+    
     expect(state(c.id)).toBe('waiting:question');
     expect(workers.busyCards().length).toBeGreaterThan(0);
     await Bun.sleep(20);
-    // a watcher nobody stopped does not keep a restart away for good
+    
     expect(workers.busyCards()).toEqual([]);
     expect(state(c.id)).toBe('waiting:question');
   });
@@ -1058,16 +1058,16 @@ describe('workers', () => {
     s.emit({ type: 'background', tasks: [{ id: 'b1', description: 'Run the test suite' }, { id: 'a1', description: 'Review the diff' }] });
     s.call('ask', { question: 'Soll das Video Ton haben?' });
     s.emit({ type: 'idle', background: 2 });
-    // after the question the turn stays open for the work, and the card says which
+    
     expect(state(c.id)).toBe('waiting:question');
     const shown = board.item(c.id)!.agent?.background!;
     expect(shown.map((x) => x.description)).toEqual(['Run the test suite', 'Review the diff']);
     expect(shown[0]!.since).toBe(since);
     expect(shown[1]!.since).toBeGreaterThan(since);
-    // one ends: it goes from the card, the other stays
+    
     s.emit({ type: 'background', tasks: [{ id: 'a1', description: 'Review the diff' }] });
     expect(board.item(c.id)!.agent?.background!.map((x) => x.description)).toEqual(['Review the diff']);
-    // the last one wakes the worker, whose turn then ends with nothing in the background
+    
     s.emit({ type: 'background', tasks: [] });
     expect(board.item(c.id)!.agent?.background).toBeUndefined();
     s.emit({ type: 'text', text: 'Review gelesen.' });
@@ -1084,7 +1084,7 @@ describe('workers', () => {
     const before = runtime.last.inbox.length;
     workers.message(c.id, 'Nimm die dunkle Variante.');
     await Bun.sleep(20);
-    // the wait ended with the note, not with a nudge in the middle of the note's turn
+    
     expect(runtime.last.inbox.length).toBe(before + 1);
     expect(workers.busyCards().length).toBeGreaterThan(0);
   });
@@ -1097,14 +1097,14 @@ describe('workers', () => {
     const s = runtime.last;
     expect(s.spec.system).toContain('- Antworten auf Deutsch.');
     expect(s.spec.system).toContain('Never wait with sleep or a polling loop in the foreground');
-    // what its instructions hold is nothing new
+    
     expect(s.toolStep()).toBeUndefined();
     const id = board.addPreference('Keine Commits ohne Tests.');
     expect(s.toolStep()).toContain('- Keine Commits ohne Tests.');
     expect(s.toolStep()).toBeUndefined();
     board.setPreference(id, null);
     expect(s.toolStep()).not.toContain('Keine Commits ohne Tests.');
-    // silently: no message, no new turn
+    
     expect(s.inbox).toHaveLength(1);
   });
 
@@ -1141,7 +1141,7 @@ describe('workers', () => {
     expect(state(c.id)).toBe('waiting:question');
     runtime.last.emit({ type: 'tool', name: 'Bash', input: { command: 'ls' } });
     expect(state(c.id)).toBe('working');
-    // a question it asks itself stays with the owner
+    
     runtime.last.call('ask', { question: 'CSV oder Excel?' });
     runtime.last.emit({ type: 'text', text: 'Ich warte auf die Antwort.' });
     expect(state(c.id)).toBe('waiting:question');
@@ -1168,7 +1168,7 @@ describe('workers', () => {
     expect(state(c.id)).toBe('waiting:demo');
     expect(board.item(c.id)!.review?.summary).toBe('Export gebaut.');
 
-    // feedback: the work still waits for approval while the worker takes it in, and is at work meanwhile
+    
     workers.message(c.id, 'Bitte mit Kopfzeile.');
     expect(state(c.id)).toBe('waiting:demo');
     expect(board.item(c.id)!.review?.answering).toBe(true);
@@ -1183,7 +1183,7 @@ describe('workers', () => {
     await workers.approve(c.id);
     expect(state(c.id)).toBe('live');
     expect(git(main, 'log', '--format=%s', '-1')).toBe('Export');
-    // the worker hears that its work is on main; its session ends with that turn
+    
     expect(runtime.last.inbox.at(-1)).toContain('is on main now');
     expect(runtime.last.closed).toBe(false);
     runtime.last.emit({ type: 'idle' });
@@ -1207,13 +1207,13 @@ describe('workers', () => {
     runtime.last.call('reply', { text: 'Mache ich: die Spaltennamen kommen in die erste Zeile.' });
     await runtime.last.call('ready_for_review', { summary: 'Kopfzeile ergänzt, im Commit.' });
     runtime.last.emit({ type: 'idle' });
-    // the conversation shows the change alone
+    
     expect(board.events(c.id).findLast((e) => e.kind === 'review')!.text).toBe('Kopfzeile ergänzt, im Commit.');
     const report = 'CSV-Export gebaut.\n\nLater in the conversation:\n\nMache ich: die Spaltennamen kommen in die erste Zeile.\n\nKopfzeile ergänzt, im Commit.';
     expect(board.summary(c.id)).toBe(report);
     expect(board.item(c.id)!.review?.summary).toBe(report);
 
-    // started afresh, the worker hands over in full again
+    
     await workers.stop(c.id);
     await workers.start(c.id);
     await runtime.last.call('ready_for_review', { summary: 'CSV- und Excel-Export gebaut.', demo: artifact() });
@@ -1231,7 +1231,7 @@ describe('workers', () => {
     git(clone, 'commit', '--quiet', '-m', 'Export');
     writeFileSync(join(clone, 'README.md'), 'hello\nworld\n');
     writeFileSync(join(clone, 'notes über.txt'), 'eins\nzwei\n');
-    // main moving on is not the card's change
+    
     writeFileSync(join(main, 'other.ts'), 'x\n');
     git(main, 'add', '.');
     git(main, 'commit', '--quiet', '-m', 'Other');
@@ -1251,7 +1251,7 @@ describe('workers', () => {
     runtime.last.emit({ type: 'idle' });
     await workers.approve(c.id);
     expect(state(c.id)).toBe('live');
-    // while the worker finishes and after: what landed, without what main had before
+    
     const landed = (await workers.diff(c.id, false))!;
     expect(landed.source).toBe('landed');
     expect(landed.files.map((f) => f.file)).toEqual(['README.md', 'export.ts', 'notes über.txt']);
@@ -1274,13 +1274,13 @@ describe('workers', () => {
     expect(await workers.fileVersions(c.id, 'README.md')).toEqual({ old: before, new: 'hello\nworld\nloose\n' });
     expect(await workers.fileVersions(c.id, 'new.ts')).toEqual({ old: null, new: 'export {}\n' });
     expect((await workers.fileVersions(c.id, 'blob.bin'))!.new).toBeNull();
-    // a file over the limit is refused without being read whole: on disk, and as git holds it
+    
     writeFileSync(join(clone, 'big.txt'), 'x'.repeat(2_100_000));
     expect((await workers.fileVersions(c.id, 'big.txt'))!.new).toBeNull();
     git(clone, 'add', 'big.txt');
     git(clone, 'commit', '--quiet', '-m', 'Big');
     expect((await workers.fileVersions(c.id, 'big.txt'))!.new).toBeNull();
-    // a file the change does not touch, and a path out of the workstation
+    
     writeFileSync(join(main, 'other.ts'), 'x\n');
     git(main, 'add', '.');
     git(main, 'commit', '--quiet', '-m', 'Other');
@@ -1379,7 +1379,7 @@ describe('workers', () => {
       questions: [{ question: 'Welches Wort?', options: ['Export', 'Exportieren'] }],
     });
     const p = board.snapshot().items.find((i) => i.state === 'proposal')!;
-    // the text is for the agent that takes the card on; why stays with the proposal, for the owner
+    
     expect(p).toMatchObject({
       title: 'Falsches Label',
       from: c.id,
@@ -1393,7 +1393,7 @@ describe('workers', () => {
     board.accept(p.id);
     expect(state(p.id)).toBe('planned');
     expect(board.item(p.id)!.idea?.proposal).toBeUndefined();
-    // its conversation names the proposal as where the task comes from
+    
     expect(board.item(p.id)!.idea?.proposed).toBe(true);
     expect(board.item(p.id)!.body).toBe('Der Knopf “Export” heißt in src/ui/strings.ts noch “Exportieren”.\n\nOpen questions (decide these yourself as best you can, taking the default when in doubt):\n- Welches Wort? (Export / Exportieren)');
   });
@@ -1401,7 +1401,7 @@ describe('workers', () => {
   test('on a project with several repositories, a proposal goes to the one its agent names, else to its card’s', async () => {
     const c = manual();
     await workers.start(c.id);
-    // with one repository there is nothing to choose
+    
     expect(runtime.last.spec.tools.find((t) => t.name === 'propose_card')!.description).not.toContain('repo:');
     await workers.stop(c.id);
     board.project.repos.push({ id: 'site', name: 'Site', path: '/r/site', branch: 'main' });
@@ -1409,7 +1409,7 @@ describe('workers', () => {
     expect(runtime.last.spec.tools.find((t) => t.name === 'propose_card')!.description).toContain(`by its id: home (${main}, yours), site (/r/site); yours when left out.`);
     runtime.last.call('propose_card', { title: 'Hier', task: 'T', reason: 'R' });
     expect(runtime.last.call('propose_card', { title: 'Dort', task: 'T', reason: 'R', repo: 'site' })).toContain('Proposed');
-    // the repository's name does as well as its id
+    
     runtime.last.call('propose_card', { title: 'Auch dort', task: 'T', reason: 'R', repo: 'SITE' });
     const repoOf = (title: string) => board.snapshot().items.find((i) => i.title === title)!.repo;
     expect([repoOf('Hier'), repoOf('Dort'), repoOf('Auch dort')]).toEqual(['home', 'site', 'site']);
@@ -1423,7 +1423,7 @@ describe('workers', () => {
     setWorkers(new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' }, otherBoards: () => [board, tools, shop] }));
     const c = manual();
     await workers.start(c.id);
-    // with one repository of its own the worker sees those of the other projects, by project
+    
     expect(runtime.last.spec.tools.find((t) => t.name === 'propose_card')!.description).toContain(
       `by its id: home (${main}, yours); on other projects, where the proposal then waits for the owner: on “Tools” tool (/r/tool), docs (/r/docs); on “Shop” docs (/r/shop-docs); yours when left out.`,
     );
@@ -1433,14 +1433,14 @@ describe('workers', () => {
     expect(board.snapshot().items.some((i) => i.title === 'Ursache im Tool')).toBe(false);
     expect(board.events(c.id).at(-1)!.text).toBe('Proposed a task in the project “Tools”: Ursache im Tool');
     expect(board.events(c.id).at(-1)!.made).toEqual({ card: p.id, title: p.title, project: 'tools' });
-    // an id two other projects have takes the path
+    
     expect(runtime.last.call('propose_card', { title: 'Doku', task: 'T', reason: 'R', repo: 'docs' })).toBe('Not proposed: several projects have a repository docs; give its path instead: /r/docs, /r/shop-docs.');
     runtime.last.call('propose_card', { title: 'Doku', task: 'T', reason: 'R', repo: '/r/shop-docs/' });
     expect(shop.snapshot().items.find((i) => i.title === 'Doku')!.repo).toBe('docs');
-    // taken back there as here
+    
     expect(runtime.last.call('withdraw_proposal', { title: 'Ursache im Tool', why: 'Doch hier.' })).toContain('gone from the project');
     expect(tools.item(p.id)).toBeUndefined();
-    // the worker that takes on a card from another project hears where it comes from
+    
     await workers.stop(c.id);
     board.work(c.id, { state: 'live', detail: JSON.stringify({ summary: 'Export gebaut.' }) });
     const q = shop.snapshot().items.find((i) => i.title === 'Doku')!;
@@ -1461,10 +1461,10 @@ describe('workers', () => {
     expect(out).toContain('gone from the project');
     expect(board.item(p.id)).toBeUndefined();
     expect(board.events(c.id).some((e) => e.text === 'Withdraws the proposal “Lange Schnitte”: Die Diagnose war falsch.')).toBe(true);
-    // the Rückschau reads deleted proposals as the owner's dismissals: this one was not
+    
     expect(board.removed(since)).toEqual([]);
     expect(runtime.last.call('withdraw_proposal', { title: 'Lange Schnitte', why: 'W' })).toContain('withdrawn already');
-    // of two alike, the newer replaces the older
+    
     runtime.last.call('propose_card', { title: 'Gleich', task: 'Alt', reason: 'R' });
     runtime.last.call('propose_card', { title: 'Gleich', task: 'Neu', reason: 'R' });
     runtime.last.call('withdraw_proposal', { title: 'Gleich', why: 'W', replaced_by: 'Gleich' });
@@ -1536,7 +1536,7 @@ describe('workers', () => {
     const agent = runtime.last;
     agent.emit({ type: 'tool', name: 'Bash', input: { command: 'bun test' } });
     expect(doing()).toBe('working');
-    // a running command is no silence
+    
     await Bun.sleep(40);
     expect(doing()).toBe('working');
     agent.emit({ type: 'toolDone', name: 'Bash', ok: false });
@@ -1550,13 +1550,13 @@ describe('workers', () => {
     agent.emit({ type: 'toolDone', name: 'Skill', ok: true });
     agent.emit({ type: 'tool', name: 'Bash', input: { command: 'cd ~/demos/shop-x && node demo.ts', run_in_background: true } });
     agent.emit({ type: 'toolDone', name: 'Bash', ok: true });
-    // the turn waits for the render to wake it: still recording
+    
     agent.emit({ type: 'idle', background: 1 });
     expect(doing()).toBe('recordingDemo');
     agent.emit({ type: 'tool', name: 'Read', input: { file_path: '~/demos/shop-x/report.md' } });
     expect(doing()).toBe('finalizingDemo');
     agent.emit({ type: 'toolDone', name: 'Read', ok: true });
-    // a turn that ends without handing over: the nudge's turn starts afresh
+    
     agent.emit({ type: 'idle' });
     expect(doing()).toBe('working');
   });
@@ -1588,13 +1588,13 @@ describe('tool calls the settings refuse or want confirmed', () => {
     expect(q.text).toContain('`bun scripts/remote-psql.ts -c "update meters set …"`');
     expect(q.text).toContain('Why it asks: Schreibzugriff');
     expect(board.events(c.id).at(-1)!.kind).toBe('question');
-    // the worker waits for the owner, as after a question: a restart need not wait for it
+    
     expect(workers.busyCards()).toEqual([]);
     workers.answer(c.id, 'Allow');
     expect(await answer).toEqual({ allow: true });
     expect(state(c.id)).toBe('working');
     expect(workers.busyCards().length).toBeGreaterThan(0);
-    // one call, not a decision of the plan's
+    
     expect(board.decisionsOn(c.id)).toEqual([]);
   });
 
@@ -1683,7 +1683,7 @@ describe('tool calls the settings refuse or want confirmed', () => {
     expect(runtime.last.inbox.at(-1)).toContain('$ bun run migrate');
     expect(await runtime.last.permission('Bash', { command: 'bun run migrate' })).toEqual({ allow: true });
     expect(state(c.id)).toBe('working');
-    // once: the same call later is asked again
+    
     void runtime.last.permission('Bash', { command: 'bun run migrate' });
     await flush();
     expect(state(c.id)).toBe('waiting:question');
@@ -1787,11 +1787,11 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     const c = await atWork();
     board.work(c.id, { state: 'inPr', review: { pr: { url: 'https://github.com/acme/app/pull/7', number: 7, seen: [], reported: [] } } });
     runtime.last.emit({ type: 'idle' });
-    // the pull request waits for review: nothing runs, nothing to pause
+    
     expect(board.item(c.id)).toMatchObject({ state: 'inPr' });
     expect(board.item(c.id)!.agent?.inTurn).toBeUndefined();
     expect(() => workers.pause(c.id)).toThrow(BadRequest);
-    // a review comment starts its next turn, which can be paused
+    
     workers.prEvent(c.id, 'Kommentar.', 'A review comment on your pull request: use CSV.');
     expect(board.item(c.id)!.agent?.inTurn).toBe(true);
     workers.pause(c.id);
@@ -1822,7 +1822,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     workers.resume(c.id);
     expect(runtime.last.spec.resume).toBe('sess-1');
     expect(runtime.last.inbox[0]).toContain('The owner paused you and has now let you go on');
-    // the words it had not taken in yet go along
+    
     expect(runtime.last.inbox[0]).toContain('Bitte mit Kopfzeile.');
     expect(board.item(c.id)).toMatchObject({ state: 'waiting', review: { answering: true }, agent: { inTurn: true } });
     expect(board.item(c.id)?.hold?.reason).not.toBe('paused');
@@ -1864,7 +1864,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     expect(() => workers.pauseAtSafePoint(c.id)).toThrow('paused already');
     session.emit({ type: 'text', text: 'Tests grün, ich halte an.' });
     session.emit({ type: 'idle' });
-    // no nudge and no question to the owner: it paused
+    
     expect(session.closed).toBe(true);
     expect(board.item(c.id)).toMatchObject({ state: 'working', hold: { reason: 'paused' } });
     expect(board.item(c.id)?.hold?.reason).not.toBe('pausing');
@@ -1910,7 +1910,7 @@ describe('pausing: the owner halts a worker and lets it go on', () => {
     expect(board.item(c.id)?.hold?.reason).not.toBe('pausing');
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'state', author: 'owner', text: 'Resumed.' });
     workers.pauseAtSafePoint(c.id);
-    // between its steps, so the words go in at once
+    
     session.emit({ type: 'idle', background: 1 });
     workers.message(c.id, 'Nimm lieber CSV.');
     expect(session.inbox.at(-1)).toContain('The owner no longer wants you to pause');

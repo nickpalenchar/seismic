@@ -1,9 +1,9 @@
-// Agent work: slides out from the floating row's robot button, which counts the queued cards in grey.
-// Its first tab holds "Working" (the cards at work, src/core/agents.ts) and "Todo": the cards waiting
-// to start in turn, dragged to their place as on a waiting card (src/ui/queue.tsx), then the planned
-// ones; each card a pane like an inbox entry (its face at size S), whose title or "Go to card" opens
-// it. Cards that need the owner are in "Needs you" instead (src/ui/needsYou.tsx), the parked ones in
-// the Parked view (src/ui/views.tsx). "Activity" is the log of what happened on the cards (src/ui/activity.tsx).
+
+
+
+
+
+
 
 import { cn } from 'cn';
 import { memo, useEffect, useRef } from 'react';
@@ -22,11 +22,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 import { Badge } from './components/badge';
 import { agentsEmptyClass, entryClass, entryListClass, entryOnClass, repliesClass, ttlLinkClass } from './inboxClasses';
 
-/** A stage's heading in Agent work, and the smaller one of a part of it. */
+
 const stageHeadClass = 'mt-4 mx-2 mb-2 text-xs font-semibold uppercase tracking-[.04em] text-muted-foreground';
 const stageSubheadClass = 'mt-2.5 mx-2 mb-1.5 text-xs font-semibold text-muted-foreground';
 
-/** The desktop's Agent work tabs: the cards at work and to do, and the log. */
+
 type WorkTab = 'work' | 'activity';
 
 /** The desktop's Agent work, docked on the right: "Working" and "Todo" (the queue, then the planned cards), and "Activity". */
@@ -35,7 +35,7 @@ export function AgentsSheet({ on, items, open, underway, onOpen, project, change
   const tab: WorkTab = kept === 'activity' ? kept : 'work';
   const box = useRef<HTMLElement>(null);
   const q = useQueueSort(items, box);
-  // the sheet closed or the tab changed under a drag: the row is not dropped anywhere
+  
   useEffect(() => {
     if (!on || tab !== 'work') q.sort.cancel();
   }, [on, tab]);
@@ -92,13 +92,13 @@ export function AgentsSheet({ on, items, open, underway, onOpen, project, change
   );
 }
 
-/**
- * A card, as the inbox shows an entry: its face at size S, with what it waits for where it needs the owner, and "Go to card". With `els`, a card opened from it unfolds from it.
- * Drawn again only when its props change: the Agent work sheet stays mounted while closed, with an entry per planned card.
- */
+
+
+
+
 export const AgentEntry = memo(function AgentEntry({ item: i, els, here, underway, onOpen }: { item: Item; els?: Map<string, HTMLElement>; here: boolean; underway: boolean; onOpen: (i: Item) => void }) {
   const stage = agentStage(i, underway);
-  // what it waits for where it needs the owner, as its inbox entry says; else the line its card shows under its title
+  
   const waits = stage === 'needsYou' ? waitsFor(i) : undefined;
   return (
     <li ref={els ? (el) => void (el ? els.set(i.id, el) : els.delete(i.id)) : undefined} className={cn(entryClass, 'agent-entry', `stage-${stage ?? 'parked'}`, here && entryOnClass)} aria-current={here || undefined}>

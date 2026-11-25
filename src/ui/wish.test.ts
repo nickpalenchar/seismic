@@ -22,7 +22,7 @@ beforeEach(() => {
 const misaligned = { said: 'Die Zeile „Wunsch oder Fehler melden“ ist nicht horizontal ausgerichtet.' };
 
 test('a draft with only a title gives way to the wish Seismic drafted, which is written from its words alone', async () => {
-  // the draft the page kept, back after a reload
+  
   m.set(KEY, JSON.stringify({ title: 'Archive filter loses focus', body: '', images: [] }));
   keepWish(store, 'shop');
   openWish(misaligned);
@@ -30,7 +30,7 @@ test('a draft with only a title gives way to the wish Seismic drafted, which is 
   await written();
   expect(calls).toEqual([{ said: misaligned.said, app: false }]);
   expect(wishNow().issue).toMatchObject({ title: `Issue: ${misaligned.said}`, from: misaligned });
-  // its link opens that draft again as it stands, after a reload too
+  
   closeWish();
   openWish(misaligned);
   expect(wishNow()).toMatchObject({ open: true, pending: undefined, writing: false });

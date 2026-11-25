@@ -27,7 +27,7 @@ describe('transcript excerpt', () => {
 
   test('finds failed calls, corrections, repeated commands and rewritten files, with the words around them', () => {
     const e = excerpt(sample())!;
-    // the subagent's call is not the worker's
+    
     expect(e.steps).toBe(13);
     expect(e.firstChange).toBe(4);
     const [flags, script, typecheck, polling, rewrite] = e.findings;
@@ -41,7 +41,7 @@ describe('transcript excerpt', () => {
     expect(flags?.kind === 'retry' && flags.calls[0]!.error).toContain("unknown option '--port=4500'");
     expect(script).toMatchObject({ kind: 'failure', call: { step: 6, what: '`bun scripts/demo.ts`', after: 'Das Skript scheitert; ich schreibe es neu.' } });
     expect(script?.kind === 'failure' && script.call.error).toContain('TypeError: x is undefined');
-    // `bun test` cut off by a restart is no mistake
+    
     expect(typecheck).toMatchObject({ kind: 'failure', call: { step: 9, what: '`bun run typecheck`', before: 'Seismic startet neu.', after: 'Ein Tippfehler; ich korrigiere ihn.' } });
     expect(polling).toMatchObject({ kind: 'retry', calls: [{ step: 11 }, { step: 12 }, { step: 13 }] });
     expect(rewrite).toEqual({ kind: 'rewrite', file: '/ws/card/scripts/demo.ts', times: 2, before: 'Das Skript scheitert; ich schreibe es neu.' });
@@ -122,7 +122,7 @@ describe('transcript excerpt', () => {
     });
     expect(flags?.kind === 'retry' && flags.calls[0]!.error).toContain("unknown option '--port=4500'");
     expect(script).toMatchObject({ kind: 'failure', call: { step: 5, what: '`bun scripts/demo.ts`', after: 'The script fails; I write it again.' } });
-    // `bun test` stopped with Ctrl-C is no mistake
+    
     expect(typecheck).toMatchObject({ kind: 'failure', call: { step: 10, what: '`bun run typecheck`', after: 'A typo; I fix it.' } });
     expect(polling).toMatchObject({ kind: 'retry', calls: [{ step: 13 }, { step: 14 }, { step: 15 }] });
     expect(rewrite).toEqual({ kind: 'rewrite', file: '/ws/card/scripts/demo.ts', times: 2, before: 'The script fails; I write it again.' });
@@ -140,13 +140,13 @@ describe('transcript excerpt', () => {
     const rollout = [
       JSON.stringify({ type: 'session_meta', payload: { id: thread } }),
       said('t1', 'm1', 'I run the slow check.'),
-      // the owner pauses: the turn is aborted, then the command it was running ends with -1
+      
       event('t1', { type: 'turn_aborted', reason: 'interrupted' }),
       ran('t1', 'c1', 'bun run slow-check', -1, 'slow-check: step 4 of 9 done\n'),
       said('t2', 'm2', 'The pause cut the check off; I run it again.'),
       ran('t2', 'c2', 'bun run slow-check', 1, 'slow-check: step 6 failed\n'),
       ran('t2', 'c3', 'bun run slow-check', 0),
-      // exit -1 in a turn nobody interrupted is the agent's own failure
+      
       ran('t3', 'c4', 'npx playwright test', -1, 'e2e: timed out\n'),
     ].join('\n');
     const e = excerpt(rollout)!;
@@ -160,7 +160,7 @@ describe('transcript excerpt', () => {
     expect(text).toContain('⏸ `bun run slow-check` (cut off');
     expect(text).not.toContain('step 4 of 9');
 
-    // the pause alone, and the rerun that passed, is no friction
+    
     const paused = excerpt([rollout.split('\n').slice(0, 5).join('\n'), ran('t2', 'c3', 'bun run slow-check', 0)].join('\n'))!;
     expect(paused).toMatchObject({ steps: 2, cutOff: [1], findings: [] });
   });
@@ -245,7 +245,7 @@ describe('transcript excerpt', () => {
       live.run('pragma journal_mode = wal');
       live.run('pragma wal_autocheckpoint = 0');
       live.query('insert into steps values (?, ?, ?, ?, ?)').run(1, 132, 3, tool('run_command', { CommandLine: 'bun test' }, 'Command exited with code 1.'), null);
-      // the database and its log as agy leaves them mid-run, in a directory this process cannot write
+      
       const locked = join(dirname(file), 'locked');
       mkdirSync(locked);
       copyFileSync(file, join(locked, 'c1.db'));
@@ -273,7 +273,7 @@ describe('transcript excerpt', () => {
       let walCopies = 0;
       const flaky = (from: string, to: string) => {
         if (from.endsWith('-wal') && ++walCopies === 1) {
-          // agy checkpoints between the look and the copy
+          
           rmSync(from);
           throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
         }

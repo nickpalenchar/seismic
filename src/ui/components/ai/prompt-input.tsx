@@ -1,10 +1,10 @@
-// AI Elements' Prompt Input, ours from here on: the frame the owner writes in under a conversation,
-// the same on every card kind, in the chats and on the phone. `PromptInput` is the block (the frame
-// with its text, the line of hints under it, the menu above it); `PromptInputBody` is the frame, which
-// the text, the buttons (`PromptInputTools`: attach, microphone, send) and a quoted message stand in.
-// What the library's version leaves to the app is the composer's: voice (push-to-talk, dictation),
-// screenshots, the skill menu and card links, grafted on in `composer.tsx`. `composer` stays on the
-// block as the hook layouts and scripts find the field by; `data-slot` is how containers reach parts.
+
+
+
+
+
+
+
 
 import { cn } from 'cn';
 import type { ComponentProps, Ref } from 'react';
@@ -66,11 +66,11 @@ export function PromptInputButton({ className, active, onMouseDown, ...props }: 
       data-slot="prompt-input-button"
       data-active={active || undefined}
       variant="ghost"
-      // held by a finger (the phone's microphone in a field): no long-press menu, no text selected
+      
       className={cn('size-6.5 rounded-lg text-muted-foreground [-webkit-touch-callout:none] select-none touch-none hover:not-disabled:text-foreground data-[active]:bg-working data-[active]:text-primary-foreground data-[active]:hover:not-disabled:bg-working data-[active]:hover:not-disabled:text-primary-foreground', className)}
       {...props}
       onMouseDown={(e) => {
-        // Keep the keyboard and layout steady until click opens the picker (or another tool).
+        
         e.preventDefault();
         onMouseDown?.(e);
       }}

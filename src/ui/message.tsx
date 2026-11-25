@@ -1,6 +1,6 @@
-// One message of a conversation, as cards and the Koordinator's sheet show it alike: who said it
-// and when above, the text below as paragraphs and lists; a reply quotes the message it answers
-// above its words, as chat apps do.
+
+
+
 
 import { Copy } from 'lucide-react';
 import { X_ICON_SVG } from '../core/icons';
@@ -18,7 +18,7 @@ import { CloseButton, LinkButton } from './components/button';
 import { Tooltip } from './components/tooltip';
 import { WorkingBar } from './components/working-bar';
 
-/** The colour of the bar beside an agent at work (`thinking`), by who it is; an idea's agent otherwise. */
+
 const workingColor: Record<string, string> = { worker: 'var(--working)', koordinator: 'var(--proposal)' };
 
 /**
@@ -78,7 +78,7 @@ export function Msg({
   );
 }
 
-/** The harness and model of the Koordinator's session that reads the owner's words, while one runs (the project's `koordinatorAgent`). */
+
 export const KoordinatorAgent = createContext<AgentIdentity | undefined>(undefined);
 
 /** Under the owner's words while the Koordinator reads them, in the sheet and on a card alike. */
@@ -98,11 +98,11 @@ export function goToMessage(ev: number | string, orElse?: string) {
   el.classList.add('flash');
 }
 
-/**
- * The message a reply answers, quoted above it or above the field the reply is written in: who said
- * it and its start, a few lines at most. A click on it goes to the message in the conversation
- * (`ev` in `Msg`); `onClear` takes it out of the field.
- */
+
+
+
+
+
 export const quoteClass = "quote [--q:var(--muted-foreground)] flex items-start min-w-0 border border-[color:--alpha(var(--q)/30%)] rounded-xs bg-[color:--alpha(var(--q)/8%)] [&.q-by-owner]:[--q:var(--working)] [&.q-by-worker]:[--q:var(--inPr)] [&.q-by-explorer]:[--q:var(--idea)] [&:is(.q-by-koordinator,.q-by-seismic,.q-by-plan)]:[--q:var(--proposal)] [.msg>&]:mt-1 [.msg>&]:mb-1 [[data-slot=prompt-input-body]_&]:flex-[1_1_100%] [[data-slot=prompt-input-body]_&]:mb-0.5 [&.decided]:[--q:var(--waiting)] [&.place]:[--q:var(--working)] [&.place]:items-center [&.place]:gap-2 [&.place]:py-1 [&.place]:pr-0 [&.place]:pl-1.5";
 
 export function Quote({ q, onClear }: { q: Quoted; onClear?: () => void }) {
@@ -244,7 +244,7 @@ export function useReportedHeight(frame: RefObject<HTMLIFrameElement | null>, ca
         return;
       }
       if (f && e.source === f.contentWindow && e.data?.seismicImageFocus && closeButton) { closeButton.focus(); return; }
-      // the border is inside the frame's height (border-box): without it the page is a few pixels too high and scrolls
+      
       if (typeof h === 'number' && h > 0 && f && f.dataset.seismicPreviousStyle === undefined && steps++ < 30) setHeight(Math.min(Math.ceil(h) + f.offsetHeight - f.clientHeight, cap));
     };
     const keys = (e: KeyboardEvent) => { if (!closeButton) return; if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); closeImage(); } else if (e.key === 'Tab') { e.preventDefault(); closeButton.focus(); } };
@@ -255,9 +255,9 @@ export function useReportedHeight(frame: RefObject<HTMLIFrameElement | null>, ca
   return height;
 }
 
-// ------------------------------------------------------------------ looked-up answers
 
-/** The highest a page an answer comes with grows in its frame; a higher one scrolls inside it. */
+
+
 const PAGE_CAP = 900;
 
 const isPage = (name: string) => /\.html?$/i.test(name);
@@ -282,7 +282,7 @@ export function AnswerFiles({ thread, files }: { thread: number; files?: AnswerF
   const others = files.filter((f) => !isPage(f.name) && !isImage(f.name));
   const open = (file?: string) =>
     api.openAnswer(thread, file).catch(() => {
-      // the system has no app for it here (or Seismic runs elsewhere): the browser saves it instead
+      
       if (file !== undefined) location.assign(answerFile(thread, file, true));
     });
   return (
@@ -371,7 +371,7 @@ export function ThreadCard({ thread, card, onOpen }: { thread: number; card?: It
   );
 }
 
-/** The cards on the project, and how to open one (closing the card open), for a looked-up answer in a card's log. */
+
 export const Cards = createContext<{ items: Item[]; open: (i: Item) => void }>({ items: [], open: () => {} });
 
 /**

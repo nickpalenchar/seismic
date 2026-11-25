@@ -1,11 +1,11 @@
-// Setting up a demo site at a host, and the deploy Seismic builds in for GitHub Pages. Cloudflare
-// Pages goes through wrangler (with the credentials of a site this machine already deploys to, else
-// the machine's own `wrangler login`), GitHub Pages through gh's login and git. Everything runs as a
-// program with its arguments, never through a shell, so it works on Windows and Linux alike.
-//
-// An unlisted site on GitHub Pages lives in a private repository, always: a public one would show
-// every page's random address in its file list. Pages from a private repository needs GitHub Pro;
-// where GitHub refuses, the setup says why and offers Cloudflare.
+
+
+
+
+
+
+
+
 
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -13,12 +13,12 @@ import { join } from 'node:path';
 import { BUN_ENV } from './resources';
 import { spawnOutput } from './spawn';
 
-/** The deploy line's word for the deploy Seismic builds in: `seismic:github-pages <owner>/<repository>`. */
+
 export const GITHUB_PAGES = 'seismic:github-pages';
-/** GitHub's limit on one file (100 MiB); a site stays under about 1 GB. */
+
 export const GITHUB_PAGES_MAX = 100 * 1024 * 1024;
 
-/** Runs a program; a stand-in in tests. */
+
 export type Exec = (argv: string[], o?: { env?: Record<string, string | undefined>; timeout?: number; cwd?: string }) => Promise<{ code: number; out: string; err: string }>;
 
 export const exec: Exec = async (argv, o = {}) => {
@@ -63,7 +63,7 @@ export function cloudflareAccounts(home: string): { site: string; env: Record<st
         if (m) env[m[1]!] = m[2]!;
       }
       const same = (e: Record<string, string>) => e.CLOUDFLARE_ACCOUNT_ID ? e.CLOUDFLARE_ACCOUNT_ID === env.CLOUDFLARE_ACCOUNT_ID : e.CLOUDFLARE_API_TOKEN === env.CLOUDFLARE_API_TOKEN;
-      // a site may name its account alone and deploy with the machine's wrangler login
+      
       if ((env.CLOUDFLARE_API_TOKEN || env.CLOUDFLARE_ACCOUNT_ID) && !found.some((x) => same(x.env))) found.push({ site: d.name, env });
     }
   }
@@ -77,9 +77,9 @@ export function cloudflareAccounts(home: string): { site: string; env: Record<st
  * is none. A name taken gets a suffix. Returns its address.
  */
 export async function setupCloudflare(o: { home: string; name: string; account?: string; token?: Record<string, string>; log: (line: string) => void; x?: Exec; wait?: number[] }): Promise<{ url: string; project: string; env?: Record<string, string> }> {
-  // wrangler runs in an empty directory of its own: in another one it reads (and writes) what it
-  // finds there, and a command it hands on to Workers uploads that directory (2026-10-29: Seismic's
-  // checkout went up as a Worker)
+  
+  
+  
   const cwd = mkdtempSync(join(tmpdir(), 'seismic-wrangler-'));
   try {
     return await cloudflareIn(cwd, o);
@@ -91,12 +91,12 @@ export async function setupCloudflare(o: { home: string; name: string; account?:
 async function cloudflareIn(cwd: string, o: Parameters<typeof setupCloudflare>[0]): Promise<{ url: string; project: string; env?: Record<string, string> }> {
   const base = o.x ?? exec;
   const x: Exec = (argv, opts) => base(argv, { ...opts, cwd });
-  // another account's API token, the account of a site this machine deploys to, or the machine's login
+  
   const env = o.token ?? (o.account ? cloudflareAccounts(o.home).find((a) => a.site === o.account)?.env : undefined);
   if (!o.token && o.account && !env) throw new SetupRefused(`no Cloudflare credentials of ${o.account} on this machine`);
   if (o.token) o.log('Using the API token given.');
   else if (env) o.log(`Using the Cloudflare account of ${o.account}.`);
-  // without a token of the site's, the machine's own wrangler login deploys, in the site's account
+  
   if (!env?.CLOUDFLARE_API_TOKEN) {
     o.log('Checking the Cloudflare login on this machine…');
     const who = await x(wrangler('whoami'), { env: wranglerEnv(env ?? {}) });
@@ -109,15 +109,15 @@ async function cloudflareIn(cwd: string, o: Parameters<typeof setupCloudflare>[0
   for (let i = 0; i < 4; i++) {
     const project = i ? `${o.name}-${Math.random().toString(36).slice(2, 6)}` : o.name;
     o.log(`Creating the Cloudflare Pages project ${project}…`);
-    // --force: a Pages project, as the deploy line deploys to; without it wrangler 4.15x hands the
-    // command on to Workers, which makes a Worker of whatever its directory holds
+    
+    
     const r = await x(wrangler('pages', 'project', 'create', project, '--production-branch', 'main', '--force'), { env: wranglerEnv(env ?? {}) });
     const said = r.out + r.err;
     if (r.code === 0) {
-      // Cloudflare gives a name taken elsewhere a subdomain of its own
+      
       const url = /https:\/\/[a-z0-9-]+\.pages\.dev/.exec(said)?.[0];
       if (!url || /workers\.dev/.test(said)) throw new SetupRefused(`wrangler made no Pages project: ${lastLine(r)}`);
-      // the address resolves only once something is deployed there: a blank page first
+      
       const first = mkdtempSync(join(tmpdir(), 'seismic-pages-'));
       try {
         writeFileSync(join(first, 'index.html'), BLANK_PAGE);
@@ -169,7 +169,7 @@ export async function setupGithub(o: { name: string; private: boolean; log: (lin
   await gh('repo', 'create', project, o.private ? '--private' : '--public', '--description', o.private ? 'Unlisted demo pages, published by Seismic' : 'Demo pages, published by Seismic');
   const visibility = (await gh('repo', 'view', project, '--json', 'visibility', '--jq', '.visibility')).trim().toUpperCase();
   if (o.private && visibility !== 'PRIVATE') throw new SetupRefused(`GitHub created ${project} as ${visibility.toLowerCase() || 'unknown'}, not private; Seismic does not use it. Delete it on GitHub.`);
-  // Pages needs a branch to serve: a first commit with an empty page
+  
   const first = mkdtempSync(join(tmpdir(), 'seismic-pages-'));
   try {
     writeFileSync(join(first, 'index.html'), BLANK_PAGE);
@@ -211,7 +211,7 @@ async function answering(url: string, log: (line: string) => void, waits = [0, 2
 
 const NEEDS_PRO = 'GitHub Pages from a private repository needs GitHub Pro, which this account does not have.';
 
-/** A page that says nothing: the root of an unlisted site, and its answer to every address it lacks. */
+
 export const BLANK_PAGE = `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="robots" content="noindex, nofollow"><meta name="referrer" content="no-referrer"><title></title></head><body></body></html>
 `;
@@ -227,7 +227,7 @@ export const BLANK_PAGE = `<!doctype html>
  */
 export async function githubPagesDeploy(dir: string, repo: string, gitDir: string, x: Exec = exec, o: { private?: boolean; domain?: string } = {}): Promise<string> {
   if (!/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(repo)) throw new Error(`${GITHUB_PAGES}: expected <owner>/<repository>, got ${repo || 'nothing'}`);
-  // an unlisted site goes only into a private repository: a public one lists every page's address
+  
   if (o.private) {
     const v = await x(['gh', 'repo', 'view', repo, '--json', 'visibility', '--jq', '.visibility']);
     const visibility = v.out.trim().toUpperCase();
@@ -235,7 +235,7 @@ export async function githubPagesDeploy(dir: string, repo: string, gitDir: strin
   }
   const token = await x(['gh', 'auth', 'token']);
   if (token.code !== 0 || !token.out.trim()) throw new Error(`gh is not logged in to GitHub (gh auth login): ${lastLine(token)}`);
-  // served as it is, without Jekyll (which leaves out files starting with _)
+  
   writeFileSync(join(dir, '.nojekyll'), '');
   if (o.domain) writeFileSync(join(dir, 'CNAME'), `${o.domain}\n`);
   else rmSync(join(dir, 'CNAME'), { force: true });

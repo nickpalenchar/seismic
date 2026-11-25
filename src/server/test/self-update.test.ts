@@ -22,10 +22,10 @@ const until = async (done: () => boolean) => {
   for (const end = Date.now() + 10_000; !done() && Date.now() < end; ) await wait(10);
 };
 
-/** Two mtimes inside one millisecond: far from 1970, the seconds a double carries keep about 100 ns. */
+
 const SECOND = 1_000_000_000;
 const WITHIN_MS: [number, number] = [SECOND + 0.0002, SECOND + 0.0007];
-/** Whether the file system keeps mtimes finer than a millisecond (some keep whole seconds). */
+
 const fineTimes = (() => {
   const dir = mkdtempSync(join(tmpdir(), 'seismic-times-'));
   try {
@@ -116,7 +116,7 @@ test('while HEAD stands still, the watch starts no git', async () => {
   let rounds = 0;
   try {
     stop = watchOwnCode(repo, git(repo, 'rev-parse', 'HEAD'), (_, to) => calls.push(to), 20, () => rounds++);
-    // the first round asks git: HEAD may have moved since the server started
+    
     await until(() => rounds >= 1);
     started = 0;
     const from = rounds;
@@ -126,7 +126,7 @@ test('while HEAD stands still, the watch starts no git', async () => {
     Bun.spawn = spawn;
   }
   expect(started).toBe(0);
-  // and it still watches
+  
   const head = commit('src/a.ts', 'b');
   await until(() => calls.length > 0);
   expect(calls).toEqual([head]);
@@ -226,7 +226,7 @@ test.skipIf(!fineTimes)('the seal of HEAD moves with packed refs written anew in
   const was = statSync(packed, { bigint: true });
   const before = headSeal(repo);
   expect(before).not.toBeNull();
-  // in place, the same size, a moment later within the same millisecond
+  
   writeFileSync(packed, readFileSync(packed, 'utf8').replace(next, start));
   utimesSync(packed, second, second);
   const now = statSync(packed, { bigint: true });
@@ -292,7 +292,7 @@ test('an install that fails is told, not thrown', () => {
   const failed = installDependencies(repo, start, [process.execPath, '-e', "console.error('no network'); process.exit(1)"]);
   expect(failed).toEqual({ ran: true, ok: false, output: 'no network' });
   expect(installDependencies(repo, start, [join(repo, 'no-such-bun')])).toMatchObject({ ran: true, ok: false });
-  // a commit that is not there any more counts as changed
+  
   expect(installDependencies(repo, 'f'.repeat(40), [process.execPath, '-e', '']).ran).toBe(true);
 });
 
@@ -386,7 +386,7 @@ test("a restart waits for what the server holds for the owner (a command in its 
   const r = new Restarter({ busy: () => [], go: () => gone++, held: () => held, intervalMs: 10 });
   r.hold('page', ['voice']);
   r.request('code');
-  // the page that said it reloads and lets go
+  
   r.hold('page');
   await wait(40);
   expect(gone).toBe(0);
@@ -473,7 +473,7 @@ test('installing an update turns a restart that waits into an update, which wait
   r.request('update');
   r.hold('page', ['video']);
   expect(r.due()).toMatchObject({ reason: 'update', owner: ['video'] });
-  // new code meanwhile is covered by the update, which restarts too
+  
   r.request('code');
   expect(r.due()?.reason).toBe('update');
   busy = [];

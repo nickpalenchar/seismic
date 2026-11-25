@@ -1,21 +1,21 @@
-// A forge kept in a JSON file, for a scratch Seismic (scripts/scratch-seismic.ts) whose demo needs pull
-// requests without a real forge: the file holds them as a forge would answer for them, Seismic's
-// comments, reviews and merges go into it, and whoever stages the demo edits it to play the people on
-// the forge (a contributor answering, pushing). A merge squashes the PR's head onto the default
-// branch of the repository the file names, as the forge would on its side.
+
+
+
+
+
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import type { ContributionInfo, Forge, PrStatus } from './forge';
 import { gitAsync } from './workstations';
 
-/** One pull request in the file. */
+
 export interface FilePr {
   url: string;
   number: number;
   title: string;
   author: string;
   state?: PrStatus['state'];
-  /** Its head commit; in the repository as `refs/pull/<number>/head` too. */
+  
   head: string;
   canModify?: boolean;
   headRepo?: string;
@@ -27,7 +27,7 @@ export interface FilePr {
   body?: string;
 }
 
-/** The file: the repository its PRs are of, the account Seismic acts as, the PRs. */
+
 export interface ForgeFile {
   repo: string;
   viewer: string;
@@ -46,7 +46,7 @@ export function fileForge(path: string): Forge {
     write(f);
     return `${url}#${id}`;
   };
-  // a push onto the PR's branch in the forge's repository moves its head (and `refs/pull/<n>/head`), as on the forge
+  
   const headOf = async (f: ForgeFile, p: FilePr) => {
     const pushed = p.headRef && (await gitAsync(f.repo, 'rev-parse', '--verify', '--quiet', `refs/heads/${p.headRef}`).catch(() => ''));
     if (!pushed) return p.head;

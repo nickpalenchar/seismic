@@ -1,4 +1,4 @@
-// Shapes shared by the server and the UI.
+
 
 import type { DemoSettings, NarrationLanguage, VoiceKind } from '../../plugin/skills/demo/lib/settings.ts';
 import type { HandoverArtifact } from '../../plugin/skills/demo/lib/artifacts.ts';
@@ -18,17 +18,17 @@ export type { Language } from './locale';
 export { PRIORITIES, type Priority } from './labels';
 export type { SetupCheck, SetupId, SetupItem } from '../../plugin/skills/demo/lib/setup.ts';
 
-/**
- * How Seismic hears speech: Parakeet (NVIDIA's Parakeet TDT 0.6B v3, int8, through onnx-asr and ONNX
- * Runtime on the CPU), on every platform; or Whisper (mlx-whisper on Apple Silicon, faster-whisper
- * elsewhere).
- */
+
+
+
+
+
 export type ListenBackend = 'parakeet' | 'mlx' | 'faster';
 
-/**
- * `question`: a thread of looked-up answers the owner moved onto a card of its own, with the agent
- * that looked them up; it holds answers, no work, so its state is `done` until the owner archives it.
- */
+
+
+
+
 export type CardKind = 'task' | 'plan' | 'question';
 
 export const STATES = ['idea', 'proposal', 'planned', 'working', 'waiting', 'approved', 'inPr', 'live', 'done'] as const;
@@ -49,32 +49,32 @@ export const stoppedArchivable = (i: Pick<Item, 'state' | 'agent' | 'source' | '
 export const finishedArchivable = (i: Pick<Item, 'state' | 'source' | 'agent'>) => finished(i.state) && i.source === 'manual' && !i.agent?.finishing;
 /** A finished card whose agent still works: after the landing, or answering a follow-up question. */
 export const finishingUp = (i: Pick<Item, 'state' | 'agent'>) => !!i.agent?.finishing && finished(i.state);
-/**
- * Whether the card's agent is working on something right now, so that the owner can pause it: a
- * Question card's agent reading, an idea's agent working on its reply, a worker in a turn (whatever
- * the card's state: at work, taking in the owner's words on its handover, on its pull request, after
- * the landing). An idle agent is no such agent: there is nothing running to pause.
- */
-/** A piece of an agent's background work as the agent described it (`Run the test suite`), and since when it runs (milliseconds). */
+
+
+
+
+
+
+
 export interface BackgroundTask {
   description: string;
   since: number;
 }
 
-/** A card's worker in a turn: its background work that runs, and whether the turn itself ended and only waits for that work to wake it (`over`). */
+
 export interface WorkerTurn {
   tasks: BackgroundTask[];
   over: boolean;
-  /** What the worker does, for a card's own worker. */
+  
   doing?: AgentDoing;
-  /** No turn at all: the worker ended its turn for a restart that is due, and goes on once it happened. */
+  
   restartPaused?: true;
 }
 
-/**
- * What a card's worker is doing in its turn, read from its steps: at work, thinking (a long while
- * without a step), debugging (a step of its failed), or at a stage of its demo.
- */
+
+
+
+
 export type AgentDoing = 'working' | 'building' | 'thinking' | 'debugging' | 'preparingDemo' | 'recordingDemo' | 'finalizingDemo';
 
 /** Whether the worker is at a stage of its demo, which its card shows in green. */
@@ -185,18 +185,18 @@ export function prototypeWorkstream(items: Item[], planId: string): Item | undef
   return named.length === 1 ? named[0] : undefined;
 }
 
-/** What a `waiting` card waits for: `demo` a handover with a demo, `review` one without. */
+
 export type Need = 'demo' | 'question' | 'review';
 
-/** A question an agent asks the owner, with answer options to choose from when it has them. */
+
 export interface Question {
   text: string;
   options: string[];
-  /** Several options may be chosen together. */
+  
   multiple?: boolean;
-  /** What the asking agent would pick if it had to decide: some of the options, and why. */
+  
   pick?: { options: string[]; why: string };
-  /** Seismic asks for a worker that is stuck (its turn failed, or ended twice without a handover), not the worker. */
+  
   stuck?: true;
 }
 
@@ -265,17 +265,17 @@ export const needsYou = (i: Item) =>
   (!i.idea?.mergingInto || mergeRank(i) > 1) &&
   ((!!i.idea?.proposal?.merge && !merging(i)) || (i.state === 'waiting' && !answering(i) && !i.review?.landing && !(i.need !== 'question' && i.review?.codeReview?.state === 'running')) || (i.state === 'proposal' && !i.idea?.proposal?.revising && !merging(i)) || !!i.idea?.superseded || (i.state === 'inPr' && [i.review?.pr, ...(i.review?.morePrs ?? [])].some((p) => p?.ready && !p.merged && !p.closed)) || (!!i.idea?.discussion && i.idea.discussion.status === 'open' && i.idea.discussion.yourTurn && !i.idea.discussion.thinking));
 
-/**
- * What a worker can wait for another card to reach: `done`, its work on main (or the card closed
- * without a change); `waitsForOwner`, it needs the owner (asks, hands its work over, a proposal or an
- * idea's questions; snoozed by them or not), or got done already.
- */
+
+
+
+
+
 export const AWAITED_STATES = ['done', 'waitsForOwner'] as const;
 export type AwaitedState = (typeof AWAITED_STATES)[number];
 
 export type Awaited = 'reached' | 'gone' | 'archived' | 'stopped' | 'dropped';
 
-/** Why a snoozed card woke: its time came, the owner woke it, Seismic had something for its agent, it needs the owner, or what became of the card it waited on. */
+
 export type Woke = 'time' | 'owner' | 'news' | 'needsYou' | { met: Awaited };
 
 /**
@@ -329,11 +329,11 @@ export function unreadPerPlan(talk: Talk[]): Map<string, number> {
 /** What on a project waits for the owner: the cards that need them, and the Koordinator while an answer waits unread. */
 export const waitingOn = (s: Pick<ProjectSnapshot, 'items' | 'talk'>) => s.items.filter(needsYou).length + (unreadAnswers(s.talk) ? 1 : 0);
 
-/**
- * What of a project "Needs you" lists (the phone's, and the navigation on every other project's page):
- * the cards that need the owner and those snoozed while they did, and the Koordinator's answers that
- * wait unread.
- */
+
+
+
+
+
 export type Waiting = Pick<ProjectSnapshot, 'items' | 'talk' | 'needsYou'> & Partial<Pick<ProjectSnapshot, 'preferences' | 'settingProposals' | 'project'>> & { proposalItems?: Item[] };
 export const waitingIn = (s: Pick<ProjectSnapshot, 'items' | 'talk' | 'needsYou'> & Partial<Pick<ProjectSnapshot, 'preferences' | 'settingProposals' | 'project'>>): Waiting => ({
   items: s.items.filter((i) => needsYou(i) || !!snoozeOf(i)?.waiting),
@@ -342,12 +342,12 @@ export const waitingIn = (s: Pick<ProjectSnapshot, 'items' | 'talk' | 'needsYou'
   preferences: s.preferences, settingProposals: s.settingProposals, project: s.project, proposalItems: s.items.filter((i) => s.preferences?.some((p) => p.state === 'proposed' && p.cardId === i.id) || s.settingProposals?.some((p) => p.cards.some((c) => c.id === i.id))),
 });
 
-/** One item on the project as the UI sees it: a stored card merged with what its plan doc says. */
-/**
- * Who wrote a card's task: the owner (also through the Koordinator, from their words), the plan doc
- * of its workstream, Seismic (the work retrospective), the idea a prototype is for, or a worker whose
- * proposal the owner accepted. A decided idea's task is its brief, the idea's agent's.
- */
+
+
+
+
+
+
 export type TaskAuthor = 'owner' | 'plan' | 'koordinator' | 'idea' | 'proposal';
 
 export const taskAuthor = (item: Pick<Item, 'source' | 'idea'>): TaskAuthor =>
@@ -358,84 +358,84 @@ export interface ManualAnchor { fromSide: EdgeSide; toSide: EdgeSide; offset: nu
 
 export interface Item {
   id: string;
-  /** The card's code in addresses (`/p/<project>/c/<code>`): a few hex digits, unique among all cards; the id works there too. */
+  
   short?: string;
   kind: CardKind;
   state: CardState;
   need?: Need;
   title: string;
-  /** Free text: the owner's description, or a workstream's text from the plan doc (inline markdown). */
+  
   body: string;
-  /** Position; relative to the parent plan for its workstreams. */
+  
   x: number;
   y: number;
   parent?: string;
-  /** `manual` cards are the owner's; `plan` cards mirror a plan doc and are read-only here. */
+  
   source: 'manual' | 'plan';
-  /**
-   * Open question: the worker's, when `need` is `question`; or the one in its demo report, while
-   * the demo waits for approval and the owner has not answered it.
-   */
+  
+
+
+
   question?: Question;
-  /** The card it comes from: a proposal's source, a prototype's idea, or the card a follow-up follows up on. */
+  
   from?: string;
-  /** With `from` on another project (a card moved there, or one made there by Seismic): that card's title and project. */
+  
   fromElsewhere?: Elsewhere;
-  /** When the card was created (ISO). */
+  
   createdAt?: string;
-  /** Last stored change to the card (ISO), for newest-first mobile ordering. */
+  
   updatedAt?: string;
-  /** The repository the card belongs to (an id from the project's `repos`). */
+  
   repo: string;
-  /**
-   * Its repository does not run on the project (it left the configuration, or did not start): its
-   * agents take nothing until it is back, and no other repository's agents take it meanwhile.
-   * Never on a Question card, whose agent reads only.
-   */
+  
+
+
+
+
   repoDown?: true;
-  /** Files the Koordinator expects the card to change. */
+  
   scope?: string[];
-  /** Possible duplicate card ids found at the last start check, until dismissed or work starts. */
+  
   possibleDuplicates?: string[];
-  /** A planned card the Koordinator is deciding on, or that waits for cards in progress. */
+  
   queue?: Queue;
-  /** When the owner archived the card; archived cards are not on the project but in its archive. */
+  
   archivedAt?: string;
-  /** Question cards, and an idea that was one: the thread of looked-up answers it holds. */
+  
   thread?: Thread;
-  /** Why the card's agent does not run now, or why the card is off the canvas: one reason at a time (`ItemHold`). */
+  
   hold?: ItemHold;
-  /**
-   * Screenshots the owner attached to the card's task; its worker gets them at the start. On a
-   * proposal, those that go with its task once it is accepted (the owner's or its reviser's pick).
-   */
+  
+
+
+
   images?: string[];
-  /** The group the card belongs to (a `Group` id); a workstream's is its plan's. */
+  
   group?: string;
-  /** The canvas of the project the card is on (a `Canvas` id); a workstream's is its plan's. */
+  
   canvas?: string;
-  /**
-   * Whether its canvas holds the card, folded away or not (a collapsed plan's workstream, a merge
-   * proposal's partner): false once it is deleted, archived or parked, and for a workstream of a plan
-   * that is archived. An invisible card keeps its `canvas` only to go back there; the server derives
-   * this as it builds the cards, and whether a canvas is empty asks nothing else (`canvasHolds`).
-   */
+  
+
+
+
+
+
   canvasVisible: boolean;
-  /** The card's agent and its run: its worker's status, turn and workstation; present while it has any of them. */
+  
   agent?: ItemAgent;
-  /** The work handed over for review and its way onto main: the handover, the approval and landing, the pull requests and the code review. */
+  
   review?: ItemReview;
-  /** What shows the work: the demo, earlier demos, the result's files and the demo's page for colleagues. */
+  
   demo?: ItemDemo;
-  /** Where the card comes from as an idea, a proposal or a prototype: the discussion and its brief, the prototypes, the proposal. */
+  
   idea?: ItemIdea;
-  /** The card's place in the plan of work: a plan's doc, a workstream's label and what it builds on, the owner's arrows. */
+  
   plan?: ItemPlan;
-  /** The card's labels (`labels.ts`), each none until set. */
+  
   labels?: ItemLabels;
 }
 
-/** The parts of an `Item` beside its core fields, each present only when the card has any of it. */
+
 export const ITEM_PARTS = ['agent', 'review', 'demo', 'idea', 'plan', 'labels'] as const;
 export type ItemPart = (typeof ITEM_PARTS)[number];
 
@@ -452,22 +452,22 @@ export function withPart<I extends Pick<Item, ItemPart>, K extends ItemPart>(i: 
   return (Object.keys(merged).length ? { ...rest, [k]: merged } : rest) as I;
 }
 
-/**
- * What a card showed when the owner stopped it, as far as its state line needs to say it again: the
- * state and what it waited for, and what sets its words apart ("2nd demo ready", "Demo ready with
- * question", "Agent answered, waiting for you", "Agent reviewing").
- */
+
+
+
+
+
 export interface StoppedAt {
   state: CardState;
   need?: Need;
-  /** Demos of earlier handovers the owner had not asked about. */
+  
   earlier?: number;
-  /** A question (a demo's, or the worker's), and that its agent failed on it. */
+  
   question?: { stuck?: true };
   answering?: true;
   answered?: true;
   reviewing?: true;
-  /** The hold on its agent it showed (paused, snoozed, pending a restart …); the stop let it go. */
+  
   hold?: Exclude<Item['hold'], undefined | { reason: 'parkingLot' }>;
 }
 
@@ -486,245 +486,245 @@ export const stoppedAtOf = (i: Pick<Item, 'state' | 'need' | 'question' | 'demo'
   };
 };
 
-/** The card's agent and its run: its worker's status, turn and workstation; present while it has any of them. */
+
 export interface ItemAgent {
-  /** The worker's latest `report`. */
+  
   statusLine?: string;
-  /**
-   * Its worker is in a turn right now, its background work included (a render, a watcher): what it
-   * does shows, and the owner can pause it. Not on a card that waits for the owner once the turn
-   * itself has ended and only its background work runs (the app served after the handover).
-   */
+  
+
+
+
+
   inTurn?: true;
-  /** While `inTurn`: what its worker is doing, shown under the card. */
+  
   doing?: AgentDoing;
-  /** The harness and model of the card's agent whose session runs now (`AgentAt`), as far as known: its bubble at work names them. */
+  
   identity?: AgentIdentity;
-  /** The selection pinned to the worker, even before its session has an ID. */
+  
   workerSetting?: AgentSetting;
-  /** The worker's background work that runs (a test run, a render, a watcher), the oldest first: while `inTurn`, or after the turn on a card that waits for the owner. */
+  
   background?: BackgroundTask[];
-  /**
-   * The card's agent other than its worker (an idea's, a Question card's, the reviser of a proposal,
-   * the Koordinator naming or checking it) waits for the account's usage limit: it goes on by itself then (ISO time).
-   */
+  
+
+
+
   limitedUntil?: string;
-  /** The work has landed and its worker finishes what remains (a migration, say) before its session ends. */
+  
   finishing?: boolean;
-  /** While `finishing`: nothing just landed, the owner asked about the finished card and its agent answers. */
+  
   followUp?: boolean;
-  /** While `followUp`: its agent needs a full clone to answer and waits, without a workstation, for the next free one. */
+  
   waitsForClone?: true;
   branch?: string;
-  /** On a stopped card: the state it was in when the owner stopped it, which its state line names ("Stopped at Demo ready"). */
+  
   stoppedAt?: StoppedAt;
-  /** Where the branch is checked out, while the card has a workstation: a directory, `host:/dir` on another machine. */
+  
   workstation?: string;
-  /** The clone that keeps its branch since its workstation was taken from it, until it works again (the same form as `workstation`). */
+  
   keptIn?: string;
-  /**
-   * Where the app in the card's workstation runs, as its worker opens it (`http://localhost:5173`):
-   * while the worker says it runs and Seismic has not stopped it. The card offers it to the owner to
-   * try by hand, once it answers.
-   */
+  
+
+
+
+
   app?: string;
 }
 
-/** The work handed over for review and its way onto main: the handover, the approval and landing, the pull requests and the code review. */
+
 export interface ItemReview {
-  /** The worker's summary, when `need` is `review` or `demo`. */
+  
   summary?: string;
-  /**
-   * Its worker takes in what the owner wrote or said on its handover (`need` is `review` or `demo`):
-   * until its turn ends, the card is at work and not the owner's, and still waits for approval.
-   */
+  
+
+
+
   answering?: true;
-  /**
-   * Its worker answered what the owner wrote or said on its handover without a new demo: the card
-   * waits for the owner because of that answer, not a demo to watch.
-   */
+  
+
+
+
   answered?: true;
-  /** The owner approved the work and Seismic lands it on main (seconds of git): still `waiting`, but no longer the owner's. */
+  
   landing?: true;
-  /** Zero while landing, otherwise the place among waiting approvals. */
+  
   landingPosition?: number;
-  /** Waiting for approval, its branch holds no change (checked at the handover): approving makes the card `done`. */
+  
   noChange?: boolean;
-  /**
-   * Waiting for approval, its branch showed signs of a change to persisted data models, which its
-   * worker says is none: the worker's reason, in a line, for the owner to judge.
-   */
+  
+
+
+
   modelsUnchanged?: string;
-  /**
-   * Approved work its agent did, while Seismic asks for feedback: the handover the owner's response
-   * would be about, and the answer given on it so far (none: not answered yet).
-   */
+  
+
+
+
   rate?: { handover: number; answer?: FeedbackAnswer };
-  /**
-   * Waiting for approval, its branch changes how work lands (`.seismic/settings.json`, checked at the
-   * handover): approving lands it as the branch says, not as the repository does until then.
-   */
+  
+
+
+
   lands?: CardLanding;
-  /**
-   * Its approval could not land: the Seismic checkout has uncommitted changes to `files`, which the
-   * card's branch changes too. The card offers to fold them into it (`fold`).
-   */
+  
+
+
+
   blocked?: { files: string[] };
-  /** Its approval could not land because rebasing onto main conflicted: the worker resolves the conflicts, then the work lands without another approval. */
+  
   resolvingConflicts?: true;
-  /** The pull request, once the worker opened it after approval; on a review card, the one it reviews. */
+  
   pr?: PullRequest;
-  /**
-   * Further pull requests the worker opened for the card's work, in other repositories (or a second
-   * one in its own): the card is live once all of them and `pr` are merged.
-   */
+  
+
+
+
   morePrs?: PullRequest[];
-  /** A review card: the pull request of someone outside that the card reviews and, once approved, merges. */
+  
   contribution?: Contribution;
-  /**
-   * The code review of the card's work, where its project reviews work that lands on `main` and the
-   * card's does: present from its handover on.
-   */
+  
+
+
+
   codeReview?: CodeReview;
 }
 
-/** What shows the work: the demo, earlier demos, the result's files and the demo's page for colleagues. */
+
 export interface ItemDemo {
-  /** The demo, when `need` is `demo`; its files are served under `/api/cards/:id/demo/`. */
+  
   latest?: Demo;
-  /**
-   * The demos of earlier handovers a later one replaced, the oldest first, as long as their files
-   * are still on disk; each one's files are served under `/api/cards/:id/demos/:n/`.
-   */
+  
+
+
+
   earlier?: EarlierDemo[];
-  /**
-   * The files its worker named as the result at its latest handover that named any, the left column's
-   * first tabs after the demo; served with the others it changed under `/api/cards/:id/files/`.
-   * An empty list: none named, but there are files of its change to show (a folder's card handed over without a demo).
-   */
+  
+
+
+
+
   files?: CardFile[];
-  /** The demo's page for colleagues, once the owner shared it (or is about to). */
+  
   share?: Share;
-  /** Where the repository's site publishes on approval: the owner unticked "Share on approval", so approving shares nothing. */
+  
   notOnApproval?: true;
-  /**
-   * The tags of the card's page (`pageTags` in src/core/page-tags.ts), by dimension, as they stand
-   * without the site's vocabulary: set by hand, else by the newest worker that gave them, else by
-   * Seismic's reading session. A dimension without a key has none chosen yet.
-   */
+  
+
+
+
+
   tags?: PageTags;
-  /**
-   * The owner's comments on places in the demo video (their event ids) that Seismic holds back while
-   * they watch, to give them to the worker in one message once they are done (`Spot`).
-   */
+  
+
+
+
   held?: number[];
 }
 
-/** Where the card comes from as an idea, a proposal or a prototype: the discussion and its brief, the prototypes, the proposal. */
+
 export interface ItemIdea {
-  /** Ideas only: what the discussion has settled so far. */
+  
   discussion?: Idea;
-  /** A card that was an idea and has been decided: the brief it was decided on. */
+  
   brief?: string;
-  /** A card that was an idea and has been decided: the mocks of its brief. */
+  
   mocks?: Mock[];
-  /** A prototype's idea: the throwaway prototype is built for it and never lands itself. */
+  
   prototypeOf?: string;
-  /** A prototype of one of the variants its idea's agent planned: that variant's approach. */
+  
   variant?: string;
-  /** A prototype in the archive: discarded (its code thrown away), or built (its idea was built on its branch). */
+  
   prototypeEnd?: 'discarded' | 'built';
-  /** A prototype built for a workstream of the plan its idea became: that workstream ("W6 \"Build the site\""). */
+  
   builtInto?: string;
-  /** A prototype: its idea's title, wherever the idea is (on the project, or in the archive once it became a plan). */
+  
   ideaTitle?: string;
-  /** A prototype whose worker proposes to build the idea on it: why, in its words. */
+  
   buildProposal?: string;
-  /** Ideas: their prototypes, on the project or in the archive, the oldest first; each shows its demo on the idea. A workstream built on a prototype: that one. */
+  
   prototypes?: Item[];
-  /** A card that was an idea, or a workstream of the plan an idea became, built on the branch of one of the idea's prototypes: that prototype. */
+  
   builtOn?: string;
-  /** An idea or a task of the owner's, decided as a plan: its worker writes the plan doc, and the plan takes its place. */
+  
   becomesPlan?: boolean;
-  /**
-   * Before work begins on a task or an idea of the owner's: it is to be built in a repository that
-   * does not exist yet (`NewRepo`), as the owner or the idea's agent chose. Building or starting it
-   * creates that repository first.
-   */
+  
+
+
+
+
   newRepo?: NewRepo;
-  /** A worker's proposal, while it waits: an idea or a task, why, and what the owner has to decide. */
+  
   proposal?: Proposal;
-  /** An agent's proposal the owner accepted: its text is that agent's. */
+  
   proposed?: true;
-  /** An accepted proposal its agent withdrew or replaced since, while the card is not finished: the owner removes it or keeps it. */
+  
   superseded?: Superseded;
-  /** The unworked card this card is merged with right now (`Proposal.merge`): it shows glued to it, and is not on its own until the owner decides. */
+  
   mergingInto?: string;
-  /** A card the work retrospective proposed: the cards and the friction on them it rests on. */
+  
   retro?: string;
 }
 
-/** The card's place in the plan of work: a plan's doc, a workstream's label and what it builds on, the owner's arrows. */
+
 export interface ItemPlan {
-  /** Plans only: their plan doc's path and its goal. */
+  
   file?: string;
   goal?: string;
-  /** Workstream label from the plan doc (`W3`). */
+  
   label?: string;
-  /** Plans only: the idea their plan doc was written from. */
+  
   origin?: string;
-  /** Plans only: the Koordinator reads from the plan doc which workstream builds on which, to arrange them. */
+  
   arranging?: true;
-  /** A plan the owner folded to its head: its workstreams are not shown on the project, only counted in it. */
+  
   collapsed?: true;
-  /** Workstreams only: the workstreams of its plan it builds on, as the Koordinator read them from the plan doc. */
+  
   buildsOn?: string[];
-  /** Cards connected by the owner that must finish before this card starts. */
+  
   manualDependsOn?: string[];
-  /** Unfinished archived prerequisites, so their wait remains visible and enforceable off project. */
+  
   manualArchived?: Item[];
-  /** Saved attachment points of the owner-drawn arrows, keyed by prerequisite. */
+  
   manualAnchors?: Record<string, ManualAnchor>;
 }
 
-/** The card's labels (`labels.ts`), each none until set. */
+
 export interface ItemLabels {
-  /** The card's priority, a label only: it changes no order. None until set. */
+  
   priority?: Priority;
-  /** The card's category (`labels.ts`), none until set. */
+  
   category?: Category;
-  /** The card's sub-category, with or without a category; none until set. */
+  
   subcategory?: Subcategory;
-  /** The card's complexity, none until set. */
+  
   complexity?: Complexity;
-  /** The labels Seismic set as its suggestion, which the owner has not touched since. */
+  
   suggested?: Label[];
 }
 
-/** A message Seismic holds for a paused or snoozed agent: it hears it once it goes on. */
+
 export interface HeldMessage {
   text: string;
   images: string[];
 }
 
-/**
- * Why the card's agent does not run now, or why the card is off the canvas, as stored
- * (`CardRow.hold`): one reason at a time, since when, and what that reason carries. Setting one
- * replaces the one before (a snooze replaces a pause and keeps what it held).
- *
- * - `pausing`: the owner asked the agent to pause once its work is at a safe point; it works on
- *   until its turn ends, and is `paused` then.
- * - `paused`: the owner paused the agent (its worker, the idea's, the Question card's): nothing of it
- *   runs, its session stays, and it goes on where it stopped with "Resume" or the owner's next words.
- * - `limit`: three consecutive usage-limit refusals paused the worker until the known reset
- *   (`until`) or a manual attempt; `attempts` and the status line before (`statusBefore`) are
- *   restored when it goes on.
- * - `snoozed`: set aside until a point in time or another card (`Snooze`).
- * - `parkingLot`: the owner moved the card off the canvas, into the Agents sheet's Parked tab.
- *
- * `held`: what Seismic had for the agent meanwhile; a pause and a limit always hold it, a snooze
- * only where the owner snoozed a worker (one that snoozed itself is woken by it instead).
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export type Hold =
   | { reason: 'pausing'; since: string }
   | { reason: 'paused'; since: string; held?: HeldMessage[] }
@@ -734,73 +734,73 @@ export type Hold =
 
 export type HoldReason = Hold['reason'];
 
-/** The holds on a card's agent, which its start, stop and landing let go of; not the parking lot, which holds the card. */
+
 export const AGENT_HOLDS: readonly HoldReason[] = ['pausing', 'paused', 'limit', 'snoozed'];
 
-/**
- * A card's hold as the UI and the agents see it: the stored one without what it holds for the agent,
- * or, with none stored, `restart` while its worker paused for a restart that is due (it goes on by
- * itself once that happened), and `limit` without a time for an idea's or Question card's agent the
- * usage limit paused.
- */
+
+
+
+
+
+
 export type ItemHold =
   | { reason: 'pausing' | 'paused' | 'parkingLot'; since: string }
   | { reason: 'limit'; since?: string; until?: string; model?: string }
   | (Snooze & { reason: 'snoozed'; since: string })
   | { reason: 'restart' };
 
-/** A year: no card is snoozed longer, nor set to start later than that. */
+
 export const SNOOZE_LIMIT = 366 * 24 * 60 * 60_000;
 
-/**
- * A card set aside until a point in time (a `snoozed` hold): by its worker, which has nothing to do
- * until then (a test that runs for days, a check at midnight), or by the owner; or by its worker
- * until another card reaches a state (`on`). Seismic holds the time and the card and wakes it then;
- * the owner's words, "Wake now", or what Seismic has for an agent that snoozed itself wake it
- * earlier.
- */
+
+
+
+
+
+
+
 export interface Snooze {
-  /** When it wakes (ISO); without one, it wakes when the card it waits on gets there. */
+  
   until?: string;
-  /** The card of the project it waits on (as its title read then), and what for: it wakes once that card got there, or no longer can. */
+  
   on?: { card: string; title: string; state: AwaitedState };
   by: 'agent' | 'owner';
-  /** What the agent does once it wakes, in its words. */
+  
   why?: string;
-  /** It waited for the owner when they snoozed it: it comes back to them at the time, and nothing goes to its agent. */
+  
   waiting?: true;
-  /** The owner changed the time its agent snoozed until: the agent hears so when it wakes. */
+  
   moved?: true;
-  /** It is planned: it starts at the time, through the Koordinator, as if started then. */
+  
   start?: true;
 }
 
-/**
- * A group of cards on the project, shown as a coloured territory behind them. It exists while a card
- * belongs to it (on the project or in the archive).
- */
+
+
+
+
 export interface Group {
   id: string;
   name: string;
-  /** Its colour's hue, 0–359. */
+  
   hue: number;
-  /** The canvas its cards are on (a `Canvas` id). */
+  
   canvas?: string;
 }
 
-/**
- * A container of cards inside a project, at least one per project: each card and group is on one,
- * with a layout of its own. One is named `main` (`MAIN_CANVAS`), which cannot be renamed or deleted.
- */
+
+
+
+
 export interface Canvas {
   id: string;
-  /** Unique in the project (in any case), never a number from 1 to 999, which address canvases by their place. */
+  
   name: string;
-  /** An emoji, or `lucide:<name>` for one of Lucide's icons; none until chosen. */
+  
   icon?: string;
-  /** Set while it holds something (`canvasHolds`), so it cannot be deleted. */
+  
   inUse?: true;
-  /** How many parked and snoozed cards keep it as theirs; they move to another canvas when it is deleted. */
+  
   parked?: number;
   snoozed?: number;
 }
@@ -814,7 +814,7 @@ export function canvasHolds(canvas: string, items: Pick<Item, 'canvas' | 'canvas
   return items.some((i) => i.canvasVisible && (i.canvas === canvas || (!!i.group && on.has(i.group))));
 }
 
-/** The canvas every project has, which holds what was there before it had several. */
+
 export const MAIN_CANVAS = 'main';
 
 export const CANVAS_NAME_MAX = 40;
@@ -848,93 +848,93 @@ export function canvasNameProblem(name: string): 'empty' | 'tooLong' | 'number' 
   return undefined;
 }
 
-/**
- * What a worker proposes beyond the card's text, which it writes for the agent that will take the
- * card on. Accepting it writes the questions into the text: those the owner answered on the
- * proposal as decided, the others as open.
- */
+
+
+
+
+
 export interface Proposal {
-  /** Something to think through with the owner first: accepted, it becomes an idea. */
+  
   idea?: boolean;
-  /** Why the worker proposes it, for the owner only; the card's text does not say it. */
+  
   reason?: string;
   questions: Question[];
-  /**
-   * What the owner said it should become (`spoken`: through speech recognition; `said`: the lines of
-   * the log with these words), while an agent reworks the text, the reason and the questions by it;
-   * `next`: what they said meanwhile, which the rework after it takes in.
-   */
+  
+
+
+
+
   revising?: Revising & { next?: Revising[] };
-  /**
-   * "Accept and start" was clicked while it was reworked (`idea`: "Discuss first"): it
-   * is accepted once the new text is there, unless that asks questions.
-   */
+  
+
+
+
   acceptAfterRevision?: true | 'idea';
-  /** Its agent withdrew it or replaced it by another proposal of its own (`withdraw_proposal`, `propose_card` with `replaces`). */
+  
   superseded?: Superseded;
-  /**
-   * When it is to start (ISO), for a check that can only be done later (`propose_card` with
-   * `start_at`): accepted, it is planned and snoozed until then, and starts at the time.
-   */
+  
+
+
+
   startAt?: string;
-  /** The owner merges it with another card: the two show as one until they approve the merged text or separate them. */
+  
   merge?: Merge;
-  /**
-   * Seismic's own proposal of the card that fills in a repository's settings, while it knows them not
-   * yet: accepted, it is the owner's card like the one the
-   * Konfiguration dialog makes.
-   */
+  
+
+
+
+
   setup?: true;
-  /** Seismic's own proposal to finish the uncommitted changes a new repository came with. */
+  
   finish?: true;
 }
 
-/**
- * An agent's proposal its agent withdrew or replaced: still open, it went at once; already accepted,
- * the card carries this until the owner removes it or keeps it.
- */
+
+
+
+
 export interface Superseded {
-  /** The proposal that takes its place, and its title then; none when it was withdrawn without one. */
+  
   by?: string;
   title?: string;
-  /** Why, in the agent's words. */
+  
   why?: string;
 }
 
-/**
- * An unworked card being merged into a survivor: an agent combines two unworked cards, or marks
- * coverage and extra work while preserving a progressed survivor. Approval dissolves the left
- * card; separation restores it. Stored inside proposal JSON for both proposals and planned tasks.
- */
+
+
+
+
+
 export interface Merge {
   with: string;
-  /** Identifies this comparison, so a late result cannot replace a later attempt. */
+  
   attempt?: string;
-  /** Originals are restored exactly when the owner separates the pair. */
+  
   origin?: { x: number; y: number };
   temporaryProposal?: true;
-  /** The merged card as the agent wrote it. */
+  
   title?: string;
   task?: string;
-  /** A progressed survivor is preserved; otherwise both unworked texts are combined. */
+  
   outcome?: 'covered' | 'followUp';
   titleCovered?: boolean;
-  /** Exact consecutive pieces of the dissolving task, for checking coverage without rewriting it. */
+  
   parts?: { text: string; covered: boolean }[];
   followUp?: {
     title: string; task: string; images: string[]; questions: number[];
-    /** Selected question text as read by this comparison, in the same order as the indexes. */
+    
     questionTexts?: string[];
   };
-  /** What the comparison read of both cards: when either changes, it is compared again. */
+  
   compared?: { left: string; right: string; summary: string };
-  /** The result of the comparison before, shown dimmed while the cards are compared again after a change. */
+  
   previous?: Pick<Merge, 'title' | 'task' | 'outcome' | 'titleCovered' | 'parts' | 'followUp'>;
-  /** The agent ended without a merged text: why. */
+  
   failed?: string;
 }
 
-/** The owner's words a proposal is reworked by, with the screenshots that came with them (image ids). */
+
 export interface Revising {
   words: string;
   spoken?: boolean;
@@ -942,7 +942,7 @@ export interface Revising {
   images?: string[];
 }
 
-/** A decision taken on a card: an answer to a worker's question, or the owner's call on an idea. */
+
 export interface Decision {
   id: number;
   cardId: string;
@@ -952,90 +952,90 @@ export interface Decision {
   at: string;
 }
 
-/** What a plan's sheet shows beyond the plan: its decisions and the idea it came from. */
+
 export interface PlanHistory {
-  /** The plan's decisions and those of its idea, oldest first. */
+  
   decisions: Decision[];
-  /** The idea the plan doc was written from, wherever it is now (on the project or archived). */
+  
   origin: Item | null;
-  /** The questions its plan agent answered (asked in its sheet or of Seismic) and their follow-ups, oldest first. */
+  
   talk: Talk[];
 }
 
-/**
- * An idea under discussion with its exploration agent. `open` while it is discussed; parked or
- * dropped ideas stay on the project with their state, and talking to them opens them again.
- */
+
+
+
+
 export interface Idea {
   status: 'open' | 'parked' | 'dropped';
-  /** The state of the idea as the agent keeps it (markdown): goal, variants, decisions, open questions. */
+  
   brief: string;
-  /** The exploration agent is working on a reply. */
+  
   thinking: boolean;
-  /** "Build it like this" was clicked while the agent worked on a reply: the idea is built once the reply is there, unless it asks questions. */
+  
   buildAfterReply?: true;
-  /** The agent replied and the owner has not answered yet: an open idea then needs the owner. */
+  
   yourTurn: boolean;
-  /** The questions of the agent's latest reply, until the owner says something. */
+  
   questions: Question[];
-  /** What the agent would do next in the owner's place, from its latest reply, until the owner says something. */
+  
   next?: NextStep;
-  /** The prototypes the brief plans, one per variant: "Prototyp bauen lassen" offers them, to start at once. */
+  
   variants: PlannedPrototype[];
-  /** How the brief's variants look, one mock each, shown beside it. */
+  
   mocks: Mock[];
-  /** The part that is settled while the rest is open: "Teilaufgabe abtrennen" builds it as a task of its own. */
+  
   split?: SettledPart;
 }
 
-/** The thread of looked-up answers a Question card holds, as its card shows it. */
+
 export interface Thread {
-  /** The exchange with Seismic the thread started with: its id names the thread and its output directory. */
+  
   talk: number;
-  /** Its agent is reading, for what the owner asked on the card. */
+  
   thinking?: boolean;
   answers: number;
   files: number;
 }
 
-/** A file a looked-up answer comes with, in its thread's output directory: its path there and a one-line caption. */
+
 export interface AnswerFile {
   name: string;
   caption: string;
 }
 
-/**
- * What makes a message a looked-up answer: the thread it belongs to (whose output directory holds
- * its files), its files, and the question of the answer it continues.
- */
+
+
+
+
 export interface AnswerRef {
   thread: number;
   files?: AnswerFile[];
   continues?: string;
 }
 
-/** A few lines of HTML the idea's agent writes to show how something would look; the card shows it in a sandboxed frame. */
+
 export interface Mock {
   title: string;
   html: string;
 }
 
-/** A prototype the idea's agent plans: its approach in a few words (its title) and what it builds and shows (its task). */
+
 export interface PlannedPrototype {
   approach: string;
   show: string;
 }
 
-/**
- * The part of an idea that is settled while the rest is still open, as its agent marks it: what
- * "Teilaufgabe abtrennen" makes a task of its own, the idea staying with what is open.
- */
+
+
+
+
 export interface SettledPart {
   title: string;
   brief: string;
 }
 
-/** The owner's next click on an idea: answer its questions, or one of the decisions on the card. */
+
 export const NEXT_STEPS = ['answer', 'build', 'splitOff', 'planDoc', 'prototype', 'park', 'drop'] as const;
 export interface NextStep {
   step: (typeof NEXT_STEPS)[number];
@@ -1045,81 +1045,81 @@ export interface NextStep {
 export interface PullRequest {
   url: string;
   number: number;
-  /** `owner/name` of its repository, where that is another than the card's. */
+  
   repo?: string;
-  /** Merged already, while the card waits for its other pull requests. */
+  
   merged?: boolean;
-  /** Closed without a merge. */
+  
   closed?: boolean;
-  /** What it waits for before it is merged, as last polled (`PrWait`); none once it is ready. */
+  
   waits?: PrWait[];
-  /** Checks on the PR's latest commit, as last seen. */
+  
   checks: { name: string; state: 'pending' | 'success' | 'failure'; url?: string }[];
   conflict: boolean;
-  /**
-   * Nothing is left for the worker (checks green, threads resolved, reviewers answered), and GitHub
-   * refused Seismic's merge for `mergeError`, or the reviewer's confidence is too low for Seismic to
-   * merge (`held`, Greptile's 3/5 say), or the repository's settings leave the merge to the people
-   * on the forge (`manual`, `autoMerge` off): the owner merges, or tells the worker what is missing.
-   */
+  
+
+
+
+
+
   ready?: boolean;
   mergeError?: string;
   held?: { score: string; by: string };
   manual?: boolean;
-  /** The review as last seen, oldest first (`reviewOf` in the server's forge). */
+  
   review?: PrReviewEntry[];
 }
 
-/**
- * What a pull request waits for before it can be merged, in the order it is in the way: a conflict,
- * a branch behind its base that the repository wants up to date, a draft, branch protection (an
- * approval, a required check), the forge not having worked out mergeability yet, checks failed or
- * running, review threads open, a reviewer's standing request for changes, a review of an older
- * commit than its newest, an answer to the
- * author's request for another look, and the worker at work on something passed to it.
- */
+
+
+
+
+
+
+
+
 export type PrWait = 'conflict' | 'behind' | 'draft' | 'protection' | 'forge' | 'checksFailed' | 'checks' | 'threads' | 'changes' | 'review' | 'answer' | 'agent';
 
-/**
- * The pull request a review card reviews: opened by someone outside (the contributor), reviewed by
- * the card's worker and merged by Seismic once the owner approves its demo.
- */
+
+
+
+
 export interface Contribution {
   url: string;
   number: number;
-  /** The contributor's account on the forge. */
+  
   author: string;
   title: string;
-  /** The contributor allows maintainers to push to the PR's branch (GitHub's "Allow edits by maintainers"). */
+  
   canModify: boolean;
-  /** What the worker found at its latest handover: the checks on the PR's head, whether it merges into the current main without conflicts. */
+  
   results?: ReviewResults;
-  /** The review's findings as the worker keeps them, for the owner to decide on one by one; none until it recorded them. */
+  
   findings?: Finding[];
-  /** The worker's change request on the PR, while the card waits for the contributor. */
+  
   requested?: { url?: string; at: string };
-  /** The worker's own commits for the PR, held on the card until the owner approves (`HeldChanges`). */
+  
   held?: HeldChanges;
-  /** Where work lands on the local main: its unpushed commits collide with the PR, as Seismic found before the merge. */
+  
   clash?: Clash;
 }
 
-/**
- * What a review card's worker changed itself on the PR, held on the card: on the owner's approval
- * Seismic pushes its `commits` onto the PR's branch and posts `body` there, as a comment, or with
- * requests to the contributor (the findings `asks`) as one review asking for changes.
- */
+
+
+
+
+
 export interface HeldChanges {
   body: string;
   commits: number;
   asks: number[];
 }
 
-/**
- * Commits on the local main nobody pushed yet that a pull request collides with: once it is merged,
- * pulling it into the local main stops at `commit` (`subject`, and the card that landed it, where
- * one did), in `files`; `unpushed` is how many such commits the local main has.
- */
+
+
+
+
+
 export interface Clash {
   commit: string;
   subject: string;
@@ -1128,83 +1128,83 @@ export interface Clash {
   card?: { id: string; title: string };
 }
 
-/**
- * What the owner decides for a finding of a review card: it goes to the contributor as a change
- * request, (`self`) the worker makes the change, which Seismic pushes onto the PR's branch on the
- * owner's approval, or (`later`)
- * it becomes a follow-up task of its own, outside the PR.
- */
+
+
+
+
+
+
 export type ChangeRoute = 'contributor' | 'self' | 'later';
 
-/** What the owner picks on an open finding: a route the worker carries out, or `ignore`, which settles it as dropped without telling the worker. */
+
 export type FindingPick = ChangeRoute | 'ignore';
 
-/** Review findings, ordered from most to least severe. */
+
 export const SEVERITIES = ['blocker', 'critical', 'major', 'minor', 'low', 'info'] as const;
 export type Severity = (typeof SEVERITIES)[number];
 
-/** One finding of a review: a review card's, as its worker keeps it, or a code review's of a card's work. */
+
 export interface Finding {
-  /** Its number on the card, kept while the worker rewrites the list. */
+  
   id: number;
   title: string;
   text: string;
   security?: boolean;
   severity?: Severity;
-  /** Where in the repository it is: a file, and the line in it. */
+  
   file?: string;
   line?: number;
-  /**
-   * `open` until something came of it: `sent` to the contributor (`url`, the review it went in),
-   * `fixed` by the worker (`url`, the post its push went out with, once Seismic pushed it), `resolved` (the contributor's push fixed it, or it no
-   * longer applies), `dropped` (the owner does not pursue it), `later` (a follow-up task, `card`,
-   * which the worker makes once the owner chose it).
-   */
+  
+
+
+
+
+
   status: FindingStatus;
   url?: string;
-  /** The follow-up task the worker made of it, on the owner's word; several findings may share one. */
+  
   card?: string;
-  /** What the owner decided for it, while the worker carries it out. */
+  
   decided?: ChangeRoute;
-  /** Decided for the contributor while the worker's own changes are under way or held: the request goes with them, as one message. */
+  
   withChanges?: true;
-  /** The other findings its worker would make one follow-up task with it (their ids), in both directions. */
+  
   with?: number[];
 }
 
 export type FindingStatus = 'open' | 'sent' | 'fixed' | 'resolved' | 'dropped' | 'later';
 
-/**
- * Where an item of a card's code review stands: `raised` by the reviewer, `fixing` (the owner chose
- * "Fix it" and the worker is on it), `underReview` (the worker resubmitted it; the next review
- * verifies it), `fixed` (the reviewer verified it), `reopened` (a fix did not hold, a fixed item
- * regressed, the worker disputed it, or the owner reopened it), `closed` (the owner ignored it),
- * `followUp` (the owner chose "As a follow-up task"). Raised and reopened items need the owner.
- */
+
+
+
+
+
+
+
 export const REVIEW_ITEM_STATUSES = ['raised', 'fixing', 'underReview', 'fixed', 'reopened', 'closed', 'followUp'] as const;
 export type ReviewItemStatus = (typeof REVIEW_ITEM_STATUSES)[number];
 
-/** Who moved a code review item. */
+
 export type ReviewItemWho = 'reviewer' | 'worker' | 'owner';
 
-/** One status change of a code review item, as its log has it. */
+
 export interface ReviewItemEvent {
   at: string;
   who: ReviewItemWho;
-  /** None for the item being raised. */
+  
   from?: ReviewItemStatus;
   to: ReviewItemStatus;
   note?: string;
-  /** The handover (its event) or the review run (its start time) it happened at. */
+  
   handover?: number;
   run?: string;
 }
 
-/**
- * One item of the running list of a card's code review: numbered per card across all review runs, with
- * the log of its status changes. The other items it is fixed with (`with`) and the follow-up task made
- * of it (`card`) ride along.
- */
+
+
+
+
+
 export interface ReviewItem {
   number: number;
   title: string;
@@ -1213,12 +1213,12 @@ export interface ReviewItem {
   security?: boolean;
   file?: string;
   line?: number;
-  /** The other items its worker would fix, or make one follow-up task, with it (their numbers). */
+  
   with?: number[];
   status: ReviewItemStatus;
-  /** The follow-up task the worker made of it. */
+  
   card?: string;
-  /** What the owner wrote on it, as the worker read it with the owner's choice. */
+  
   context?: string;
   log: ReviewItemEvent[];
 }
@@ -1226,66 +1226,66 @@ export interface ReviewItem {
 /** Whether the item waits for the owner. */
 export const needsOwner = (i: Pick<ReviewItem, 'status'>) => i.status === 'raised' || i.status === 'reopened';
 
-/**
- * The code review of a card's work as the card shows it: whether reviews start by themselves with a
- * handover or by the owner's "Start code review", the latest review run (of the latest handover or of
- * an earlier one, then `stale`) and the one list of items all runs add to. On an item that needs them
- * the owner decides `self` ("Fix it", the card's worker fixes it) or `later` (a follow-up task), or
- * ignores it.
- */
+
+
+
+
+
+
+
 export interface CodeReview {
   mode: CodeReviewMode;
-  /** Number of review runs started for this card. */
+  
   runs?: number;
-  /** The agent running this review, as selected at start or resolved by its session. */
+  
   agent?: AgentIdentity;
-  /** None while no review ran for the card's work. */
+  
   state?: 'running' | 'done' | 'failed';
-  /** It reviewed an earlier handover than the latest. */
+  
   stale?: true;
   items: ReviewItem[];
-  /** Why it failed. */
+  
   error?: string;
-  /** It failed on its model's usage limit (the account has no usage left). */
+  
   limited?: true;
 }
 
-/** How a project's finished cards go into the archive (project setting "Cards archive"). */
+
 export const CARD_ARCHIVING = ['manual', 'landed'] as const;
 export type CardArchiving = (typeof CARD_ARCHIVING)[number];
 
-/** What a right click on a card opens (project setting "Right click"): the colour ring of its groups, or a ring of the project's canvases to move it to. */
+
 export const RIGHT_CLICK = ['groups', 'canvases'] as const;
 export type RightClick = (typeof RIGHT_CLICK)[number];
 
 export const CODE_REVIEW_MODES = ['auto', 'manual'] as const;
 export type CodeReviewMode = (typeof CODE_REVIEW_MODES)[number];
 
-/** Whether a project reviews the work that lands on `main`, and when. */
+
 export interface CodeReviewSetting {
   on: boolean;
   mode: CodeReviewMode;
 }
 
-/** What the worker of a review card reports with its handover. */
+
 export interface ReviewResults {
   checks: { name: string; passed: boolean }[];
-  /** It merges into the current main without conflicts. */
+  
   mergeable: boolean;
 }
 
-/** A comment on a pull request; `mine` when the PR's author wrote it (the worker, in the owner's name). */
+
 export interface PrComment {
   author: string;
   mine?: boolean;
   body: string;
-  /** When it was written, or last changed when `edited`. */
+  
   at: string;
   edited?: boolean;
   url?: string;
 }
 
-/** A reviewer's comment on the code and the replies in its thread. */
+
 export interface PrThread extends PrComment {
   path?: string;
   line?: number;
@@ -1293,88 +1293,88 @@ export interface PrThread extends PrComment {
   replies: PrComment[];
 }
 
-/** A round of a reviewer's comments on the code, or a comment in the conversation. */
+
 export type PrReviewEntry = { author: string; mine?: boolean; at: string; threads: PrThread[] } | PrComment;
 
-/**
- * How long a plan's workstreams, started together, wait before the Koordinator plans them: the
- * owner can take the start back until then (a button on the plan card is easily hit).
- */
+
+
+
+
 export const START_ALL_HOLD_MS = 8000;
 
-/** How long taking a card's workstation from it (the Workstations list) waits for the owner's "Undo". */
+
 export const EVICT_HOLD_MS = 8000;
 
-/** How long pushing main for a review card whose PR collides with unpushed commits waits for the owner's "Undo". */
+
 export const PUSH_HOLD_MS = 8000;
 
-/**
- * `since`: when the card came to the Koordinator; of the cards whose turn comes, the one waiting
- * longest goes first. `together`: the plan whose workstreams the Koordinator judges all at once.
- * `workstation`: the Koordinator let the card start, but no workstation was free for it (`none`: all
- * leased or none set up; `dirty`: every free one has uncommitted changes); it starts once one is.
- * `behind`: the cards it waits for; `buildsOn`: those of them it builds on (workstreams of its
- * plan), which hold it until they have landed, also while not started or stopped.
- * `manualWait`: those of `behind` that only an arrow the owner drew holds it for, not a wait the
- * Koordinator inferred; `buildsOn` names inferred waits alone.
- * `paused`: the Koordinator let it start, but the owner paused its project's agents; it starts once they resume them.
- * `begun`, on a card waiting for a workstation or a paused project: the owner started it anyway, or it
- * was at work before (its workstation taken from it); the owner's arrows no longer hold it.
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
 export type Queue = Wait & { since: string };
 
-/**
- * What a card in the queue waits for (`Queue`). `together`: judged in one turn with the cards of the
- * same key, a plan's workstreams started at once (the plan's id) or cards freed at once (`freed:…`).
- */
+
+
+
+
 export type Wait = { checking: true; together?: string } | { behind: string[]; reason: string; buildsOn?: string[]; manualWait?: string[] } | { workstation: WorkstationShortage; begun?: true } | { paused: true; begun?: true } | { restart: true };
 
-/** Why a card waits to start: no clone free (`none`), the free ones dirty, or every machine with a clean free one busy to its slots (`slots`). */
+
 export type WorkstationShortage = 'none' | 'dirty' | 'slots';
 
-/**
- * How a demo shows the work: a narrated `video` of something that happens, or an `html` artifact
- * to look at (design drafts side by side, a layout, an analysis).
- */
+
+
+
+
 export type DemoKind = 'video' | 'html';
 
 export interface Demo {
   kind: DemoKind;
-  /** Seconds and title of each scene; none for an HTML artifact. */
+  
   chapters: [number, string][];
-  /** A question only the owner can answer, beyond "approve or give feedback". */
+  
   question?: string;
-  /** Its answer options, several of them together when `multiple`, and the worker's own pick, as on a worker's question. */
+  
   options?: string[];
   multiple?: true;
   pick?: Question['pick'];
-  /** The owner's answer to it; the demo keeps waiting for approval. */
+  
   answer?: string;
-  /** What the answer picked: its options, and the owner's own answer, which is no option. */
+  
   picks?: string[];
-  /** The handover event it came with: a later handover may keep the demo, and its question stays with the first. */
+  
   handover?: number;
-  /**
-   * It came with the worker's question (`handover` is then that question's event): drafts or variants
-   * to choose between, not the result of the work, so a handover does not keep it as its demo.
-   */
+  
+
+
+
   asked?: true;
-  /** When that handover was. */
+  
   at?: string;
-  /** The page it is shared on, for colleagues who have never seen Seismic: written by the worker at handover, or later from its summary. */
+  
   page?: DemoPage;
-  /** An HTML artifact that is its `index.html` alone: it also goes out as one HTML file. */
+  
   single?: true;
-  /**
-   * What its worker said of it beside the demo before: recorded afresh (`replaces`), or only showing
-   * a detail corrected or explained since (`supplements`), to share beside that one.
-   */
+  
+
+
+
   follows?: 'replaces' | 'supplements';
-  /** A video without `poster.jpg` (one the demo skill did not render): the player shows its first frame instead. */
+  
   noPoster?: true;
 }
 
-/** A demo a later handover replaced: `n` is its place among the card's earlier demos, for its files. */
+
 export type EarlierDemo = Demo & { n: number };
 
 /**
@@ -1393,113 +1393,113 @@ export const chapterAt = (chapters: Demo['chapters'], at: number) => chapters.re
 
 export interface DemoPage {
   title: string;
-  /** Two to five sentences on what changes and why. */
+  
   text: string;
-  /** The values of the site's vocabulary (the project's) the worker chose for each dimension; an empty list where none fits. */
+  
   tags?: PageTags;
 }
 
-/** Tags by dimension: a site's vocabulary (each dimension with its values), or what a page carries of it. */
+
 export type PageTags = Record<string, string[]>;
 
-/**
- * The largest video exported as one HTML file (which holds it in base64, a third larger): such a
- * file still goes by mail. A larger one is exported as a ZIP only.
- */
+
+
+
+
 export const EXPORT_HTML_MAX = 15 * 1024 * 1024;
 
-/**
- * A card's shared demo page. `publishing` while it goes out, `shared` once the page is
- * up, `withdrawing` while it is taken down.
- */
+
+
+
+
 export interface Share {
   state: 'publishing' | 'shared' | 'withdrawing';
-  /** The page; set once it was published, kept while it is published again. */
+  
   url?: string;
-  /** The card's demos on the page, by their handovers (`Demo.handover`), the oldest first. */
+  
   on?: number[];
-  /** The card's latest demo is not on the page. */
+  
   stale?: boolean;
-  /** The page shows the card's demo, but pages changed since it was published ("Erneut teilen"): those changes, oldest first. */
-  outdated?: OutdatedBy[];  /** The page is on an unlisted demo site (behind a random part of its address). */
+  
+  outdated?: OutdatedBy[];  
   unlisted?: true;
-  /** The page went into the site's rolling pull request: online once it is merged (its URL). */
+  
   merge?: string;
 }
 
-/** One line in a card's log. */
-/** The kinds of screenshot the owner can attach, with the extension each is stored under. */
+
+
 export const IMAGE_TYPES: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp' };
-/** What the model takes per image (5 MB base64); the browser scales screenshots down to fit. */
+
 export const MAX_IMAGE_BYTES = 3_750_000;
-/** The largest other file the owner may drop into what they write; its path goes to the agent. */
+
 export const MAX_FILE_BYTES = 100_000_000;
 
-/** The harness and model of the session that actually spoke; absent on older messages. */
+
 export interface AgentIdentity {
   harness: Harness;
   model?: string;
 }
 
-/**
- * One configuration that worked on a card, as its session actually ran: never filled from the
- * defaults of today. `null` is unknown (an old session, a model the session never named).
- */
+
+
+
+
 export interface WorkConfig {
   harness: Harness | null;
-  /** The model the session resolved to (`claude-opus-5-5`), not the alias it was asked for. */
+  
   model: string | null;
   effort: AgentEffort | null;
-  /** The alias or choice the session was started with (`opus`, `default`), for context only. */
+  
   requested?: string;
 }
 
-/**
- * Whom a response credits: `single` one configuration did all the work up to the handover (its
- * fields may still be unknown), `mixed` more than one did and none alone is credited, `missing`
- * nothing is known of who did it.
- */
+
+
+
+
+
 export type Attribution = 'single' | 'mixed' | 'missing';
 
-/** What the owner said of the work; at least one of them. */
+
 export interface FeedbackAnswer {
   rating?: number;
   comment?: string;
 }
 
-/** The owner's response on a card's approved work, with whom it credits as at the handover it is about. */
+
 export interface Feedback {
   id: number;
-  /** The card's id, the stable link to it (its address uses `short`), whatever project it is on now. */
+  
   cardId: string;
   short?: string;
   projectId: string;
-  /** The handover (its `review` event) the response is about: one response per handover. */
+  
   handover: number;
-  /** The card as it was when the response was given. */
+  
   title: string;
   repo?: string;
   plan?: { id: string; title: string; file?: string };
   attribution: Attribution;
-  /** Every configuration that worked on the card up to the handover, the earliest first. */
+  
   configs: WorkConfig[];
-  /** The one configuration credited, only where `attribution` is `single`. */
+  
   credited?: WorkConfig;
   answer: FeedbackAnswer;
-  /** Further dimensions of the task (its complexity, its type), none required. */
+  
   facets?: Record<string, string>;
   at: string;
-  /** When the response was last changed, where it was given again for the same handover. */
+  
   updatedAt?: string;
-  /** The card was deleted since: the response still counts, with no card to go back to. */
+  
   deleted?: true;
 }
 
-/**
- * Where an agent shows at work: a card's (its worker, an idea's agent, a Question card's agent, the
- * reviser of a proposal), the one looking up the question of an exchange in the sheet, or the
- * Koordinator reading the owner's words.
- */
+
+
+
+
+
 export type AgentAt = { card: string } | { talk: number } | { koordinator: true };
 
 export interface CardEvent {
@@ -1507,56 +1507,56 @@ export interface CardEvent {
   id: number;
   cardId: string;
   at: string;
-  /**
-   * `talk` is the discussion of an idea: the owner's messages and the exploration agent's replies.
-   * `closing`: a worker's closing words after its reply or handover, which mostly repeat it: they
-   * fold under that message. `denied`: a tool call of the worker's refused without asking anyone,
-   * with who refused it and why.
-   */
+  
+
+
+
+
+
   kind: 'changes' | 'report' | 'activity' | 'say' | 'closing' | 'question' | 'answer' | 'hint' | 'review' | 'state' | 'error' | 'talk' | 'denied';
   author: 'worker' | 'owner' | 'plan' | 'koordinator' | 'seismic' | 'explorer';
   text: string;
-  /** Set on an error the UI words itself; `text` then holds the server's technical detail. */
+  
   code?: ErrorCode;
-  /** Screenshots the owner attached (ids under `/api/c/<project>/images/`). */
+  
   images?: string[];
-  /** The mocks of an exploration agent's reply. */
+  
   mocks?: Mock[];
-  /** The owner's words: the message of the conversation they reply to (its id), shown above them as a quote. */
+  
   replyTo?: number;
-  /** The owner's words: the place in the card's demo video they are about. */
+  
   spot?: Spot;
-  /** A looked-up answer: its exchange and thread, and its files. */
+  
   answer?: AnswerRef;
-  /** The owner's answer to a worker's question: the options they picked, which lead its text (`pickedAnswer`). */
+  
   picks?: string[];
-  /** The owner's words the card's agent has not read yet: Seismic holds them for it, and the owner can still take them back. */
+  
   unread?: true;
-  /** The owner's words the agent read later than they were written: they stand after this line of the log, where it read them. */
+  
   readAfter?: number;
-  /** Seismic's reply on the card says it cannot do what the owner asked (or the owner asked to tell its makers): what a draft for them starts from. */
+  
   wish?: Wish;
-  /**
-   * Seismic's reply on the card answers the owner's words without acting on them (no actions to take
-   * back): it stands in the conversation, where the confirmation of actions folds away.
-   */
+  
+
+
+
   reply?: true;
-  /**
-   * Seismic's reply to what the card's agent passed on from the owner's words (`to_seismic`): it answers
-   * a step of the agent's, so it stands under the agent's message that step leads to.
-   */
+  
+
+
+
   forwarded?: true;
-  /**
-   * A card made from this one: a worker's proposal or Seismic's follow-up, with its title then
-   * (`project`, when it went onto another project). The conversation shows it as an action, with
-   * the card's cover. The event's author distinguishes a proposal from a follow-up.
-   */
+  
+
+
+
+
   made?: { card: string; title: string; project?: string };
-  /**
-   * An error of a session that signed in to Claude with a token (Seismic's `claude-token` or
-   * `CLAUDE_CODE_OAUTH_TOKEN`; on another machine, without one, that machine's own login), not with
-   * this machine's account: signing in again here does not renew it, a new token does.
-   */
+  
+
+
+
+
   token?: true;
 }
 
@@ -1572,41 +1572,41 @@ export function ownWords(e: Pick<CardEvent, 'text' | 'picks'>): string {
   return lead && e.text.startsWith(lead) ? e.text.slice(lead.length).trim() : e.text;
 }
 
-/** A place in a card's demo video the owner's words are about, as the worker reads it with them. */
+
 export interface Spot {
-  /** Seconds into the video. */
+  
   at: number;
-  /** The chapter playing there. */
+  
   chapter?: string;
-  /** What the narration says around there. */
+  
   narration?: string;
-  /** The frame there, taken in the browser (an image id like a screenshot's). */
+  
   still?: string;
-  /** The demo it is in, by the handover it came with (`Demo.handover`): the card's demo then, or an earlier one the owner went back to. */
+  
   demo?: number;
-  /** It is in a demo a later handover replaced. */
+  
   earlier?: true;
 }
 
-/** A place in the demo video as the browser sends it with the owner's words: Seismic adds chapter and narration. */
+
 export type SpotInput = Pick<Spot, 'at' | 'still' | 'demo'>;
 
 export interface ProjectInfo {
   id: string;
   name: string;
-  /** Names it had before (`ProjectConfig.oldNames`): an address with one of them leads to it. */
+  
   oldNames?: string[];
-  /** Its icon (`ProjectConfig.icon`); none until chosen. */
+  
   icon?: string;
-  /** The repositories on the project; the first is its home. */
+  
   repos: RepoRef[];
-  /** How many times which of its repositories do not run as the configuration has them changed: the page reads the configuration's problems again when it changes. */
+  
   configRev?: number;
-  /** The owner paused the project's agents: cards the Koordinator lets start wait in the queue until they resume them. */
+  
   paused?: true;
-  /** Its agents at work now (`pausable`) and those the owner paused or that are about to pause (`halted`), for the project switcher; absent while none is either. */
+  
   agents?: { running: number; paused: number };
-  /** The demo site its demos are shared on; absent without one. */
+  
   demoSite?: ProjectDemoSiteState;
 }
 
@@ -1615,94 +1615,94 @@ export interface RepoRef {
   name: string;
   path: string;
   branch: string;
-  /** A folder without git: cards work in it directly, with no branches, landing, pull requests, prototypes or hosts. */
+  
   folder?: true;
-  /** It has a share target: its project's demo site, initialized and deployable from this machine; without one demos are exported as a file. */
+  
   share?: boolean;
-  /** Its project's demo site needs an env file this machine lacks (relative to Seismic's home): demos are exported meanwhile. */
+  
   shareNeeds?: { site: string; file: string };
-  /** With `share`: each approved card's latest demo goes on the page by itself, unless the card opts out (the project's site publishes on approval). */
+  
   shareOnApproval?: true;
-  /** With `share`: the vocabulary of tags the project names for its site, which a card's page takes its tags from. */
+  
   shareTags?: PageTags;
-  /** With `share`: the site is unlisted. */
+  
   shareUnlisted?: true;
-  /** Without `share`: why not: the project has no demo site (`none`), or its path is not initialized yet (`init`). */
+  
   shareSite?: 'none' | 'init';
-  /** Its approved work goes out as a pull request (else it lands on the default branch of the Seismic checkout). */
+  
   pullRequests?: boolean;
-  /** Its `origin` is on a server, where others may open pull requests ("Review PR #5"). */
+  
   forge?: true;
-  /** With `pullRequests`: the owner may have approved work pushed directly onto the default branch instead (`direct` of its settings). */
+  
   direct?: boolean;
-  /**
-   * How many times what the configuration's problems of the repository are read from changed on
-   * its default branch while the project runs (its `.seismic/settings.json`, a leftover
-   * `.obeya/adapter/`): the page reads the problems again when it changes.
-   */
+  
+
+
+
+
   configRev?: number;
 }
 
-/** A repository's pool of clones, by the machine they are on, in the order new cards go there; or its slots for workers in worktrees. */
+
 export interface ClonePool {
   repo: string;
   hosts: PoolHost[];
 }
 
-/** A machine's part of a pool: its clones and the cards that hold them, and how many of their workers may be busy at once. */
+
 export interface PoolHost {
-  /** The host's name in the configuration; for the machine Seismic runs on, its own name. */
+  
   name: string;
-  /** The machine Seismic runs on. */
+  
   here?: boolean;
-  /** No workstation of the repository is on it: it stands for the repository's checkout on this machine, where its working ideas' agents are (`exploring`), with neither clones nor slots. */
+  
   checkout?: true;
-  /** Its workers work in worktrees: `total` is its slots, and `cards` those of the workers at work. */
+  
   worktrees?: boolean;
-  /** How many of its workers may be in a turn at once; a new card goes elsewhere or waits once they are. */
+  
   slots: number;
-  /** In worktrees without slots: nothing caps its workers (`slots` and `total` are 0), and the pill shows the cards in worktrees alone. */
+  
   uncapped?: true;
-  /** Its clones: how many, and the cards that hold one now. */
+  
   total: number;
   cards: string[];
-  /** The cards whose worker is in a turn there now. */
+  
   busy: string[];
-  /** The cards held there whose code review's agent is at work now (not paused for a restart), and whose worker is not in a turn: the pill counts them at work, though they hold no slot. */
+  
   reviewing?: string[];
-  /** On the machine Seismic runs on, the ideas whose exploration agent is at work on a reply: it works in the repository's checkout, so it holds neither a workstation nor a slot, but the pill shows it as a dot and counts it at work. */
+  
   exploring?: string[];
-  /** The folders (paths there) of clones Seismic made that left the pool and stay, since something in them would be lost. */
+  
   kept?: string[];
-  /** Its free clones no new card gets now, by their last look; none when every free clone can be taken. */
+  
   blocked?: BlockedClone[];
-  /** Each of its clones (free ones too), or worktrees, by path there and with the card that holds it. */
+  
   workstations: PoolWorkstation[];
 }
 
-/** A clone or worktree in the pool: its path on its machine, the card holding it (`card`, `title`). */
+
 export interface PoolWorkstation {
   path: string;
   card?: string;
-  /** The holding card's title, also for a card not on the project (in the archive, say). */
+  
   title?: string;
-  /** The project of a holding card that lies on another project than the pool's. */
+  
   project?: string;
-  /** Its card may give it up for a card waiting for one ("Give to the waiting card": its worker stops, its work is kept on its branch). */
+  
   takeable?: true;
-  /** Its card gives it up once the undo window of "Give to the waiting card" is through. */
+  
   leaving?: true;
 }
 
-/**
- * A free clone no new card gets now, and why, for the owner to put right: `dirty`, uncommitted
- * changes (the first `files`, `more` beyond them); `broken`, git fails in it (`error`); `missing`,
- * its folder is not there; `unreachable`, its machine does not answer over SSH; `failed`, git
- * failed making it ready for a card a moment ago (`error`), so it is passed over for a minute.
- * `made`: a clone Seismic made, which its next start makes again where the folder is missing.
- */
+
+
+
+
+
+
+
 export interface BlockedClone {
-  /** Its path on its machine. */
+  
   path: string;
   why: 'dirty' | 'broken' | 'missing' | 'unreachable' | 'failed';
   files?: string[];
@@ -1713,182 +1713,182 @@ export interface BlockedClone {
 
 export interface ProjectSnapshot {
   project: ProjectInfo;
-  /**
-   * The project's canvases in the owner's order; the first is the fallback after the address and the
-   * saved selection.
-   */
+  
+
+
+
   canvases: Canvas[];
   items: Item[];
-  /** The project's groups, the oldest first. */
+  
   groups: Group[];
   preferences: Preference[];
-  /** The settings the work retrospective proposes for the project's repositories, waiting for the owner; none when none waits. */
+  
   settingProposals?: SettingProposal[];
-  /**
-   * The owner's latest exchanges with the Koordinator in the current chat without an open card (those
-   * with one are in its log), and the answers that wait unread in the project's other chats.
-   */
+  
+
+
+
   talk: Talk[];
-  /** The chat the owner talks in now (`Talk.chat`); its exchanges are those the sheet shows. */
+  
   chat: number;
-  /** Model chosen for this chat; absent means the project's Seismic setting. */
+  
   chatModel?: ChatModel;
-  /** The project's chats with something said in them, the latest first. */
+  
   chats: Chat[];
-  /** The clone pools of the repositories that use clones; none when no repository does. */
+  
   workstations?: ClonePool[];
-  /** Shared pages their sites now write differently, and sharing many of them again; none when there is neither. */
+  
   reshare?: Reshare;
-  /** The plan directories the project has a note about (`PlanDir`); none when it has none. */
+  
   planDirs?: PlanDir[];
-  /** What waits for the owner on the project now ("Needs you", the inbox): the open rows of `needs_you`. */
+  
   needsYou: NeedsYou[];
-  /** The harness and model of the Koordinator's session that reads the owner's words, while one runs. */
+  
   koordinatorAgent?: AgentIdentity;
 }
 
-/**
- * A repository's plan directory, shown as a note beside the plans (or where the owner put it): the docs in it that are not
- * plans, with the reason and the card preparing each as one (`preparing`), or, while the
- * repository has no plan doc and never had a plan (`empty`), where the first one goes.
- */
+
+
+
+
+
 export interface PlanDir {
   repo: string;
-  /** As the repository's settings name it, `docs/plan`. */
+  
   dir: string;
   empty: boolean;
   others: { file: string; reason: NotAPlan; preparing?: string }[];
-  /** Where the owner put the note, its top left on the project; without it, it stands above the plans. */
+  
   at?: { x: number; y: number };
 }
 
-/**
- * Shared demo pages to bring up to date at once, from the Koordinator's sheet: how many are
- * outdated, and the run that shares them again one after the other.
- */
+
+
+
+
 export interface Reshare {
-  /** Pages that could be shared again and are not queued (after "Ausblenden", those a newer change left outdated). */
+  
   outdated: number;
-  /** Shared pages on a site with a vocabulary that lack tags in a dimension (none chosen, or a value the vocabulary no longer has), not queued. */
+  
   untagged?: number;
-  /** What sharing them again brings: each change they lack, oldest first, with how many of them lack it. */
+  
   changes?: { id: OutdatedBy; pages: number }[];
   run?: {
     total: number;
-    /** Shared again. */
+    
     done: number;
-    /** Failed, with the reason in their card's log. */
+    
     failed: { id: string; title: string }[];
-    /** Still to go, the one going out now included. */
+    
     left: number;
-    /** The card whose page goes out now. */
+    
     current?: string;
-    /** The owner stopped it: the pages not yet out stay as they were. */
+    
     stopped?: boolean;
-    /** It tags the pages without tags and shares them again ("N pages without tags"), rather than sharing outdated ones again. */
+    
     tags?: boolean;
   };
 }
 
-/** One of the owner's chats with Seismic: its exchanges, the Koordinator's memory while the owner talks in it. */
+
 export interface Chat {
   id: number;
-  /** Model chosen for this chat; absent means the project's Seismic setting. */
+  
   model?: ChatModel;
   project: string;
-  /** The owner's first words in it; none where it only holds what Seismic said by itself. */
+  
   title?: string;
-  /** When something was last said in it. */
+  
   at: string;
-  /** Answers in it the owner has not seen yet. */
+  
   unread?: number;
 }
 
-/** A chat as the list of every project's chats shows it, with its project's name. */
+
 export interface ChatElsewhere extends Chat {
   projectName: string;
 }
 
-/** One exchange between the owner and the Koordinator. */
+
 export interface Talk {
-  /** Identifies the individual optimistic send that created this exchange. */
+  
   requestId?: string;
-  /** The chat it was said in. */
+  
   chat?: number;
   replyAgent?: AgentIdentity;
   answerAgent?: AgentIdentity;
   id: number;
   at: string;
-  /** What the owner said or typed. */
+  
   said: string;
-  /** Absent while the Koordinator reads the words. */
+  
   reply?: string;
-  /** The card that was open. */
+  
   cardId?: string;
-  /** The owner took the actions back. */
+  
   undone?: boolean;
-  /** Screenshots that came with the command; they went to the cards it created or concerned. */
+  
   images?: string[];
-  /** A question the Koordinator looks up; its answer comes later. */
+  
   question?: string;
   answer?: string;
-  /** Who answered: the Koordinator, or the plan agent of the workstream asked about. */
+  
   answerBy?: 'koordinator' | 'plan';
-  /** The answer came for the sheet, and the owner has not had the sheet in view since. */
+  
   unread?: true;
-  /** A looked-up question: the thread it belongs to (the id of the exchange that started it). */
+  
   thread?: number;
-  /** A follow-up: the exchange whose answer it continues, and that one's question. */
+  
   follows?: number;
   continues?: string;
-  /** The files the answer came with, in the thread's output directory. */
+  
   files?: AnswerFile[];
-  /** The thread moved onto a Question card: that card; its answers stand there from then on. */
+  
   movedTo?: string;
-  /** Where its reply or answer, as it was written last, stands in the order words came from the Koordinator (absent on exchanges from before it was kept). */
+  
   arrived?: number;
-  /** The message of the sheet the owner's words reply to, shown above them as a quote. */
+  
   replyTo?: TalkQuote;
-  /**
-   * The reply says Seismic cannot do what the owner asked, or the owner asked to tell Seismic's makers
-   * something: what a draft for them starts from, under a link on the reply.
-   */
+  
+
+
+
   wish?: Wish;
-  /** The usage limit keeps the Koordinator from reading the words: it reads them by itself then (ISO time), the reply follows. */
+  
   heldUntil?: string;
-  /** The usage limit stopped the agent that looks the question up: it goes on by itself then (ISO time), the answer follows. */
+  
   limitedUntil?: string;
-  /** Three consecutive usage-limit refusals: paused until a known reset or a manual attempt. */
+  
   limitPaused?: true;
-  /** The harness and model of the agent looking the question up now, as far as known. */
+  
   lookUpAgent?: AgentIdentity;
-  /** Cards the Koordinator waits on, as its reply said, to take a step once each gets there (`wait_for`). */
+  
   waits?: TalkWait[];
-  /** Words of no one: the Koordinator took them up by itself, since a card it waited on got there (or no longer can). */
+  
   after?: TalkAfter;
-  /** A question looked up for an action that needs its answer: the step the Koordinator takes once the answer is in, until it has decided it. */
+  
   then?: string;
-  /** Words of no one: the Koordinator took up the step it said it would take once the answer of that exchange was in. */
+  
   answered?: number;
-  /** Words of no one: a card left this project for another, built there in a new repository. */
+  
   moved?: TalkMoved;
-  /**
-   * Written in this plan's sheet: the words went straight to its plan agent as a question
-   * (`question` is the words), so Seismic has no reply of its own to them.
-   */
+  
+
+
+
   askedIn?: string;
-  /** The cards its actions created, once they ran: the conversation shows each as an action with its cover. */
+  
   made?: TalkMade[];
 }
 
-/** A card an exchange's actions created, with its title then (`project`, when it went onto another project). */
+
 export interface TalkMade {
   card: string;
   title: string;
   project?: string;
 }
 
-/** A card that moved to another project: its id and title, and that project. */
+
 export interface TalkMoved {
   card: string;
   title: string;
@@ -1896,14 +1896,14 @@ export interface TalkMoved {
   projectName: string;
 }
 
-/** A card the Koordinator waits on: until it is done or waits for the owner. */
+
 export interface TalkWait {
   card: string;
   title: string;
   state: AwaitedState;
 }
 
-/** What became of the card the Koordinator waited on, which it took up again with: the exchange it said so in. */
+
 export interface TalkAfter {
   title: string;
   state: AwaitedState;
@@ -1911,13 +1911,13 @@ export interface TalkAfter {
   from: number;
 }
 
-/** A message of Seismic's sheet: one part of an exchange, what the owner said, the Koordinator's reply or the looked-up answer. */
+
 export interface TalkRef {
   talk: number;
   part: 'said' | 'reply' | 'answer';
 }
 
-/** A message of the sheet as a reply quotes it: who said it and what. */
+
 export interface TalkQuote extends TalkRef {
   by: 'owner' | 'koordinator' | 'plan';
   text: string;
@@ -1926,54 +1926,54 @@ export interface TalkQuote extends TalkRef {
 export const isTalkRef = (r: unknown): r is TalkRef =>
   !!r && typeof r === 'object' && Number.isInteger((r as TalkRef).talk) && ['said', 'reply', 'answer'].includes((r as TalkRef).part);
 
-/**
- * A lasting preference of the owner, learned by the Koordinator or written by the owner. A learned
- * one is a proposal until the owner accepts it; agents follow active ones only.
- */
+
+
+
+
 export interface Preference {
   id: number;
   text: string;
   state: PreferenceState;
-  /** The card whose exchange it was learned from. */
+  
   cardId?: string;
-  /** What the owner said there that it was learned from. */
+  
   quote?: string;
-  /** Proposed by the retrospective over many exchanges, not from one. */
+  
   review?: boolean;
-  /** The active rule a proposal would change. */
+  
   replaces?: number;
-  /**
-   * A repository: the rule is about it and belongs in its CLAUDE.md, not in the preference memory.
-   * Accepted, it is `filed` there through a card "Add to CLAUDE.md" and applies to no agent until it is.
-   */
+  
+
+
+
   target?: string;
 }
 
 export type PreferenceState = 'proposed' | 'active' | 'rejected' | 'filed';
 
-/** The settings of a repository the work retrospective may propose a value for, in the dialog's order: what friction on workers' runs shows missing. */
+
 export const PROPOSED_SETTINGS = ['checks', 'setup', 'softPaths', 'run'] as const;
 export type ProposedSetting = (typeof PROPOSED_SETTINGS)[number];
 
-/** A value for a setting of a repository (`RepoSettings`) that the work retrospective proposes, with the cards it rests on. */
+
 export interface SettingProposal {
   id: number;
-  /** The repository's id. */
+  
   repo: string;
   field: ProposedSetting;
-  /** A command for `setup`, the recipe for `run` (`app.run`), a list for `checks` and `softPaths`. */
+  
   value: string | string[];
-  /** One sentence for the owner: what went wrong on the cards it rests on. */
+  
   basis: string;
   cards: { id: string; title: string }[];
-  /** The setting's value as it applies now, in the snapshot. */
+  
   now?: string | string[];
 }
 
-/**
- * What became of a setting proposal: waiting, set on this machine, put into the repository's
- * `.seismic/settings.json` for everyone, or rejected.
- */
+
+
+
+
 export type SettingProposalState = 'proposed' | 'machine' | 'repository' | 'rejected';
 
 /** `value` as this machine's settings for the repository hold it (`RepoSettings`). */
@@ -1985,30 +1985,30 @@ export function settingPatch(field: ProposedSetting, value: string | string[] | 
 export interface NewCard {
   title: string;
   body?: string;
-  /** Where it goes; left out for a follow-up, which goes below the card it comes from, and otherwise where there is room. */
+  
   x?: number;
   y?: number;
-  /** A repository of the project; its home repository when left out (a follow-up's: that of its card). */
+  
   repo?: string;
-  /** An idea to discuss before anything is planned. */
+  
   idea?: boolean;
-  /** The card this one follows up on, e.g. for a finding of its demo. */
+  
   from?: string;
-  /** Screenshots for the task (ids from `POST /api/c/<project>/images`). */
+  
   images?: string[];
-  /** The canvas it goes on (a `Canvas` id); a follow-up's is its card's, else the project's `main`. */
+  
   canvas?: string;
-  /** An existing group on that canvas. A follow-up inherits its card's group. */
+  
   group?: string;
 }
 
-/**
- * A repository to be created for a card: its folder (absolute or from `~`; empty while the owner has
- * not named one yet) and whether it gets a project of its own, which the card moves to, or joins the
- * card's project. `by`: who chose it; what the owner chose, the idea's agent does not change.
- * `due`: building or starting the card was clicked, and Seismic creates the repository then (ISO),
- * unless the owner takes it back meanwhile (`NEW_REPO_HOLD_MS`).
- */
+
+
+
+
+
+
+
 export interface NewRepo {
   path: string;
   project: boolean;
@@ -2016,13 +2016,13 @@ export interface NewRepo {
   due?: string;
 }
 
-/** How long building a card in a new repository waits for the owner to take it back. */
+
 export const NEW_REPO_HOLD_MS = 8000;
 
 /** The name a new repository's folder gives it (and its project): the last part of its path. */
 export const newRepoName = (path: string) => path.trim().replace(/[/\\]+$/, '').split(/[/\\]/).at(-1) ?? '';
 
-/** A card on another project, as a card that refers to it shows it. */
+
 export interface Elsewhere {
   project: string;
   projectName: string;
@@ -2036,448 +2036,448 @@ export interface CardPatch {
   body?: string;
   state?: CardState;
   need?: Need | null;
-  /** Another repository of the project, before work on the card has begun. */
+  
   repo?: string;
-  /** A plan: folded to its head, its workstreams not shown on the project, or unfolded again. */
+  
   collapsed?: boolean;
-  /** The task's screenshots, all of them (ids from `POST /api/c/<project>/images`). */
+  
   images?: string[];
-  /** Before work begins: a repository to create for the card (`by` is the owner's), or none (null). */
+  
   newRepo?: Pick<NewRepo, 'path' | 'project'> | null;
-  /** The card's priority, or none (null); the owner's, as is each label set here: its suggested mark goes. */
+  
   priority?: Priority | null;
-  /** The card's category, or none (null). */
+  
   category?: Category | null;
-  /** The card's sub-category, or none (null). */
+  
   subcategory?: Subcategory | null;
-  /** The card's complexity, or none (null). */
+  
   complexity?: Complexity | null;
 }
 
-/** Owner actions on a card's work, posted to `/api/c/:project/cards/:id/act`. */
+
 export type CardAction =
-  /** On a plan: all its planned workstreams go to the Koordinator, which orders them. */
+  
   | { action: 'start'; agent?: AgentSetting }
-  /** A card the owner closed without a title (`nameless`): Seismic names it from its text. */
+  
   | { action: 'name' }
   | { action: 'stop' }
-  /**
-   * The agent stops at once and goes on later where it stopped (`resume`, or the owner's next words
-   * to it); `safePoint`: it first brings its work to a safe point and ends its turn, then stops.
-   */
+  
+
+
+
   | { action: 'pause'; safePoint?: true }
   | { action: 'resume' }
-  /**
-   * Set aside until `until` (ISO): a card at work stops until then as on a pause, one waiting for the
-   * owner leaves them until then. On a snoozed card, it changes the time.
-   */
+  
+
+
+
   | { action: 'snooze'; until: string }
-  /** A snoozed card wakes now; a snoozed planned card starts now. */
+  
   | { action: 'wake' }
-  /** When a proposal starts once accepted (ISO), or `null`: at once. */
+  
   | { action: 'startAt'; at: string | null }
-  /** `images`: ids of screenshots uploaded before (`POST /api/c/<project>/images`); with them the text may be empty. */
-  /** `spoken`: the words came through speech recognition, which the agent is told. */
-  /** `replyTo`: the message of the card's conversation the words reply to (`CardEvent.replyTo`). */
-  /** `spot`: the place in the card's demo video the words are about. */
-  /** `findings`: on a review card or a card with a code review, what the owner decided for its findings, by their numbers; with them the text may be empty. */
+  
+  
+  
+  
+  
   | { action: 'message'; text: string; spoken?: boolean; images?: string[]; replyTo?: number; spot?: SpotInput; findings?: Record<string, FindingPick>; findingNotes?: Record<string, string>; newAgent?: AgentSetting }
-  /** `picks`: the options of the question the owner picked; with them the text, their own words, may be empty. */
+  
   | { action: 'answer'; text: string; spoken?: boolean; images?: string[]; replyTo?: number; picks?: string[]; spot?: SpotInput }
-  /**
-   * The owner has finished watching the demo video: the comments on places in it that Seismic held back
-   * go to the worker. `now`: they sent them themselves ("Jetzt senden"), so they go without a moment's wait.
-   */
+  
+
+
+
   | { action: 'release'; now?: boolean }
-  /** Deletes a comment on a place in the demo video that Seismic still holds back (`Item.held`). */
+  
   | { action: 'unsay'; id: number }
-  /**
-   * A review card whose PR collides with unpushed commits on the local main: main is pushed, once
-   * the undo window (PUSH_HOLD_MS) is through, and the card's agent brings the PR up to date with it;
-   * `keepMain` takes it back within the window.
-   */
+  
+
+
+
+
   | { action: 'pushMain' }
-  /**
-   * The Seismic checkout's uncommitted changes that keep the card from landing (`Item.blocked`) go
-   * into its branch, and its worker works them in; `land`: its next handover lands without a new
-   * demo, else it brings a new one for approval.
-   */
+  
+
+
+
+
   | { action: 'fold'; land: boolean }
   | { action: 'keepMain' }
-  /** A review card whose worker's own changes are held (`HeldChanges`): Seismic pushes them and posts their text, without merging ("Push only"). */
+  
   | { action: 'pushChanges' }
-  /** The same card: the owner's own wording of the text that goes onto the PR with the approval, in place of the held one. */
+  
   | { action: 'editHeld'; body: string }
-  /** `direct`: onto the default branch at once, without a pull request, where the repository allows it (`RepoRef.direct`). */
+  
   | { action: 'approve'; direct?: boolean }
-  /** A card waiting for approval whose project reviews work on the owner's word ("Start code review"): a review of its latest handover starts. */
+  
   | { action: 'codeReview'; agent?: AgentSetting }
   | { action: 'stopCodeReview' }
-  /** The card's code review stopped on its model's usage limit: the work waits for approval without it, and "Start code review" can start one later. */
+  
   | { action: 'skipCodeReview' }
-  /** The card's worker stopped on its model's usage limit: a worker with `agent` takes the card over ("Select new agent"). */
+  
   | { action: 'handOff'; agent: AgentSetting }
-  /** The owner reopens an item of the card's code review that is closed or fixed. */
+  
   | { action: 'reopenReviewItem'; number: number }
-  /** In a folder without git, on a card waiting for approval: what it changed there is put back as it was before ("Discard changes"). */
+  
   | { action: 'undo' }
-  /** Start a queued card although it may collide. */
+  
   | { action: 'force'; agent?: AgentSetting }
-  /**
-   * The Workstations list: the card's clone goes to the cards waiting for one, after the undo window
-   * (EVICT_HOLD_MS); its worker stops, its uncommitted work is kept on its branch, and it goes on
-   * there once it has a workstation again. `keepWorkstation` takes it back within the window.
-   */
+  
+
+
+
+
   | { action: 'takeWorkstation' }
   | { action: 'keepWorkstation' }
-  /** On a plan: takes back a start of all its workstreams while the Koordinator has not planned them yet. */
+  
   | { action: 'dequeue' }
-  /**
-   * On a plan: its workstreams in columns by what builds on what, which the Koordinator reads
-   * from the plan doc unless it has for the doc as it stands. Answers once they stand there.
-   */
+  
+
+
+
   | { action: 'arrange' }
-  /** A waiting card `places` places (1 if left out) earlier or later in the queue, past cards it has no wait with. */
+  
   | { action: 'reorder'; earlier: boolean; places?: number }
-  /**
-   * A proposal becomes the owner's card and starts (a proposed idea: its discussion opens); with
-   * `start: false` it is only planned. `idea`: a proposed task becomes an idea to discuss first.
-   * `picks`: the options the owner chose for each of its questions. While the proposal is reworked,
-   * it is accepted and started once the new text is there, unless that asks questions.
-   */
+  
+
+
+
+
+
   | { action: 'accept'; start?: boolean; idea?: boolean; picks?: string[][]; agent?: AgentSetting }
-  /** A proposal: accepting it after its revision is taken back. */
+  
   | { action: 'unaccept' }
-  /** Merge an unworked card with a partner in any state, for the owner to approve. */
+  
   | { action: 'merge'; with: string }
-  /** Dismiss Seismic's possible-duplicate suggestion for this version of the task. */
+  
   | { action: 'dismissDuplicate' }
-  /** Approve a comparison: dissolve the left card, combine unworked tasks or preserve the survivor. */
+  
   | { action: 'approveMerge' }
-  /** Separate a merge: restore both original cards. */
+  
   | { action: 'separate' }
-  /** A proposal, or a card whose agent withdrew or replaced it since (`Item.superseded`): it goes, its worker stopped. */
+  
   | { action: 'dismiss' }
-  /** A card whose agent withdrew or replaced it since: the owner keeps it, and the mark goes. */
+  
   | { action: 'keep' }
-  /** A proposal: an agent reworks its text, reason and questions by what the owner said (`text`) and showed (`images`). */
+  
   | { action: 'revise'; text: string; spoken?: boolean; images?: string[]; replyTo?: number }
-  /** Ideas: talk to the exploration agent; `spoken` gets a short spoken summary back. */
+  
   | { action: 'discuss'; text: string; spoken?: boolean; images?: string[]; replyTo?: number }
-  /**
-   * Ideas: the brief becomes the card's task and the card is planned. While the agent works on a
-   * reply, the idea is built once the reply is there, unless it asks questions.
-   */
+  
+
+
+
   | { action: 'build'; agent?: AgentSetting }
-  /** Ideas: building after the reply is taken back. */
+  
   | { action: 'unbuild' }
-  /**
-   * A task or an idea whose start or building waits to create its new repository (`NewRepo.due`):
-   * that is taken back, and the card stays as it was.
-   */
+  
+
+
+
   | { action: 'stayHere' }
-  /**
-   * Ideas: the part its agent marked as settled becomes a task of its own beside the idea, started at
-   * once; the idea stays open with its conversation, its agent and its prototypes.
-   */
+  
+
+
+
   | { action: 'splitOff' }
-  /** Ideas, and planned tasks of the owner's nobody has worked on: a planned card whose worker writes a plan doc from the brief or the task. */
+  
   | { action: 'planDoc' }
-  /** Ideas: parked, kept with the brief. Planned or stopped tasks: moved into the parking lot, off the canvas. */
+  
   | { action: 'park' }
-  /** A task in the parking lot goes back to its place on the canvas. */
+  
   | { action: 'unpark' }
   | { action: 'drop' }
-  /**
-   * Ideas: a worker builds a throwaway prototype and shows it as a demo on the idea; several may run
-   * side by side. One per planned variant named in `variants` (by approach), and one for `text`.
-   * Neither: one per planned variant without a prototype on the project, or, without any planned,
-   * the idea as it stands.
-   */
+  
+
+
+
+
+
   | { action: 'prototype'; text?: string; variants?: string[] }
-  /**
-   * Prototypes: the idea is built on this prototype's branch; the idea's other prototypes are
-   * discarded. Once the idea has become a plan, one of its workstreams is built on it instead:
-   * `workstream`, or else the one the plan doc builds on the prototypes with.
-   */
+  
+
+
+
+
   | { action: 'buildPrototype'; workstream?: string }
-  /** Prototypes: thrown away, into the archive with log, demo and summary. */
+  
   | { action: 'discard' }
-  /**
-   * A demo is published for colleagues right away: the one with handover `demo` (the latest
-   * without), on the card's page in place of the versions there, or beside them (`add`).
-   */
+  
+
+
+
   | { action: 'share'; demo?: number; add?: boolean }
-  /** Takes the demo with handover `demo` off the page, the page down with its last one; without `demo`, the whole page. */
+  
   | { action: 'unshare'; demo?: number }
-  /** "Share on approval", where the repository's site publishes on approval: whether approving the card shares its latest demo. */
-  /** The owner sets the values of one dimension of the page's tags by hand; a shared page goes out again at once. */
+  
+  
   | { action: 'pageTags'; dimension: string; values: string[] }
-  /** Question cards: the owner's words to the agent that looked the answers up. */
+  
   | { action: 'ask'; text: string; spoken?: boolean; images?: string[]; replyTo?: number }
-  /** Question cards: the thread becomes an idea, whose exploration agent starts from it. */
+  
   | { action: 'asIdea' }
-  /** Plans: the owner's words in the plan's sheet, straight to its plan agent, maybe replying to a message there. */
+  
   | { action: 'consult'; text: string; spoken?: boolean; images?: string[]; replyTo?: TalkRef };
 
-/**
- * Why the server refused a request. The server sends the code and an English detail
- * (`{ code, error }`, status 400); the UI shows its own text for the code.
- */
+
+
+
+
 export type ErrorCode =
   | 'unknownCard'
-  /** Pairing a device while other devices do not reach Seismic. */
+  
   | 'notReachable'
-  /** From another device that is not paired (status 401). */
+  
   | 'notPaired'
   | 'notOwner'
-  /** Managing who reaches Seismic, from another device (status 403). */
+  
   | 'onlyHere'
-  /** Turning push on at the machine Seismic runs on, which gets none (status 403). */
+  
   | 'onlyDevices'
-  /** A group that no card belongs to any more, so it is gone. */
+  
   | 'unknownGroup'
   | 'unknownCanvas'
-  /** Deleting a canvas that still has cards, or `main`. */
+  
   | 'canvasInUse'
   | 'canvasCardCountsChanged'
   | 'plan'
-  /** An arrow between cards that would make them wait for each other, directly or through other cards. */
+  
   | 'dependencyCycle'
-  /** An arrow to or from a plan or one of its workstreams, whose order comes from the plan doc. */
+  
   | 'planDependency'
-  /** An action that needs the card's agents while its repository does not run on the project (`Item.repoDown`). */
+  
   | 'repoDown'
   | 'notPlanned'
   | 'queued'
   | 'notQueued'
-  /** Moving a card in the queue: it is first or last already, or the card it would pass has a wait with it or is being judged. */
+  
   | 'notMovable'
   | 'notPlannable'
   | 'noAgent'
-  /** Resuming an agent the owner has not paused. */
+  
   | 'notPaused'
-  /** Handing off an agent that no usage limit stopped. */
+  
   | 'notLimited'
-  /** Snoozing a card that is neither at work nor waiting for the owner. */
+  
   | 'notSnoozable'
-  /** Waking a card that is not snoozed. */
+  
   | 'notSnoozed'
-  /** A time to snooze until that has passed, or lies more than a year ahead. */
+  
   | 'snoozeTime'
   | 'noQuestion'
   | 'notReady'
-  /** A review card's action on a card that reviews no pull request. */
+  
   | 'notReview'
-  /** "Change it myself" on a review card whose contributor does not allow maintainers' edits, or a decision on a finding it does not have open. */
+  
   | 'noEdits'
   | 'noFinding'
-  /** Approving a review card: its PR moved since the handover, was closed, or the forge refused the merge (the detail says why). */
+  
   | 'prMoved'
-  /** "Push main" on a review card whose PR collides with nothing unpushed (any more), or taking back a push that is not waiting. */
+  
   | 'noClash'
-  /** "Merge" on a review card whose PR collides with unpushed commits on the local main, which the card had not shown yet: it shows them now. */
+  
   | 'pullClash'
   | 'prClosed'
   | 'mergeRefused'
-  /** Approving a review card: the worker's own commits could not go onto the PR's branch (the detail says why). */
+  
   | 'pushRefused'
-  /** "Review PR #5": no such pull request, or none Seismic can read. */
+  
   | 'noPr'
-  /** Deleting a comment on the demo video: it is no longer held back, the worker has it. */
+  
   | 'notHeld'
-  /** Approving directly onto main: the card's repository lands approved work only through a pull request. */
+  
   | 'noDirect'
-  /** What only a folder without git has (discarding a card's changes), or what it has not (prototypes, pull requests). */
+  
   | 'notFolder'
   | 'inFolder'
   | 'notProposal'
   | 'notSuperseded'
   | 'revising'
-  /** Changing a proposal or the card it is merged with while they are merged, or approving a merge whose text is not there yet. */
+  
   | 'merging'
-  /** Either card is unavailable for this merge, or its dissolving side has already been worked on. */
+  
   | 'notMergeable'
-  /** The comparison no longer matches the cards the owner would approve. */
+  
   | 'mergeChanged'
   | 'planCard'
   | 'noWorkstation'
   | 'dirtyWorkstations'
-  /** Taking a card's workstation from it: it holds no clone that may be taken (worktrees, its work landed, a prototype's), or one is being taken already. */
+  
   | 'notEvictable'
-  /** Starting a card while its workstation is being given to another. */
+  
   | 'evicting'
-  /** Changing a card's new repository, or starting it, while Seismic is about to make it (`NewRepo.due`). */
+  
   | 'newRepoDue'
-  /** Building or starting a card in a new repository that has no folder named. */
+  
   | 'newRepoPath'
-  /** The undo window of a new repository is over: it is being made. */
+  
   | 'newRepoGone'
-  /** Every machine with a clean free clone has as many workers busy as it has slots. */
+  
   | 'noSlot'
   | 'workstation'
   | 'emptyText'
-  /** The cloud service for voice in failed or refused the check's sentence (the detail says what it said). */
+  
   | 'voiceCloud'
   | 'unknownPreference'
   | 'unknownSetting'
-  /** An uploaded screenshot is no image the agents read, or too large. */
+  
   | 'imageType'
   | 'imageTooLarge'
-  /** A dropped file is larger than Seismic keeps. */
+  
   | 'fileTooLarge'
-  /** Only a finished card of the owner's (or a stopped task, a parked or dropped idea) goes into the archive. */
+  
   | 'notDone'
-  /** A stopped card whose workstation holds work stays on the project. */
+  
   | 'holdsWork'
   | 'notArchived'
   | 'notParkable'
   | 'notIdea'
-  /** Merging or deleting by the Koordinator: the card is no planned task nobody has worked on (any more). */
+  
   | 'notUntouched'
-  /** Merging tasks of different repositories. */
+  
   | 'otherRepos'
-  /** The card holds no thread of looked-up answers (it is no Question card). */
+  
   | 'notQuestion'
-  /** A looked-up answer's file that is not in its thread's output directory. */
+  
   | 'noFile'
-  /** The idea's agent is still working on its reply: building or planning waits for it. */
+  
   | 'ideaThinking'
   | 'noSplit'
-  /** A prototype for the idea is still running. */
+  
   | 'prototypeRunning'
-  /** The prototype's idea is becoming a plan: its plan doc is not there yet. */
+  
   | 'planPending'
-  /** The prototype's idea is gone from the project, and no plan of it is there. */
+  
   | 'ideaGone'
-  /** The prototype's idea became a plan whose plan doc does not say which workstream builds on it, and none was chosen. */
+  
   | 'workstreamMissing'
-  /** The workstream to build on a prototype was started already. */
+  
   | 'workstreamStarted'
-  /** Every variant the idea's agent planned has its prototype on the project already. */
+  
   | 'variantsRunning'
-  /** A plan has no planned workstream left that is not already with the Koordinator. */
+  
   | 'nothingToStart'
-  /** The Koordinator could not read from a plan's plan doc which workstream builds on which, so it arranged nothing. */
+  
   | 'arrangeFailed'
-  /** The action is for a prototype on the project, and the card is none. */
+  
   | 'notPrototype'
-  /** A discarded or built prototype stays in the archive; a new attempt is a new prototype. */
+  
   | 'prototypeEnded'
-  /** Sharing: the card has no demo, or its repository shares none. */
+  
   | 'noShare'
-  /** Sharing: the page is being published or withdrawn right now. */
+  
   | 'shareBusy'
-  /** Sharing: the demo is not shared. */
+  
   | 'notShared'
-  /** Sharing many pages again: a run is under way already. */
+  
   | 'reshareBusy'
-  /** Setup: the folder for the first project is no git repository. */
+  
   | 'notRepo'
-  /** Setup: the folder a clone would go to exists already. */
+  
   | 'cloneTarget'
-  /** Setting up git in a folder: git has no name and e-mail for the first commit. */
+  
   | 'noIdentity'
-  /** Setting up git in a folder failed; it is as it was. */
+  
   | 'gitSetup'
-  /** Setup: an installation or a clone is running already. */
+  
   | 'setupBusy'
-  /** Sharing many pages again: no page is outdated. */
+  
   | 'nothingOutdated'
-  /** "Take over into the repository for everyone": this machine sets nothing to take over. */
+  
   | 'noSettings'
-  /** `/api/v1/settings`, `/api/v1/configuration`: this Seismic runs without a configuration (and settings) of its own. */
+  
   | 'noConfiguration'
-  /** `/api/v1/settings/:settingName` names no setting. */
+  
   | 'settingNotFound'
-  /** "Take over into the repository for everyone": the checkout on the main branch has changes of its own in `.seismic/settings.json`. */
+  
   | 'settingsDirty'
-  /** The commands to confirm changed on the default branch since the dialog showed them. */
+  
   | 'trustChanged'
-  /** "Take over into the repository for everyone": the commit, the push or the pull request failed; why comes with it. */
+  
   | 'settingsShare'
-  /** Export: the video is too large for one HTML file. */
+  
   | 'exportTooLarge'
-  /** Export: the HTML artifact loads files beside its page, so it does not fit one HTML file. */
+  
   | 'exportNotAlone'
-  /** Approval could not land the work on main. */
+  
   | 'landDirty'
   | 'landConflict'
   | 'landEmpty'
   | 'landCheckout'
   | 'landMerge'
-  /** As `landMerge`, where neither Seismic nor git's refusal names the checkout's files in the way: nothing to offer folding in. */
+  
   | 'landLocal'
-  /** Pushing approved work directly onto `origin`'s default branch was turned away (a protected branch, say). */
+  
   | 'landPush'
   | 'land'
-  /** A configuration with problems; they come with it. */
+  
   | 'config'
-  /** A voice's sample could not be made; why comes with it. */
+  
   | 'voiceSample'
-  /** A voice is being installed already. */
+  
   | 'voiceInstalling'
-  /** Malformed input: a bug in the UI rather than something the owner can fix. */
+  
   | 'invalid';
 
-/** A repository on a project, as Seismic's configuration lists it (`projects.json`). */
+
 export interface RepoConfig {
   path: string;
-  /**
-   * `false`: a folder without git that is to stay one (a document archive, say): every card works in
-   * the folder itself, nothing lands, and each card lists what it changed.
-   */
+  
+
+
+
   git?: false;
-  /** Clones to register as workstations (adapters that use clones). */
+  
   workstations?: string[];
-  /** Clones to create under Seismic's home (adapters that use clones). */
+  
   clones?: number;
-  /** How many of its workers may be busy at once on this machine; left out, as many as it has clones, or any number in worktrees. */
+  
   slots?: number;
-  /**
-   * Other machines its workers run on, reached over SSH, in the order a new card
-   * looks for a free slot after this one. Only for a repository whose workers use clones and whose work goes out through its
-   * remote.
-   */
+  
+
+
+
+
   hosts?: HostConfig[];
-  /** The settings the owner set for this machine in the configuration dialog; each goes before the repository's `.seismic/settings.json`. */
+  
   settings?: RepoSettings;
 }
 
-/** How the repository's app runs (`app` of its settings): the recipe the workers read, and the two commands Seismic runs itself. */
+
 export interface AppSettings {
-  /**
-   * How to run the app, in prose for a new colleague: how to start it, what to do after which kind
-   * of change, where it gives its address, the login and test data for a demo. Every worker's brief
-   * has it; empty, each worker finds it out from the repository.
-   */
+  
+
+
+
+
   run?: string;
-  /**
-   * Stops the app in a workstation, and does nothing where none runs. Seismic runs it there when the
-   * card waits for the owner and its worker has nothing running (Parking), and tells the worker with
-   * its next message.
-   */
+  
+
+
+
+
   stop?: string;
-  /** Exits 0 when the workstation's app holds what must not be lost (a restored database, say): Seismic then leaves it running. */
+  
   keep?: string;
 }
 
-/** A demo site being set up at a host, as the configuration follows it: its last lines, and how it ended. */
+
 export interface SiteSetupJob {
-  /** Which setup it is: a tab follows only the one it started. */
+  
   id: string;
-  /** The host Seismic sets it up at; none for a site entered by hand. */
+  
   host?: 'cloudflare' | 'github';
   running: boolean;
   lines: string[];
   error?: string;
-  /** The host the dialog offers where this one refused (GitHub Pages from a private repository without Pro). */
+  
   offer?: 'cloudflare';
-  /** The site once it is added (its URL). */
+  
   site?: string;
 }
 
-/** A proposal for the tags of a project's demo site, as the configuration follows it: running, then the tags and why, or the error. */
+
 export interface TagProposalJob {
   running: boolean;
   tags?: PageTags;
@@ -2485,236 +2485,236 @@ export interface TagProposalJob {
   error?: string;
 }
 
-/**
- * A demo site this machine publishes to (`demo-sites.json` in Seismic's home): where it is served and
- * how it is deployed. A project chooses one and a path on it (`ProjectDemoSite`).
- */
+
+
+
+
 export interface DemoSiteEntry {
-  /** Where the site is served, without a trailing slash: a project's pages lie at `url/<path>/<slug>/`. */
+  
   url: string;
-  /** The command line that deploys the site's directory; `{dir}` stands for it. */
+  
   deploy: string;
-  /** A file of `KEY=value` lines, relative to Seismic's home, added to the deploy's environment (credentials). */
+  
   env?: string;
-  /** Headers for reading the live site's manifest and pages (behind a login), values `${KEY}` from `env`. */
+  
   headers?: Record<string, string>;
-  /** The largest file the host takes, in bytes; 25 MiB without it. */
+  
   maxFile?: number;
-  /** The host Seismic set it up at, and its project there; none for a site entered by hand. */
+  
   host?: 'cloudflare' | 'github';
   project?: string;
-  /** An unlisted site's directory the manifest is in: only the owner's machines know it. Without it the site is listed. */
+  
   secret?: string;
-  /** A site in a folder of a GitHub repository the owner has (`project`), published by commits to it. */
+  
   git?: GitFolder;
 }
 
-/**
- * A demo site in a folder of an existing GitHub repository: the branch Pages serves the folder from
- * (the default branch), the folder, and how a change goes in: `direct`, pushed to the branch, or
- * `pr`, collected in one rolling pull request until it is merged.
- */
+
+
+
+
+
 export interface GitFolder {
   branch: string;
   folder: string;
   mode: 'direct' | 'pr';
 }
 
-/** A GitHub repository gh's login can push to, as the setup's list shows it. */
+
 export interface GithubRepo {
-  /** `owner/name`. */
+  
   repo: string;
   owner: string;
   private: boolean;
 }
 
-/** The repositories gh's login can push to: the login first, then its organizations, each with its repositories. */
+
 export interface GithubRepoList {
   login: string;
   repos: GithubRepo[];
 }
 
-/** Whether a push straight to the default branch goes through, and where at GitHub it is allowed where it does not. */
+
 export interface PushCheck {
-  /** A push to the branch goes through. */
+  
   allowed: boolean;
-  /** The login is an admin of the repository: it may change the rules itself. */
+  
   admin: boolean;
-  /** Where to allow it: the blocking ruleset's page, else the branch protection's. */
+  
   settings?: string;
 }
 
-/** An existing repository as the setup reads it for a folder: its Pages, the folder's address there, the push check, its size. */
+
 export interface GithubRepoView {
   repo: string;
   private: boolean;
   branch: string;
-  /** The repository's size, in bytes. */
+  
   size: number;
-  /** Its Pages as GitHub has them; null while Pages is off (Initialize turns it on, from the default branch's root). */
+  
   pages: { url: string; branch?: string; path?: string; workflow: boolean } | null;
-  /** Where the folder's demos are served; null where the folder lies outside what Pages serves. */
+  
   address: string | null;
-  /** Why the folder lies outside what Pages serves, in the owner's words. */
+  
   outside?: string;
   push: PushCheck;
 }
 
-/** The demo sites of this machine, as Configuration → Demos lists them. */
+
 export interface DemoSitesView {
   sites: {
     url: string;
     host?: 'cloudflare' | 'github';
     project?: string;
     deploy: string;
-    /** Listed: an overview and a feed per project; unlisted: a random part in each page's address and nothing else. */
+    
     listed: boolean;
-    /** The env file with its credentials this machine lacks, relative to Seismic's home. */
+    
     needs?: string;
-    /** The paths projects have initialized on it ('' for its root), as this machine last saw it. */
+    
     paths: string[];
-    /** A site in a folder of an existing GitHub repository. */
+    
     git?: GitFolder;
   }[];
-  /** The site being added, as far as it got. */
+  
   job?: SiteSetupJob;
-  /** The sites this machine deploys to on Cloudflare, each of another account: a new site may go into one of them. */
+  
   cloudflareAccounts: string[];
 }
 
-/** The demo site a project shares its demos on: one of this machine's (`url`), and where on it. */
+
 export interface ProjectDemoSite {
-  /** The site, as this machine's list has it. */
+  
   url: string;
-  /** Where the project's overview and pages lie on the site (`billing`, `team/billing`); its root where left out. */
+  
   path?: string;
-  /**
-   * When a demo goes on the site: `approved`, the card's latest demo as the owner approves its work
-   * (before it lands); without it, only when the owner clicks "Share".
-   */
+  
+
+
+
   publish?: 'approved';
-  /** The vocabulary the project's pages are tagged from: each dimension with its values, in the order the overview shows them. */
+  
   tags?: PageTags;
 }
 
-/** A project's demo site as the page shows it: chosen, initialized, and the initialization under way or failed. */
+
 export interface ProjectDemoSiteState {
   url: string;
   path: string;
-  /** The project's path is initialized on the site: its demos share there. */
+  
   ready: boolean;
-  /** "Initialize": running ("Creating demo site"), or why it failed. */
+  
   init?: { running: boolean; error?: string };
 }
 
-/**
- * A static site the demos are shared on, as a project uses it: a site of this machine's list
- * (`DemoSiteEntry`) with what the project adds. Seismic keeps its directory (one subdirectory per page,
- * and the overviews), writes the pages with its own templates and runs the deploy command after each
- * change.
- */
+
+
+
+
+
+
 export interface DemoSite {
-  /** The overview's heading, and the pages' tab titles. */
+  
   title: string;
-  /** Where the site is served; a page's URL is `url/<slug>/`. */
+  
   url: string;
-  /** The command line that deploys the site, run in the repository; `{dir}` stands for the site's directory. */
+  
   deploy: string;
-  /**
-   * A file of `KEY=value` lines, relative to Seismic's home, added to the deploy's environment
-   * (credentials, never in git). A machine without it exports demos instead of sharing them.
-   */
+  
+
+
+
   env?: string;
-  /** Headers for reading the live site's manifest and pages (behind a login), values `${KEY}` from `env`. */
+  
   headers?: Record<string, string>;
-  /** The largest file the host takes, in bytes; 25 MiB without it. */
+  
   maxFile?: number;
-  /**
-   * When a demo goes on the site: `approved`, the card's latest demo as the owner approves its work
-   * (before it lands); without it, only when the owner clicks "Teilen".
-   */
+  
+
+
+
   publish?: 'approved';
-  /**
-   * The vocabulary pages are tagged from: each dimension with its values, in the order the overview
-   * shows them. Workers and Seismic's reading session choose from it and add nothing to it.
-   */
+  
+
+
+
   tags?: PageTags;
-  /** A site in a folder of an existing GitHub repository (`DemoSiteEntry.git`). */
+  
   git?: GitFolder;
 }
 
-/**
- * What Seismic needs to know about how a repository works, and its main branch, as the owner sets
- * them in the configuration dialog for this machine. Read where they
- * are used: saving them restarts nothing, but for `workstations`, which restarts the repository's agents.
- */
+
+
+
+
+
 export interface RepoSettings {
-  /** Its main branch, where cards start from and work lands; detected where left out (`defaultBranch`). */
+  
   branch?: string;
-  /**
-   * How approved work lands: `main` fast-forwards the checkout Seismic runs on to the worker's
-   * branch (created clones then come from that checkout); `pr` leaves the branch for a pull
-   * request (M5) and clones come from `origin`.
-   */
+  
+
+
+
+
   land?: 'main' | 'pr';
-  /**
-   * With `land: 'pr'`: the owner may approve a card's work directly onto the default branch
-   * instead, without a pull request. Seismic rebases it onto `origin`'s default branch and pushes it
-   * there (never forced); review and the CI of a pull request are skipped.
-   */
+  
+
+
+
+
   direct?: boolean;
-  /**
-   * With `land: 'pr'`: Seismic merges a pull request itself once nothing is left for the worker
-   * (checks green, threads resolved, reviewers answered). `false` leaves the merge to the people
-   * on the forge: the card then waits for the owner, ready to merge. Default: `true`.
-   */
+  
+
+
+
+
   autoMerge?: boolean;
-  /** Checks a worker runs before it reports the card ready for review. */
+  
   checks?: string[];
-  /** Command a worker runs first in a fresh clone (dependencies). */
+  
   setup?: string;
-  /** Where plan docs live, relative to the repository root. */
+  
   planDocs?: { dir: string; exclude: string[] };
-  /**
-   * Paths (a trailing `/` covers a directory) whose edits never count as a merge conflict between
-   * two cards: they are resolved when a branch is rebased (docs, plan docs).
-   */
+  
+
+
+
   softPaths?: string[];
-  /** Workers get full clones from a pool, or a worktree of the Seismic checkout per card. */
+  
   workstations?: 'clones' | 'worktrees';
-  /** Accounts whose pull request comments are not review feedback (deploy bots and the like). */
+  
   prNoise?: string[];
-  /**
-   * The language of what lands in the repository and lasts (code, comments, commit messages, docs,
-   * plan docs, CLAUDE.md), whatever language the owner talks to its agents in; English where left out.
-   */
+  
+
+
+
   language?: Language;
-  /** How the app runs: the recipe in every worker's brief, and how Seismic stops it while a card waits (Parking). */
+  
   app?: AppSettings;
-  /**
-   * `site`: the static site Seismic keeps and deploys itself to share demos on (`src/server/site.ts`);
-   * without one, "Teilen" exports a demo as a file. `language`: the language of the repository's
-   * demos (narration, captions, report, shared pages) and of its site's overview, over the one of
-   * the demo settings (`demo.json`), which applies without it. `artifacts`: what a handover on this
-   * repository may bring (`HANDOVER_ARTIFACTS`), over the demo settings' list, which applies without it.
-   */
+  
+
+
+
+
+
+
   demo?: { language?: NarrationLanguage; artifacts?: HandoverArtifact[] };
 }
 
-/**
- * A repository's settings for everyone who runs Seismic on it, in `.seismic/settings.json` as its
- * default branch has it: those for this machine but the main branch,
- * which says where the file is read from.
- */
+
+
+
+
+
 export type SharedSettings = Omit<RepoSettings, 'branch'>;
 
-/** How a card's own branch says its work lands, where it changes the repository's settings for that. */
+
 export type CardLanding = Partial<Pick<RepoSettings, 'land' | 'direct'>>;
 
-/** The fields of `SharedSettings`, in the dialog's order. */
+
 export const SHARED_FIELDS = ['land', 'direct', 'autoMerge', 'checks', 'setup', 'planDocs', 'softPaths', 'workstations', 'prNoise', 'language', 'app', 'demo'] as const satisfies readonly (keyof SharedSettings)[];
 
-/** The settings made of fields that are each set, layered and taken over on their own, and their fields. */
+
 export const NESTED_SETTINGS = { app: ['run', 'stop', 'keep'], demo: ['language', 'artifacts'] } as const satisfies { [K in keyof RepoSettings]?: readonly (keyof NonNullable<RepoSettings[K]>)[] };
 export type NestedSetting = keyof typeof NESTED_SETTINGS;
 export const isNested = (field: string): field is NestedSetting => field in NESTED_SETTINGS;
@@ -2728,39 +2728,39 @@ export function layerSettings<T extends RepoSettings>(under: T | undefined, over
   return out as T;
 }
 
-/**
- * Where a repository's setting comes from where this machine sets none, highest first: the
- * repository's `.seismic/settings.json`, the clones the configuration names (`workstations` only),
- * detection (main branch, landing), Seismic's default.
- */
+
+
+
+
+
 export type SettingSource = 'repository' | 'clones' | 'detected' | 'default';
 
-/** A setting's value without this machine's, and where it comes from. */
+
 export interface SettingValue<T> {
   value: T;
   source: SettingSource;
-  /** A command of the repository's that does not count until the owner confirms it (`RepoCommands`). */
+  
   held?: true;
 }
 
-/**
- * What of a repository's own files Seismic runs or contacts on this machine without a click, or its
- * agents' sessions run outside Claude Code's permission checks, by group: one confirmed by the
- * owner counts as long as the default branch has it so.
- */
+
+
+
+
+
 export interface RepoCommands {
-  /** `app.stop` and `app.keep` of `.seismic/settings.json`, which park a waiting card: one without the other could stop what `keep` keeps. */
+  
   app?: { stop?: string; keep?: string };
-  /** The repository's own Claude Code configuration by file (everything under `.claude/`, `.mcp.json`): hooks, MCP servers, helpers. */
+  
   claude?: Record<string, ClaudeFile>;
-  /** The repository's own Codex configuration by file (everything under `.codex/`): settings, hooks, MCP servers, rules. */
+  
   codex?: Record<string, ClaudeFile>;
 }
 
-/**
- * A file of a repository's Claude Code or Codex configuration: its git object, which tells one content from
- * another to the byte (a blob; a submodule's commit), and its text to read (a submodule's commit).
- */
+
+
+
+
 export interface ClaudeFile {
   id: string;
   text: string;
@@ -2768,7 +2768,7 @@ export interface ClaudeFile {
 
 export type TrustGroup = keyof RepoCommands;
 
-/** The commands of a repository that do not count yet (`held`), as its default branch has them and as the owner last confirmed them. */
+
 export interface RepoTrust {
   held: TrustGroup[];
   now: RepoCommands;
@@ -2783,7 +2783,7 @@ export function commandLines(c: RepoCommands | undefined, g: TrustGroup): string
   return Object.entries(v).map(([k, x]) => `${g}.${k}: ${typeof x === 'string' ? x : JSON.stringify(x)}`);
 }
 
-/** A repository's settings as they stand without this machine's: what the dialog shows where the owner set nothing. */
+
 export interface RepoValues {
   branch: SettingValue<string>;
   land: SettingValue<'main' | 'pr'>;
@@ -2815,15 +2815,15 @@ export function restartsAgents(before: ProjectConfig[], after: ProjectConfig[]):
   return [...shapes(before)].some(([path, shape]) => now.get(path) !== shape);
 }
 
-/** The clones a repository gets whose settings say clones, the first project's or one added later: two cards run at once. */
+
 export const CLONES = 2;
 
-/**
- * Where the count of a repository added in the dialog stands (`withClones`): `filled`, the dialog's
- * `CLONES` is in; `withdrawn`, the dialog took it out again for the existing clones listed; `owner`,
- * the count is the owner's (typed, changed, emptied, or there before the dialog had a say). A path
- * not in it has had nothing filled in yet.
- */
+
+
+
+
+
+
 export type FilledClones = Map<string, 'filled' | 'withdrawn' | 'owner'>;
 
 /**
@@ -2845,7 +2845,7 @@ export function withClones(draft: ProjectConfig[], saved: ProjectConfig[], resol
       const existing = !!r.workstations?.some((w) => w.trim());
       const state = filled.get(path);
       if (state === 'owner') return r;
-      // the count is no longer the one the dialog left: the owner's from now on
+      
       if (r.clones !== (state === 'filled' ? CLONES : undefined)) {
         filled.set(path, 'owner');
         return r;
@@ -2861,149 +2861,149 @@ export function withClones(draft: ProjectConfig[], saved: ProjectConfig[], resol
   return changed ? next : null;
 }
 
-/** A machine reached over SSH that a repository's workers run on, in clones of their own there. */
+
 export interface HostConfig {
-  /** What the owner calls it; workstations there are named by it. */
+  
   name: string;
-  /** What `ssh` connects to: `user@machine`, or a name from `~/.ssh/config`. */
+  
   ssh: string;
-  /** The directory there that holds the clones (`~/…` in that machine's home). */
+  
   root: string;
-  /** How many clones Seismic keeps there (`<root>/1`, `<root>/2`, …). */
+  
   clones: number;
-  /** How many of the repository's workers may be busy there at once; as many as it has clones when left out. */
+  
   slots?: number;
 }
 
-/**
- * A project's own settings, beside its name, id and repositories. Each has a value in Project
- * defaults, copied into a project when it is created.
- */
+
+
+
+
 export interface ProjectSettings {
-  /** Tag each plan’s starting commit and configure its workstream branches with it; on by default. */
+  
   planBaselines?: boolean;
-  /**
-   * How finished cards go into the archive: by the owner's hand (`manual`, the default; the owner is
-   * asked how the agent did when archiving it), or by themselves once their work landed and their
-   * worker is done (`landed`; asked right after the approval).
-   */
+  
+
+
+
+
   archive?: CardArchiving;
-  /** What a right click on a card does: manage its group (the default) or its canvas. */
+  
   rightClick?: RightClick;
-  /** Which labels Seismic suggests on the project's cards ("Seismic suggests"); all where left out. */
+  
   suggest?: SuggestSettings;
-  /** Whether Seismic suggests labels at all ("Suggest card labels"): off, none, whatever `suggest` checks; on where left out. */
+  
   suggestLabels?: boolean;
-  /** Whether the work retrospective proposes cards for friction it found ("Suggest new cards"); on where left out. */
+  
   suggestCards?: boolean;
-  /** Whether a card is checked for duplicates when it starts, which may end in a merge proposal ("Suggest card merges"); on where left out. */
+  
   suggestMerges?: boolean;
-  /** The project's own harness, model and effort for groups of its agents, over Configuration's; none where left out. */
+  
   agents?: ProjectAgents;
-  /** Whether a separate agent reviews work that lands on `main`, with the demo or on the owner's word; off where left out. */
+  
   codeReviews?: Partial<CodeReviewSetting>;
-  /** The demo site its demos are shared on, and where on it; none where left out (demos are exported). */
+  
   demoSite?: ProjectDemoSite | null;
 }
 
-/** A project's own harness, model or effort per group; a field left out follows Configuration's "Agents and models". */
+
 type ProjectAgent = Partial<Omit<AgentSetting, 'harness' | 'codex' | 'agy'>> & {
-  /** Explicit inheritance, including when a saved Claude model would otherwise imply Claude Code. */
+  
   harness?: Harness | null;
   codex?: Partial<NonNullable<AgentSetting['codex']>>;
   agy?: Partial<NonNullable<AgentSetting['agy']>>;
 };
 export type ProjectAgents = Partial<Record<AgentRole, ProjectAgent>>;
 
-/** The project settings sheet: the project's settings as they apply, and Configuration's models it falls back on. */
+
 export interface ProjectSettingsView {
   settings: ProjectDefaults;
   agents: Record<AgentRole, AgentSetting>;
   harnesses?: Harness[];
 }
 
-/** A project in Seismic's configuration. */
+
 export interface ProjectConfig extends ProjectSettings {
-  /** Names the project; its id follows. Without it, both are the first repository's name. */
+  
   name?: string;
-  /** Keeps the project's id, and with it its cards, whatever its name says: set when a project is renamed. */
+  
   id?: string;
-  /** Names it had before, newest last: their addresses lead to it, and no other project may take them. */
+  
   oldNames?: string[];
-  /** What shows it in the project switcher, as a canvas's icon is written (`isCanvasIcon`): an emoji, or a Lucide icon in a colour; none until chosen. */
+  
   icon?: string;
   repos: RepoConfig[];
 }
 
-/** Project defaults as they apply: every project setting with its value. */
+
 export type ProjectDefaults = Required<Omit<ProjectSettings, 'codeReviews'>> & { codeReviews: CodeReviewSetting };
 
-/** Project defaults in Seismic's home, and the file they are saved in. */
+
 export interface ProjectDefaultsView {
   file: string;
   defaults: ProjectDefaults;
 }
 
-/** What a configuration amounts to: each project's id and name, and its repositories with their settings. */
+
 export interface ResolvedProject {
   id: string;
   name: string;
   repos: {
     id: string;
     workstations: 'clones' | 'worktrees';
-    /** A folder without git (`RepoConfig.git` false): no branch, landing, clones or hosts. */
+    
     folder?: true;
-    /**
-     * It still has a `.obeya/adapter/` on its main branch, which Seismic no longer reads: its values
-     * belong in its settings file (problem `adapterGone`).
-     */
+    
+
+
+
     adapterGone?: boolean;
-    /** Its settings without this machine's, with where each comes from. */
+    
     values: RepoValues;
-    /** Its commands that wait for the owner to confirm them (problem `untrusted`). */
+    
     trust?: RepoTrust;
-    /** Its settings file for everyone, relative to it: `.seismic/settings.json`, or `.obeya/settings.json` in a repository from before the rename. */
+    
     settingsFile: string;
-    /**
-     * Where "Take over into the repository for everyone" puts its settings file: a commit on the main
-     * branch where work lands there, else a pull request.
-     */
+    
+
+
+
     shareTo: 'main' | 'pr';
-    /** Where it goes out as a pull request, it may also be pushed straight onto `origin`'s main branch (`direct`). */
+    
     shareDirect?: boolean;
-    /**
-     * On a project that runs: the clones its pool loses with this configuration (path on its machine,
-     * the host where not here, the number where Seismic made it, the title of the card that holds it).
-     */
+    
+
+
+
     leaving?: LeavingClone[];
   }[];
 }
 
-/** A clone a repository's pool loses with a configuration (`ResolvedProject`). */
+
 export interface LeavingClone {
   path: string;
   host?: string;
-  /** Its number where Seismic made it; its folder goes once nothing in it would be lost. One the owner listed has none, and stays on disk. */
+  
   made?: number;
-  /** The title of the card that holds it: it leaves once that card gives it back. */
+  
   card?: string;
 }
 
-/** Something in a configuration that keeps Seismic from starting with it; `project` and `repo` count from 0. */
+
 export interface ConfigProblem {
   code: ConfigProblemCode;
   project?: number;
   repo?: number;
-  /** In English, for developers and the Koordinator. */
+  
   detail: string;
-  /** The name of the project the problem points to (the one a name is taken by). */
+  
   of?: string;
-  /** That project's place in the configuration, counting from 0. */
+  
   ofProject?: number;
 }
 
-/** Whether a problem keeps the configuration from being saved: not one in the repository, which is fixed there. */
-/** Problems of the running projects, not of the configuration: a project or repository that did not start as it has them (`StartFailure`). Saving the configuration, or "Try again", has them try again. */
+
+
 export const START_FAILED: ConfigProblemCode[] = ['projectDown', 'repoDown', 'repoBefore'];
 
 export const blocksSaving = (p: ConfigProblem) => !['adapterGone', 'repoSettings', 'untrusted', ...START_FAILED].includes(p.code);
@@ -3016,277 +3016,277 @@ export const blockingProblems = (problems: ConfigProblem[], changed: (project: n
   problems.filter((p) => blocksSaving(p) && (p.project === undefined || changed(p.project) || (p.ofProject !== undefined && changed(p.ofProject))));
 
 export type ConfigProblemCode =
-  /** No project at all. */
+  
   | 'noProject'
   | 'noRepo'
-  /** A repository whose path is empty. */
+  
   | 'noPath'
-  /** A path that is no git repository. */
+  
   | 'notRepo'
-  /** A folder without git (`RepoConfig.git` false) whose project's workers run in a harness that needs a Git workstation (`needsGit`). */
+  
   | 'folderHarness'
-  /** A folder without git (`RepoConfig.git` false) whose path is no folder. */
+  
   | 'noFolder'
-  /** A repository the project has already, under this path or another. */
+  
   | 'sameRepo'
-  /** The repository still has a `.obeya/adapter/`, which Seismic no longer reads: its values belong in `.seismic/settings.json`. */
+  
   | 'adapterGone'
-  /** Two projects with the same id. */
+  
   | 'sameId'
-  /** A name (as an address) another project has (`ConfigProblem.of`). */
+  
   | 'nameTaken'
-  /** A name (as an address) another project had before (`ConfigProblem.of`): its old addresses lead there. */
+  
   | 'oldNameTaken'
-  /** The repository the project was first served with is missing. */
+  
   | 'homeMissing'
-  /** A clone listed as a workstation that is no git repository. */
+  
   | 'notClone'
-  /** A clone listed as a workstation whose origin is another repository's. */
+  
   | 'otherClone'
-  /** A host that cannot work for the repository: its workers use worktrees, or its work does not go out through a remote. */
+  
   | 'hostRepo'
-  /** Two hosts of one name that connect to different machines. */
+  
   | 'hostName'
-  /** A main branch set for this machine that the repository does not have. */
+  
   | 'noBranch'
-  /** Something in the repository's `.seismic/settings.json` that does not count (fixed there, so it keeps nothing from being saved). */
+  
   | 'repoSettings'
-  /** Commands of the repository, new or changed on its default branch, that wait for the owner to confirm them (`RepoTrust`). */
+  
   | 'untrusted'
-  /** The project does not run: its home repository did not start (a git error, say). */
+  
   | 'projectDown'
-  /** The repository did not start: it is left out of its project, its cards kept. */
+  
   | 'repoDown'
-  /** The repository's agents did not start as the configuration has them now: they work on as they were set up before. */
+  
   | 'repoBefore'
-  /** Malformed: a bug in whoever wrote it. */
+  
   | 'invalid';
 
-/**
- * Seismic's configuration as the owner sees and edits it, at once: what it amounts to and what is
- * wrong with it come after, from its check (`ConfigChecked`), which reads every repository.
- */
+
+
+
+
 export interface ConfigView {
-  /** The file it is saved in. */
+  
   file: string;
-  /** Where the running projects come from: that file, or repositories named on the command line. */
+  
   source: 'file' | 'args';
-  /** As saved (or as given on the command line, before anything is saved). */
+  
   projects: ProjectConfig[];
-  /** The ids of the projects this server runs. */
+  
   running: string[];
-  /**
-   * Settings of the running server, from its command line; its version (`package.json`), and the
-   * commit of the checkout it runs from (null for the compiled binary).
-   */
+  
+
+
+
   server: { port: number; home: string; permissionMode: string; restarts: boolean; version: string; commit: string | null };
-  /** Saved, and Seismic starts again with it once no agent is in the middle of a turn. */
+  
   restarting: boolean;
 }
 
-/** A configuration checked: what it amounts to and what keeps it from working. */
+
 export interface ConfigChecked {
-  /** As saved, tidied. */
+  
   projects: ProjectConfig[];
-  /** What they amount to, by index; null for a project with a problem. */
+  
   resolved: (ResolvedProject | null)[];
   problems: ConfigProblem[];
 }
 
-/**
- * A project of the configuration as saved, for its settings sheet: its entry (its repositories as
- * listed), what it amounts to (null while it has a problem), and its problems, its repositories' included.
- */
+
+
+
+
 export interface ProjectReposView {
   project: ProjectConfig;
   resolved: ResolvedProject | null;
   problems: ConfigProblem[];
-  /** Where the running projects come from (`ConfigView.source`): a save applies at once only from the file. */
+  
   source: 'file' | 'args';
   restarting: boolean;
-  /** How many projects the configuration has: the last one cannot be archived. */
+  
   projects: number;
 }
 
-/** What "Take over into the repository for everyone" did with a repository's settings for this machine. */
+
 export type SettingsShared =
-  /** Committed `.seismic/settings.json` on the main branch (pushed onto `origin`'s, where it went there directly): the settings now come from the repository. */
+  
   | { committed: string; branch: string; file?: string }
-  /** Opened a pull request with it: once it is merged, the settings come from the repository. */
+  
   | { pr: string };
 
-/** What saving the configuration did: Seismic starts again with it, or (repositories' settings alone) it applies at once. */
+
 export interface ConfigSaved {
   restarting: boolean;
-  /** Seismic runs with it now: projects and repositories new in it started, settings apply as they are read, and agents whose repository's set-up changed restart once they paused. */
+  
   applied?: boolean;
 }
 
-/** What keeps the demo settings from working (a voice to install is not one: `DemoVoiceCheck.install`). */
+
 export type DemoSettingsProblem =
-  /** `command` without one. */
+  
   | 'noCommand'
-  /** The own endpoint, or Azure's region, is missing. */
+  
   | 'noUrl'
-  /** A service without its environment variable or a key file. */
+  
   | 'noKey'
   | 'keyFileMissing'
-  /** `say` is macOS only. */
+  
   | 'notHere'
-  /** A Qwen3 speaker the model does not have. */
+  
   | 'unknownSpeaker';
 
-/** What keeps one of Qwen3's clips to clone from working: it is not there, or its transcript beside it. */
+
 export type ClipProblem = 'referenceMissing' | 'noTranscript';
 
-/** What the settings sheet shows about a voice, saved or not yet. */
+
 export interface DemoVoiceCheck {
-  /** The person the narration speaks in, which follows from whether the voice is the owner's own. */
+  
   person: 'first' | 'third';
   problems: DemoSettingsProblem[];
-  /** The clips to clone that do not work, by their language. */
+  
   clips: Partial<Record<NarrationLanguage, ClipProblem>>;
-  /** What the voice needs installed by Seismic and is missing (Piper, Qwen3-TTS), and about how much that is. */
+  
   install: { installed: boolean; missing: string[]; mb: number };
-  /** The directory demos go into, as these settings name it (`~` expanded), else the default. */
+  
   directory: string;
-  /** The settings name a relative directory, which counts as none: it would land wherever the agent works. */
+  
   directoryRelative?: true;
 }
 
-/** An installation Seismic runs for a voice, one at a time. */
+
 export interface VoiceInstallJob {
   voice: VoiceKind;
   running: boolean;
-  /** The last line of its output. */
+  
   line: string;
   error?: string;
 }
 
-/** The demo settings (`plugin/skills/demo/lib/settings.ts`) as the settings sheet shows them. */
+
 export interface DemoSettingsView {
-  /** The file they are saved in, under Seismic's home. */
+  
   file: string;
   settings: DemoSettings;
-  /** The saved voice checked. */
+  
   check: DemoVoiceCheck;
-  /** The installation running or last run, while Seismic runs. */
+  
   job?: VoiceInstallJob;
-  /** `process.platform` of the server: `say` is offered on a Mac only. */
+  
   platform: string;
-  /** What demos take on disk, and how long their frames are kept; none where Seismic does not look after the demo directory (tests). */
+  
   space?: DemoSpaceView;
 }
 
-/** The demo directory's disk space (`src/server/demo-space.ts`). */
+
 export interface DemoSpaceView {
-  /** Days after a demo's last render that its frames are kept, as applies now; null: always. */
+  
   keepDays: number | null;
-  /** What applies while the demo settings name nothing; null: always. */
+  
   defaultDays: number | null;
-  /** Counting or deleting right now. */
+  
   busy: boolean;
-  /** What the demo directory took at the last count, and its renders' work directories (`.work`) of that. */
+  
   used?: { bytes: number; work: number; at: string };
-  /** The last deletion that found frames to delete, since Seismic started. */
+  
   freed?: { at: string; demos: number; bytes: number };
 }
 
-/** The owner's languages (`src/server/settings.ts`): the interface's, chosen else the system's, and the conversation's, chosen else English. */
+
 export interface LanguageView {
-  /** The file it is saved in, under Seismic's home. */
+  
   file: string;
-  /** The interface language the owner chose; `null` follows the system. */
+  
   chosen: Language | null;
-  /** The system's language, or the fallback when Seismic does not speak it. */
+  
   system: Language;
-  /** The one that applies. */
+  
   language: Language;
-  /** The conversation language the owner chose; `null` uses English. */
+  
   conversationChosen: Language | null;
-  /** The conversation language that applies: agents write the owner in it unless a standing language preference overrides it. */
+  
   conversation: Language;
 }
 
-/** The look Seismic's pages take (`src/server/settings.ts`): light or dark as chosen in the settings, else as the system's. */
+
 export const THEMES = ['light', 'dark'] as const;
 export type Theme = (typeof THEMES)[number];
 export interface ThemeView {
-  /** The file it is saved in, under Seismic's home. */
+  
   file: string;
-  /** What the owner chose; `null` follows the system. */
+  
   chosen: Theme | null;
 }
 
-/** How much Seismic's pages move (`src/server/settings.ts`): `reduced` drops animations, camera flights and blurs; unset, as the system's reduce-motion setting. */
+
 export const MOTIONS = ['full', 'reduced'] as const;
 export type Motion = (typeof MOTIONS)[number];
 export interface MotionView {
-  /** The file it is saved in, under Seismic's home. */
+  
   file: string;
-  /** What the owner chose; `null` follows the system. */
+  
   chosen: Motion | null;
 }
 
-/**
- * One of the usage limits of the plan a harness is logged in with on this machine (Claude Code's
- * Claude plan, Codex's ChatGPT plan), as the harness reports it (src/server/usage.ts,
- * src/server/llms/harnesses/codex.ts): how much of its window is used, and when the window starts anew.
- */
+
+
+
+
+
 export interface UsageLimit {
-  /** The endpoint's kind of meter: `session` (five hours), `weekly_all`, `weekly_scoped` (one model's), or one Seismic does not know yet. */
+  
   kind: string;
-  /** The endpoint's group of the meter: `session` or `weekly`. */
+  
   group: string;
-  /** What a scoped meter is for, as the endpoint names it: a model (`Fable`) or a surface; for Codex, a limit of its own (a model's); for Antigravity, the group of models sharing it. */
+  
   scope?: string;
-  /** Share of the window used, 0–100. */
+  
   percent: number;
-  /** When the window starts anew (ISO time), when the endpoint says. */
+  
   resetsAt?: string;
-  /** The endpoint's grade of the meter: `normal`, `warning` or `critical` (for Codex and Antigravity, which grade none, Seismic's from the percentage). */
+  
   severity: string;
 }
 
-/** A harness's plan usage limits as last fetched, for the bar while the owner has it show them. */
+
 export interface Usage {
-  /** The harness whose login they belong to. */
+  
   harness: 'claude' | 'codex' | 'agy';
   limits: UsageLimit[];
-  /** When they were fetched (ISO time). */
+  
   at: string;
 }
 
-/** Whether the bar shows the plan's usage limits (`src/server/settings.ts`); on until the owner turns it off. */
+
 export interface UsageMeterView {
-  /** The file it is saved in, under Seismic's home. */
+  
   file: string;
   on: boolean;
 }
 
-/** Whether the desktop notifies the owner when a card needs them (`src/server/settings.ts`); `null` until they were asked. */
+
 export interface NotificationsView {
-  /** The file it is saved in, under Seismic's home. */
+  
   file: string;
   on: boolean | null;
 }
 
-/** Whether approving a card's work asks the owner for feedback on it (`src/server/settings.ts`); off until the owner turns it on. */
+
 export interface FeedbackPromptView {
-  /** The file it is saved in, under Seismic's home. */
+  
   file: string;
   on: boolean;
 }
 
-/**
- * The owner's system-level settings (`src/server/ownerSettings.ts`), named as in Seismic's
- * `settings.json` (`demo`: the demo settings, in `demo.json`): each is read and saved on its own at
- * `/api/v1/settings/:settingName`, several at once with a PATCH of `/api/v1/settings`.
- */
+
+
+
+
+
 export const OWNER_SETTINGS = ['language', 'theme', 'motion', 'notifications', 'usageMeter', 'feedbackPrompt', 'projectDefaults', 'agents', 'codexAutoReview', 'demo'] as const;
 export type OwnerSetting = (typeof OWNER_SETTINGS)[number];
 
-/** What each of the owner's settings reads as. */
+
 export interface OwnerSettingViews {
   language: LanguageView;
   theme: ThemeView;
@@ -3300,9 +3300,9 @@ export interface OwnerSettingViews {
   demo: DemoSettingsView;
 }
 
-/** What a save of each of the owner's settings sends: the fields it changes, the others staying. */
+
 export interface OwnerSettingChanges {
-  /** The interface language and the conversation language; `null` follows the system, or English. */
+  
   language: { language?: Language | null; conversation?: Language | null };
   theme: { theme: Theme | null };
   motion: { motion: Motion | null };
@@ -3310,96 +3310,96 @@ export interface OwnerSettingChanges {
   usageMeter: { on: boolean };
   feedbackPrompt: { on: boolean };
   projectDefaults: ProjectSettings;
-  /** The choices for the groups given; the other groups stay. */
+  
   agents: Partial<Record<AgentRole, Partial<AgentSetting>>>;
   codexAutoReview: { on: boolean };
-  /** The demo settings as a whole, as the Demos section saves them. */
+  
   demo: DemoSettings;
 }
 
-/**
- * How other devices reach Seismic, when the owner lets them (`src/server/remote.ts`): through
- * `tailscale serve`, which gives an HTTPS address in the tailnet, or on an address of this machine
- * the owner picks (another VPN's interface), in plain HTTP.
- */
+
+
+
+
+
 export type RemoteSetting = ({ via: 'tailscale' } | { via: 'address'; address: string } | { via: 'hosts'; hosts: string[] }) & {
-  /** `always`: the machine does not idle-sleep while Seismic runs; otherwise only while a worker works. */
+  
   awake?: 'always';
 };
 
-/** What Tailscale allows on this machine, as `tailscale status` says. */
+
 export type TailscaleState =
   | { state: 'missing' }
-  /** Installed, but its service does not run (or the CLI cannot reach it). */
+  
   | { state: 'stopped' }
   | { state: 'loggedOut' }
-  /** Logged in, but HTTPS certificates are off in the tailnet: `tailscale serve` cannot give an HTTPS address. */
+  
   | { state: 'noHttps'; name: string; enable?: string }
-  /**
-   * `account`: the login it runs as, which the phone logs in with too; `others`: how many other
-   * devices the tailnet has, none while the phone is not in it yet.
-   */
+  
+
+
+
   | { state: 'ready'; name: string; account?: string; others: number };
 
-/** Why the address does not answer for other devices, though the setting is on. */
+
 export type RemoteProblem =
-  /** On Linux `tailscale serve` needs the operator right, given once (`sudo tailscale set --operator=$USER`). */
+  
   | { code: 'operator' }
-  /** Ports 443, 8443 and 10000 of the tailnet name already serve something else. */
+  
   | { code: 'portsTaken' }
-  /** The address picked is not one of this machine's, or listening on it failed. */
+  
   | { code: 'listen'; detail: string }
   | { code: 'failed'; detail: string };
 
-/** A device paired with Seismic: its cookie lets it in from another machine. */
+
 export interface DeviceView {
   id: string;
-  /** From its browser's user agent: "iPhone · Safari". */
+  
   name: string;
   pairedAt: string;
   lastSeen: string;
-  /** It turned notifications on: Seismic pushes to it. */
+  
   push?: true;
 }
 
-/** A one-time code that pairs a device: in the QR code with the address, and to type in. */
+
 export interface Pairing {
   code: string;
-  /** The address with the code, which the QR code holds. */
+  
   url: string;
   expires: string;
-  /** The desktop app traded the code for its one-time link (`POST /api/pair`): it pairs nothing else, and `expires` is the link's. */
+  
   linked?: true;
-  /** The device it paired, once one did. */
+  
   paired?: DeviceView;
 }
 
-/** The section "Other devices" and "Connect a phone" (`/api/access`), for a page on this machine. */
+
 export interface AccessView {
   local: true;
-  /** The file the setting is saved in. */
+  
   file: string;
-  /** `null`: other devices do not reach Seismic. */
+  
   remote: RemoteSetting | null;
   tailscale: TailscaleState;
-  /** Where other devices reach Seismic now; `null` while they do not. */
+  
   address: string | null;
   problem?: RemoteProblem;
-  /** This machine's addresses beyond loopback, to pick one for another VPN. */
+  
   addresses: string[];
   devices: DeviceView[];
   pairing: Pairing | null;
-  /** The server's platform: what to install or run differs by it. */
+  
   platform: string;
 }
 
-/** The agents Seismic runs, grouped as the owner sets their model and effort (`src/server/settings.ts`). */
+
 export const AGENT_ROLES = ['koordinator', 'worker', 'explorer', 'chores', 'review'] as const;
 export type AgentRole = (typeof AGENT_ROLES)[number];
-/** The models offered: Claude Code's default, or one of its aliases, each the newest of its family. */
+
 export const AGENT_MODELS = ['default', 'fable', 'opus', 'sonnet', 'haiku'] as const;
 export type AgentModel = (typeof AGENT_MODELS)[number];
-/** Claude's original aliases need no prefix. Catalog IDs belong to the harness that offered them. */
+
 export type ChatModel = AgentModel | `codex:${string}` | `agy:${string}`;
 
 export function chatModelFor(harness: Harness, choice?: ChatModel): string | undefined {
@@ -3410,25 +3410,25 @@ export function chatModelFor(harness: Harness, choice?: ChatModel): string | und
 }
 export const AGENT_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
 export type AgentEffort = (typeof AGENT_EFFORTS)[number];
-/** The model and effort a group of agents runs with. */
+
 export interface AgentSetting {
   model: AgentModel;
   effort: AgentEffort;
-  /** Absent means Claude Code. */
+  
   harness?: Harness;
-  /** Codex choices are separate from Claude aliases, which survive switching back. */
+  
   codex?: { model: string; effort: AgentEffort };
-  /** Antigravity choices. An omitted effort follows the model's default. */
+  
   agy?: AgyChoice;
 }
 
-/** The harnesses Seismic agents can run in: Claude Code (the default), Codex and Antigravity (`agy`), the latter two in preview. */
+
 export const HARNESSES = ['claude', 'codex', 'agy'] as const;
 export type Harness = (typeof HARNESSES)[number];
-/** Each harness by its name in what Seismic tells (prompts, problems); the UI has its own in its strings. */
+
 export const HARNESS_NAMES: Record<Harness, string> = { claude: 'Claude Code', codex: 'Codex', agy: 'Antigravity' };
 
-/** The setup checks shared by onboarding and harness management. */
+
 export const HARNESS_SECTION = { claude: 'needed', codex: 'codex', agy: 'agents' } as const satisfies Record<Harness, MachineSectionId>;
 
 export interface HarnessAvailability {
@@ -3451,15 +3451,15 @@ export function harnessChoice(setting: AgentSetting): { model: string; effort: A
   return setting.harness && setting.harness !== 'claude' ? { model: own?.model ?? 'default', effort: own?.effort ?? setting.effort } : setting;
 }
 
-/** A model as its harness's catalog describes it (Codex's account, Antigravity's listing), never a hardcoded alias. */
+
 export interface ModelInfo {
   model: string;
   isDefault: boolean;
-  /** Empty for a model without efforts (Antigravity's orchestrator): its effort is not passed. */
+  
   supportedReasoningEfforts: { reasoningEffort: string }[];
-  /** The effort the account runs the model with where none is chosen, where the harness says so. */
+  
   defaultReasoningEffort?: AgentEffort;
-  /** What the model reads (`text`, `image`); absent where the catalog does not say, which is not the same as text alone. */
+  
   inputModalities?: string[];
 }
 
@@ -3500,7 +3500,7 @@ export function withAgyBase<T extends { agy?: AgyChoice }>(setting: T, models?: 
   return base && base !== setting.agy ? { ...setting, agy: base } : setting;
 }
 
-/** What applies until the owner chooses otherwise: Opus throughout, high effort for workers, exploration agents and code reviews. */
+
 export const AGENT_DEFAULTS: Record<AgentRole, AgentSetting> = {
   koordinator: { model: 'opus', effort: 'medium' },
   worker: { model: 'opus', effort: 'high' },
@@ -3509,21 +3509,21 @@ export const AGENT_DEFAULTS: Record<AgentRole, AgentSetting> = {
   review: { model: 'opus', effort: 'high' },
 };
 
-/** The model and effort of each group of agents, as they apply (`settings.json` over `AGENT_DEFAULTS`). */
+
 export interface AgentsView {
   file: string;
   agents: Record<AgentRole, AgentSetting>;
-  /** The explicitly connected harnesses, when saved. */
+  
   harnesses?: Harness[];
-  /** Codex workers' approvals go to Codex's own automatic review, not the owner. */
+  
   codexAutoReview: boolean;
 }
 
-/**
- * The cloud services Seismic's voice in can send recordings to instead, all with the OpenAI-style
- * `/audio/transcriptions` endpoint (`src/server/voice-cloud.ts`). `prompt`: it takes the card
- * titles as vocabulary. `openai` stands for any compatible endpoint: base URL and model can be changed.
- */
+
+
+
+
+
 export const CLOUD_VOICES = {
   groq: { name: 'Groq', baseUrl: 'https://api.groq.com/openai/v1', model: 'whisper-large-v3-turbo', keys: 'https://console.groq.com/keys', prompt: true },
   mistral: { name: 'Mistral', baseUrl: 'https://api.mistral.ai/v1', model: 'voxtral-mini-latest', keys: 'https://console.mistral.ai/api-keys', prompt: false },
@@ -3532,39 +3532,39 @@ export const CLOUD_VOICES = {
 export type CloudPreset = keyof typeof CLOUD_VOICES;
 export const CLOUD_PRESETS = Object.keys(CLOUD_VOICES) as CloudPreset[];
 
-/** A cloud service as the owner set it up (its key stays on the server; the page only learns there is one). */
+
 export interface CloudVoiceView {
   preset: CloudPreset;
   baseUrl: string;
   model: string;
   key: boolean;
-  /** Recordings go to it rather than to the recognition on this machine. */
+  
   used: boolean;
-  /** How long it took for the check's sentence when it was last tested. */
+  
   tested?: { seconds: number };
 }
 
-/**
- * How long the recognition on this machine took for the short sentence Seismic ships with
- * (`voice/check.ogg`), loaded and warm. `slow`: longer than the sentence itself.
- */
+
+
+
+
 export interface VoiceSpeed {
   backend: ListenBackend;
   seconds: number;
   slow: boolean;
 }
 
-/** What Seismic's own voice in needs on this machine (`src/server/voice-setup.ts`). */
+
 export type VoiceSetupId = 'recognition' | 'ffmpeg' | 'uv';
 export type VoiceSetupItem = Omit<SetupItem, 'id'> & {
   id: VoiceSetupId;
-  /** The recognition, which uv fetches: "Installieren" waits until uv is there. */
+  
   waits?: 'uv';
 } & VoiceRecognitionParts;
 
-/** What the recognition's line carries besides its state: how fast it is here, and the cloud service. */
+
 export interface VoiceRecognitionParts {
-  /** Measured on this machine; `measuring` while it is. */
+  
   speed?: VoiceSpeed | 'measuring';
   cloud?: CloudVoiceView;
 }
@@ -3574,64 +3574,64 @@ export interface VoiceSetupView {
   arch: string;
   listen: ListenBackend;
   items: VoiceSetupItem[];
-  /** About how much "Installieren" fetches (the recognition and its model); 0: nothing to fetch. */
+  
   fetch: { mb: number };
-  /** The installation or measurement running or last run. */
+  
   job?: { running: boolean; step: 'fetch' | 'measure'; error?: string };
 }
 
-/** The setup assistant's list (`src/server/machine.ts`): what Seismic needs on this machine, by what it is for. */
+
 export type MachineSectionId = 'needed' | 'git' | 'codex' | 'agents' | 'pr' | 'voice' | 'demos' | 'mobile';
-/** The sections of the recommended features, the assistant's second step; the others configure the agents. */
+
 export const RECOMMENDED_SECTIONS: readonly MachineSectionId[] = ['pr', 'voice', 'demos', 'mobile'];
-/** Claude Code and its login. */
+
 export type NeededId = 'claude' | 'claudeLogin';
-/** git and its name and e-mail for commits, which every agent needs; its own section, so a slow git never holds back an agent's result. */
+
 export type GitId = 'git' | 'gitUser';
-/** Antigravity (`agy`) and its Google login: another agent for tasks and code reviews. */
+
 export type AgentsId = 'agy' | 'agyLogin';
-/** Codex and its OpenAI login: another agent for tasks and code reviews. */
+
 export type CodexId = 'codex' | 'codexLogin';
-/** gh and its login. */
+
 export type PrId = 'gh' | 'ghLogin';
-/** Mobile development on a Mac: Xcode, an iPhone simulator, `safaridriver --enable`, and AXe. */
+
 export type MobileId = 'xcode' | 'simulator' | 'safaridriver' | 'axe';
 
-/** A piece of the list, as a setup check gives it, and what Seismic does about it at a click. */
+
 export type MachineItem = Omit<SetupItem, 'id'> & {
   id: NeededId | GitId | CodexId | PrId | AgentsId | MobileId | VoiceSetupId | SetupId;
-  /**
-   * `install`: Seismic installs it (no admin rights, or Homebrew or winget). `login`: Seismic opens a
-   * terminal that logs in. `terminal`: Seismic opens a terminal that runs the command and closes
-   * once it is through (`safaridriver --enable`, which asks for a password). `identity`: the owner
-   * gives git's name and e-mail, which Seismic sets.
-   */
+  
+
+
+
+
+
   act?: 'install' | 'login' | 'terminal' | 'identity';
-  /** What has to be installed first (uv, which brings the speech recognition). */
+  
   waits?: 'uv';
 } & VoiceRecognitionParts;
 
 export interface MachineSection {
   id: MachineSectionId;
   items: MachineItem[];
-  /** About this many megabytes still to download for what the section is for (voice, demos). */
+  
   mb: number;
 }
 
-/** An installation, a login or a clone Seismic runs for the assistant, one at a time. */
+
 export interface MachineJob {
   kind: 'install' | 'clone';
   section?: MachineSectionId;
   id?: MachineItem['id'];
   running: boolean;
-  /** The last line of its output. */
+  
   line: string;
   error?: string;
-  /** A clone that became the first project: its id, opened once Seismic runs it. */
+  
   project?: string;
-  /** Its main branch. */
+  
   branch?: string;
-  /** Seismic runs it now, or starts again with it by itself; else the owner starts Seismic again. */
+  
   opens?: boolean;
 }
 
@@ -3639,229 +3639,229 @@ export interface MachineView {
   platform: string;
   arch: string;
   sections: MachineSection[];
-  /** The Claude Code Seismic was checked with (the Agent SDK's); the machine's may be newer or older. */
+  
   checkedClaude: string;
   job?: MachineJob;
-  /** Seismic can open the system's folder dialog here. */
+  
   picker: boolean;
-  /** Where a clone goes by default: the owner's home directory. */
+  
   cloneInto: string;
 }
 
-/** What choosing the first project did: it is saved, and Seismic runs it (`opens`), or the owner starts Seismic again. */
+
 export interface FirstProject {
   project: string;
-  /** The repository's main branch, as Seismic found it. */
+  
   branch: string;
   opens: boolean;
 }
 
-/** A folder for the first project, looked at before it is saved: whether it holds a repository, and on which main branch. */
+
 export interface SetupFolder {
   repo: boolean;
   branch?: string;
-  /** A folder without a repository, in which git can be set up. */
+  
   folder?: boolean;
 }
 
-/**
- * A repository named for the first project's clone, read before it is cloned: `readable`, or why not
- * (git's or gh's line on it). `github`: a GitHub repository gh's login can open (owner/name or https); `ghLogin`: whether gh is logged in
- * there, so the page can offer the login when GitHub refuses a repository it might not show to strangers.
- */
+
+
+
+
+
 export type SetupRepoCheck = { readable: true } | { readable: false; error: string; github: boolean; ghLogin: boolean; needsPassword?: true };
 
-/** From this size on a file is marked as large in the preview of a first commit. */
+
 export const LARGE_FILE = 1_000_000;
 
-/** What the first commit of a folder without git would hold, shown before the owner confirms it. */
+
 export interface GitSetupPreview {
   path: string;
-  /** The branch the repository starts on. */
+  
   branch: string;
-  /** The `.gitignore` Seismic writes, where the folder has none. */
+  
   gitignore?: string;
   files: number;
   bytes: number;
-  /** What goes in, by the folder's own entries: a directory with its files counted. */
+  
   entries: { path: string; dir: boolean; files: number; bytes: number }[];
-  /** Files of a size worth a second look, largest first. */
+  
   large: { path: string; bytes: number }[];
-  /** What stays out, as git lists it (an ignored directory once). */
+  
   ignored: string[];
 }
 
-/**
- * Why Seismic starts again: new code on the checkout it runs from, a configuration the owner saved,
- * a repository's `.seismic/settings.json` changed on its default branch where its agents work, a
- * new version of the app the owner installs, or the Mac app taking over an Seismic that runs without
- * the app that started it (desktop/src/main.rs, `orphaned`); or why it stops for good (Ctrl-C, SIGTERM).
- */
+
+
+
+
+
+
 export type RestartReason = 'code' | 'config' | 'repository' | 'owner' | 'rebuild' | 'update' | 'takeover' | 'stop';
 
-/** What the Developer section of the Konfiguration dialog may do: each is false where Seismic cannot (no supervisor, no checkout). */
+
 export interface DeveloperView {
-  /** Restarting the server: only under the supervisor that starts it again (not with --dev). */
+  
   restart: boolean;
-  /** Installing the dependencies again and restarting: only from a checkout. */
+  
   rebuild: boolean;
-  /** Why restarting is off, when it is: `dev` (--dev runs without the supervisor). */
+  
   why?: 'dev';
-  /** Why rebuilding is off, when restarting is not: `compiled` (the app or the binary has no checkout). */
+  
   rebuildWhy?: 'compiled';
 }
 
-/** A newer version of the app that its shell has downloaded (desktop/src/update.rs), shown in the bar. */
+
 export interface AppUpdate {
   version: string;
-  /** What changed, from the release. */
+  
   notes?: string;
-  /** When it was released (ms since the epoch). */
+  
   date?: number;
-  /** Where to get it, when the app cannot install it itself (a .deb). */
+  
   download?: string;
 }
 
-/**
- * New commits on the upstream of the checkout Seismic runs from (`origin/main`, say) that change code,
- * shown in the bar for the owner to pull (src/server/source-update.ts).
- */
+
+
+
+
 export interface SourceUpdate {
-  /** The upstream, as git names it: `origin/main`. */
+  
   upstream: string;
-  /** The checkout's directory. */
+  
   checkout: string;
-  /** How many commits the upstream has that the checkout does not. */
+  
   count: number;
-  /** The newest of them (at most ten), newest first: subject and when it was committed (ms since the epoch). */
+  
   commits: { subject: string; date: number }[];
-  /**
-   * Why Seismic cannot pull them itself, if it cannot: the checkout has commits of its own (`diverged`,
-   * a fast-forward is not possible), or uncommitted changes to files the new commits change (`local`).
-   */
+  
+
+
+
   blocked?: { why: 'diverged' } | { why: 'local'; files: string[] };
-  /** What git said when the owner's last pull failed. */
+  
   error?: string;
 }
 
-/** What the owner does in an open page that a restart would cut off: watching a demo video, dictating. */
+
 export type OwnerHold = 'video' | 'voice';
 
-/** A restart that waits for workers to finish their turns, or for the owner, as one project sees it. */
+
 export interface PendingRestart {
   reason: RestartReason;
-  /** When it goes ahead however busy the workers are (ms since the epoch). */
+  
   deadline: number;
-  /** The cards on this project whose worker it waits for. */
+  
   cards: string[];
-  /** The workers on other projects it waits for: each project (`id`, and its name) with its cards (id, short code, title). */
+  
   elsewhere: { id: string; project: string; cards: { id: string; short?: string; title: string }[] }[];
-  /** What the owner does in some open page that it waits for, past the deadline too. */
+  
   owner: OwnerHold[];
-  /** Only the agents of these repositories (by name) restart, for a change to their configuration; Seismic and the others work on. */
+  
   repos?: string[];
-  /** The project left the configuration: it stops once its agents paused. */
+  
   leaving?: boolean;
 }
 
-/** UI → server over the WebSocket. */
+
 export type ClientMessage =
-  /** What the owner does in this page that a restart waits for (sent on every change). */
+  
   | { type: 'hold'; hold: OwnerHold[] }
-  /** The owner came back to this page (from GitHub, say): what Seismic polls is looked at now. */
+  
   | { type: 'back' }
-  /** The owner uses this page: it is in view and they moved, typed or scrolled in it (or a video plays) within the last half minute. */
+  
   | { type: 'here' }
-  /** This page went out of view (on a phone: locked, or another app in front). */
+  
   | { type: 'away' }
-  /** Is the server there? It answers `pong` as soon as its event loop gets to it; no answer means it is frozen. */
+  
   | { type: 'ping' }
-  /**
-   * What the owner has in view (sent on every change and when the page gets the focus back):
-   * `place`, the middle of the project in view and its bounds (`placeParam`), where a new card goes
-   * that a command without a place of its own makes.
-   */
+  
+
+
+
+
   | { type: 'focus'; place?: string }
-  /** This page froze: the server logs it beside its own stalls. */
+  
   | ({ type: 'stall' } & PageStall);
 
-/**
- * A page that froze for `ms`: where the time went as far as the browser tells (the scripts of its
- * long frames, longest first, e.g. "WebSocket.onmessage (index.js:1204)"), and what the page did
- * shortly before (the server's messages it took in).
- */
+
+
+
+
+
 export interface PageStall {
   ms: number;
   scripts: { what: string; ms: number }[];
   before: string[];
 }
 
-/** Server → UI over the WebSocket. */
+
 export type ServerMessage =
   | { type: 'snapshot'; snapshot: ProjectSnapshot }
   | { type: 'event'; event: CardEvent }
-  /** A line taken out of the card's log: a comment the owner deleted before it went to the worker. */
+  
   | { type: 'eventGone'; cardId: string; id: number }
-  /**
-   * First on every connection: which server process this is, so a page from an earlier one
-   * reloads; and the version of Bun it runs on when that is too old (`oldLinuxBun`), for the bar.
-   */
+  
+
+
+
   | { type: 'hello'; server: string; oldBun?: string }
-  /** The answer to a `ping`. */
+  
   | { type: 'pong' }
-  /** On connect and whenever it changes: the restart Seismic waits with, if any. */
+  
   | { type: 'restart'; restart: PendingRestart | null }
-  /** On connect and whenever it changes: the newer version of the app there is to install, if any. */
+  
   | { type: 'update'; update: AppUpdate | null }
-  /** On connect and whenever it changes: new commits on the upstream of the checkout Seismic runs from, if any. */
+  
   | { type: 'source'; source: SourceUpdate | null }
-  /** On connect and whenever it changes: how much of their usage limits the accounts Claude Code and Codex (when signed in) run with here have used, while the bar shows it; Claude's first. */
+  
   | { type: 'usage'; usage: Usage[] }
-  /** On connect and whenever it changes: what waits for the owner on each project, by project id. */
+  
   | { type: 'waiting'; waiting: Record<string, Waiting> }
-  /** Whenever a project starts, stops, or changes its name or repositories while Seismic runs. */
+  
   | { type: 'projects'; projects: ProjectInfo[] }
-  /** A line for the owner above the microphone, wherever they are. */
+  
   | ({ type: 'notice' } & Notice);
 
-/**
- * What Seismic tells the owner above the microphone without a command of theirs to answer: an answer
- * the Koordinator looked up, or what it did with a request a card's agent passed on from the
- * owner's words (`to_seismic`), with `token` while those actions wait for "Undo".
- */
+
+
+
+
+
 export interface Notice {
-  /** The card it is about, named when another one is open. */
+  
   cardId?: string;
   text: string;
-  /** `warning`: shown as a toast that stays until dismissed, with a link to the card (`cardId`) where it has one. */
+  
   level?: 'warning';
   token?: string;
   undoMs?: number;
-  /** The owner asked to tell Seismic's makers something: the page opens the draft for them with it. */
+  
   wish?: Wish;
-  /** The exchange of Seismic's sheet it answers, there in full: a page that shows the sheet needs no line above the microphone. */
+  
   talk?: number;
-  /** The plan whose sheet shows that exchange in full too: a page with that sheet open needs no line either. */
+  
   plan?: string;
-  /** The conversation of the card (`cardId`) shows it in full, as it came: a page with that conversation open needs no line. */
+  
   inTalk?: true;
-  /** The page opens the card (`cardId`), unless the owner has another one open: the one a review of its PR asked for. */
+  
   open?: true;
-  /** The card (`cardId`) moved to this project: a page that has it open follows it there. */
+  
   movedTo?: string;
-  /**
-   * The cards the commands confirmed with `token` made, once they ran (after the undo window): the
-   * line that shows that confirmation offers to go to them; `project` where one went to another project.
-   */
+  
+
+
+
   made?: { id: string; title: string; project?: string }[];
 }
 
-/** A skill (or command) of Claude Code the owner can ask a card's agent for by `/name` in their words. */
+
 export interface Skill {
   name: string;
-  /** What it does, as its file says. */
+  
   description: string;
-  /** What to write after the name (`<file>`), when it says. */
+  
   hint?: string;
 }
 
@@ -3894,14 +3894,14 @@ export function projectAgentSetting(role: AgentRole, base: AgentSetting, own: Pr
 }
 
 
-/** What happened on a card, as the Activity log records it (the text of a line is built in the UI). */
+
 export const ACTIVITY_CODES = ['created', 'proposed', 'archived', 'deleted', 'stopped', 'reviewSent', 'approved', 'started', 'landed', 'waitsForCard', 'waitsForWorkstation', 'usageLimit'] as const;
 export type ActivityCode = (typeof ACTIVITY_CODES)[number];
 
-/** Who did it: the owner, the agent of the card, or Seismic itself. */
+
 export type ActivityWho = 'owner' | 'agent' | 'seismic';
 
-/** One line of the Activity log. The card is shown as it is now, a deleted one marked (`deleted`); a deletion's line names it by the title it had then. */
+
 export interface ActivityEntry {
   id: number;
   at: string;
@@ -3910,15 +3910,15 @@ export interface ActivityEntry {
   project: string;
   projectName: string;
   card: Item;
-  /** Deleted since: no link. */
+  
   deleted?: true;
-  /** The card it waits for (`waitsForCard`). */
+  
   other?: { id: string; title: string };
-  /** The harness whose usage limit stopped it (`usageLimit`). */
+  
   harness?: Harness;
 }
 
-/** A page of the log, newest first; `more` when older lines exist. */
+
 export interface ActivityPage {
   entries: ActivityEntry[];
   more: boolean;

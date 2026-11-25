@@ -1,11 +1,11 @@
-/**
- * What the exploration agent hears mid-session, with its next tool call: that the owner chose to build
- * the idea, and a preference that changed. Each reaches it once.
- */
+
+
+
+
 import type { Live } from '../../../explorers';
 import type { ExplorerHost } from './tools';
 
-/** The owner clicked "Build it like this" during the agent's turn. */
+
 const BUILD_AFTER_REPLY =
   'The owner clicked "Build it like this" while you worked on this reply: once it is there, a worker builds the idea from the brief as you leave it, unless your reply asks questions; then nothing is built, and the owner decides again after answering them.';
 

@@ -39,7 +39,7 @@ async function heldMerge(cwd: string) {
   mkdirSync(hooks, { recursive: true });
   git(cwd, 'config', 'core.hooksPath', hooks);
   const hook = join(hooks, 'post-merge');
-  // A local HTTP gate holds git without timing assumptions or a polling shell loop.
+  
   writeFileSync(hook, `#!/bin/sh\ncurl --max-time 15 -sf http://127.0.0.1:${gate.port}/ >/dev/null\n`, { mode: 0o755 });
   return {
     entered: () => until(() => releases.length > 0, 15000),
@@ -122,7 +122,7 @@ test('only overlapping workers hear a successful landing, on their next turn', a
   expect(board.events(busy.id).at(-1)?.text).toContain('shared.ts');
   expect(cardTalk(board.item(busy.id)!, board.events(busy.id)).shown.some((turn) => turn.e.text.includes('shared.ts'))).toBe(true);
   expect(board.events(waiting.id).at(-1)?.text).toContain('Make checkout faster');
-  // Tool results and an idle event do not consume the notice or start a new turn.
+  
   expect(await busy.session.call('report', { status: 'Still working' })).not.toContain('Landed commits');
   busy.session.emit({ type: 'idle' });
   expect(busy.session.inbox.length).toBe(inboxes[0]!);

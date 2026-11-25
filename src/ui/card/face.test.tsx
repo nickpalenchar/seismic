@@ -6,7 +6,7 @@ import { CardFace, type CardFaceProps } from './face';
 import { cardKind } from './summary';
 
 const card = (more: Partial<Item> = {}): Item => ({ id: 'c', kind: 'task', state: 'planned', title: 'Cart model', body: 'One cart per customer.', x: 0, y: 0, source: 'manual', repo: 'shop', canvasVisible: true, ...more });
-/** The class names that name a face's parts and states, without the utilities that give them their look (faceClasses.ts). */
+
 const HOOK = /^(face|face-s|face-xs|kind|ttl|meta|state|state-text|doing-now|subtle|untitled|ws-no|f-[a-z-]+|pin-dot|asking|failed|proposal|prio|prio-[a-z]+|sugg|bare|lchip|lchip-[a-z]+|unread-dot|lucide-lightbulb|lucide-git-merge|[a-z]+-mark)$/;
 const hooks = (html: string) =>
   html.replace(/ class="([^"]*)"/g, (_, cls: string) => {
@@ -20,7 +20,7 @@ const asking = card({ ...labelled, state: 'waiting', need: 'question', question:
 test('a delivered workstream keeps its label before its title as a chip', () => {
   const ws = card({ state: 'live', parent: 'p', source: 'plan', plan: { label: 'W1' } });
   expect(face({ item: ws, chip: true })).toContain('<div class="ttl"><span class="ws-no">W1</span>Cart model</div>');
-  // at a task's size the kind line says it
+  
   expect(face({ item: ws })).toContain('<div class="ttl">Cart model</div>');
   expect(face({ item: ws })).toContain('<span>W1</span>');
 });
@@ -36,12 +36,12 @@ test('S shows chips, where, kind and since on top, the pin or the unread dot, th
   expect(html).toContain('<span class="f-where">Shop · 14:02</span>');
   expect(html).toContain('<span class="f-pin asking" title="Needs you">?</span>');
   expect(html).toContain('<div class="f-text">Serif or sans?</div>');
-  // an inbox entry: its unread dot in the pin's place, what it waits for in the meta line's
+  
   const entry = face({ item: asking, size: 's', unread: true, text: 'Pick one' });
   expect(entry).toContain('class="unread-dot');
   expect(entry).not.toContain('f-pin');
   expect(entry).toContain('<div class="f-text">Pick one</div>');
-  // once read, it shows the pin again
+  
   const read = face({ item: asking, size: 's', unread: false });
   expect(read).not.toContain('unread-dot');
   expect(read).toContain('f-pin asking');
@@ -54,9 +54,9 @@ test('XS keeps to two lines: the priority flag, title and pin, then the short st
   expect(html).not.toContain('>High<');
   expect(html).toContain('<span class="f-pin asking" title="Needs you">?</span></span>');
   expect(html).toContain('<span class="f-state">Question</span> · Plan · Waits for “Export”. · Serif or sans?</span>');
-  // the plan's sheet shows a workstream's text below in full, without it in the line
+  
   expect(face({ item: asking, size: 'xs', text: false })).toContain('<span class="f-state">Question</span></span>');
-  // a workstream names itself by its label before the title; an idea does not say "Idea" twice
+  
   const ws = face({ item: card({ parent: 'p', plan: { label: 'W2' } }), size: 'xs' });
   expect(ws).toContain('<span class="ws-no">W2</span>');
   expect(ws).not.toContain('Workstream');
@@ -71,7 +71,7 @@ test("the smallest face says a card's state in a word or two, from one table", (
   expect(xs({ state: 'waiting', need: 'question', question: { text: 'Which?', options: [] } } as Partial<Item>)).toBe('Question');
   expect(xs({ queue: { behind: ['x'], reason: 'r', since: 'now' } } as Partial<Item>)).toBe('Queued');
   expect(xs({ state: 'planned' })).toBe('Planned');
-  // M and S keep the state's own words
+  
   expect(face({ item: card({ state: 'working' }) })).toContain('Agent at work');
 });
 
@@ -87,7 +87,7 @@ test('landing reports replace the task body at every card size', () => {
       expect(html).not.toContain(item.body);
     }
     expect(face({ item, size: 'xs', workstation: true })).toContain('Landing on main');
-    // A card without a report still has its body as the fallback description.
+    
     expect(face({ item: { ...item, agent: undefined }, size: 'xs', workstation: true })).toContain(item.body);
   }
 });
@@ -145,7 +145,7 @@ test('the lightbulb stands before "Merge proposed" at every size, and only while
     expect(html).not.toContain('lucide-git-merge');
     expect(html).not.toContain('f-dot');
   }
-  // parked, the card says so, and the proposal waits without its mark
+  
   const parked = face({ item: { ...proposed, hold: { reason: 'parkingLot', since: '2026-11-22T10:00:00Z' } } as Item });
   expect(parked).not.toContain('Merge proposed');
   expect(parked).not.toContain('merge-mark');

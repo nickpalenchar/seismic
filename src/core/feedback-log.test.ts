@@ -45,7 +45,7 @@ test('the log lists every response the newest first, by when it was last given',
 test("the dashboard's filters narrow the log: project, repository, plan and period", () => {
   expect(ids(filterLog(all, { project: 'd' }, NOW))).toEqual([b.id]);
   expect(ids(filterLog(all, { repo: 'home', plan: 'p1' }, NOW))).toEqual([a.id]);
-  // the last 30 days, by when a response was last given: e was changed yesterday
+  
   expect(ids(filterLog(all, { period: '30' }, NOW))).toEqual(ids([e, a, d, f, b]));
   expect(ids(filterLog(all, { period: 'all' }, NOW))).toHaveLength(6);
 });
@@ -54,7 +54,7 @@ test('harness, model and effort match the credited configuration; work credited 
   expect(ids(filterLog(all, { harness: 'codex' }, NOW))).toEqual([e.id]);
   expect(ids(filterLog(all, { harness: 'claude', effort: 'high' }, NOW))).toEqual(ids([a, f]));
   expect(ids(filterLog(all, { model: 'claude-sonnet-5-5' }, NOW))).toEqual([b.id]);
-  // an unknown model is the empty string
+  
   expect(ids(filterLog(all, { model: '' }, NOW))).toEqual([f.id]);
 });
 

@@ -34,7 +34,7 @@ describe("taking a card's workstation", () => {
     expect(git(workstation!, 'status', '--porcelain')).toBe('');
     expect(git(workstation!, 'log', '--format=%s', '-2', branch!).split('\n')).toEqual(['Uncommitted work, kept by Seismic as the card\'s workstation went to another card', 'Work']);
     expect(board.events(c.id).at(-1)!.text).toContain(workstation!);
-    // a card holding no clone has none to give
+    
     expect(workers.evictable(c.id)).toBe(false);
     await expect(workers.evict(c.id)).rejects.toThrow(BadRequest);
   });
@@ -54,7 +54,7 @@ describe("taking a card's workstation", () => {
     await workers.start(e.id);
     await workers.evict(c.id);
 
-    // another card takes the clone the branch was kept in, and the other one is free again
+    
     const d = manual();
     await workers.start(d.id);
     expect(board.row(d.id).workstation).toBe(first);
@@ -69,7 +69,7 @@ describe("taking a card's workstation", () => {
     expect(git(second, 'diff', '--name-only')).toBe('README.md');
     expect(git(second, 'ls-files', '--others', '--exclude-standard')).toBe('new.ts');
     expect(runtime.last.inbox[0]).toContain('already holds earlier work');
-    // the copy in the first clone goes: the card's branch is where it works
+    
     await until(() => git(first!, 'branch', '--list', branch!) === '');
     expect(git(first!, 'branch', '--list', branch!)).toBe('');
   });
@@ -114,7 +114,7 @@ describe("taking a card's workstation", () => {
     writeFileSync(join(workstation!, 'new.ts'), 'new');
     await workers.stop(c.id);
     expect(board.row(c.id).workstation).toBe(workstation);
-    // a stopped card stays where it was: no worker was on it
+    
     expect(await workers.evict(c.id)).toBe(false);
     expect(board.row(c.id)).toMatchObject({ workstation: null, kept_in: workstation });
 

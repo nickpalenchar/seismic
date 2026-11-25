@@ -1,19 +1,19 @@
-// A newer version of the app, as its shell reports it (desktop/src/update.rs): downloaded and checked,
-// every few seconds while the shell runs the server. The bar shows it; installing it goes like a
-// restart (the Restarter's `update`), and the shell installs it once the server has ended.
+
+
+
 
 import type { AppUpdate } from '../core/types';
 import { BadRequest } from './board';
 
-/** Where the app's releases are, as its shell names them (`RELEASES` in desktop/src/update.rs). */
+
 const RELEASES = 'https://github.com/nickpalenchar/seismic/releases/';
-/**
- * The switch for app updates (docs/release.md), with `CHECK_RELEASES` in desktop/src/update.rs: off, a
- * report that reaches the server shows no update.
- */
+
+
+
+
 const UPDATES_ENABLED = true;
 
-/** A shell that reported nothing for this long has gone (the app quit), and its update with it. */
+
 const FRESH_MS = 10_000;
 
 export class AppUpdates {
@@ -35,7 +35,7 @@ export class AppUpdates {
     if (notes) update.notes = notes;
     if (typeof u.date === 'number' && Number.isFinite(u.date)) update.date = u.date;
     const download = text(u.download);
-    // the shell names a release of Seismic's; another address in the bar would lead elsewhere
+    
     if (download?.startsWith(RELEASES)) update.download = download;
     clearTimeout(this.expiry);
     this.expiry = setTimeout(() => this.set(null), FRESH_MS);
@@ -61,7 +61,7 @@ export class AppUpdates {
   }
 }
 
-/** How long what the page handed over waits for the page of the new shell: starting again takes seconds. */
+
 const HANDED_OVER_MS = 2 * 60_000;
 
 /**

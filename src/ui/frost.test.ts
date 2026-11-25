@@ -1,10 +1,10 @@
 import { expect, test } from 'bun:test';
 
-// The contrast of the frost look's text, measured from the tokens in tailwind.css: each state's strong step as the
-// state line at a card's foot (12 px semibold, so WCAG's 4.5:1 for small text), on the glass of a card
-// of that state, over the lightest and the darkest of the board, at rest and with the tint (--unblurred) a
-// card takes for its blur zoomed far out or moving. Finished cards are pushed back on purpose (faded): their line keeps 3:1.
-// The marks drawn in the inks (a card's tab and frame, the pin) keep WCAG's 3:1 for graphics.
+
+
+
+
+
 
 type RGBA = [number, number, number, number];
 
@@ -126,21 +126,21 @@ function measure(t: Record<string, RGBA>) {
         }),
       ),
     );
-  // a card tinted by its state (card/faceClasses.ts): the state's colour at 9% (8% for a Question) over the glass
+  
   const stockOf = (s: string): RGBA => mix(t[s]!, s === 'question' ? 0.08 : 0.09, card);
   const rows: { what: string; ratio: number; needs: number }[] = [
     { what: 'foreground', ratio: worst(t.foreground!, card), needs: 4.5 },
     { what: 'muted', ratio: worst(t['muted-foreground']!, card), needs: 4.5 },
     { what: 'primary button', ratio: contrast(t['primary-foreground']!, t.primary!), needs: 4.5 },
-    // a state line is the state's strong step on the tint of its card
+    
     ...STATES.map((s) => ({ what: `${s} line`, ratio: worst(t[`${s}-strong`]!, ['idea', 'question'].includes(s) ? stockOf(s) : card), needs: 4.5 })),
-    // done and live: the card at .74 opacity on stock tinted with its own colour
+    
     { what: 'live line', ratio: worst(t['live-strong']!, mix(t.live!, 0.14, card), 0.74), needs: 3 },
-    // the status colours as text on the glass
+    
     ...(['destructive', 'success', 'warning', 'info'] as const).map((s) => ({ what: `${s} text`, ratio: worst(t[s]!, card), needs: 4.5 })),
-    // text on a solid fill of a colour (a count, a pin, a badge): its own foreground, which is not always white
+    
     ...[...STATES, 'live', 'destructive', 'success', 'warning', 'info'].map((s) => ({ what: `${s} fill text`, ratio: contrast(t[`${s}-foreground`]!, t[s]!), needs: 4.5 })),
-    // the marks in the colours themselves (tab, frame, pin, minimap) as graphics: 3:1, but for planned, which stays quiet
+    
     ...STATES.filter((s) => s !== 'planned').map((s) => ({ what: `${s} mark`, ratio: worst(t[s]!, ['idea', 'question'].includes(s) ? stockOf(s) : card), needs: 3 })),
   ];
   return rows.map((r) => ({ ...r, ratio: Math.round(r.ratio * 100) / 100 }));
@@ -160,7 +160,7 @@ test('the dark palette has one definition shared by system and choice', () => {
 
 if (process.env.FROST_CONTRAST) for (const dark of [false, true]) console.table(measure(look(dark)));
 
-// The installed app's launch screen and browser chrome (manifest.webmanifest, which holds no CSS variables) show the light board's colour.
+
 test('the web manifest\'s colours are the light background', async () => {
   const manifest = (await Bun.file(new URL('./manifest.webmanifest', import.meta.url)).json()) as { background_color: string; theme_color: string };
   const [r, g, b] = look(false).background!;

@@ -77,14 +77,14 @@ describe('oldLinuxBun', () => {
 });
 
 describe('watchPlanDocs', () => {
-  /**
-   * How long a step may go on. A saturated fseventsd loses most events: on this Mac (2026-10-14,
-   * fseventsd at full CPU) Bun, Node and fswatch alike saw only one to four of ten writes to a fresh
-   * directory, seconds late. The running Seismic has its safety-net poll for that; these tests check
-   * the watches alone, so a step whose change the system lost is made again.
-   */
+  
+
+
+
+
+
   const budget = 120_000;
-  /** A file the tests write at the repository's top, to learn that the events before it have come. */
+  
   const marker = 'marker';
   const cleanup: (() => void)[] = [];
   afterEach(() => cleanup.splice(0).forEach((f) => f()));
@@ -102,8 +102,8 @@ describe('watchPlanDocs', () => {
       calls++;
       fired();
     }, options);
-    // a plain watch on the whole repository, in the same FSEvents stream as the watches, tells
-    // whether a change reached the process at all
+    
+    
     let delivered = (_path: string) => {};
     const control = watch(repo, { recursive: true }, (_, file) => delivered(String(file).replaceAll('\\', '/')));
     cleanup.push(stop, () => control.close(), () => rmSync(repo, { recursive: true, force: true }));
@@ -170,7 +170,7 @@ describe('watchPlanDocs', () => {
       if (Date.now() > end) throw new Error(`a new watch saw nothing for ${budget / 1000} s`);
       writeFileSync(join(dir, 'probe'), String(Date.now()));
     }
-    await Bun.sleep(300); // past the watches' debounce
+    await Bun.sleep(300); 
   }
 
   test('sees a doc change', async () => {
@@ -196,10 +196,10 @@ describe('watchPlanDocs', () => {
       writeFileSync(join(plan, 'a.md'), DOC);
     })).toBe(true);
 
-    // right after the watches were re-armed
+    
     expect(await sees('docs/plan', back, () => rmSync(plan, { recursive: true }))).toBe(true);
 
-    // the plan directory is watched again once it is back
+    
     await live();
     expect(await sees('docs/plan/b.md', () => writeFileSync(join(plan, 'b.md'), `${DOC}- [ ] **W2:** Two.\n`))).toBe(true);
   }, 4 * budget);
@@ -223,7 +223,7 @@ describe('watchPlanDocs', () => {
 
     expect(await sees('docs/plan/a.md', () => writeFileSync(join(repo, 'docs/plan/a.md'), `${DOC}- [ ] **W2:** Two.\n`))).toBe(true);
 
-    // what it has reported once, it does not report again; nor anything that is not a plan doc
+    
     const before = calls();
     writeFileSync(join(repo, 'docs/plan/notes.txt'), 'x');
     await Bun.sleep(400);
@@ -240,7 +240,7 @@ describe('a remote on GitHub', () => {
     expect(hosts(['/srv/git/shop', '../shop', 'file:///srv/git/shop', 'C:\\repos\\shop', 'C:/repos/shop'])).toEqual([null, null, null, null, null]);
     expect(onGitHub('https://github.com/acme/shop.git', () => [])).toBe(true);
     expect(onGitHub('git@ssh.github.com:acme/shop.git', () => [])).toBe(true);
-    // Enterprise Cloud, which gh may reach through GH_TOKEN alone
+    
     expect(onGitHub('https://acme.ghe.com/acme/shop.git', () => [])).toBe(true);
     expect(onGitHub('https://gitlab.com/acme/shop.git', () => [])).toBe(false);
     expect(onGitHub('https://git.acme.com/acme/shop.git', () => ['git.acme.com'])).toBe(true);
@@ -269,7 +269,7 @@ describe('a remote on GitHub', () => {
       expect(ghHosts({ XDG_CONFIG_HOME: join(dir, 'xdg') })).toEqual(['github.com', 'git.acme.com']);
       expect(ghHosts({ AppData: join(dir, 'AppData') }, 'win32')).toEqual(['github.com', 'git.acme.com']);
       expect(ghHosts({ GH_CONFIG_DIR: join(dir, 'none') })).toEqual([]);
-      // logged in through the environment only
+      
       expect(ghHosts({ GH_CONFIG_DIR: join(dir, 'none'), GH_HOST: 'github.example.com', GH_ENTERPRISE_TOKEN: 't' })).toEqual(['github.example.com']);
       expect(ghHosts({ GH_CONFIG_DIR: join(dir, 'none'), GH_HOST: 'github.example.com', GH_TOKEN: 't' })).toEqual([]);
       expect(ghHosts({ GH_CONFIG_DIR: join(dir, 'none'), GH_HOST: 'example.ghe.com', GH_TOKEN: 't' })).toEqual(['example.ghe.com']);

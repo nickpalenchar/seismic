@@ -1,7 +1,7 @@
-// The place in the open card's demo video the owner talks about: while the video stands somewhere in
-// the middle, what they type or say goes with that place (its time and a frame of it), and the
-// field above which they type shows it, as it shows a message they reply to. At the start or the
-// end of the video, the words are about the work as a whole.
+
+
+
+
 
 import { useSyncExternalStore } from 'react';
 import { chapterAt, type SpotInput } from '../core/types';
@@ -13,18 +13,18 @@ interface Watched {
   cardId: string;
   video: HTMLVideoElement;
   chapters: [number, string][];
-  /** The demo it shows, by its handover (`Demo.handover`): the card's latest or an earlier one. */
+  
   demo?: number;
 }
 
-/** A place in the video: its time, the chapter there. */
+
 export interface Place {
   at: number;
   chapter?: string;
 }
 
 let watched: Watched | null = null;
-/** The place the owner took out of the field (its ×), until the video moves again. */
+
 let dismissed: number | null = null;
 let version = 0;
 const listeners = new Set<() => void>();
@@ -116,12 +116,12 @@ export function grab(video: HTMLVideoElement): (() => Promise<string | undefined
   };
 }
 
-/** A place with its frame, taken now, for words that go out later (a recording). */
+
 export interface Taken {
   at: number;
   demo?: number;
   upload?: () => Promise<string | undefined>;
-  /** Play on only if the same version still stands at this spot. */
+  
   resume: () => void;
 }
 
@@ -174,7 +174,7 @@ export async function sent(taken: Taken | null): Promise<SpotInput | undefined> 
   return { at: taken.at, ...(taken.demo !== undefined ? { demo: taken.demo } : {}), ...(still ? { still } : {}) };
 }
 
-/** The open card's demo view, which shows another of the card's demos on request and plays it from `at`; false when it has no such demo. */
+
 interface Versions {
   cardId: string;
   shown?: number;

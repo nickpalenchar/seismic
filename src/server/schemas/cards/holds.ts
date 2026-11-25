@@ -4,17 +4,17 @@ import type { Hold, HoldReason } from '../../../core/types';
 import type { Db } from '../common';
 import { cards } from './cards';
 
-/**
- * Why a card's agent does not run, or why the card is off the canvas (`Hold`): one reason at a
- * time, since when, and what that reason carries. A card has a row here while it is held.
- */
+
+
+
+
 export const cardHolds = sqliteTable('card_holds', {
   cardId: text('card_id')
     .primaryKey()
     .references(() => cards.id),
   reason: text().notNull().$type<HoldReason>(),
   since: text().notNull(),
-  /** What the reason carries beside its time (a snooze's end, the messages held for the agent…), none where it carries nothing. */
+  
   detail: text({ mode: 'json' }).$type<Record<string, unknown>>(),
 });
 

@@ -36,7 +36,7 @@ test('a pending device credential survives restart and is revoked with its devic
     expect(next.devices.renew(device, 'original').token).toBe(replacement);
     expect(next.devices.byToken(hash(replacement))?.device.id).toBe(device.id);
     expect(next.devices.byToken(hash('original'))).toBeNull();
-    // the credential it retired lets nobody in, but still names the device for pairing it again
+    
     expect(next.devices.retired(hash('original'))?.device.id).toBe(device.id);
     const undelivered = next.devices.renew(device, replacement).token;
     next.devices.remove(device.id);
@@ -84,7 +84,7 @@ test('migrating renewals preserves older credentials and tracks newly issued rep
   }
 }));
 
-/** The columns of `cards` that moved into the tables of a card's parts, as they were added to it. */
+
 const MOVED = [
   'pr TEXT', 'demo TEXT', 'idea TEXT', 'prototype_of TEXT REFERENCES cards(id)', 'plan TEXT', 'plan_docs TEXT', 'prototype TEXT',
   'built_on TEXT REFERENCES cards(id)', 'share TEXT', 'proposal TEXT', 'held TEXT', 'becomes_plan INTEGER NOT NULL DEFAULT 0', 'paused TEXT',
@@ -182,7 +182,7 @@ test('what an Seismic before the release kept in earlier shapes is in today’s'
     set(answered!.id, 'demo', { kind: 'video', dir: '/d', chapters: [], question: 'Q?', answer: 'Yes' });
     set(held!.id, 'share', { slug: 's', state: 'pending', dir: '/d', shown: { title: 'T', text: '', chapters: [] } });
     s.settings.set('c', 'work_retro_since:app', '2026-10-01T00:00:00Z');
-    // the schema as released: without the columns and indexes later migrations add
+    
     withoutNeedsYou(s.db);
     withoutParts(s.db);
     for (const index of ['cards_open', 'cards_plan_docs', 'cards_prototypes', 'cards_waiting', 'cards_shared']) s.db.run(`DROP INDEX ${index}`);
@@ -264,7 +264,7 @@ test('a card gets the shortest code no other card has: the start of its id, one 
   const [a] = s.addCards([{ project_id: 'c', kind: 'task', x: 0, y: 0 }]);
   expect(a!.short).toMatch(new RegExp(`^[0-9a-f]{${SHORT}}$`));
   expect(a!.id.replaceAll('-', '').startsWith(a!.short)).toBe(true);
-  // ids that share their start with cards there are already
+  
   const ids = ['abcdef01-0000-4000-8000-000000000001', 'abcdef01-0000-4000-8000-000000000002', 'abcdef01-0000-4000-8000-000000000003'];
   const real = crypto.randomUUID;
   let n = 0;
@@ -286,7 +286,7 @@ test('the migration gives the cards there are codes of their own, longer where t
     for (const id of ids) insert.run({ id });
     s.db.run('DROP INDEX cards_short');
     s.db.run('ALTER TABLE cards DROP COLUMN short');
-    // later migrations run again after it: undo what they added
+    
     s.db.run('ALTER TABLE events DROP COLUMN token');
     withoutParts(s.db);
     for (const index of ['cards_open', 'cards_plan_docs', 'cards_prototypes', 'cards_waiting', 'cards_shared']) s.db.run(`DROP INDEX ${index}`);
@@ -347,13 +347,13 @@ test('the sessions of cards from before runs were recorded: the last as pinned, 
     expect(runs(spoke!.id)).toEqual([{ session: 'codex:t-1', harness: 'codex', model: 'gpt-x', effort: 'low', requested: 'gpt-x' }]);
     expect(runs(named!.id)).toEqual([{ session: 'codex:t-2', harness: 'codex', model: 'gpt-y', effort: 'max', requested: 'gpt-y' }]);
     expect(runs(legacy!.id)).toEqual([{ session: 'old-claude', harness: 'claude', model: null, effort: null }]);
-    // which of two identities ran with the pinned setting is not known: neither gets it
+    
     expect(runs(mixed!.id)).toEqual([
       { session: 'earlier:claude:claude-opus-5-5', harness: 'claude', model: 'claude-opus-5-5', effort: null },
       { session: 'earlier:claude:claude-sonnet-5-5', harness: 'claude', model: 'claude-sonnet-5-5', effort: null },
     ]);
     expect(runs(idle!.id)).toEqual([]);
-    // heard again, a run learns what was unknown and keeps what it knew
+    
     after.agentRuns.record(pinned!.id, 's-1', { harness: 'codex', model: 'claude-opus-5-5', effort: 'low' });
     expect(runs(pinned!.id)).toEqual([{ session: 's-1', harness: 'claude', model: 'claude-opus-5-5', effort: 'high', requested: 'opus' }]);
     after.db.close();
@@ -389,7 +389,7 @@ test('chats: words go into the one opened last, a new one only once something wa
   expect(store.chats.model('c')).toBeUndefined();
   store.addTalk('c', 'hallo', 'Hallo!', null);
   store.addTalk('d', 'anderswo', 'Ja.', null);
-  // the answer comes in the chat it was asked in, while the owner talks in another
+  
   store.talk.answer(asked, '42', 'koordinator');
   expect(store.talk.sheet('c', second, 30).map((t) => [t.said, t.chat, !!t.unread])).toEqual([
     ['wie viele Tests?', first, true],
@@ -399,7 +399,7 @@ test('chats: words go into the one opened last, a new one only once something wa
     ['hallo', undefined],
     ['wie viele Tests?', 1],
   ]);
-  // only the chat in view is read
+  
   expect(store.readTalk('c')).toBe(false);
   expect(store.chats.open('c', first)).toBe(true);
   expect(store.chats.current('c')).toBe(first);
@@ -407,7 +407,7 @@ test('chats: words go into the one opened last, a new one only once something wa
   expect(store.readTalk('c')).toBe(true);
   expect(store.chats.open('d', first)).toBe(false);
   expect(store.chats.list().map((x) => x.project).sort()).toEqual(['c', 'c', 'd']);
-  // a new chat left without a word in it goes once another is opened
+  
   const empty = store.chats.start('c');
   store.chats.open('c', second);
   expect(store.chats.list('c').map((x) => x.id)).not.toContain(empty);
@@ -507,7 +507,7 @@ test('what an Seismic kept while projects were canvases is in today’s names, t
     expect(after.cards.get(card!.id)!.idea!.newRepo).toEqual({ path: '/r', by: 'owner', project: true });
     expect(after.events.of(card!.id).find((e) => e.id === made.id)!.made).toEqual({ card: 'y', title: 'U', project: 'd' });
     expect(after.talk.latest('c', 20, false).find((t) => t.moved)!.moved).toEqual({ card: 'x', title: 'T', project: 'd', projectName: 'Site' });
-    // what names a canvas now is the canvas layer's, which came after
+    
     const layer = (o: { name: string; sql: string | null }) => /^(canvases|canvases_name|cards_canvas|sqlite_autoindex_canvases_1)$/.test(o.name);
     const names = (after.db.query('SELECT name, sql FROM sqlite_master').all() as { name: string; sql: string | null }[])
       .filter((o) => !layer(o) && /canvas/i.test(o.name + (o.sql ?? '').replace(/,\s*`?canvas_id`? text/i, '')));
@@ -663,7 +663,7 @@ test('a pull request, a demo with earlier ones, a plan, labels and a hold move i
     expect(row(reviewed!).review).toEqual({ pr, contribution: null, codeReview: { mode: 'auto', handover: 3 }, items: [] });
     expect(row(demoed!).demo).toEqual({ latest: demo('/c'), earlier: [demo('/a'), demo('/b')], share: { slug: 'csv' }, pageHeard: null, files: [{ path: 'r.md', caption: 'Report' }], held: [{ id: 4 }] });
     expect(row(planned!).plan).toEqual({ doc: { file: 'docs/plan/a.md', title: 'A' }, deps: null, collapsed: true, planDocs: null });
-    // a suggestion of a label since cleared is gone; the owner's set to none stays theirs
+    
     expect(row(labelled!).labels).toEqual({
       category: { value: 'frontend', by: 'suggestion' },
       complexity: { value: 3, by: null },
@@ -694,7 +694,7 @@ test('the latest completed run of a code review becomes the list of items, the i
     ];
     const at = '2026-11-07T10:00:00.000Z';
     const stored = { mode: 'auto', handover: 4, ignored: [{ title: 'Old nit', text: 'Ignored earlier', file: 'b.ts', line: 7 }, { title: 'Older nit', text: 'Ignored before' }], review: { handover: 4, state: 'done', findings, at }, previous: [{ handover: 2, state: 'done', findings: [f(1, 'open')], at }] };
-    // a running review of a later handover: the findings of the run before it are the list
+    
     const midway = { mode: 'auto', handover: 5, review: { handover: 5, state: 'running', findings: [], at }, previous: [{ handover: 4, state: 'failed', findings: [], at }, { handover: 3, state: 'done', findings: [f(1, 'open', { severity: 'minor' })], at }] };
     s.updateCard(done!, { review: { codeReview: stored as never } });
     s.updateCard(running!, { review: { codeReview: midway as never } });
@@ -724,7 +724,7 @@ test('the latest completed run of a code review becomes the list of items, the i
     expect(items(done!)[2]!.log.map((e) => e.who)).toEqual(['reviewer', 'worker']);
     expect(items(running!).map((i) => [i.number, i.title, i.severity])).toEqual([[1, 'T1', 'minor']]);
     expect(after.cards.get(plain!)!.review).toBeNull();
-    // the stored review keeps its metadata only
+    
     expect(after.cards.get(done!)!.review!.codeReview).toEqual({ mode: 'auto', handover: 4, review: { handover: 4, state: 'done', at } });
     expect(after.cards.get(running!)!.review!.codeReview).toEqual({ mode: 'auto', handover: 5, review: { handover: 5, state: 'running', at } });
     expect(after.db.query('PRAGMA foreign_key_check').all()).toEqual([]);
@@ -742,7 +742,7 @@ test('the columns that moved into the tables of the parts leave cards; each card
       { project_id: 'c', kind: 'task', x: 2, y: 0 },
     ]);
     s.db.query('UPDATE cards SET parent_id = $p, plan_ref = $r, status_line = $l WHERE id = $id').run({ p: plan!.id, r: 'docs/plan/a.md#W1', l: 'Testing', id: kid!.id });
-    // a gap in the rowids, which the Koordinator's marks count cards by
+    
     s.db.run('DELETE FROM cards WHERE id = ?', [gone!.id]);
     const said = s.events.add({ cardId: kid!.id, kind: 'say', author: 'worker', text: 'On it.' });
     s.updateCard(kid!.id, { review: { pr: { url: 'https://github.com/a/b/pull/1', number: 1, seen: [], reported: [] } as never }, hold: { reason: 'parkingLot', since: '2026-11-08T10:00:00.000Z' } });
@@ -761,7 +761,7 @@ test('the columns that moved into the tables of the parts leave cards; each card
     expect(after.db.query('PRAGMA foreign_key_check').all()).toEqual([]);
     expect(after.db.query('PRAGMA foreign_keys').get()).toEqual({ foreign_keys: 1 });
     expect(() => after.db.run("UPDATE cards SET parent_id = 'nowhere' WHERE id = ?", [kid!.id])).toThrow();
-    // a project's cards are read without going through its archive, as before
+    
     for (const db of [after.db, new Store(':memory:').db]) {
       const plan = db.query("EXPLAIN QUERY PLAN SELECT id FROM cards WHERE project_id = 'c' AND deleted_at IS NULL AND archived_at IS NULL").all() as { detail: string }[];
       expect(plan.map((p) => p.detail).join()).toContain('cards_open');
@@ -795,7 +795,7 @@ test('a step that builds a table anew fails if it leaves another reference dangl
     s.ensureProject('c', 'Shop');
     s.addCards([{ project_id: 'c', kind: 'task', x: 0, y: 0 }]);
     s.db.close();
-    // a reference to a card that is gone from before, written without foreign keys
+    
     const raw = new Database(path);
     raw.run("INSERT INTO activity (at, card_id, who, code) VALUES ('2026-11-08', 'gone', 'owner', 'created')");
     raw.close();
@@ -821,7 +821,7 @@ test('a card gets a part once any of it is set and loses it once all of it is cl
   expect(row.updated_at >= was).toBe(true);
   expect(row.demo).toMatchObject({ latest: { dir: '/d' }, earlier: [{ dir: '/v' }] });
   expect([row.plan?.collapsed, row.review, row.hold]).toEqual([true, null, null]);
-  // the demo part keeps its row while it has earlier demos, whatever else of it is cleared
+  
   s.updateCard(id, { demo: { latest: null } });
   expect(s.db.query('SELECT COUNT(*) AS n FROM card_demos').get()).toEqual({ n: 1 });
   s.updateCard(id, { demo: { earlier: [] }, plan: { collapsed: false } });
@@ -853,7 +853,7 @@ test('canvases: names unique per project in any case, ordered, a plan moves with
     expect(kid!.canvas_id).toBe(s.canvases.main('c'));
     s.cards.setCanvas([plan!.id], ideas.id);
     expect([s.cards.get(plan!.id)!.canvas_id, s.cards.get(kid!.id)!.canvas_id]).toEqual([ideas.id, ideas.id]);
-    // a deleted canvas leaves its cards as they are and takes its groups along, out of which its cards go
+    
     const [old] = s.addCards([{ project_id: 'c', canvas_id: later.id, kind: 'task', x: 0, y: 0 }]);
     const solo = s.groups.add('c', 'Solo', 3, later.id);
     s.cards.update(old!.id, { archived_at: '2026-11-01', group_id: solo.id });
@@ -886,7 +886,7 @@ test('a pending migration is preceded by a backup of the database, and only the 
     copy.close();
     expect(version(path)).toBe(before + 1);
     expect(readdirSync(dir).filter((f) => f.includes('.before-')).sort()).toEqual(['seismic.db.before-3', 'seismic.db.before-4', `seismic.db.before-${before + 1}`].sort());
-    // up to date and fresh databases are not backed up
+    
     const names = readdirSync(dir).sort();
     MIGRATIONS.push('CREATE TABLE backup_probe (id INTEGER)');
     try {
@@ -939,7 +939,7 @@ test('the cards’ open waits move into needs_you, with when they began; waiting
     expect(after.db.query("SELECT digest FROM needs_you").all()).toEqual([{ digest: null }, { digest: null }]);
     expect(after.db.query("SELECT 1 FROM pragma_table_info('cards') WHERE name = 'waiting_since'").get()).toBeNull();
     expect(after.cards.get(idle!.id)).toBeTruthy();
-    // exactly one target, and one open wait per target
+    
     expect(() => after.db.run("INSERT INTO needs_you (project_id, kind, created_at, last_updated) VALUES ('c', 'demo', 0, 0)")).toThrow();
     expect(() => after.db.query("INSERT INTO needs_you (project_id, kind, card_id, created_at, last_updated) VALUES ('c', 'demo', ?, 0, 0)").run(asks!.id)).toThrow();
     after.db.run('UPDATE needs_you SET resolved_at = 1 WHERE id = 1');

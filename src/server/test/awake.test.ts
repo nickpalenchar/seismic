@@ -32,7 +32,7 @@ describe('Awake', () => {
     o.now = 119_000;
     awake.check();
     expect(o.released).toBe(0);
-    // a turn that starts within the while keeps the one assertion
+    
     o.wanted = true;
     awake.check();
     o.wanted = false;

@@ -1,4 +1,4 @@
-// State this browser keeps across reloads: a value in localStorage under a key, often one per project.
+
 
 import { useMemo, useState } from 'react';
 

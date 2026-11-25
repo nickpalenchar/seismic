@@ -41,15 +41,15 @@ test('responses group by the configuration they credit; mixed and unrecorded wor
     fb([unknownModel], { rating: 1 }),
   ];
   const p = performance(list);
-  // by harness, model (unknown last) and effort in its order, never by how well a row did
+  
   expect(p.rows.map((r) => r.key)).toEqual(['claude|claude-opus-5-5|medium', 'claude|claude-opus-5-5|high', 'claude|claude-sonnet-5-5|medium', 'claude||high', 'codex|gpt-5.5|low', 'mixed', 'missing']);
   const high = p.rows[1]!;
   expect(high).toMatchObject({ kind: 'config', ratings: [5, 4], counts: [0, 0, 0, 1, 1], mean: 4.5, median: 4.5, comments: 1, few: true });
-  // the alias it was asked for does not split a row
+  
   expect(high.config).toEqual({ harness: 'claude', model: 'claude-opus-5-5', effort: 'high' });
-  // the latest response first
+  
   expect(high.responses.map((f) => f.id)).toEqual([list[4]!.id, list[1]!.id]);
-  // a comment without stars counts as a response, not as a rating
+  
   expect(p.rows[0]).toMatchObject({ ratings: [], mean: null, median: null, comments: 1 });
   expect(p.rows[5]).toMatchObject({ kind: 'mixed', ratings: [2] });
   expect(p.rows[6]).toMatchObject({ kind: 'missing', ratings: [4] });
@@ -74,7 +74,7 @@ test('filters by project, repository, plan and since when; the choices are what 
   const list = [
     fb([opusHigh], { rating: 5 }, { projectId: 'a', repo: 'web', plan: { id: 'p1', title: 'Billing' }, at: '2026-09-01T00:00:00.000Z' }),
     fb([opusHigh], { rating: 4 }, { projectId: 'b', repo: 'api', at: '2026-11-01T00:00:00.000Z' }),
-    // changed lately: counts from its change
+    
     fb([sonnet], { rating: 2 }, { projectId: 'a', repo: 'api', plan: { id: 'p2', title: 'Auth' }, at: '2026-08-01T00:00:00.000Z', updatedAt: '2026-10-30T00:00:00.000Z' }),
   ];
   const ids = (f: Parameters<typeof filterFeedback>[1]) => filterFeedback(list, f).map((x) => x.id);

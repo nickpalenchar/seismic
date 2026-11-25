@@ -1,4 +1,4 @@
-/** The routes of Seismic's API under `/api/v1/`, each in the file its URL names. */
+
 import type { HttpRoute, RouteDependencies } from '../httpRoute';
 import { Card } from './cards/_cardId';
 import { Approve } from './cards/_cardId/approve';

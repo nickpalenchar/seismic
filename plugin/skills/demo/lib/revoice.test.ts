@@ -33,7 +33,7 @@ describe('re-voicing a demo', () => {
     ]);
     expect(at(5)).toBe(5);
     expect(at(10)).toBe(10);
-    // halfway through the words is halfway through the longer clip
+    
     expect(at(15)).toBe(17.5);
     expect(at(20)).toBe(25);
     expect(at(30)).toBe(35);

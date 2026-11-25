@@ -1,14 +1,14 @@
-// Command (shadcn/ui's, on cmdk): a search field with the list of what fits it, the arrow keys moving
-// the active item and Enter picking it, with focus staying in the field. Where the caller filters the
-// list itself (`shouldFilter={false}`), cmdk only moves the selection: the card finder and the merge
-// picker. The composer's skill and card-link menus sit in a textarea / contentEditable that cmdk
-// cannot own, and stay on `Listbox`.
-//
-// `Command` is the root and holds the field, the list, and any popover that carries the list, since
-// cmdk shares its state through context. `CommandInput` is the field (`icon={false}` where the caller
-// draws its own, `wrapperClassName` styles what holds it), `CommandList` the scrolling list,
-// `CommandItem` an option (`value` is its id, `onSelect` picks it; the active one is
-// `[data-selected=true]`).
+
+
+
+
+
+
+
+
+
+
+
 
 import { cn } from 'cn';
 import { Command as CommandPrimitive } from 'cmdk';
@@ -59,7 +59,7 @@ function CommandItem({ className, ...props }: ComponentProps<typeof CommandPrimi
   return (
     <CommandPrimitive.Item
       data-slot="command-item"
-      // a press keeps the focus in the field
+      
       onMouseDown={(e) => e.preventDefault()}
       className={cn('relative flex cursor-pointer items-center gap-2 rounded-sm outline-none select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-muted [&_svg]:pointer-events-none [&_svg]:shrink-0', className)}
       {...props}

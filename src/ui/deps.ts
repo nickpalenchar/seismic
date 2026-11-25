@@ -1,22 +1,22 @@
-// What a card waits for, and what waits for a card: each direct wait shows as a faint line at all
-// times, and over every step while the pointer is on a card. A card in the queue waits for the cards
-// the Koordinator holds it behind; a workstream not delivered yet also waits for the open workstreams
-// it builds on, as the Koordinator read them from the plan doc, started or not; a card snoozed until
-// another card gets somewhere waits for that card; and a card waits for those the owner drew an arrow
-// from. A wait ends once the card waited for is finished. A wait that a chain of others already
-// implies (A before C, while A is before B and B before C) shows no line of its own.
+
+
+
+
+
+
+
 
 import type { Bounds } from '../core/layout';
 import { finished, inParkingLot, type Item, snoozeOf } from '../core/types';
 
 export interface Deps {
-  /** The cards the hovered one waits for, directly or through others. */
+  
   before: Set<string>;
-  /** The cards waiting for the hovered one, directly or through others. */
+  
   after: Set<string>;
-  /** Each wait on the way, from the card waited for to the card waiting. */
+  
   edges: [from: string, to: string][];
-  /** Those of `edges` on the way to the hovered card (into it or into a card it waits for), as `from to`. */
+  
   first: Set<string>;
 }
 
@@ -46,7 +46,7 @@ export function waitsAmong(items: Item[]): [from: string, to: string][] {
 export function withoutImplied<E extends [from: string, to: string]>(edges: E[]): E[] {
   const next = new Map<string, Set<string>>();
   for (const [from, to] of edges) next.set(from, (next.get(from) ?? new Set()).add(to));
-  // whether `to` is reached from `from` without taking the edge `from → to` itself
+  
   const reaches = (from: string, to: string, skipDirect: boolean) => {
     const seen = new Set([from]);
     const todo = [...(next.get(from) ?? [])].filter((y) => !(skipDirect && y === to));
@@ -111,7 +111,7 @@ export function depsOf(id: string, items: Item[]): Deps | undefined {
   return { before, after, edges: direct, first: new Set([...first].filter((k) => kept.has(k))) };
 }
 
-// ---------------------------------------------------------------- the dots an owner draws an arrow from
+
 
 export type Side = 'top' | 'right' | 'bottom' | 'left';
 export const SIDES: Side[] = ['top', 'right', 'bottom', 'left'];
@@ -143,7 +143,7 @@ export function nearestHandle(cards: { id: string; b: Bounds }[], at: { x: numbe
   let bestD = Infinity;
   const outer = Math.max(reach, edgeReach);
   for (const { id, b } of cards) {
-    // a card whose edges all lie farther away has no dot in reach
+    
     if (at.x < b.x - outer || at.x > b.x + b.w + outer || at.y < b.y - outer || at.y > b.y + b.h + outer) continue;
     for (const side of SIDES) {
       const h = handleAt(b, side);

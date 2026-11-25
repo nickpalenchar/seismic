@@ -7,10 +7,10 @@ import type { StoredShare } from '../board';
 import { Store } from '../store';
 import { FakeRuntime, gitRepo, heard, noForge } from './helpers/testing';
 
-// A project the size of a long-used one: hundreds of archived cards, a few hundred of them with a
-// shared page, a hundred on the project, ideas with hundreds of prototypes. Many cards landing one
-// after the other change it dozens of times in a row, and sharing a demo looks up every shared card;
-// the server answers nothing while that runs.
+
+
+
+
 
 let dir: string;
 let project: ProjectRuntime;
@@ -36,7 +36,7 @@ beforeAll(() => {
     store.updateCard(r.id, {
       demo: {
         latest: { dir: demo, ...shown },
-        // a page published before the newest page changes: the Koordinator's sheet offers to share it again
+        
         ...(n % 3 === 0 ? { share: { slug: `card-${n}`, url: `https://demos.example/card-${n}`, demos: [{ dir: demo, shown }], version: '' } as unknown as StoredShare } : {}),
       },
       ...(n < 800 ? { archived_at: new Date(Date.now() - n * 60_000).toISOString() } : {}),
@@ -44,7 +44,7 @@ beforeAll(() => {
   });
   archived = rows.slice(0, 800).map((r) => r.id);
   onProject = rows.slice(800).map((r) => r.id);
-  // ideas tried out in prototypes, most of them in the archive by now with their prototypes, many of those shared
+  
   const idea = store.addCards(Array.from({ length: 80 }, (_, n) => ({ project_id: c, kind: 'task' as const, state: 'idea' as const, title: `Idea ${n}`, body, x: n * 400, y: 9000 })));
   ideas = idea.map((r) => r.id);
   const prototypes = store.addCards(idea.flatMap((r, n) => Array.from({ length: 4 }, (_, v) => ({ project_id: c, kind: 'task' as const, state: 'live' as const, title: `Idea ${n}, variant ${v}`, body, x: n * 400 + v * 100, y: 9300, from_id: r.id, idea: { prototypeOf: r.id } }))));
@@ -62,13 +62,13 @@ beforeAll(() => {
     });
   });
   idea.slice(0, 70).forEach((r, n) => store.cards.update(r.id, { archived_at: new Date(Date.now() - n * 60_000).toISOString() }));
-  // the server sends each change to the pages that show the project
+  
   project.board.onChange(() => JSON.stringify(project.board.snapshot()));
   project.board.changed();
 });
 
 afterAll(async () => {
-  // what listens to the board hears of the last change before its files go
+  
   await heard();
   project.shutdown();
   rmSync(dir, { recursive: true, force: true });
@@ -77,23 +77,23 @@ afterAll(async () => {
 test('a project with hundreds of archived and shared cards: a run of changes holds the server up for far less than half a second', async () => {
   await heard();
   const board = project.board;
-  // the time the server's process computes, not the time on the clock: beside other test files
-  // (`bun test --parallel`) on a runner with few cores, it also waits for a core, which says
-  // nothing about the code (a run that takes under 100 ms on a laptop took 700 ms on the clock in CI)
+  
+  
+  
   let longest = 0;
   for (let round = 0; round < 3; round++) {
     const start = process.cpuUsage();
-    // a landing: each card moves on, says so, and is read back between the writes, as the workers do
+    
     for (const id of onProject.slice(round * 30, round * 30 + 30)) {
       board.work(id, { status_line: `Landing ${round}` });
       board.item(id);
       board.log(id, 'state', 'seismic', 'Landed on main.');
       board.item(id);
       board.work(id, { landed: JSON.stringify({}) });
-      // its page is looked up among the archived ones
+      
       board.card(archived[(round * 30 + onProject.indexOf(id)) % archived.length]!);
     }
-    // what listens to the board hears of it once the run is through
+    
     await heard();
     const used = process.cpuUsage(start);
     longest = Math.max(longest, (used.user + used.system) / 1000);
@@ -109,7 +109,7 @@ test('sharing looks up every shared card, archived ones with their prototypes, a
   let longest = 0;
   for (let round = 0; round < 3; round++) {
     const start = process.cpuUsage();
-    // a landing shares its demo: the board changed, and the pass over the shared pages looks up each card
+    
     board.work(onProject[round]!, { status_line: `Sharing ${round}` });
     expect(shared.filter((id) => board.card(id)).length).toBe(shared.length);
     await heard();

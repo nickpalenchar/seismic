@@ -1,12 +1,12 @@
-/**
- * Antigravity (`agy`) as a harness for Seismic agents, in preview. One headless
- * `agy` process per session, speaking stream-json both ways: a `user` frame in per turn, `step_update`
- * frames out while it works, one `result` frame when the turn ends. It runs fully automatic
- * (`--dangerously-skip-permissions`) inside agy's own OS sandbox (`--sandbox`), so the card never asks a
- * permission question; what the sandbox keeps from it goes through `seismic_run` and `seismic_git`
- * (`codexExecTools.ts`). Seismic's tools reach it over a localhost MCP endpoint (`agyMcp.ts`) that a
- * per-session stdio bridge forwards to. Routing and portability checks: `index.ts`.
- */
+
+
+
+
+
+
+
+
+
 import { readOnlyRun } from '../agents/permission';
 import { seismicEnv } from '../../../core/env';
 import { spawn } from 'node:child_process';
@@ -121,7 +121,7 @@ const usageRead = z.object({
  */
 export function agyUsageOf(answer: unknown, now = new Date()): Usage {
   const r = usageRead.parse(answer);
-  // within a group, the five-hour bucket ahead of the week's, as Claude and Codex list them
+  
   const limits = r.command.data.groups.flatMap((g) =>
     g.buckets.map((b): UsageLimit => {
       const group = /^\d+h$/i.test(b.window ?? '') ? 'session' : 'weekly';
@@ -139,10 +139,10 @@ export function agyUsageOf(answer: unknown, now = new Date()): Usage {
   return { harness: 'agy', limits, at: now.toISOString() };
 }
 
-/** Runs `agy` with `args`; its exit status and output. Aborting `signal` ends it, with whatever it started. */
+
 export type AgyRun = (executable: string, args: string[], signal: AbortSignal) => Promise<{ status: number; out: string; err: string }>;
 
-/** How long a `/usage` answer may take before everything it runs is ended. */
+
 const USAGE_RUN_MS = 25_000;
 
 /**
@@ -160,11 +160,11 @@ export function endProcessTree(child: { pid?: number; kill: (signal: NodeJS.Sign
     if (ownGroup && child.pid) process.kill(-child.pid, 'SIGKILL');
     else child.kill('SIGKILL');
   } catch {
-    // already gone
+    
   }
 }
 
-/** The environment variable through which the Windows launcher is told where `agy` is, so that no path goes through cmd's parser. */
+
 export const USAGE_LAUNCH_AGY = 'SEISMIC_USAGE_AGY';
 
 /**
@@ -186,7 +186,7 @@ export function usageLaunch(executable: string, args: string[], env: Record<stri
 
 const runAgy: AgyRun = (executable, args, signal) =>
   new Promise((resolve, reject) => {
-    // a group of its own on POSIX, a job on Windows: ending it ends whatever agy started for the answer too
+    
     const job = OWN_GROUP ? undefined : windowsJob();
     if (!OWN_GROUP && !job) return reject(new Error('agy /usage cannot be held in a job object'));
     const launch = job ? usageLaunch(executable, args, cleanEnv()) : { command: executable, args, env: cleanEnv() };
@@ -213,13 +213,13 @@ const runAgy: AgyRun = (executable, args, signal) =>
       else resolve({ status: status ?? 1, out, err });
     });
     if (job) {
-      // the launcher waits; agy starts only once the job holds it
+      
       if (child.pid && job.assign(child.pid)) {
-        child.stdin!.on('error', () => { /* the launcher is gone; its exit says so */ });
+        child.stdin!.on('error', () => {  });
         child.stdin!.end('\r\n');
       } else {
-        // the launcher has started nothing yet, and the empty job would end nothing: it alone is killed
-        try { child.kill('SIGKILL'); } catch { /* already gone */ }
+        
+        try { child.kill('SIGKILL'); } catch {  }
         reject(new Error('agy /usage could not be put into its job object'));
       }
     }
@@ -232,7 +232,7 @@ const runAgy: AgyRun = (executable, args, signal) =>
  * is not installed, without starting anything, or not signed in.
  */
 export function agyUsage(run: AgyRun = runAgy, executable: () => string | null = installedAgy): UsageSource {
-  // closing ends a `/usage` run under way, rather than letting it finish for nobody
+  
   const closing = new AbortController();
   return {
     fetch: async () => {
@@ -267,11 +267,11 @@ function supported(spec: AgentSpec) {
   if (spec.resume && !(spec.resume.startsWith('agy:') && AGY_CONVERSATION_ID.test(spec.resume.slice('agy:'.length)))) throw new Error('Antigravity can only resume an agy: session, not a Claude or Codex one');
 }
 
-/**
- * What a read-only agent (a code review) may do without being asked, as `agy`'s permission rules have
- * it: Seismic's tools, reads, and commands that only look. Everything else, writing above all, is
- * denied, since nobody answers in a headless session.
- */
+
+
+
+
+
 export const READ_ONLY_PERMISSIONS = {
   allow: [`mcp(${AGY_SERVER})`, `mcp(${AGY_SERVER}/*)`, `mcp(${AGY_SERVER}:*)`, `mcp(${AGY_SERVER}_*)`, `mcp(${AGY_SERVER}/seismic_ask)`, 'read_file', ...['git', 'ls', 'cat', 'head', 'tail', 'grep', 'rg', 'find', 'wc', 'pwd', 'diff', 'stat'].map((c) => `command(${c})`)],
   deny: ['write_file'],
@@ -325,9 +325,9 @@ export function agyLimit(message: string, now = Date.now()): { resetsAt?: number
   if (!/quota|rate.?limit|resource.?exhausted|usage limit|too many requests|\b429\b/i.test(message)) return undefined;
   const marker = /(?:resets?\s+in|retry\s+(?:in|after)|try again\s+(?:in|after))\s+/i.exec(message);
   if (!marker) return {};
-  // Capture the whole phrase before validating it. Whitespace (including newlines) is not a
-  // terminator: "2h 3days" must stay unknown, rather than scheduling a retry after only 2h.
-  // A decimal point belongs to a number; other periods end the sentence.
+  
+  
+  
   const phrase = message.slice(marker.index + marker[0].length).split(/\.(?!\d)|[;)]/, 1)[0]!.trim();
   if (!/^(?:\d+(?:\.\d+)?\s*(?:hours?|hrs?|h|minutes?|mins?|m|seconds?|secs?|s)\s*)+$/i.test(phrase)) return {};
   let duration = 0;
@@ -339,17 +339,17 @@ export function agyLimit(message: string, now = Date.now()): { resetsAt?: number
   return Number.isFinite(resetsAt) ? { resetsAt } : {};
 }
 
-/** An `agy` the argument list and environment are given to; injectable for tests. */
+
 type Launch = (command: string, args: string[], options: { cwd: string; env: NodeJS.ProcessEnv }) => ReturnType<typeof spawn>;
 const launchInstalled: Launch = (command, args, options) => spawn(command, args, { ...options, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, detached: OWN_GROUP });
 
 export function createAgyRuntime(launch: Launch = launchInstalled, executable: () => string | null = installedAgy, brain: () => string = agyBrainDir, loadModels = agyModels): AgentRuntime {
   const sessions = {
     start(command: string, spec: AgentSpec, run: RunChoice, firstMessage?: string, images?: string[]) {
-      // An earlier Seismic crashed and its sweep could not end this workstation's old session.
+      
       const left = sessionRegistry()?.unaccounted(spec.cwd);
       if (left?.length) throw new Error(`An earlier session in this workstation left processes that are still running (${left.map((l) => l.label).join('; ')}); Seismic tries to end them when it starts`);
-      // Capture resumed history before launching agy, which can write before its init frame arrives.
+      
       let tail = spec.resume ? new TranscriptTail(agyTranscriptLog(brain(), spec.resume.slice('agy:'.length)), true) : undefined;
       const closeConfig = { current: () => {} };
       const emit = (event: AgentEvent) => { if (!closing) spec.onEvent(event); };
@@ -363,10 +363,10 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
 
       const queue: string[] = [];
       const seen = new Set<number>();
-      // agy calls an MCP tool through its own `call_mcp_tool`; Seismic's are shown at dispatch (`called`)
+      
       const own = (name: string, parameters?: Record<string, unknown> | null) => name === 'call_mcp_tool' ? parameters?.ServerName === AGY_SERVER : [...registration.tools.keys()].some((w) => name === w || name.endsWith(w));
       let closing = false;
-      // Turns wait for agy's identity to be on record, so a crash during the first one leaves nothing unrecorded.
+      
       let ready = false;
       let turn = false;
       let introduced = false;
@@ -386,20 +386,20 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
       let finish!: () => void;
       const done = new Promise<void>((resolve) => { finish = resolve; });
 
-      // What a crash of Seismic would leave behind (agy's own commands, which may detach from its
-      // group) is recorded as it is observed, as for Codex (sessionRegistry.ts).
+      
+      
       const terminals = child.pid ? new AgentProcesses(child.pid) : undefined;
       const record = terminals ? sessionRegistry()?.begin(`Antigravity in ${spec.cwd}`, spec.cwd) : undefined;
-      // A command the record does not name would outlive a crash: agy does not go on without it.
+      
       const publish = () => {
         void record?.then((generation) => generation?.publish(terminals!.observed())).catch((error: unknown) => {
           failEnded(`Antigravity's processes could not be put on record: ${messageOf(error)}`);
         });
       };
       if (terminals && record) { terminals.onChange = publish; publish(); }
-      // A busy machine's snapshot can time out: that observation is skipped. One that failed for good
-      // once agy is identified (and may run turns) may have missed a process, so ending what was seen
-      // does not account for it: the record stays. Before that no turn went out, so nothing is owed.
+      
+      
+      
       const observed = tolerateTimeouts();
       let unobserved = false;
       const watch = (operation: Promise<void>) => observed(operation).catch((error: unknown) => { if (terminals?.observed().length) unobserved = true; throw error; });
@@ -410,7 +410,7 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
         watch(terminals.track()).catch((error: unknown) => failEnded(`Antigravity's processes cannot be watched: ${messageOf(error)}`)).finally(() => { observing = false; });
       });
 
-      // agy wakes itself for a task that ends during a turn; between turns nothing does, so the session does.
+      
       const watchTasks = (turnEnded = false) => {
         if (!tail || closing) return;
         let tasks: AgyTask[];
@@ -419,7 +419,7 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
         const ended = background.filter((before) => !tasks.some((now) => now.id === before.id));
         background = tasks;
         emit({ type: 'background', tasks });
-        // a turn that just ended reports its own idle
+        
         if (turn || turnEnded) return;
         if (ended.length) queue.push(`Background commands have ended: ${ended.map((t) => t.description).join('; ')}. Inspect their results and continue your task.`);
         emit({ type: 'idle', background: tasks.length, more: queue.length > 0 });
@@ -429,14 +429,14 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
 
       const signal = (which: NodeJS.Signals) => {
         if (exited) return;
-        try { if (OWN_GROUP && child.pid) process.kill(-child.pid, which); else child.kill(which); } catch { /* already gone */ }
+        try { if (OWN_GROUP && child.pid) process.kill(-child.pid, which); else child.kill(which); } catch {  }
       };
       const stop = () => {
         if (closing) return;
         closing = true;
         endpoint.dispose();
-        // Queued before any kill, so the commands seen now are ended with the rest.
-        if (terminals) void watch(terminals.track()).catch(() => { /* the record stays for a sweep */ });
+        
+        if (terminals) void watch(terminals.track()).catch(() => {  });
         child.stdin?.end();
         terminate = setTimeout(() => signal('SIGTERM'), 1000);
         kill = setTimeout(() => signal('SIGKILL'), 3000);
@@ -509,23 +509,23 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
         while ((i = buffer.indexOf('\n')) >= 0) { const line = buffer.slice(0, i).trim(); buffer = buffer.slice(i + 1); if (line) onFrame(line); }
       });
       child.stderr?.on('data', (chunk: Buffer) => { stderr = (stderr + chunk.toString()).slice(-4000); });
-      child.stdin?.on('error', () => { /* the process is gone; its exit says why */ });
+      child.stdin?.on('error', () => {  });
       child.on('error', (error) => failEnded(`Antigravity could not start: ${messageOf(error)}`));
       child.on('exit', () => {
         stopObserving();
         stopTasks();
-        // Do not wait for `close`: a command agy started may still hold its pipes open.
-        void terminals?.kill().catch(() => { /* retried at close */ });
-        // The leader is gone, so any member still in its group keeps the number reserved: this is the
-        // last point where signalling the group cannot reach a reused one.
-        if (OWN_GROUP && child.pid) try { process.kill(-child.pid, 'SIGKILL'); } catch { /* none left */ }
+        
+        void terminals?.kill().catch(() => {  });
+        
+        
+        if (OWN_GROUP && child.pid) try { process.kill(-child.pid, 'SIGKILL'); } catch {  }
         exited = true;
         clearTimeout(terminate);
         clearTimeout(kill);
       });
       const unregister = endAtShutdown(stop, { done, force: async () => {
         stop();
-        await terminals?.kill().catch(() => { /* the record stays for a sweep */ });
+        await terminals?.kill().catch(() => {  });
         signal('SIGKILL');
       } });
       onceClosed(child, (code) => {
@@ -536,7 +536,7 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
         clearTimeout(kill);
         endpoint.dispose();
         closeConfig.current();
-        // The record goes only once every process is ended; a refused signal leaves it for the sweep.
+        
         void (async () => {
           let ended = true;
           try { await terminals?.kill(); } catch { ended = false; }
@@ -567,8 +567,8 @@ export function createAgyRuntime(launch: Launch = launchInstalled, executable: (
       if (cached) return start(cached);
       if (!spec.setting && !spec.model && !spec.effort) return start([]);
 
-      // A queue or resume can reach this before any picker or connection check. Keep its turns
-      // until the flags are known, and let a close during discovery prevent the launch.
+      
+      
       let session: ReturnType<AgentRuntime['start']> | undefined;
       let closed = false;
       const queued: [string, string[]?][] = [];

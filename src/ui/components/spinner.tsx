@@ -1,6 +1,6 @@
 import { cn } from 'cn';
 
-// Shadcn's Spinner with its default Lucide glyph replaced by a CSS ring.
+
 function Spinner({ className, ...props }: React.ComponentProps<'span'>) {
   return (
     <span

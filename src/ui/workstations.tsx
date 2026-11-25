@@ -1,6 +1,6 @@
-// A machine's workstations as the status bar's pill lists them (a dot per workstation in the colour
-// of its card's state, a line per workstation with its card), shared by the pill and the phone's
-// working box.
+
+
+
 
 import { Ellipsis, Pause } from 'lucide-react';
 import type { CSSProperties } from 'react';
@@ -13,7 +13,7 @@ import { cn } from 'cn';
 import { Button, LinkButton } from './components/button';
 import { Tooltip } from './components/tooltip';
 
-/** The colours of a card's state that pulse on its workstation's dot: at work, in review, landing. */
+
 const PULSING = new Set(['working', 'reviewing', 'approved']);
 /**
  * Puts the pulse animations of an element (its `::before` and `::after`) on the document timeline's origin when they
@@ -26,30 +26,30 @@ function alignPulse(e: AnimationEvent<HTMLElement>) {
   for (const a of e.currentTarget.getAnimations({ subtree: true })) if ((a as CSSAnimation).animationName === 'ws-pulse') a.startTime = 0;
 }
 
-/**
- * The pulse of a dot at work: its pale fill under its full fill (`::after`) and glow (`::before`, round the outline),
- * which fade out and back (`ws-pulse` in frost.css); under reduced motion a ring in its colour around a dot that
- * stands still. In place of the dot's own fill (`bg-c`).
- */
+
+
+
+
+
 const pulse =
   "relative bg-c-subtle shadow-[0_0_1px_var(--c-subtle)] before:absolute before:-inset-px before:rounded-full before:shadow-[0_0_6px_var(--c)] before:content-[''] before:animate-[ws-pulse_2.4s_ease-in-out_infinite] after:absolute after:inset-0 after:rounded-full after:bg-c after:content-[''] after:animate-[ws-pulse_2.4s_ease-in-out_infinite] reduced:border-2 reduced:border-[var(--c)] reduced:bg-transparent reduced:shadow-none reduced:before:hidden reduced:after:animate-none reduced:after:inset-auto reduced:after:top-1/2 reduced:after:left-1/2 reduced:after:size-1 reduced:after:[transform:translate(-50%,-50%)]";
 
-/** The pulse of a share of the bar at work: its full fill (`::after`) fades out to its pale fill and back, as a dot's does. */
+
 const barPulse =
   "relative bg-c-subtle after:absolute after:inset-0 after:bg-c after:content-[''] after:animate-[ws-pulse_2.4s_ease-in-out_infinite] reduced:after:animate-none";
 
-/**
- * A workstation's dot, the same on the pill and in its list: in the colour of its card's state as
- * the card shows it (`cardTone`), so it follows the cards' colours, pulsing slowly where the card is
- * at work, in review or landing; a card on another project solid while its worker is at work, else
- * pale; a pause symbol while held for restart; a ring while free, orange while blocked.
- * `w` is undefined for a free slot of worktrees.
- */
+
+
+
+
+
+
+
 type WorkstationDot = {
   className: string;
   style?: CSSProperties;
   paused?: boolean;
-  /** its colour as a share of the bar many workstations become (`DotsFace`); none while free */
+  
   fill?: string;
   pulsing?: boolean;
 };
@@ -69,7 +69,7 @@ export function wsDot(w: PoolWorkstation | undefined, host: PoolHost, items: Ite
   const tone = item ? cardTone(item, underway[item.id]) : host.busy.includes(w.card) ? 'working' : null;
   if (item?.hold?.reason === 'restart') return { className: 'block text-[var(--restart)]', paused: true, fill: 'var(--restart)' };
   if (!tone) return { className: cn(dot, 'bg-working/35'), fill: 'var(--working-wash)' };
-  // an idea's agent at work on a reply pulses in the idea's colour
+  
   const pulsing = PULSING.has(tone) || (tone === 'idea' && !!host.exploring?.includes(w.card));
   return {
     className: cn(dot, pulsing ? pulse : 'bg-c'),
@@ -93,7 +93,7 @@ export const atWorkOn = (h: PoolHost): number => h.busy.length + (h.reviewing?.l
  */
 export const hostSpots = (h: PoolHost, items: Item[]): (PoolWorkstation | undefined)[] => {
   const byId = new Map(items.map((i) => [i.id, i]));
-  // a card that is stopped, queued, snoozed, parked or not on this project does not show: only cards at work or waiting on the owner here
+  
   const shown = (w: PoolWorkstation) => {
     if (!w.card) return true;
     const i = byId.get(w.card);
@@ -106,7 +106,7 @@ export const hostSpots = (h: PoolHost, items: Item[]): (PoolWorkstation | undefi
   if (h.uncapped) return [...cards, ...ideas];
 
   const busy = new Set(h.busy);
-  // A busy worker can be hidden or work outside the pool. Queued and snoozed cards can keep a worktree.
+  
   const hidden = new Set(busy);
   for (const { card } of h.workstations) {
     const i = card && byId.get(card);
@@ -114,7 +114,7 @@ export const hostSpots = (h: PoolHost, items: Item[]): (PoolWorkstation | undefi
   }
   for (const { card } of cards) hidden.delete(card);
   const visibleBusy = cards.filter((w) => busy.has(w.card)).length;
-  // Show active work first. Hidden reservations use only the space left after visible workers.
+  
   const visibleSlots = Math.min(h.slots, Math.max(visibleBusy, h.slots - hidden.size));
   if (cards.length > visibleSlots) cards.sort((a, b) => Number(busy.has(b.card)) - Number(busy.has(a.card)));
   const spots = [...cards, ...ideas].slice(0, visibleSlots);
@@ -140,7 +140,7 @@ export function WorkstationRows({ host, items, underway, projects, onOpen, onEls
   onTake?: (i: Item) => void;
   onKeep: (i: Item) => void;
 }) {
-  // the row whose "⋯" is open
+  
   const [more, setMore] = useState<string | null>(null);
   return (
     <ul className="m-0 mb-0.5 list-none p-0">
@@ -282,7 +282,7 @@ export function BlockedClones({ host }: { host: PoolHost }) {
 export const dotsLayout = (n: number): { rows: 1 | 2 | 3; cols: number } | 'bar' =>
   n <= 5 ? { rows: 1, cols: n } : n <= 12 ? { rows: 2, cols: Math.ceil(n / 2) } : n <= 18 ? { rows: 3, cols: Math.ceil(n / 3) } : 'bar';
 
-/** The dots' size and spacing by rows, so two and three rows still fit the status bar's pill. */
+
 const ROWS = { 1: { size: 'size-3', gap: 'gap-1' }, 2: { size: 'size-2.5', gap: 'gap-0.5' }, 3: { size: 'size-[7px]', gap: 'gap-0.5' } } as const;
 
 /** Where each kind of workstation stands in the bar: at work first, free last, so its shares read as a ratio. */
@@ -307,7 +307,7 @@ export function DotsFace({ dots }: { dots: WorkstationDot[] }) {
   const layout = dotsLayout(dots.length);
   if (!dots.length) return null;
   if (layout === 'bar') {
-    // one share per colour, as wide as its workstations are many
+    
     const shares: { dot: WorkstationDot; n: number }[] = [];
     for (const d of [...dots].sort((a, b) => barOrder(a) - barOrder(b))) {
       const last = shares.at(-1);
@@ -335,7 +335,7 @@ export function DotsFace({ dots }: { dots: WorkstationDot[] }) {
 /** Every pool's dots, a machine at a time as the status bar's pill shows them (`DotsFace`). */
 export function WorkstationDots({ pools, items, underway }: { pools: ClonePool[]; items: Item[]; underway: Record<string, string> }) {
   const hosts = pools.flatMap((p) => p.hosts.map((h) => ({ key: `${p.repo}/${h.name}`, dots: hostDots(h, items, underway) }))).filter((h) => h.dots.length);
-  // several machines wrap onto further lines rather than push what stands beside the dots off a narrow screen
+  
   return hosts.length ? (
     <span className="flex min-w-0 flex-wrap items-center gap-2" aria-hidden>
       {hosts.map((h) => (

@@ -1,13 +1,13 @@
-// A program run on this machine and waited for, with what it printed.
 
-/**
- * Whether a process Seismic starts and ends itself goes into a process group of its own (POSIX):
- * Ctrl-C in the terminal goes to the whole foreground group. It reached every agent in the middle
- * of its turn, and what each ran, while Seismic meant to wait for them to pause; a sidecar it reached
- * died with a traceback. Out of that group, Ctrl-C reaches Seismic alone, which ends them itself. Not
- * on Windows, where a detached process has no console and every console program it starts opens a
- * window.
- */
+
+
+
+
+
+
+
+
+
 export const OWN_GROUP = process.platform !== 'win32';
 
 /**
@@ -36,12 +36,12 @@ export function hidden(args: unknown[]): unknown[] {
 
 type Options = Omit<Bun.SpawnOptions.SpawnOptions<Bun.SpawnOptions.Writable, 'pipe', 'pipe'>, 'stdout' | 'stderr'>;
 
-/**
- * How many processes `spawnOutput` starts in one turn of the event loop. Starting one takes the
- * server's thread a moment, under load many milliseconds: dozens started at once (a git call in
- * each clone, several landings) held it up for most of a second, in which it answered no page.
- * Those beyond wait for the next turn, so that what else waits comes between.
- */
+
+
+
+
+
+
 const STARTS_PER_TURN = 4;
 let startedThisTurn = 0;
 const waitingToStart: (() => void)[] = [];
@@ -73,7 +73,7 @@ function nextTurn() {
 
 /** Runs `argv` and waits for it: its exit code, its output, and the signal that stopped it (a timeout), if one did. */
 export function spawnOutput(argv: string[], o: Options = {}): Promise<{ code: number; stdout: string; stderr: string; signal: string | null }> {
-  // at once where it may, as a caller expects of a process it started
+  
   const turn = startTurn();
   return turn ? turn.then(() => run(argv, o)) : run(argv, o);
 }

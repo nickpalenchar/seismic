@@ -1,33 +1,33 @@
-// The owner's inbox: everything that waits for them, across every project, as one list, the latest
-// changed first. Built once from each project's open waits (the server's `needs_you` rows, which it
-// reconciles from card state), so the desktop's inbox, its "Needs you" sheet and the phone's list
-// the same entries in the same order.
+
+
+
+
 
 import { handedOver, type Item, snoozeOf, type Talk, type Waiting, type Preference, type SettingProposal, type RepoRef } from './types';
 import type { NeedsYou, NeedsYouKind } from './waits';
 
 export interface InboxEntry {
-  /** What the entry is known by in the list. */
+  
   key: string;
   project: string;
   projectName: string;
-  /** The card that waits for the owner; absent for Seismic's answers waiting unread in its sheet. */
+  
   card?: Item;
-  /** Seismic's latest unread answer on that project. */
+  
   seismic?: Talk;
   preference?: Preference;
   setting?: SettingProposal;
   rules?: Preference[];
   repos?: RepoRef[];
   proposalItems?: Item[];
-  /** The question, the summary or whatever else it waits for (markdown for a card, plain for Seismic). */
+  
   text: string;
-  /** The wait it stands for, and what it waits for: what renders it (`src/ui/needsYou/renderers.tsx`). */
+  
   row: NeedsYou;
   kind: NeedsYouKind;
-  /** Since when it waits (ISO). */
+  
   since: string;
-  /** When what it waits on last changed (ms): what the list is ordered by. */
+  
   updated: number;
 }
 
@@ -101,7 +101,7 @@ function projectEntries(c: { id: string; name: string }, w: Waiting, underway: (
  */
 export function inboxEntries(projects: { id: string; name: string }[], waiting: Record<string, Waiting | undefined>, underway: (id: string) => boolean = () => false): InboxEntry[] {
   const all = projects.flatMap((c) => (waiting[c.id] ? projectEntries(c, waiting[c.id]!, underway) : []));
-  // a stable sort: ties stay in the order built above
+  
   return all
     .map((e, n) => ({ e, n, later: counted(e) ? 0 : 1 }))
     .sort((a, b) => a.later - b.later || b.e.updated - a.e.updated || a.n - b.n)

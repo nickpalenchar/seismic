@@ -3,7 +3,7 @@ import { activeMergeCard } from '../core/merge';
 import { FullPageHost, useFullPage } from './fullPage';
 import { DockShell, useDock, type DockView } from './dockViews';
 import { clientExtensions as extensions } from '../extensions/client';
-// The project: camera, drag, unfold-in-place and the plan sheet.
+
 
 import { useRatePrompt } from './feedback';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
@@ -92,11 +92,11 @@ export function App() {
   const [phone] = useState(phoneView);
   const [projects, setProjects] = useState<ProjectInfo[] | null>(null);
   const refreshProjects = useCallback((list: ProjectInfo[], previous: ProjectInfo[]) => {
-    // A connection can take over while the fallback read is in flight.
+    
     setProjects((current) => current === previous ? list : current);
   }, []);
   const [failed, setFailed] = useState(false);
-  // another project picked in the switcher, or Back and Forward between projects: the page shows it without loading again
+  
   const [, followed] = useState(0);
   useEffect(() => {
     if (phone) return;
@@ -115,33 +115,33 @@ export function App() {
         if (phone) setProjects((c) => c ?? keptProjects());
       },
     );
-    // the app from the home screen while the machine sleeps: the phone view with the projects it had, which says that Seismic does not answer
+    
     if (!phone) return;
     const h = setTimeout(() => setProjects((c) => c ?? keptProjects()), quietAtStart ? 0 : 3000);
     return () => clearTimeout(h);
   }, []);
-  // this machine's workspaces page in the desktop app, with projects or none (desks/page.tsx)
+  
   if (!phone && inApp() && location.pathname === WORKSPACES_PATH) return <WorkspacesPage key={location.search} />;
   if (!projects) return <Splash offline={failed} />;
-  // the project in the address, else the first
+  
   const { project: wanted, page } = readAddress();
   knowProjects(projects);
-  // an address with no address part opens the first; one naming no project says so, rather than showing another's cards
+  
   const current = wanted ? projectNamed(projects, wanted) : projects[0];
   if (!projects.length) return <NoProject />;
-  // a phone gets every project's waits and work, and the cards full screen, instead of the project
+  
   if (phone && current) return <PhoneNext projects={projects} />;
   return (
     <>
       {!current ? (
         <NoSuchProject name={wanted!} projects={projects} />
       ) : page === 'feedback' ? (
-        // the Agent Feedback Log, a page of its own in place of the project it was opened from
+        
         <FeedbackLog projects={projects} here={current.id} />
       ) : (
         <Shown id={current.id} projects={projects} onProjects={setProjects} />
       )}
-      {/* one for every page, which stays as one page takes another's place: a search in it goes on, unless a view about every project opens over it */}
+      { }
       <ProjectSwitcher project={current?.id ?? ''} projects={projects} onProjects={refreshProjects} />
     </>
   );
@@ -164,9 +164,9 @@ function Shown({ id, projects, onProjects }: { id: string; projects: ProjectInfo
   return <Live key={id} projects={projects} onProjects={onProjects} />;
 }
 
-/** The page while nothing else can show: the sign in the middle, a word or the projects under it. */
+
 const splash = 'fixed inset-0 flex flex-col items-center justify-center gap-3.5 text-muted-foreground animate-[fade_.3s_ease-out]';
-/** No project runs, or the address names none: what to do, in the text's ink. */
+
 const splashNoneRuns = 'p-6 text-foreground [&_.c-problem]:max-w-[640px]';
 
 /** An address names a project that does not exist (a renamed one's old address, a typo): the projects there are, as links. */
@@ -220,12 +220,12 @@ function NoProject() {
   );
 }
 
-/** While the page loads, and after a restart until the project is back: the sign in the middle, above "offline" when the server cannot be reached. */
-/** The projects the phone view last had, for when the machine does not answer. */
+
+
 const KEPT_PROJECTS = 'seismic-phone-projects';
-/** Set once the owner has drawn their first arrow between cards: what an arrow does no longer shows while drawing. */
+
 const DEP_KNOWN = 'seismic-dep-known';
-/** Set once the owner has clicked "Needs you": its label goes, the bell and the count stay. */
+
 const NEEDS_YOU_KNOWN = 'seismic-needs-you-known';
 /** The keyboard's focus is on a control, reached by Tab rather than left there by a click: Tab goes on from it, as anywhere. */
 const onControl = (t: EventTarget | null) => t instanceof HTMLElement && t !== document.body && t.matches(':focus-visible');
@@ -243,7 +243,7 @@ function keptProjects(): ProjectInfo[] | null {
   }
 }
 
-/** How long the server may stay silent before the bar names the time it went quiet. */
+
 const UNRESPONSIVE_MS = 150_000;
 
 /** The status bar when the server does not answer: retrying, or, after 2½ minutes, since when. */
@@ -271,26 +271,26 @@ function Splash({ offline }: { offline: boolean }) {
 
 function Live({ projects: loaded, onProjects }: { projects: ProjectInfo[]; onProjects: (list: ProjectInfo[]) => void }) {
   const { snapshot, online, frozenSince, offlineSince, restart, update, source, usage, waiting, oldBun, projects } = useProject();
-  // the page knows a project started or renamed meanwhile when the owner switches to it
+  
   useEffect(() => void (projects && onProjects(projects)), [projects]);
-  // while the project loads, the switcher counts what waits as the connection says it; the project tells it once it shows
+  
   useSwitcherFeed(!snapshot && Object.keys(waiting).length ? waitingPerProject(inboxEntries(projects ?? loaded, waiting)) : null);
   if (!snapshot) return <Splash offline={!online} />;
-  // a project started, stopped or renamed while the page is open: the switcher follows
+  
   return <Project snapshot={snapshot} online={online} downSince={offlineSince ?? frozenSince} frozen={frozenSince !== null} restart={restart} update={update} source={source} usage={usage} projects={projects ?? loaded} waiting={waiting} oldBun={oldBun} />;
 }
 
-/** What is open, and the view to go back to: `prevCam` laid out beside the panels `prevSide`. */
+
 type Focus = { type: 'plan'; id: string; prevCam: Cam; prevSide: Sides } | { type: 'card'; id: string; prevCam: Cam; prevSide: Sides; plan: Focus | null };
 type Pos = { x: number; y: number };
 
-// opening a card takes FLY_MS + UNFOLD_MS (300 ms) and closing the same: fast, yet still a visible move
+
 const FLY_MS = 130;
-/** The room the line for what is marked takes above or below the marked cards, and its least width. */
+
 const MARKED_ROOM = 90;
 const MARKED_W = 270;
 const UNFOLD_MS = 170;
-// under reduced motion, the open card waits hidden this long for its content to stop growing, at most the cap
+
 const SETTLE_QUIET_MS = 100;
 const SETTLE_CAP_MS = 350;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -303,7 +303,7 @@ async function soon<T>(get: () => T | undefined, ms = 3000): Promise<T | undefin
   return get();
 }
 
-/** Where the camera on a canvas is kept: the project's first canvas has the key the whole project had before it had several. */
+
 
 function Project({
   snapshot,
@@ -320,39 +320,39 @@ function Project({
 }: {
   snapshot: ProjectSnapshot;
   online: boolean;
-  /** Since when the server answers nothing (connection lost or frozen); null while it does. */
+  
   downSince: number | null;
   frozen: boolean;
   restart: PendingRestart | null;
   update: AppUpdate | null;
   source: SourceUpdate | null;
-  /** The plans' usage limits, a harness's each, while the bar shows them. */
+  
   usage: Usage[];
   projects: ProjectInfo[];
   waiting: Record<string, Waiting>;
-  /** The Bun the server runs on, when it is too old for it. */
+  
   oldBun: string | null;
 }) {
   knowProjects(projects);
-  // a card's calls go to this project, also those its editor makes after a switch to another (an upload ending)
+  
   cardsOn(snapshot.project.id, snapshot.items.map((i) => i.id));
   const projectsRef = useRef(projects);
   projectsRef.current = projects;
-  // a rename of this project, or an address by an old name: it follows to the name now, keeping the card and query
+  
   const shownAt = useRef<{ id: string; path: string } | null>(null);
   useEffect(() => {
     const to = followedPath(location.pathname, projects, snapshot.project.id, shownAt.current);
     shownAt.current = { id: snapshot.project.id, path: projectPath(snapshot.project.id) };
     if (to) history.replaceState(history.state, '', `${to}${location.search}${location.hash}`);
   }, [projects, snapshot.project.id]);
-  // ---------------------------------------------------------------- items
-  // Local positions win over the snapshot until the server echoes them back.
+  
+  
   const [moved, setMoved] = useState<Record<string, Pos>>({});
-  // Plans collapsed or expanded here, until the server echoes it back.
+  
   const [folded, setFolded] = useState<Record<string, boolean>>({});
-  // Cards created here, until the snapshot carries them.
+  
   const [pending, setPending] = useState<Item[]>([]);
-  // Approved cards the server is still landing, with what the card says meanwhile, until it moves on.
+  
   const [underway, setUnderway] = useState<Record<string, string>>({});
   const snapshotRef = useRef(snapshot);
   snapshotRef.current = snapshot;
@@ -371,7 +371,7 @@ function Project({
       return keep.length === Object.keys(f).length ? f : Object.fromEntries(keep);
     });
     setPending((p) => (p.some((i) => byId.has(i.id)) ? p.filter((i) => !byId.has(i.id)) : p));
-    // a card replied to from "Needs you" stays under way while it still waits for the owner, also one on another project
+    
     const elsewhere = (id: string) => Object.entries(waiting).find(([c]) => c !== snapshot.project.id && waiting[c]!.items.some((i) => i.id === id))?.[1].items.find((i) => i.id === id);
     setUnderway((u) => {
       const keep = Object.entries(u).filter(([id]) => {
@@ -383,7 +383,7 @@ function Project({
   }, [snapshot, waiting]);
 
   const items = useMemo((): Item[] => {
-    // the snapshot may carry a new card before its creation answers: then it is there once
+    
     const ids = new Set(snapshot.items.map((i) => i.id));
     const all = [...snapshot.items, ...pending.filter((i) => !ids.has(i.id))];
     return all.map((i) => {
@@ -395,13 +395,13 @@ function Project({
   }, [snapshot.items, pending, moved, folded]);
   const itemsRef = useRef(items);
   itemsRef.current = items;
-  // ---------------------------------------------------------------- canvases
-  // the canvas shown is the one the address's hash names (`#main`, `#2`), else the one shown last on
-  // this project (a return from another project lands there), else the first; each has a layout of its own
+  
+  
+  
   const [hash, setHash] = useState(() => location.hash);
-  // the canvas shown last, as the page opened: it stays out of the address, so that an entry of the
-  // history without a hash goes on meaning "where the owner left", not the canvas shown then. It
-  // stands only for the first canvas shown: what the owner shows later replaces it
+  
+  
+  
   const keptCanvas = useRef<string | null | undefined>(undefined);
   if (keptCanvas.current === undefined) {
     try {
@@ -416,7 +416,7 @@ function Project({
    * the other project's, no choice here.
    */
   const addressOurs = () => {
-    // an address without a project shows the first (App)
+    
     const a = readAddress().project;
     return (a ? projectNamed(projectsRef.current, a) : projectsRef.current[0])?.id === snapshotRef.current.project.id;
   };
@@ -427,33 +427,33 @@ function Project({
       localStorage.setItem(lastCanvasKey(snapshot.project.id), id);
     } catch {}
   };
-  // only a canvas the owner chose here is kept: one shown by itself (the first, after the one shown
-  // is deleted; a card's, as it comes back after a reload or a return) leaves a newer choice another
-  // tab made standing. A choice of a canvas not shown yet is kept once it shows (one just made shows
-  // once the project brings it)
+  
+  
+  
+  
   const chosen = useRef<string>(undefined);
   const choose = (id: string) => {
     chosen.current = id === canvasRef.current ? undefined : id;
     if (id === canvasRef.current) keepCanvas(id);
   };
-  // while a card or plan comes back by itself (a reload, a return), the canvas it shows on is no choice
+  
   const restoring = useRef(false);
   useEffect(() => {
     const on = () => {
-      // an address on another project: the page switches there (App), this one goes
+      
       if (gone.current || !addressOurs()) return;
-      // a card open is shown on its own canvas: a hash naming another one goes
+      
       const f = focusRef.current;
       const open = f?.type === 'card' ? itemsRef.current.find((i) => i.id === f.id) : undefined;
       const own = open && !open.archivedAt ? canvasesRef.current.find((c) => c.id === open.canvas) : undefined;
       const named = canvasNamedBy(canvasesRef.current, location.hash);
-      // (a card's address needs no hash: it goes, and the card's canvas stays shown)
+      
       if (own && named?.id !== own.id) {
         lastShown.current = own.id;
         history.replaceState(history.state, '', `${location.pathname}${location.search}`);
       }
-      // the address changed by the owner (Back, Forward, a hash typed) chooses the canvas it names;
-      // one the open card overrules was not shown, so nothing is chosen
+      
+      
       else if (named) choose(named.id);
       setHash(location.hash);
     };
@@ -463,15 +463,15 @@ function Project({
   const canvases = useMemo(() => snapshot.canvases ?? [], [snapshot.canvases]);
   const canvasesRef = useRef(canvases);
   canvasesRef.current = canvases;
-  // a hash that names no canvas keeps the one shown before: a canvas just made or renamed here is
-  // named in the address before the project brings it under that name; as the page opens, one that
-  // names no canvas any more (deleted, renamed) shows the one shown last, as no hash does
+  
+  
+  
   const lastShown = useRef<string>(undefined);
   const [, showAgain] = useReducer((n: number) => n + 1, 0);
   const shownCanvas = (hash ? canvasNamedBy(canvases, hash) : undefined) ?? canvases.find((c) => c.id === lastShown.current) ?? lastCanvas(canvases, keptCanvas.current ?? null) ?? canvases[0];
   const canvasId = shownCanvas?.id;
   lastShown.current = canvasId;
-  // once a canvas shows, the one kept is used up: a canvas shown and then deleted falls back to the first
+  
   if (canvasId) keptCanvas.current = null;
   const canvasRef = useRef(canvasId);
   canvasRef.current = canvasId;
@@ -489,10 +489,10 @@ function Project({
   const showCanvas = (c: Canvas | string, ofCard = false) => {
     const picked = !restoring.current;
     const to = typeof c === 'string' ? canvases.find((x) => x.id === c) : c;
-    // a call that ends after a switch to another project (a canvas made, a card opened) leaves the
-    // address and the canvas kept for this project as the owner left them
+    
+    
     if (!to || gone.current) return;
-    // picked again, the canvas shown is the last choice here too, over one another tab made since
+    
     if (picked) choose(to.id);
     if (ofCard) {
       if (to.id === canvasRef.current) return;
@@ -514,8 +514,8 @@ function Project({
     history.replaceState(history.state, '', `${location.pathname}${location.search}${h}`);
     setHash(h);
   };
-  // the address names the canvas by its name, which reordering does not change: `#2` as the page
-  // opens becomes the name of the second, and a hash that names none goes
+  
+  
   useEffect(() => {
     if (!location.hash || !canvases.length) return;
     const named = canvasNamedBy(canvases, location.hash);
@@ -524,7 +524,7 @@ function Project({
     history.replaceState(history.state, '', `${location.pathname}${location.search}${h}`);
     setHash(h);
   }, []);
-  // per canvas, the cards waiting for the owner, and which canvases hold nothing (those can go; the server says which)
+  
   const perCanvas = useMemo(() => {
     const waiting: Record<string, number> = {};
     for (const i of items) {
@@ -534,12 +534,12 @@ function Project({
     }
     return { waiting, empty: new Set(canvases.filter((c) => !c.inUse).map((c) => c.id)) };
   }, [items, canvases]);
-  /** Whether the card is on the canvas shown (one the server has not placed on any yet counts as on the first). */
+  
   const onShown = useCallback((i: Item) => !canvasId || (i.canvas ?? canvases[0]?.id) === canvasId, [canvasId, canvases]);
-  // the workstreams of a collapsed plan are not on the project: its marks stand for them
+  
   const placed = useMemo(() => onProject(items.filter((i) => onShown(i) && !offCanvas(i))).map((item) => ({ item, b: boundsOf(item, items) })), [items, onShown]);
   const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
-  // the groups of the canvas shown: a group holds the cards of its own canvas only
+  
   const groups = useMemo(() => snapshot.groups.filter((g) => !canvasId || (g.canvas ?? canvases[0]?.id) === canvasId), [snapshot.groups, canvasId, canvases]);
   const territories = useTerritories(placed, groups);
   const kidsOf = useMemo(() => {
@@ -548,10 +548,10 @@ function Project({
     return m;
   }, [items]);
   const repliesIn = useMemo(() => unreadPerPlan(snapshot.talk), [snapshot.talk]);
-  // ideas with a prototype on the project, which stay out of the archive until it ends
+  
   const prototyped = useMemo(() => new Set(items.flatMap((i) => (i.idea?.prototypeOf ? [i.idea.prototypeOf] : []))), [items]);
   const [noteHidden, hideNote] = useHiddenEmptyNotes(snapshot.project.id);
-  // where notes on plan directories were moved here, by repository, until the server echoes it back
+  
   const [notesMoved, setNotesMoved] = useState<Record<string, Pos>>({});
   useEffect(() => {
     const at = new Map(snapshot.planDirs?.map((d) => [d.repo, d.at]));
@@ -560,16 +560,16 @@ function Project({
       return keep.length === Object.keys(m).length ? m : Object.fromEntries(keep);
     });
   }, [snapshot]);
-  // a fresh array only when what is shown changes: the camera keeps the notes in sight
+  
   const planDirs = useMemo(() => {
-    // they stand beside the plans found in the repositories, which are on `main`
+    
     if (shownCanvas && shownCanvas.name !== MAIN_CANVAS) return undefined;
     const shown = snapshot.planDirs?.filter((d) => !noteHidden(d)).map((d) => (notesMoved[d.repo] ? { ...d, at: notesMoved[d.repo] } : d));
     return shown?.length ? shown : undefined;
   }, [snapshot.planDirs, noteHidden, notesMoved, shownCanvas?.name]);
   const notes = useMemo(() => (planDirs ? planDirBoxes(planDirs, placed) : []), [planDirs, placed]);
   const all: Bounds = useMemo(() => unionBounds([...placed.map((p) => p.b), ...notes]) ?? { x: 0, y: 0, w: 1000, h: 600 }, [placed, notes]);
-  // what the view keeps in sight: the whole area the minimap panel shows, so anywhere on it can be scrolled to; an empty project has no limit
+  
   const content = useMemo(() => (placed.length || notes.length ? [minimapArea(all)] : []), [placed, notes, all]);
   const contentRef = useRef(content);
   contentRef.current = content;
@@ -582,17 +582,17 @@ function Project({
     return p?.plan?.collapsed ? p : i;
   };
 
-  // ---------------------------------------------------------------- camera
+  
   const [cam, setCam, camRef] = useLive<Cam>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(camKey(snapshot.project.id, canvases.find((c) => c.id === canvasId))) ?? 'null');
-      // saved as it would be without a sheet, which none is before the page opens one
+      
       if (saved && [saved.x, saved.y, saved.s].every(Number.isFinite)) return keepInView(saved, content, { left: 0, top: TOP, right: innerWidth, bottom: innerHeight - BOTTOM });
     } catch {}
     return centreOn(all, 1);
   });
-  // the panels docked at the window's edges that the camera is laid out for: a sheet that opens,
-  // closes or is dragged wider moves the view by half the difference, so its middle stays the middle
+  
+  
   const camSide = useRef<Sides>(NO_SIDES);
   /** Flies to `to`, laid out for the sheets as they are now. */
   const fly = (to: Cam, ms?: number) => {
@@ -602,7 +602,7 @@ function Project({
   const flyOrJump = async (to: Cam, ms: number, jump: boolean) => (jump ? ((camSide.current = sideNow()), setCam(to)) : fly(to, ms));
   /** The view `f` was opened from, beside the sheets as they are now. */
   const back = (f: Focus) => besideSheet(f.prevCam, f.prevSide, sideNow());
-  /** The camera's save still waiting for the view to rest, which a switch to another project does at once. */
+  
   const camDue = useRef<(() => void) | null>(null);
   useEffect(() => {
     document.documentElement.style.setProperty('--s', String(cam.s));
@@ -617,7 +617,7 @@ function Project({
     const h = setTimeout(save, 300);
     return () => clearTimeout(h);
   }, [cam, snapshot.project.id]);
-  // the storage key of the canvas the camera shows; another canvas brings back the view kept for it, or one on all of it
+  
   const camCanvas = useRef(camKey(snapshot.project.id, canvases.find((c) => c.id === canvasId)));
   useEffect(() => {
     const key = camKey(snapshot.project.id, canvases.find((c) => c.id === canvasId));
@@ -638,7 +638,7 @@ function Project({
     return () => removeEventListener('resize', onResize);
   }, []);
 
-  // ---------------------------------------------------------------- focus
+  
   const [focus, setFocus, focusRef] = useLive<Focus | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [dim, setDim] = useState(false);
@@ -650,23 +650,23 @@ function Project({
     if (on) dock.select(readingRef.current ? 'plan-doc' : 'plan');
     else if (sheetOnRef.current) dock.select(null);
   };
-  // the open plan's plan doc, read in the widened sheet
+  
   const [reading, setReading, readingRef] = useLive<{ mark?: string } | null>(null);
   const { widths: sheetW, resizing } = dock;
   const [kOn, setKOn, kOnRef] = dock.view('seismic');
   const chatEntry = useRef<'default' | 'type' | 'answer'>('default');
-  // what waits for the owner's cards, docked on the right behind the bell (needsYou.tsx)
+  
   const [nyOn, setNyOn, nyOnRef] = dock.view('needs-you');
-  // what of the inbox the owner has read (src/ui/inboxRead.ts)
+  
   const inboxRead = useInboxRead();
-  // the project's settings, a docked sheet like the inbox, from the sliders in the bar (projectSettings.tsx)
+  
   const [csOn, setCsOn, csOnRef] = dock.view('settings');
-  // the agents, a docked sheet like the inbox, from the robot in the bar: the queue and the cards at work (agents.tsx)
+  
   const [agentsOn, setAgentsOn, agentsOnRef] = dock.view('agents');
-  // the Table view is named in the address (`?view=table`), so a link or a reload comes back to it
+  
   const fullPage = useFullPage<'archive' | 'parked' | 'queue' | 'table'>(() => (readView(location.search).view === 'table' ? 'table' : null));
   const [aOn, setArchiveOn, aOnRef] = useLive(false);
-  // the archive is a full-page view of the main area: open, it is the view shown
+  
   const setAOn = (on: boolean) => { setArchiveOn(on); if (on) fullPage.show('archive'); else if (fullPage.ref.current === 'archive') fullPage.show(null); };
   /** Parked, Queue and Table, full-page views from the switcher and the menu; null goes back to the canvas. The camera stays where it was, an open card open. */
   const showPage = (id: 'parked' | 'queue' | 'table' | null) => {
@@ -674,7 +674,7 @@ function Project({
     if (id || fullPage.ref.current) fullPage.show(id);
   };
   const [cOn, setCOn, cOnRef] = useLive(false);
-  // the left menu docked as a sidebar (src/ui/nav.tsx), and hidden there with ☰
+  
   const [pinned, setPinned, pinnedRef] = useLive(loadPinned);
   const [, setNavHidden, navHiddenRef] = useLive(loadNavHidden);
   const [navWidth, setNavWidth, navWidthRef] = useLive(loadNavWidth);
@@ -710,27 +710,27 @@ function Project({
   const talkKoordinator = () => {
     toggleKoordinator('type');
   };
-  // the configuration is a dialog over the page: what is open behind it stays as it was
+  
   const toggleConfig = () => (setPrefsOn(false), setCOn(!cOnRef.current));
-  // asking Seismic about the configuration: its conversation in place of the dialog, ready to type into
+  
   const talkFromConfig = () => {
     setCOn(false);
     if (!kOn) talkKoordinator();
   };
   const [helpOn, setHelpOn] = useState(false);
   const searchField = useRef<HTMLInputElement>(null);
-  // the app-wide preferences, a dialog over the page as the configuration is, opened from the logo's menu
+  
   const [prefsOn, setPrefsOn] = useState(false);
-  // "+ New project" in the menu: its name and repositories in a pop-up
+  
   const [newProjectOn, setNewProjectOn] = useState(false);
   const openPrefs = () => {
     setCOn(false);
     setPrefsOn(true);
   };
-  // "Connect a phone", from the section "Other devices" of the configuration
+  
   const [phoneOn, setPhoneOn] = useState(false);
-  // the performance dashboard, over the page as the configuration is; opened from the logo's menu,
-  // the feedback setting or a rated card, and open at once coming back from the feedback log (`?performance`), with its filters
+  
+  
   const [perfAtStart] = useState(() => (new URLSearchParams(location.search).has('performance') ? readLogQuery(location.search).filter : undefined));
   const [perfOn, setPerfOn] = useState(!!perfAtStart);
   const openPerformance = useCallback(() => {
@@ -739,15 +739,15 @@ function Project({
     setPerfOn(true);
   }, []);
   const wishOn = useWish().open;
-  // the bar's `?` button stays until the owner opened the legend with the key; the legend's foot says so
+  
   const [helpKnown, setHelpKnown] = useState(() => known(HELP_KEY_KNOWN));
   const [helpNote, setHelpNote] = useState<'button' | 'gone'>();
-  // the "Needs you" button says so until the owner has clicked it once; then the bell and the count do
+  
   const [needsYouKnown, setNeedsYouKnown] = useState(() => known(NEEDS_YOU_KNOWN));
-  // The settings button counts this project's problems using the same view as its sheet.
-  // Configuration revisions cover saved changes, repository settings on the default branch and start failures.
+  
+  
   const [problemsOf, setProblemsOf] = useState<{ project: string; n: number }>();
-  // a count read for another project is never shown: the badge waits for this project's own
+  
   const configProblems = problemsOf?.project === snapshot.project.id ? problemsOf.n : 0;
   const configRevs = [...snapshot.project.repos.map((r) => `${r.id}:${r.configRev ?? 0}`), ...projects.map((c) => `${c.id}:${c.configRev ?? 0}`), `${snapshot.project.configRev ?? 0}`].join(' ');
   useEffect(() => {
@@ -763,25 +763,25 @@ function Project({
     return () => { active = false; };
   }, [snapshot.project.id, configRevs]);
   useEffect(() => void api.shownProjectSettings().then((v) => setRightClick(v.settings.rightClick), () => {}), [snapshot.project.id, csOn, cOn, configRevs]);
-  // the archive, read while its list is open; archived cards unfold from their row there
+  
   const [archived, setArchived] = useState<Item[]>([]);
   const archivedRef = useRef(archived);
   archivedRef.current = archived;
   /** The card `id`, on the project or else in the archive. */
   const itemOrArchived = (id: string) => byId(id) ?? items.flatMap((i) => i.plan?.manualArchived ?? []).find((i) => i.id === id) ?? archivedRef.current.find((i) => i.id === id);
   const archiveEls = useRef(new Map<string, HTMLElement>()).current;
-  // rows of the plan sheet, where its archived workstreams and its idea unfold from
+  
   const sheetEls = useRef(new Map<string, HTMLElement>()).current;
-  // entries of the menu's inbox page and of "Needs you", where a card opened from them unfolds from
+  
   const inboxEls = useRef(new Map<string, HTMLElement>()).current;
-  // entries of the Parked view, likewise, and rows of the Table view
+  
   const parkedEls = useRef(new Map<string, HTMLElement>()).current;
   const tableEls = useRef(new Map<string, HTMLElement>()).current;
   /** The element a card unfolds from and folds back to: its entry in the inbox's, the Parked or the Table view while that shows, on the project, or a row in the sheet it was opened from. */
   const fromEl = (id: string, inPlan: boolean) =>
     ({ parked: parkedEls, table: tableEls } as Partial<Record<string, Map<string, HTMLElement>>>)[fullPage.ref.current ?? '']?.get(id) ??
     inboxEls.get(id) ?? els.get(id) ?? (inPlan ? (sheetEls.get(id) ?? archiveEls.get(id)) : (archiveEls.get(id) ?? sheetEls.get(id)));
-  // an archived card opened from a plan's sheet, which the archive list may not hold
+  
   const [opened, setOpened] = useState<Item | null>(null);
   useEffect(() => {
     if (!aOn && !items.some((i) => i.idea?.proposal?.merge && !items.some((p) => p.id === i.idea!.proposal!.merge!.with))) return;
@@ -797,21 +797,21 @@ function Project({
   const rowRef = useRef<HTMLDivElement>(null);
   useBarFit(rowRef);
   const innerRef = useRef<HTMLDivElement>(null);
-  // the panel follows its content from the unfold until it starts to fold
+  
   const unfolded = useRef(false);
-  // the fold under way, which a second close joins
+  
   const folding = useRef<Promise<void> | null>(null);
   const fitPanel = (i: Item) => {
     const panel = panelRef.current;
     const inner = innerRef.current;
     if (!panel || !inner) return;
     const side = sideNow();
-    // a sheet that stays usable beside a card keeps clear of it (a plan's, dimmed, lies under it)
+    
     const keep = dock.besideCard() ? side.right : 0;
     Object.assign(panel.style, panelRect(i, inner, side, keep));
   };
 
-  // edits of the open card, saved shortly after typing stops
+  
   const edit = useRef<{ id: string; patch: CardPatch; timer?: ReturnType<typeof setTimeout> } | null>(null);
   /** Saves what was typed into the open card; actions on it wait for this. */
   const flushEdit = (): Promise<void> => {
@@ -821,7 +821,7 @@ function Project({
     edit.current = null;
     return Object.keys(e.patch).length ? patchCard(e.id, e.patch).then(() => {}) : Promise.resolve();
   };
-  // what the open card holds as typed, which the snapshot may not carry yet
+  
   const openDraft = useRef<Pick<Item, 'kind' | 'title' | 'body' | 'images'>>({ kind: 'task', title: '', body: '' });
   const onEdit = (p: CardPatch, card?: string) => {
     const open = focusRef.current?.id;
@@ -843,30 +843,30 @@ function Project({
   async function open(i: Item, reload = false) {
     i = activeMergeCard(i, itemsRef.current);
     if (focusRef.current?.type !== 'card') opener.current = onControl(document.activeElement) ? (document.activeElement as HTMLElement) : null;
-    // reduced motion opens at once too, but shows the card only at the size its content settles at
+    
     const hold = !reload && reducedMotion();
     const quick = reload || hold;
     const f = focusRef.current;
     if (f?.type === 'card') return;
-    // a card on another canvas opens there
+    
     if (i.canvas && i.canvas !== canvasRef.current && !i.archivedAt && !offCanvas(i)) showCanvas(i.canvas, true);
     if (i.kind === 'plan') return openPlan(i);
     cardsOn(snapshot.project.id, [i.id]);
     setFocus({ type: 'card', id: i.id, prevCam: camRef.current, prevSide: camSide.current, plan: f });
     openDraft.current = { kind: i.kind, title: i.title, body: i.body, images: i.images ?? [] };
     setOpened(i.archivedAt ? i : null);
-    // bring the card to the middle at a readable scale first, so the unfold starts where the eye is;
-    // an archived card is not on the project and unfolds from its row in the archive
-    // (a full-page view hides the project: the camera stays)
+    
+    
+    
     if (!i.archivedAt && !offCanvas(i) && !fullPage.ref.current) await flyOrJump(centreOnPoint(bounds(i), Math.max(camRef.current.s, 0.85), sideNow()), FLY_MS, quick);
-    // a card off the canvas unfolds from its row in the Parked view: shown first when no view holds the card
+    
     if (!i.archivedAt && offCanvas(i) && !fromEl(i.id, !!f)) {
       showPage('parked');
       await soon(() => parkedEls.get(i.id));
     }
     const el = fromEl(i.id, !!f);
     const panel = panelRef.current;
-    // nothing to unfold from: the project stays as it was, open for the next card
+    
     if (!el || !panel) return setFocus(f);
     addressOpens(i, f ? itemOrArchived(f.id) : undefined);
     const r = el.getBoundingClientRect();
@@ -879,7 +879,7 @@ function Project({
     panel.classList.add('anim');
     fitPanel(i);
     unfolded.current = true;
-    // laid out while hidden, so it measures what loads; it grows in view only after the cap
+    
     const content = innerRef.current?.firstElementChild;
     if (hold && content) {
       await sizeSettled(content, SETTLE_QUIET_MS, SETTLE_CAP_MS);
@@ -889,23 +889,23 @@ function Project({
     setDim(true);
     if (!quick) await sleep(UNFOLD_MS);
     panel.classList.add('ready');
-    // a card of the owner's without a title is written in its text first: Seismic names it from that
+    
     const title = panel.querySelector<HTMLTextAreaElement>('textarea.p-title');
     const body = panel.querySelector<HTMLElement>('.p-body');
     if (title && !title.value) (body ?? title).focus();
-    // A link in a closing popover can disappear before the card unfolds. Give the opened
-    // view a focus destination, also when navigating here from another project: the card itself,
-    // where Tab goes on to its first control and Space speaks, rather than its menu button, whose
-    // tooltip would take the first Esc and which Space would press
+    
+    
+    
+    
     if (!panel.contains(document.activeElement)) panel.focus({ preventScroll: true });
-    // the cursor at the end of the text
+    
     if (body && body === document.activeElement) {
       getSelection()?.selectAllChildren(body);
       getSelection()?.collapseToEnd();
     }
   }
 
-  // a card that starts or finishes work while open changes its width and colour: resize in place
+  
   const openItem = openId
     ? (itemOrArchived(openId) ?? (opened?.id === openId ? opened : undefined))
     : undefined;
@@ -917,12 +917,12 @@ function Project({
     for (const [k, v] of Object.entries(stateVars(shownState(i)))) panel.style.setProperty(k, v);
     fitPanel(i);
   }, [openState]);
-  // content that grows or shrinks (a log loading, a question arriving, a resized text box) resizes it too
+  
   useEffect(() => {
     const content = innerRef.current?.firstElementChild;
     if (!openId || !content) return;
-    // in the next frame: a split that fills the panel takes back what the rest grew by, which would
-    // change the content again while the observer reports
+    
+    
     let frame = 0;
     const ro = new ResizeObserver(() => {
       cancelAnimationFrame(frame);
@@ -937,27 +937,27 @@ function Project({
       cancelAnimationFrame(frame);
     };
   }, [openId]);
-  // and so does the window: a split filling the panel takes the height it has
+  
   useEffect(() => {
     const i = openId && itemOrArchived(openId);
     if (i && unfolded.current) fitPanel(i);
   }, [tick]);
 
-  // A merge can choose the other card as its owner while this card is open.
+  
   useEffect(() => {
     if (!openItem) return;
     const owner = activeMergeCard(openItem, items);
     if (owner.id !== openItem.id) void openFresh(owner);
   }, [openItem, items]);
 
-  // the open card went away on the server (cut into packages, deleted elsewhere): fold the panel
+  
   useEffect(() => {
     if (openId && !openItem && focusRef.current?.type === 'card') closeCard({ keepUntitled: true });
   }, [openId, openItem]);
 
   function onDone(d: ActDone, p?: Pending) {
     if (!d.close) return;
-    // the server may have taken the card away already, which folded it: then the project shows `next` as it now stands
+    
     const gone = focusRef.current?.type === 'card' ? focusRef.current.id : undefined;
     const folded = closeCard({ keepUntitled: true });
     if (d.next) void folded.then(() => openOnward(gone, d.next!));
@@ -966,7 +966,7 @@ function Project({
       if (d.ack) showAck(d.ack, d.undo);
       return;
     }
-    // the card says it is under way until the snapshot moves it on; a refusal puts it back as it was
+    
     const what = d.pending;
     setUnderway((u) => ({ ...u, [p.card]: what }));
     const done = showWait(`${what.charAt(0).toUpperCase()}${what.slice(1)}`);
@@ -979,7 +979,7 @@ function Project({
       (e) => {
         if (!(e instanceof ApiError)) console.error(e);
         setUnderway(({ [p.card]: _, ...rest }) => rest);
-        // the card is closed by now: a warning that stays, with the way back to it, in place of the wait
+        
         done();
         warnings.show(t.cardError(p.title, failText(e)), p.card);
       },
@@ -995,11 +995,11 @@ function Project({
     if (i && focusRef.current?.type !== 'card') await open(i);
   }
 
-  /** The control the keyboard had reached when the open card unfolded from it, which gets the focus back when it folds. */
+  
   const opener = useRef<HTMLElement | null>(null);
   /** Folds the open card; `onward` where another opens in its place next, which takes over its address. */
   function closeCard(o: { keepUntitled?: boolean; onward?: boolean } = {}): Promise<void> {
-    // a second close while the card folds (the server took it away as the owner acted on it) waits for the first
+    
     folding.current ??= foldCard(o).finally(() => { folding.current = null; });
     return folding.current;
   }
@@ -1019,21 +1019,21 @@ function Project({
     await sleep(motionMs(UNFOLD_MS));
     panel.style.display = 'none';
     panel.classList.remove('anim', 'ready');
-    // the focus goes back to what the keyboard opened the card from (its face, a tab), not to the page
+    
     const back = opener.current;
     opener.current = null;
     if (back?.isConnected && (panel.contains(document.activeElement) || document.activeElement === document.body)) back.focus({ preventScroll: true });
     beingWritten.delete(f.id);
     setOpenId(null);
     setFocus(f.plan);
-    // a new card left empty was not wanted; one with a task but no title, Seismic names
+    
     const draft = openDraft.current;
     if (i?.source === 'manual' && !draft.title.trim()) {
       if (nameless(draft)) saved.then(() => api.act(i.id, { action: 'name' })).catch(console.error);
       else if (!keepUntitled) removeCard(i.id).catch(console.error);
     }
-    // the view stays where the card was brought to, so it can be seen among the rest
-    // the card may have gone (archived, deleted) and taken the last content in view with it
+    
+    
     recover();
   }
 
@@ -1054,20 +1054,20 @@ function Project({
   }
 
   async function openPlan(p: Item, quick = false) {
-    // an archived plan is not on the project: its sheet takes the archive list's place
+    
     await planSheet(p, null, quick, !p.archivedAt);
   }
 
   /** Reads the plan's plan doc in the sheet, at the workstream `mark`; `null` goes back to the workstreams. */
   async function readPlan(p: Item, r: { mark?: string } | null, quick = false) {
     if (focusRef.current?.type === 'card') await closeCard();
-    // the plan stays in view beside the wider sheet
+    
     await planSheet(p, r, quick, true);
   }
 
   /** Shows the plan in the sheet, its workstreams or (`r`) its plan doc, and with `inView` flies to it. */
   async function planSheet(p: Item, r: { mark?: string } | null, quick: boolean, inView: boolean) {
-    // a plan on another canvas opens there
+    
     if (p.canvas && p.canvas !== canvasRef.current && !p.archivedAt) showCanvas(p.canvas, true);
     const f = focusRef.current;
     if (f?.type !== 'plan') planOpener.current = onControl(document.activeElement) ? (document.activeElement as HTMLElement) : null;
@@ -1077,11 +1077,11 @@ function Project({
     setReading(r);
     setSheetOn(true);
     setAOn(false);
-    // a full-page view hides the project: the camera stays
+    
     if (inView && !fullPage.ref.current) await flyOrJump(camFor(bounds(p), sideNow()), 700, quick);
   }
 
-  /** The control the keyboard had reached when the plan's sheet opened from it, which gets the focus back when the sheet closes. */
+  
   const planOpener = useRef<HTMLElement | null>(null);
   /** Closes the open plan; `toArchive`: back to the archive an archived one was opened from. */
   async function closePlan(toArchive = true) {
@@ -1095,7 +1095,7 @@ function Project({
     const at = document.activeElement;
     if (title?.isConnected && (at === document.body || at?.closest('#sheet, #sheet-close'))) title.focus({ preventScroll: true });
     if (toArchive && archivedRef.current.some((i) => i.id === f.id) && !itemsRef.current.some((i) => i.id === f.id)) setAOn(true);
-    // a full-page view hides the project: the camera stays
+    
     if (!fullPage.ref.current) await fly(back(f), 600);
     recover();
   }
@@ -1123,7 +1123,7 @@ function Project({
     const title = openDraft.current.title.trim() || titleFrom(openDraft.current.body);
     if (edit.current) clearTimeout(edit.current.timer);
     edit.current = null;
-    // nothing for Seismic to name: the card goes
+    
     openDraft.current = { kind: i?.kind ?? 'task', title: '', body: '' };
     await closeCard({ keepUntitled: true });
     if (!i) return;
@@ -1138,7 +1138,7 @@ function Project({
     await made?.(card);
     beingWritten.add(card.id);
     flushSync(() => {
-      // the snapshot that carries it may have come first: then it is no longer pending
+      
       if (!snapshotRef.current.items.some((i) => i.id === card.id)) setPending((p) => [...p, card]);
       setPopId(card.id);
     });
@@ -1146,8 +1146,8 @@ function Project({
   }
   const createAtCentre = () => createAt(toWorld(camRef.current, midX(sideNow()), innerHeight / 2));
 
-  // ---------------------------------------------------------------- kept across a restart
-  // a restart reloads the page: what was open comes back as it was, without the flights
+  
+  
   const keepNow = useRef(() => {});
   keepNow.current = () => {
     flushEdit().catch(console.error);
@@ -1165,9 +1165,9 @@ function Project({
     });
   };
   useEffect(() => beforeReload(() => keepNow.current()), []);
-  // a switch to another project within the page: what was open comes back with this project, as after a
-  // reload; before the page leaves it, while its open things are still there to be read
-  /** This project has left the page; what it still puts back stops. */
+  
+  
+  
   const gone = useRef(false);
   const stopRestore = useRef<(() => void) | null>(null);
   useLayoutEffect(
@@ -1179,13 +1179,13 @@ function Project({
     },
     [],
   );
-  // Seismic's sheet left open over a draft comes back with the project; left empty or closed, it stays closed
+  
   useEffect(() => {
     const away = () => leaveSheet(sessionStorage, snapshot.project.id, kOnRef.current && drafted(SEISMIC_DRAFT));
     addEventListener('pagehide', away);
     return () => {
       removeEventListener('pagehide', away);
-      // the owner switched to another project
+      
       away();
     };
   }, []);
@@ -1193,42 +1193,42 @@ function Project({
     const project = snapshot.project.id;
     const k = takeKept(draftSession, project);
     const sheetLeft = takeSheetLeft(sessionStorage, project);
-    // the project's own address, where the page came without one or with another project's; `?talk`
-    // (Seismic's answer in another project's navigation) opens Seismic's sheet, once
+    
+    
     const a = readAddress();
     const code = !a.project || projectNamed(projects, a.project)?.id === snapshot.project.id ? a.card : undefined;
     const talk = new URLSearchParams(location.search).get('talk');
     if (talk === 'answer') chatEntry.current = 'answer';
     history.replaceState(history.state, '', `${code ? cardPath(snapshot.project.id, code) : projectPath(snapshot.project.id)}${queryWithout(location.search, 'c', 'card', 'talk', ...(perfAtStart ? LOG_KEYS : []))}${location.hash}`);
-    // what comes back is what the address names already; a kept card the address left out (a
-    // restart of the app's shell, a link to the project) gets its address once it is open
+    
+    
     addressSet.current = true;
-    // what comes back by itself shows its canvas without choosing it; a card the owner went to from
-    // elsewhere (the inbox, a link within the page) is chosen, with its canvas
+    
+    
     const came = cameByGoTo();
     restoring.current = !(code && came);
     const done = () => {
       addressSet.current = false;
       restoring.current = false;
-      // the owner switched to another project meanwhile: the address is that one's now
+      
       if (gone.current) return;
       history.replaceState(history.state, '', pathOf(openNow()));
     };
     const restoreView = (kept: Kept) => {
-      // An explicit card address takes precedence over the card in the snapshot.
+      
       if (code && named(itemsRef.current, code)?.id !== kept.card) kept = { ...kept, card: code, plan: undefined, scroll: [], drafts: [], video: undefined };
       if (talk !== null) kept = { ...kept, sheet: 'koordinator' };
       return reopen(kept).catch(console.error).finally(done);
     };
     const showSheet = () => {
-      // beside the sheet at once, as the project comes back
+      
       quickSide.current = Date.now() + 2000;
       setKOn(true);
     };
     if (!k && (sheetLeft || talk !== null)) showSheet();
     const opened = k ? restoreView(k) : (code ? openAddress(code, true) : Promise.resolve()).catch(console.error).finally(done);
     if (!window.seismicApp?.handedOver) return;
-    // Once the owner has used the new page, its view takes precedence over the old one.
+    
     let used = false;
     const usePage = (event: Event) => { if (event.isTrusted) used = true; };
     const events = ['pointerdown', 'keydown', 'wheel', 'input', 'popstate'] as const;
@@ -1254,7 +1254,7 @@ function Project({
     };
   }, []);
   async function reopen(k: Kept) {
-    // the sheet that comes back sets the camera beside it at once, as the rest comes back without flights
+    
     quickSide.current = Date.now() + 2000;
     if (k.sheet === 'koordinator') setKOn(true);
     else if (k.sheet === 'needs-you') setNyOn(true);
@@ -1270,33 +1270,33 @@ function Project({
   /** Opens the plan `k.plan` (its plan doc with `reading`) and the card `k.card` in it or on the project; an archived one from its row in the archive or the plan's sheet. */
   async function openAgain(k: Pick<Kept, 'card' | 'plan' | 'reading'>, quick: boolean) {
     const find = async (id?: string) => (id ? namedBy(id) : undefined);
-    // an archived plan's sheet lists its workstreams from the archive, which this loads
+    
     const p = await find(k.plan);
-    // the doc opens at its top, and the kept position puts it back where it was
+    
     if (p) await (k.reading ? readPlan(p, {}, quick) : openPlan(p, quick));
     const i = await find(k.card);
-    // an archived card unfolds from its row in the archive or the plan's sheet, once that has loaded
+    
     if (i && (!i.archivedAt || (await soon(() => fromEl(i.id, !!p))))) await open(i, quick);
   }
 
-  // ---------------------------------------------------------------- the address
-  // the address names the open card or plan (`/p/<project>/c/<code>`). Opening one is a step in
-  // the browser's history, so Back closes it again, as on the phone; one opened in place of another
-  // (by a link in it) takes over that one's step. Changes take effect one after the other: a step
-  // back is done once the browser says so.
+  
+  
+  
+  
+  
   const addressChain = useRef(Promise.resolve());
-  // once this project has left the page (a switch to another), the address is no longer its own to change
+  
   const address = (change: () => void | Promise<void>) => void (addressChain.current = addressChain.current.then(() => (gone.current ? undefined : change())).catch(console.error));
-  /** The step back this page asked the browser for, until it is done. */
+  
   const stepBack = useRef<(() => void) | null>(null);
-  /** While the page opens what the address names (as it loads, on Back or Forward): the address is set already. */
+  
   const addressSet = useRef(false);
   /** The card or plan open now. */
   const openNow = () => {
     const f = focusRef.current;
     return f ? itemOrArchived(f.id) : undefined;
   };
-  // the hash names the canvas shown, which a card opened there is on too; the query the view over it
+  
   const searchNow = () => withView(location.search, fullPage.ref.current === 'table' ? 'table' : undefined);
   const pathOf = (i: Item | undefined) => `${i ? cardPath(snapshot.project.id, i) : projectPath(snapshot.project.id)}${searchNow()}${location.hash}`;
   /** The address names the view shown, in place: switching views is no step in the history, as switching canvases is not. */
@@ -1304,7 +1304,7 @@ function Project({
     const s = searchNow();
     if (s !== location.search) history.replaceState(history.state, '', `${location.pathname}${s}${location.hash}`);
   };
-  // an unknown `view=` is dropped as the page comes, the one shown named whenever it changes
+  
   useEffect(() => {
     if (!gone.current) addressView();
   }, [fullPage.active]);
@@ -1324,12 +1324,12 @@ function Project({
     address(() => {
       const st = history.state as { step?: true; from?: string } | null;
       if (!st?.step) return history.replaceState(history.state, '', pathOf(under));
-      // the view changed while the card was open: the entry below keeps the address of the view it had, so Back returns to it
+      
       if (st.from !== undefined && st.from !== searchNow()) return history.replaceState(null, '', pathOf(under));
       return new Promise<void>((done) => {
         stepBack.current = () => {
-          // the step before may name what is no longer open (a card opened over its plan, then reloaded without it)
-          // or another view than the one shown now (the owner switched views while the card was open)
+          
+          
           const at = readAddress().card;
           if ((at && !(under && named([under], at))) || location.search !== searchNow()) history.replaceState(history.state, '', pathOf(under));
           done();
@@ -1351,11 +1351,11 @@ function Project({
   async function openAddress(code: string, quick: boolean) {
     const i = await namedBy(code);
     if (gone.current) return;
-    // by its short code, where it was named by its id
+    
     history.replaceState(history.state, '', pathOf(i));
     if (!i) return;
     if (i.kind === 'plan') return openAgain({ plan: i.id }, quick);
-    // an archived workstream unfolds from its plan's sheet, any other archived card from the archive's list
+    
     const plan = i.archivedAt ? i.parent : undefined;
     if (i.archivedAt && !plan) setAOn(true);
     await openAgain({ card: i.id, plan }, quick);
@@ -1376,7 +1376,7 @@ function Project({
   }
   /** Back or Forward: what the address no longer names closes, what it names opens. */
   async function followAddress(search = location.search) {
-    // the view follows the address before it is rewritten from the view shown
+    
     const view = followedView(search, fullPage.ref.current);
     if (view !== undefined && view !== fullPage.ref.current) showPage(view);
     const code = readAddress().card;
@@ -1387,7 +1387,7 @@ function Project({
       if (f?.type === 'card' && f.id !== i?.id) await closeCard({ keepUntitled: true });
       const p = focusRef.current;
       if (p?.type === 'plan' && p.id !== i?.id && i?.parent !== p.id) await closePlan(false);
-      // a code no card has any longer: openAddress leaves the project at its address
+      
       if (code && (!i || focusRef.current?.id !== i.id)) await openAddress(code, false);
     } finally {
       addressSet.current = false;
@@ -1397,14 +1397,14 @@ function Project({
   follow.current = followAddress;
   useEffect(() => {
     const pop = () => {
-      // an address on another project: the page switches there (App), this one goes
+      
       const a = readAddress().project;
       if (a && projectNamed(projectsRef.current, a)?.id !== snapshotRef.current.project.id) return;
       const done = stepBack.current;
       stepBack.current = null;
       if (done) done();
       else {
-        // the query as it was at the step: a view switched meanwhile may rewrite it before the chain gets to it
+        
         const search = location.search;
         address(() => follow.current(search).then(addressView));
       }
@@ -1413,15 +1413,15 @@ function Project({
     return () => removeEventListener('popstate', pop);
   }, []);
 
-  // ---------------------------------------------------------------- acknowledgement with undo
+  
   const toasts = useToasts();
   const { showAck, showWait, fail } = useAck(toasts.store);
   const [manualStart, setManualStart] = useState<{ item: Item; names: string } | null>(null);
-  // "Go to card" on a warning: the card opens in place of one open
+  
   const warnings = useWarnings(toasts.store, (id) => void openNamed(id).catch(console.error));
   const ratePrompt = useRatePrompt(items);
 
-  /** The play button on a card: starts it, or one queued behind others despite the likely conflict. */
+  
   const startCardNow = useCallback(async (i: Item) => {
     try {
       await startCardAgent(i.id, { skipWaitForCards: !!i.queue });
@@ -1430,7 +1430,7 @@ function Project({
       fail(e);
     }
   }, []);
-  // reads the cards as they are when clicked, so that it stays the same function and the cards' memo holds
+  
   const startCard = useCallback((i: Item) => {
     const waiting = i.queue ? manualPrerequisites(i, itemsRef.current) : [];
     if (waiting.length) {
@@ -1440,7 +1440,7 @@ function Project({
     void startCardNow(i);
   }, [startCardNow]);
 
-  /** The archive button on a finished card or a parked or dropped idea: takes it off the project, with a moment to undo. */
+  
   const archiveOnCanvas = useCallback(async (i: Item) => {
     try {
       await archiveCard(i.id);
@@ -1451,10 +1451,10 @@ function Project({
     }
   }, []);
 
-  /**
-   * The plan's button, on its card and in its sheet: all planned workstreams go to the
-   * Koordinator together, which waits a few seconds before it plans them, so the start can be taken back.
-   */
+  
+
+
+
   const startAll = useCallback(async (p: Item, n: number) => {
     try {
       await startCardAgent(p.id);
@@ -1475,10 +1475,10 @@ function Project({
     }
   }, []);
 
-  /**
-   * "Give to the waiting card" in the Workstations list: the card's clone goes to the card waiting longest once the
-   * undo window is through; "Undo" (here or in its row) takes that back meanwhile.
-   */
+  
+
+
+
   const keepWorkstation = useCallback(async (i: Item) => {
     try {
       await api.act(i.id, { action: 'keepWorkstation' });
@@ -1496,11 +1496,11 @@ function Project({
     }
   }, []);
 
-  /**
-   * The plan's "Arrange", on its card and in its sheet: its workstreams in columns by what builds
-   * on what, once Seismic has read that from the plan doc. It takes effect at once; "Undo" puts
-   * the cards (and the plan, which may have made room for itself) back where they stood.
-   */
+  
+
+
+
+
   const arrange = useCallback(async (p: Item) => {
     const before = [p, ...itemsRef.current.filter((i) => i.parent === p.id)].map(({ id, x, y }) => ({ id, x, y }));
     try {
@@ -1518,7 +1518,7 @@ function Project({
     }
   }, []);
 
-  /** The fold in a plan's head: collapsed, only its head and a mark for each workstream stay on the project. */
+  
   const collapse = useCallback(async (p: Item, collapsed: boolean) => {
     setFolded((f) => ({ ...f, [p.id]: collapsed }));
     try {
@@ -1528,21 +1528,21 @@ function Project({
       fail(e);
     }
   }, []);
-  // a stable handle on `open` for the memoised plan views
+  
   const openRef = useRef(open);
   openRef.current = open;
   const openCard = useCallback((i: Item) => void openRef.current(i).catch(console.error), []);
   const openFreshRef = useRef(openFresh);
   openFreshRef.current = openFresh;
-  // the same function from render to render, so that the lists' entries (AgentEntry) keep their memo
+  
   const openFreshCard = useCallback((i: Item) => void openFreshRef.current(i), []);
-  // also read by the keys, which treat an approved card as not needing the owner before the snapshot says it lands
+  
   const underwayRef = useRef(underway);
   underwayRef.current = underway;
   const isUnderway = useCallback((id: string) => !!underwayRef.current[id], []);
   const notifyAsk = useDesktopNotifications(snapshot, openCard);
 
-  /** "Als Plan aufbereiten" on the note on a plan directory: a card whose agent prepares the doc, started at once. */
+  
   const preparePlanDoc = useCallback(async (dir: PlanDir, file: string) => {
     try {
       const card = await api.preparePlanDoc(snapshot.project.id, dir.repo, file);
@@ -1552,12 +1552,12 @@ function Project({
     }
   }, []);
 
-  // ---------------------------------------------------------------- voice
+  
   const where = (): Where => {
     const f = focusRef.current;
     return f?.type === 'card' ? { card: f.id } : f?.type === 'plan' ? { plan: f.id } : null;
   };
-  // where the pointer is on the page, null once it left the window
+  
   const pointerAt = useRef<{ x: number; y: number } | null>(null);
   useEffect(() => {
     const move = (e: PointerEvent) => void (pointerAt.current = { x: e.clientX, y: e.clientY });
@@ -1583,16 +1583,16 @@ function Project({
     const at = placeIn(f ? back(f) : camRef.current, viewNow(), f || !pointer ? null : pointerAt.current);
     return canvasRef.current ? { ...at, canvas: canvasRef.current } : at;
   };
-  // a command that makes a card: when it appears out of view, the camera goes there
+  
   const newCardWatch = useRef<{ known: Set<string>; until: number } | null>(null);
   function onHeard(h: Heard) {
-    // said to the open card's agent: the card shows it
+    
     if (h.quiet) return;
-    // the owner asked to tell Seismic's makers something: the draft for them opens
+    
     if (h.wish) openWish(h.wish);
     if (h.token && !focusRef.current) newCardWatch.current = { known: new Set(itemsRef.current.map((i) => i.id)), until: Date.now() + 20_000 };
   }
-  // the reply stands in Seismic's sheet, or the answer in the plan's sheet, open in front of the owner: no line above the microphone
+  
   const told = useTold(
     toasts.store,
     onHeard,
@@ -1611,7 +1611,7 @@ function Project({
     setKOn(false);
     void openNamed(c.id).catch(console.error);
   }
-  // a card Seismic asked to open before it was on the project
+  
   const openSoon = useRef<{ id: string; until: number } | null>(null);
   useEffect(() => {
     const o = openSoon.current;
@@ -1632,26 +1632,26 @@ function Project({
     if (!made || focusRef.current) return;
     newCardWatch.current = null;
     setPopId(made.id);
-    // a new idea opens, so the owner sees the discussion begin
+    
     if (made.state === 'idea') {
       setKOn(false);
       open(made);
     } else if (!shows(camRef.current, viewNow(), boundsOf(made, itemsRef.current))) fly(centreOnPoint(boundsOf(made, itemsRef.current), Math.max(camRef.current.s, 0.8), sideNow()), 700);
   }, [snapshot]);
-  // what Seismic tells the owner without a command to answer: an answer looked up, what a request a
-  // card's agent passed on came to (with "Undo" while its actions wait)
+  
+  
   useEffect(
     () =>
       onNotice((n) => {
-        // the open card moved to another project (built in a new repository there): the page follows it
-        // the cards a confirmed command made: its line offers to go to them
+        
+        
         if (n.made && n.token) return told.made(n.token, n.made);
         if (n.level === 'warning') return warnings.show(noticeLine(n.text), n.cardId);
         const f = focusRef.current;
         if (n.movedTo && n.cardId && f?.type === 'card' && f.id === n.cardId) return goTo(cardPath(n.movedTo, n.cardId));
         const i = itemsRef.current.find((x) => x.id === n.cardId);
         if (n.wish) openWish(n.wish);
-        // the card a review of its PR asked for, unless the owner has another one open; one just made, once it is on the project
+        
         if (n.open && n.cardId && !focusRef.current) {
           if (i) {
             setKOn(false);
@@ -1672,8 +1672,8 @@ function Project({
   const ptt = usePushToTalk(where, fieldFor, tellAbout, (h) => showAck(h.confirm), placeNow);
   const pttRef = useRef(ptt);
   pttRef.current = ptt;
-  // a text field's microphone, and Space held in it
-  /** The open card's demo video while the owner holds Space or the microphone: whether it played, and since when. */
+  
+  
   const pressing = useRef<{ video: HTMLVideoElement | null; playing: boolean; at: number; space: boolean; dictating: boolean } | null>(null);
   /** Space or the microphone held: the demo video pauses, so its narration stays out of the recording. */
   const press = (space: boolean) => {
@@ -1681,7 +1681,7 @@ function Project({
     const video = f?.type === 'card' ? (videoOf(f.id) ?? panelRef.current?.querySelector('video') ?? null) : null;
     pressing.current = { video, playing: !!video && !video.paused, at: performance.now(), space, dictating: !!focusedDraft() };
     video?.pause();
-    // a tap on Space plays or pauses the video: with one open, the microphone shows it listens only once Space stays down
+    
     pttRef.current.start(space && video ? SPACE_SHOWS_MS : 0);
   };
   /**
@@ -1704,7 +1704,7 @@ function Project({
   useEffect(() => {
     const up = (e: KeyboardEvent) => e.code === 'Space' && letGoRef.current();
     const release = () => letGoRef.current();
-    // a screenshot pasted (⌘V) anywhere but in a text field goes to the field in view, or beside the mic
+    
     const paste = (e: ClipboardEvent) => {
       const el = e.target;
       if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || (el instanceof HTMLElement && el.isContentEditable)) return;
@@ -1726,34 +1726,34 @@ function Project({
   }, []);
   const focusItem = focus ? itemOrArchived(focus.id) : undefined;
   const target = voiceTarget(focus && { type: focus.type, item: focusItem });
-  // a card a command makes goes into what is in view, reported once the view rests
+  
   useEffect(() => {
     const h = setTimeout(() => reportFocus(placeNow(false)), 300);
     return () => clearTimeout(h);
   }, [focus?.type, focus?.id, cam, tick, kOn, sheetOn, sheetW.sheet, canvasId]);
 
-  // ---------------------------------------------------------------- pointer: pan, drag, click
+  
   const viewportRef = useRef<HTMLDivElement>(null);
-  // `from`: where the press began; one that went nowhere is a click on the empty project
+  
   const panRef = useRef<{ x: number; y: number; from: Pos } | null>(null);
-  // a dragged card follows the world point it was picked up at, also while the view scrolls under it
-  // (or the note on a plan directory, by its repository, with where it is now)
-  // `with`: the other marked cards, which move by as much; `shift`: a Shift + click marks the card instead of opening it
+  
+  
+  
   type Drag = { id: string; note?: string; to?: Pos; with: { id: string; start: Pos }[]; shift: boolean; x: number; y: number; px: number; py: number; grab: Pos; start: Pos; limit: Bounds; moved: boolean; frame: number; last: number };
   const dragRef = useRef<Drag | null>(null);
   const [panning, setPanning] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragWith, setDragWith] = useState<string[]>([]);
-  // the card the pointer is on, for the waits around it
+  
   const [hoverId, setHoverId] = useState<string | null>(null);
-  // fingers on the project (touch.ts): whether the last press was one, and what the element under the first finger was
+  
   const [touchy, setTouchy] = useState(false);
   const touchyRef = useRef(false);
   const touchEl = useRef<Element | null>(null);
   const touchesRef = useRef<Touches | null>(null);
-  // on touch, the card that was picked up and let go stands for the pointer resting on it: its dots and waits show
+  
   const [touchFocus, setTouchFocus] = useState<string | null>(null);
-  // how the long press works shows on a touch screen until the owner has used it once
+  
   const [holdKnown, setHoldKnown] = useState(() => known(TOUCH_HOLD_KNOWN));
   const coarse = useMemo(() => matchMedia('(pointer: coarse)').matches, []);
   const learnHold = () => {
@@ -1762,7 +1762,7 @@ function Project({
     setHoldKnown(true);
   };
   const [connection, setConnection] = useState<{ from: string; side: Side; x: number; y: number; target?: string; anchor?: ManualAnchor } | null>(null);
-  // the dot under the pointer: the project renders again only when it changes
+  
   const [handle, setHandle] = useState<{ id: string; side: Side } | null>(null);
   const handleRef = useRef(handle);
   const showHandle = (h: { id: string; side: Side } | null) => {
@@ -1772,15 +1772,15 @@ function Project({
     setHandle(h);
   };
   const connectable = (item: Item) => item.source !== 'plan' && item.kind !== 'plan';
-  // what covers an arrow's trash button: the cards, which lie above the arrows
-  // an arrow the owner drew at chosen edges follows its own route between them
+  
+  
   const routeOf = (from: string, to: string, a: Bounds, b: Bounds, head: number) => {
     const anchor = byId(to)?.plan?.manualAnchors?.[from];
     return anchor ? anchoredPath(a, b, anchor, head).path : undefined;
   };
-  // on touch the dots show on the card picked up and let go, and on the marked ones
+  
   const touchDots = (id: string) => touchy && !dragId && (touchFocus === id || selection.includes(id));
-  // a dot of a card's handles pressed: an arrow starts from that side to where the pointer goes
+  
   const connectFrom = useCallback((id: string, side: Side, clientX: number, clientY: number) => {
     const p = toWorld(camRef.current, clientX, clientY);
     setConnection({ from: id, side, ...p });
@@ -1790,14 +1790,14 @@ function Project({
     const i = byId(id);
     return clip(i ? plain(i.title) || titleFrom(i.body) || t.titlePlaceholder : '…', 50);
   };
-  // what an arrow does shows while the owner draws one, until they have drawn their first
+  
   const [depKnown, setDepKnown] = useState(() => known(DEP_KNOWN));
-  // arrows the owner removed that the server may still have: one holding a queued card goes there only
-  // once "Undo" has run out (`sent` from then on), so that taking it back never leaves the card started
+  
+  
   const [removing, setRemoving] = useState<{ key: string; sent?: true }[]>([]);
-  // those removals while "Undo" runs, each with its timer and what sends it
+  
   const pendingRemovals = useRef(new Map<string, { timer: ReturnType<typeof setTimeout>; send: (keepalive?: boolean) => void }>());
-  // what the owner removed goes to the server even when the page goes before "Undo" has run out
+  
   useEffect(() => {
     const away = () => {
       for (const p of pendingRemovals.current.values()) {
@@ -1817,13 +1817,13 @@ function Project({
     pendingRemovals.current.delete(key);
     setRemoving((r) => r.filter((x) => x.key !== key));
   }
-  // Shift + drag on the project draws a lasso, Shift + click on a card takes it in or out: what is marked
-  // moves together and goes into a group at once through the colour ring
+  
+  
   const lassoRef = useRef<Pos[] | null>(null);
   const [lasso, setLasso] = useState<Pos[]>([]);
   const [selection, setSelection] = useState<string[]>([]);
   const marked = selection.filter((id) => placed.some((p) => p.item.id === id));
-  // how to mark shows after a card was moved alone, until the owner has marked cards; how to move them beside them, until they have
+  
   const [markKnown, setMarkKnown] = useState(() => known(MARK_KNOWN));
   const [moveKnown, setMoveKnown] = useState(() => known(MOVE_MARKED_KNOWN));
   const [markHint, setMarkHint] = useState<{ at: Pos; key: number } | null>(null);
@@ -1836,7 +1836,7 @@ function Project({
   useEffect(() => {
     if (!markHint) return;
     const h = setTimeout(() => setMarkHint(null), 7000);
-    // the next click anywhere, a drag of the project or a scroll of it lets the hint go at once
+    
     const hide = () => setMarkHint(null);
     window.addEventListener('pointerdown', hide, true);
     window.addEventListener('wheel', hide, true);
@@ -1847,7 +1847,7 @@ function Project({
     };
   }, [markHint]);
   const [ring, setRing] = useState<{ at: Pos; ids: string[]; kind: RightClick } | null>(null);
-  // what a right click on a card opens, as the project's settings say (read again when the settings sheet or Configuration closes)
+  
   const [rightClick, setRightClick] = useState<RightClick>('groups');
   const markedBox = unionBounds(placed.filter((p) => marked.includes(p.item.id)).map((p) => p.b));
   /** Where the line for what is marked stands: over its top right corner, below it where the bar leaves no room, always in view. */
@@ -1862,7 +1862,7 @@ function Project({
   async function assignGroup(to: { group: string | null } | { name: string }) {
     const r = ring!;
     setRing(null);
-    // the territory grows from the pointer, or from the one card it is for
+    
     const one = r.ids.length === 1 ? placed.find((p) => p.item.id === r.ids[0])?.b : undefined;
     growFrom(r.ids, one ? centre(one) : toWorld(camRef.current, r.at.x, r.at.y));
     try {
@@ -1876,7 +1876,7 @@ function Project({
   function removeDependency(from: string, to: Item) {
     const key = `${from}:${to.id}`;
     if (!(to.queue && 'behind' in to.queue && to.queue.behind.includes(from))) {
-      // gone from the canvas at once, not when the snapshot comes back
+      
       setRemoving((r) => [...r, { key, sent: true }]);
       api.dependency(from, to.id, true).then(
         () =>
@@ -1906,7 +1906,7 @@ function Project({
     pendingRemovals.current.set(key, { timer, send });
     showAck(t.deps.removed, () => keepDependency(key));
   }
-  // a removal the server has done is shown by the snapshot from then on
+  
   useEffect(() => {
     const drawn = new Set(placed.flatMap(({ item }) => (item.plan?.manualDependsOn ?? []).map((from) => `${from}:${item.id}`)));
     if (removing.some((x) => x.sent && !drawn.has(x.key))) setRemoving((r) => r.filter((x) => !x.sent || drawn.has(x.key)));
@@ -1923,7 +1923,7 @@ function Project({
   }
   /** A right click on a card opens the colour ring for it (a workstream's is its plan's), on a marked one for all marked. */
   function onContextMenu(e: React.MouseEvent) {
-    // a long press of a finger picks up a card instead (touch.ts)
+    
     if (touchyRef.current) return e.preventDefault();
     if (focusRef.current) return;
     const el = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('.item');
@@ -1946,14 +1946,14 @@ function Project({
       fail(err);
     }
   }
-  // the panels docked at the window's edges; the project, its edge indicators, the bar and the microphone keep between them
+  
   const side = sideNow();
   const quickSide = useRef(0);
   useEffect(() => {
     const from = camSide.current;
     if (side.left === from.left && side.right === from.right) return;
     camSide.current = side;
-    // the open card's view goes back to where it was opened from, beside whatever sheet is open then
+    
     if (focusRef.current?.type === 'card') return;
     const to = kept(besideSheet(camRef.current, from, side));
     if (resizing || Date.now() < quickSide.current) {
@@ -1961,8 +1961,8 @@ function Project({
       setCam(to);
     } else fly(to, 450);
   }, [side.left, side.right]);
-  // the open card keeps clear of what lies beside it: it refits when a sheet opens, closes or changes its
-  // width, the menu is pinned, shown, hidden or resized, or the inbox's list opens or closes
+  
+  
   useEffect(() => {
     const i = openId && itemOrArchived(openId);
     if (i && unfolded.current) fitPanel(i);
@@ -1990,13 +1990,13 @@ function Project({
     }
     if (connection) {
       e.stopPropagation();
-      // a finger did not hover on its way: the arrow aims at where it lands
+      
       const conn = touch ? aimed(connection, e.clientX, e.clientY) : connection;
       const { from, side } = conn;
       const start = placed.find((p) => p.item.id === from)?.b;
-      // a click on the empty project makes the card that is to wait there, and connects it
+      
       if (!conn.target && start && !(e.target as Element).closest('.item, .plan-dir, button')) {
-        // the arrow's head stays where the owner clicked: the card lies behind it, its edge facing the arrow
+        
         const startAt = handleAt(start, side), at = toWorld(camRef.current, e.clientX, e.clientY);
         const [w, h] = CARD_SIZE.task, dx = at.x - startAt.x, dy = at.y - startAt.y;
         const across = Math.abs(dx) * h >= Math.abs(dy) * w;
@@ -2009,7 +2009,7 @@ function Project({
           setDepKnown(true);
         }
       } else if (conn.target) {
-        // the arrow drawn again while its removal waits for "Undo" to run out: it simply stays
+        
         if (pendingRemovals.current.has(`${conn.from}:${conn.target}`)) keepDependency(`${conn.from}:${conn.target}`);
         else {
           const { target, anchor } = conn;
@@ -2026,7 +2026,7 @@ function Project({
     }
     stopFlight();
     if (touch) {
-      // no emulated mouse press follows the finger: it would take the focus from a card a double-tap just opened
+      
       e.preventDefault();
       if (!touchesRef.current!.busy) touchEl.current = e.target as Element;
       touchesRef.current!.down(e.pointerId, { x: e.clientX, y: e.clientY }, touchTarget(e.target as Element));
@@ -2034,10 +2034,10 @@ function Project({
       return;
     }
     if (grab(e.target as Element, e.clientX, e.clientY, e.shiftKey)) {
-      // Shift + press would otherwise extend the page's text selection up to the pointer
+      
       if (e.shiftKey) e.preventDefault();
     } else if (e.shiftKey) {
-      // Shift + press would otherwise extend the page's text selection up to the pointer
+      
       e.preventDefault();
       lassoRef.current = [{ x: e.clientX, y: e.clientY }];
       setLasso(lassoRef.current);
@@ -2073,7 +2073,7 @@ function Project({
     const el = target.closest<HTMLElement>('.item');
     const note = target.closest<HTMLElement>('.plan-dir');
     if (note) {
-      // it moves by its top left as it stands now: one above the plans stands on its bottom
+      
       const repo = note.dataset.repo!;
       const r = note.getBoundingClientRect();
       const start = toWorld(camRef.current, r.left, r.top);
@@ -2086,13 +2086,13 @@ function Project({
     if (el && (!el.classList.contains('plan') || target.closest('.head'))) {
       const i = byId(el.dataset.id!);
       if (!i) return true;
-      // a marked card takes the other marked ones along
+      
       const along = movesWith(marked, i.id).flatMap((id) => {
         const x = byId(id);
         return x ? [{ id, start: { x: x.x, y: x.y } }] : [];
       });
       const moving = new Set([i.id, ...along.map((a) => a.id)]);
-      // the view scrolls as far as the rest of the project reaches, plus room to drop the cards beside it
+      
       const rest = onProject(itemsRef.current.filter(onShown)).filter((x) => !moving.has(x.id));
       const b = unionBounds([...moving].map((id) => bounds(byId(id)!)))!;
       const content = unionBounds(rest.map((x) => boundsOf(x, rest))) ?? b;
@@ -2119,7 +2119,7 @@ function Project({
       d.to = p;
       return setNotesMoved((m) => ({ ...m, [d.note!]: p }));
     }
-    // workstreams stay inside their plan
+    
     if (byId(d.id)?.parent) p = { x: Math.max(PLAN_PAD, p.x), y: Math.max(PLAN_HEAD, p.y) };
     const by = { x: p.x - d.start.x, y: p.y - d.start.y };
     setMoved((m) => ({ ...m, [d.id]: p, ...shifted(d.with, by) }));
@@ -2146,7 +2146,7 @@ function Project({
   function aimed(conn: NonNullable<typeof connection>, x: number, y: number): NonNullable<typeof connection> {
     const p = toWorld(camRef.current, x, y);
     const near = placed.filter(({ item }) => item.id !== conn.from && connectable(item)).map(({ item, b }) => ({ id: item.id, area: b.w * b.h, d: Math.hypot(Math.max(b.x - p.x, 0, p.x - b.x - b.w), Math.max(b.y - p.y, 0, p.y - b.y - b.h)) })).filter((x) => x.d <= 8 / camRef.current.s).sort((a, b) => a.d - b.d || a.area - b.area)[0];
-    // the arrow ends where the pointer is nearest on the target's edges, and keeps that place
+    
     const target = near && placed.find((x) => x.item.id === near.id);
     const edge = target && nearestEdge(target.b, p);
     return { ...conn, x: p.x, y: p.y, target: near?.id, anchor: edge ? { fromSide: conn.side, toSide: edge.side, offset: edge.offset } : undefined };
@@ -2161,13 +2161,13 @@ function Project({
       touchesRef.current!.move(e.pointerId, { x: e.clientX, y: e.clientY });
       return;
     }
-    // the dots stay hidden while something is dragged, lassoed or panned, and while a card is open
+    
     const busy = lassoRef.current || dragRef.current || panRef.current || focusRef.current?.type === 'card';
     if (busy) showHandle(null);
     else {
       const c = camRef.current;
       const near = placed.flatMap(({ item, b }) => (connectable(item) ? [{ id: item.id, b }] : []));
-      // near its dot, or anywhere close along its edge
+      
       showHandle(nearestHandle(near, toWorld(c, e.clientX, e.clientY), 16 / c.s, 6 / c.s));
     }
     if (lassoRef.current) {
@@ -2184,7 +2184,7 @@ function Project({
       place(d);
       return;
     }
-    // the view follows the pointer step by step, so after a stop at the content's edge it turns back at once
+    
     const p = panRef.current;
     if (!p) return;
     const c = camRef.current;
@@ -2210,7 +2210,7 @@ function Project({
     const p = panRef.current;
     panRef.current = null;
     setPanning(false);
-    // a click on the empty project lets go of what is marked
+    
     if (p && Math.hypot(e.clientX - p.from.x, e.clientY - p.from.y) < 5) setSelection([]);
   }
 
@@ -2222,14 +2222,14 @@ function Project({
   /** What a finished lasso (screen points) caught is marked; one that went nowhere is a click. */
   function endLasso(l: Pos[]) {
     const c = camRef.current;
-    // a Shift + click on a plan beside its workstreams marks the plan
+    
     if (l.every((p) => Math.hypot(p.x - l[0]!.x, p.y - l[0]!.y) < 5)) {
       const el = document.elementFromPoint(l[0]!.x, l[0]!.y)?.closest<HTMLElement>('.item');
       const i = el && byId(el.dataset.id!);
       if (i) setSelection((sel) => toggle(sel, markable(i)));
       return;
     }
-    // what the lasso caught: each card whose middle lies inside, a workstream as its plan
+    
     const ids = [...new Set(placed.filter(({ b }) => inside({ x: c.x + (b.x + b.w / 2) * c.s, y: c.y + (b.y + b.h / 2) * c.s }, l)).map(({ item }) => markable(item)))];
     setSelection((sel) => addAll(sel, ids));
   }
@@ -2251,7 +2251,7 @@ function Project({
     }
     const i = byId(d.id);
     if (!i) return;
-    // a card held on touch and let go where it was stays unsaved
+    
     if (d.moved && (i.x !== d.start.x || i.y !== d.start.y)) {
       for (const x of [i, ...d.with.flatMap((w) => byId(w.id) ?? [])])
         patchCard(x.id, { x: x.x, y: x.y }).catch((err) => {
@@ -2269,20 +2269,20 @@ function Project({
   }
 
   function onDoubleClick(e: React.MouseEvent) {
-    // fingers double-tap through touch.ts
+    
     if (!touchyRef.current) newCardAt(e.clientX, e.clientY);
   }
 
   /** A double-click or double-tap on empty canvas creates a card in the territory at that point. */
   function newCardAt(x: number, y: number) {
-    // the pointer capture retargets the event to the viewport, so look at what is under the pointer
+    
     if (focusRef.current || document.elementFromPoint(x, y)?.closest('.item, .plan-dir')) return;
     const at = toWorld(camRef.current, x, y);
     const group = groupAt(viewportRef.current!, at, groups);
     createAt(at, { group }).catch(fail);
   }
 
-  // what the fingers do on the project (touch.ts); the host gets this render's closures
+  
   const touchHost: ConstructorParameters<typeof Touches>[0] = {
     pan: (dx, dy) => {
       const c = camRef.current;
@@ -2290,7 +2290,7 @@ function Project({
     },
     pinch: (from, to) => setCam(kept(pinchCam(camRef.current, from, to))),
     tap: (_, target) => {
-      // a tap on the empty project lets go of what is marked, and of the card that showed its dots
+      
       if (!target) {
         setSelection([]);
         setTouchFocus(null);
@@ -2298,7 +2298,7 @@ function Project({
       }
       const i = target.startsWith('note:') ? undefined : byId(target);
       if (!i) return;
-      // while cards are marked, a tap takes one in or out, as Shift + click does
+      
       if (marked.length) setSelection((sel) => toggle(sel, markable(i)));
       else {
         setTouchFocus(null);
@@ -2338,7 +2338,7 @@ function Project({
       const d = dragRef.current;
       if (!d) return;
       endDrag(d, at);
-      // the card let go shows its dots for drawing an arrow, and its waits
+      
       if (!d.note) setTouchFocus(d.id);
     },
     moving: setPanning,
@@ -2362,25 +2362,25 @@ function Project({
     return () => vp.removeEventListener('wheel', onWheel);
   }, [setCam]);
 
-  // ---------------------------------------------------------------- keys
-  // an approved card stops needing the owner with the click, before the snapshot says it lands
+  
+  
   const yours = (i: Item) => needsYou(i) && !underwayRef.current[i.id];
-  // the inbox, what waits on every project: this one's as this page sees it, without what the owner just
-  // acted on (on any project: its reply is under way) and without answers in Seismic's sheet while it is open
+  
+  
   const here = waitingIn({ ...snapshot, items, talk: kOn ? [] : snapshot.talk });
   const entries = inboxEntries(projects, { ...waiting, [snapshot.project.id]: here }, (id) => !!underway[id]);
-  // the project switcher counts what waits as the bell does, and stays shut under a view about every project
+  
   useSwitcherFeed(waitingPerProject(entries), cOn || prefsOn || perfOn || phoneOn || newProjectOn);
-  // the cards waiting in the queue, counted in grey on the agents' button
+  
   const queued = queueOrder(items).length;
-  // the cards that wait for the owner on every project, counted on the bell
+  
   const needsYouCards = needsYouCount(entries);
-  // the open card's entry is read, and stays so while it is open, even as the card waits anew
+  
   const openEntry = openId ? entries.find((e) => e.card?.id === openId && e.project === snapshot.project.id) : undefined;
   useEffect(() => {
     if (openEntry) inboxRead.markRead(openEntry);
   }, [openEntry && readMark(openEntry)]);
-  // answers in Seismic's sheet the owner has not seen: Seismic waits for them like a card
+  
   const unread = kOn ? 0 : unreadAnswers(snapshot.talk);
   const nav = {
     project: snapshot.project,
@@ -2403,7 +2403,7 @@ function Project({
     if (ids.length) showAck(t.archive.archivedMany(ids.length), () => Promise.all(ids.map((id) => unarchiveCard(id))));
   }
   const attnLast = useRef<string | null>(null);
-  /** The next card that needs the owner, in turn, and Seismic's sheet among them while an answer waits there. */
+  
   /** What Tab goes through from the project: the cards that need the owner in their order on it, then Seismic's unread answer. */
   function attention(): (Item | 'k')[] {
     const koordinator = !kOnRef.current && unreadAnswers(snapshotRef.current.talk) > 0;
@@ -2414,7 +2414,7 @@ function Project({
     const all = itemsRef.current;
     const list = attention();
     if (!list.length || focusRef.current?.type === 'card') return;
-    // the one after the card Tab opened last, by its place on the project: that card may need the owner no longer
+    
     const key = (x: Item | 'k') => (x === 'k' ? 'k' : x.id);
     const at = (id: string | null) => (id === 'k' ? all.length : all.findIndex((i) => i.id === id));
     const last = at(attnLast.current);
@@ -2442,7 +2442,7 @@ function Project({
   /** Opens the project settings of `f.project` at a field: on this page, or on that project's, which it switches to. */
   const openSettingsAt = (f: SettingsFocus) => {
     if (f.project !== snapshot.project.id)
-      // the other project's page is a page of its own: it opens its sheet at the place as it loads
+      
       return leave(() => {
         showSettingsAt(f);
         goTo(projectPath(f.project));
@@ -2451,7 +2451,7 @@ function Project({
     setCOn(false);
     if (!csOnRef.current) toggleProjectSettings();
   };
-  // come from another project's page to a place in this one's settings: the sheet opens with the page
+  
   useEffect(() => {
     if (settingsFocusWaits(snapshot.project.id) && !csOnRef.current) toggleProjectSettings();
   }, []);
@@ -2464,10 +2464,10 @@ function Project({
     if (focusRef.current?.type === 'plan') closePlan(false);
   };
   const openCardId = (focus?.type === 'card' ? focus.id : openId) ?? undefined;
-  // the left menu, floating under ☰ or docked on the left
+  
   const menu = {
     ...nav,
-    // the inbox is a page of the menu itself, docked or dropped down, so the canvas stays in view
+    
     onInbox: () => {},
     inbox: {
       entries, current: snapshot.project.id, open: openCardId, onGo: goToEntry, onReply: replyTo, isRead: inboxRead.isRead, onRead: inboxRead.markRead, els: inboxEls,
@@ -2503,24 +2503,24 @@ function Project({
   function goToEntry(e: Pick<InboxEntry, 'project' | 'card'>) {
     if (e.project !== snapshot.project.id) return goTo(e.card ? cardPath(e.project, e.card) : `${projectPath(e.project)}?talk=answer`);
     if (!e.card) return kOnRef.current || toggleKoordinator('answer');
-    // the entry's own copy opens it when the project no longer lists the card (it just left the inbox)
+    
     void openFresh(byId(e.card.id) ?? e.card);
   }
   const keys = useRef<(e: KeyboardEvent) => void>(() => {});
   keys.current = (e: KeyboardEvent) => {
     const f = focusRef.current;
     const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target instanceof HTMLElement && e.target.isContentEditable);
-    // the project switcher over the page keeps its keys, the legend's under it too: what is typed there searches
+    
     if (e.target instanceof Element && e.target.closest('#project-switcher')) return;
-    // a field being edited handles its own keys (Esc cancels the edit there); any other field's Esc closes what it is in
+    
     if (typing && (e.target as Element).closest('[data-esc]')) return;
-    // an open layer from the component library (menu, popover, dialog) closes itself on Esc, before anything under it
+    
     if (e.key === 'Escape' && layerOpen()) return;
-    // a view inside a sheet (a section of the project's settings) goes back to its list on Esc itself
+    
     if (e.key === 'Escape' && e.target instanceof Element && e.target.closest('[data-esc-back]')) return;
-    // a focused menu or popover keeps its keys: arrows, typeahead and Tab are its own, not the page's shortcuts
+    
     if (e.target instanceof Element && e.target.closest('[role=menu], [data-slot=popover-content]')) return;
-    // the configuration over the page takes the keys until it closes, Esc closing it
+    
     if (cOnRef.current) {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -2528,7 +2528,7 @@ function Project({
       }
       return;
     }
-    // so do the preferences
+    
     if (prefsOn) {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -2536,7 +2536,7 @@ function Project({
       }
       return;
     }
-    // so does the performance dashboard
+    
     if (perfOn) {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -2544,12 +2544,12 @@ function Project({
       }
       return;
     }
-    // so does "Connect a phone"
+    
     if (phoneOn) {
       if (e.key === 'Escape') setPhoneOn(false);
       return;
     }
-    // the draft for Seismic's makers takes the keys until it closes, Esc closing it
+    
     if (wishOn) {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -2557,10 +2557,10 @@ function Project({
       }
       return;
     }
-    // the legend over the page takes the keys until it closes
+    
     if (helpOn) {
       if (e.key === 'Escape' || e.key === '?') setHelpOn(false);
-      // Space would press the focused button behind it
+      
       if (e.key === 'Escape' || e.key === '?' || e.code === 'Space') e.preventDefault();
       return;
     }
@@ -2580,18 +2580,18 @@ function Project({
       }
       return;
     }
-    // hold Space anywhere but in a text field to speak; the demo pauses while the owner talks, and a tap plays or pauses it
+    
     if (e.code === 'Space' && !typing) {
-      // Browsers activate links with Enter, but Space scrolls. Give a focused link the same action as Enter.
+      
       const link = e.target instanceof Element ? e.target.closest('a[href]') : null;
       if (link instanceof HTMLAnchorElement && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
         if (!e.repeat) link.click();
         return;
       }
-      // Space on a focused table row (it opens the card itself), switch, checkbox, radio, menu item, the button of a menu or the docked logo does that control's own thing
+      
       if (e.target instanceof Element && e.target.closest('[role=switch], [role=checkbox], [role=radio], [role=menu], [aria-haspopup=menu], .app-logo, [data-space-activates]')) return;
-      // so does any button, tab, option or disclosure that has focus, however it got it (Tab or a click): Space presses it, as Enter does
+      
       if (e.target instanceof Element && e.target.closest('button, summary, input[type=button], input[type=submit], input[type=file], [role=button], [role=tab], [role=option], [role=menuitem]')) return;
       e.preventDefault();
       if (!e.repeat) press(true);
@@ -2599,19 +2599,19 @@ function Project({
     }
     if (e.key === 'Escape' && connection) { setConnection(null); return; }
     if (e.key === 'Escape') {
-      // a screenshot or demo shown large closes first; the card or plan stays open
+      
       if (document.querySelector('.lightbox, .demo-zoom, .artifact-image-close')) return;
-      // so does the quote of a message the owner was replying to: in the field with the cursor, the open card's, the sidebar's
+      
       const quoting = [focusedDraft(), f?.type === 'card' || f?.type === 'plan' ? cardDraft(f.id) : null, kOnRef.current ? SEISMIC_DRAFT : null].find((k) => k && fieldOn(k) && replyOn(k));
       if (quoting) return setReply(quoting, null);
-      // the archive's list closes after a card unfolded from it, a full-page view after a plan opened over it
+      
       if (!f && fullPage.ref.current) {
         if (fullPage.ref.current === 'archive') setAOn(false);
         else fullPage.show(null);
         return;
       }
       if (f?.type !== 'card' && aOnRef.current) return setAOn(false);
-      // what is marked lets go before a sheet closes, once the colour ring for it has closed
+      
       if (f?.type !== 'card' && !typing && !ring && marked.length) return setSelection([]);
       if (typing) (e.target as HTMLElement).blur();
       if (f?.type === 'card') closeCard();
@@ -2624,11 +2624,11 @@ function Project({
       setSheetOn(false);
       fly(kept(overviewCam(all, sideNow())), 700);
     } else if (e.key === 'Tab' && !e.shiftKey && !onControl(e.target) && hasAttention()) {
-      // from the project itself Tab opens what needs the owner; from a control it moves the focus on, as anywhere
+      
       e.preventDefault();
       nextAttention();
     } else if (e.key === 'n' || e.key === 'c' || e.key === 'a') {
-      // the key is the shortcut's alone: its character would land in the field the shortcut focuses (the archive's filter)
+      
       e.preventDefault();
       if (e.key === 'n') createAtCentre();
       else if (e.key === 'c') talkKoordinator();
@@ -2641,16 +2641,16 @@ function Project({
     return () => removeEventListener('keydown', h, true);
   }, []);
 
-  // ---------------------------------------------------------------- render
+  
   const moveRef = useRef(moveCard);
   moveRef.current = moveCard;
   const canvasView = useMemo(() => ({ canvases, shown: canvasId, move: (i: Item, to: Canvas) => void moveRef.current(i, to) }), [canvases, canvasId]);
   const sheetPlan = sheetId ? itemOrArchived(sheetId) : undefined;
   const sheetKids = !sheetPlan ? [] : sheetPlan.archivedAt ? archived.filter((i) => i.parent === sheetPlan.id) : (kidsOf.get(sheetPlan.id) ?? []);
-  // on touch nothing hovers: the card picked up and let go stands in for the one under the pointer
+  
   const hovered = touchy ? touchFocus : hoverId;
-  // what the cards wait for with the arrows the owner is removing taken out at once: only the arrow
-  // goes, a wait of another kind between the same cards stays, and every line derives from this
+  
+  
   const effective = useMemo(() => {
     if (!removing.length) return items;
     const gone = new Set(removing.map((x) => x.key));
@@ -2671,11 +2671,11 @@ function Project({
   const waits = useMemo(() => waitsAmong(effective), [effective]);
   const settled = useMemo(() => settledAmong(effective), [effective]);
   const waitKeys = useMemo(() => new Set([...waits, ...settled.map((d): [string, string] => [d.from, d.to])].map(([from, to]) => `${from}:${to}`)), [waits, settled]);
-  // a wait of a card off the canvas (snoozed or parked, also as a workstream of a collapsed plan) is no line to the plan that stands for it
+  
   const onShownCanvas = ([from, to]: [string, string]) => !hiddenCard(from, byId) && !hiddenCard(to, byId);
   const shownSettled = settled.filter((d) => onShownCanvas([d.from, d.to]));
   const shownWaits = waits.filter(onShownCanvas);
-  // a line only for the waits no chain of others already implies, finished ones taken together with open ones
+  
   const lineKeys = useMemo(
     () => new Set(withoutImplied([...shownWaits, ...shownSettled.map((d): [string, string] => [d.from, d.to])]).map(([from, to]) => `${from}:${to}`)),
     [waits, settled, removing],
@@ -2683,26 +2683,26 @@ function Project({
   const lineWaits = shownWaits.filter(([from, to]) => lineKeys.has(`${from}:${to}`));
   const lineSettled = shownSettled.filter((d) => lineKeys.has(`${d.from}:${d.to}`));
   const standsForId = (id: string) => (byId(id) ? standsFor(byId(id)!).id : id);
-  // the waits whose other card lies on another canvas end in a stub with that canvas's icon
+  
   const placedAt = new Map(placed.map((p) => [p.item.id, p.b]));
-  // the waits of the hovered card that lead to a card off the canvas end in a stub marked "Parked"
+  
   const stubs = [
     ...(canvases.length > 1 ? stubsOf(lineWaits, new Set(placedAt.keys()), byId, standsForId, canvases, canvasId) : []),
     ...(deps ? parkedStubsOf(deps.edges, new Set(placedAt.keys()), byId, standsForId) : []),
   ];
   const depOf = (id: string) => (!deps ? undefined : id === hovered ? 'self' : deps.before.has(id) ? 'before' : deps.after.has(id) ? 'after' : undefined);
-  // a workstream of a collapsed plan points to where its plan stands
+  
   const at = new Map(placed.map((p) => [p.item.id, p.b]));
   const edgeTargets = items.flatMap((item) => {
     const b = at.get(standsFor(item).id);
     return b && !offCanvas(item) && yours(item) && (focus?.type !== 'plan' || item.parent === focus.id) ? [{ item, b }] : [];
   });
 
-  // the button for the conversation with Seismic: the rightmost in the bar; while its sidebar is open it
-  // belongs to the sidebar, at its top corner, and closes it. It is one element that never moves to
-  // another parent, so opening and closing the sidebar only changes its colour; in the bar a hidden
-  // copy keeps its room
-  // the switcher at the bottom centre, where the microphone was: Canvas, Parked and Table still to come
+  
+  
+  
+  
+  
   const switched: SwitchedView | null = fullPage.active === 'parked' || fullPage.active === 'table' ? fullPage.active : fullPage.active ? null : 'canvas';
   const switchTo = (v: SwitchedView) => {
     if (focusRef.current?.type === 'plan') closePlan();
@@ -2736,7 +2736,7 @@ function Project({
       version={snapshot}
     />
   );
-  // the card open now, or flying open: its entry in the inbox and in "Needs you" is ringed
+  
   const dockViews: DockView[] = [
     { id: 'needs-you', besideCard: true, title: t.needsYou.title, icon: ConciergeBell, component: () => (<NeedsYouSheet on={nyOn} entries={entries} current={snapshot.project.id} open={openCardId} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead} />) },
     { id: 'agents', besideCard: true, title: t.agents.title, icon: Bot, component: () => (<AgentsSheet on={agentsOn} items={items} open={openId ?? undefined} underway={isUnderway} onOpen={openFreshCard} project={snapshot.project.id} changed={snapshot} onGo={(project, card) => goToEntry({ project, card })} />) },
@@ -2752,7 +2752,7 @@ function Project({
     <KoordinatorAgent.Provider value={snapshot.koordinatorAgent}>
     <Canvases.Provider value={canvasView}>
       <FullPageHost
-        // while a docked panel's edge is dragged, the pointer is the grip's everywhere and nothing gets selected
+        
         className={[cam.s < FAR && 'z-far', resizing && 'resizing cursor-ew-resize! select-none [&_*]:cursor-ew-resize! [&_*]:select-none'].filter(Boolean).join(' ') || undefined}
         style={
           {
@@ -2769,11 +2769,11 @@ function Project({
           className={[
             'fixed inset-0 touch-none bg-transparent bg-[radial-gradient(var(--dot)_1px,transparent_1px)]',
             panning ? 'panning cursor-grabbing' : 'cursor-grab',
-            // while a ring is open the project behind it holds still: under the blur every frame of an endless
-            // animation there (the selection's drifting dashes, a working card's line) would re-render the whole halo,
-            // and Chrome's screen capture (a screencast, a shared tab) skips about 0.27 s once that stops
+            
+            
+            
             ring && '[&_*]:[animation-play-state:paused]! [&_*::before]:[animation-play-state:paused]! [&_*::after]:[animation-play-state:paused]!',
-            // under fingers a long press picks up a card: no text selection or callout competes with it
+            
             touchy && 'touch select-none [-webkit-touch-callout:none]',
           ]
             .filter(Boolean)
@@ -2791,17 +2791,17 @@ function Project({
             <TerritoryLayer {...territories} selected={placed.filter((p) => (ring ? ring.ids : marked).includes(p.item.id)).map((p) => p.b)} />
             <Links placed={placed} waits={[...shownWaits, ...shownSettled.map((d): [string, string] => [d.from, d.to])]} standsFor={standsForId} />
             <DepLinks placed={placed} waits={lineWaits} lit={(deps?.edges ?? []).filter(onShownCanvas)} first={deps?.first} settled={lineSettled} standsFor={standsForId} routeOf={routeOf} s={cam.s}>
-              {/* an arrow the owner drew: under the pointer, a trash button that removes it, where no card
-                  covers it; the button and the band that shows it keep their size on screen at every zoom */}
+              {
+}
               {placed.flatMap(({ item, b }) => (connectable(item) ? item.plan?.manualDependsOn ?? [] : []).filter((from) => waitKeys.has(`${from}:${item.id}`) && !removing.some((x) => x.key === `${from}:${item.id}`)).flatMap((from) => {
                 const a = placed.find((p) => p.item.id === from && connectable(p.item))?.b;
                 if (!a) return [];
                 const r = 13 / cam.s;
-                // an arrow drawn at chosen edges: its button on the middle of its route
+                
                 const anchor = item.plan?.manualAnchors?.[from];
                 const routed = anchor && anchoredPath(a, b, anchor, depHead(cam.s));
                 const { x, y } = routed ? routed.mid : linkSpot(a, b, depHead(cam.s), cardBoxes, r);
-                // on touch, the trash button shows on the arrows of the card picked up and let go
+                
                 const shown = touchy && (touchFocus === from || touchFocus === item.id);
                 return [<g className="group/edge" key={`${from}:${item.id}`}>
                   <path className="fill-none stroke-transparent [pointer-events:stroke]" d={routed ? routed.path : linkPath(a, b, depHead(cam.s))} strokeWidth={22 / cam.s} />
@@ -2862,7 +2862,7 @@ function Project({
             <GroupNames shapes={territories.shapes} />
           </div>
         </div>
-        {/* on an empty project the camera centres the notes on the plan directories: the hint stands above them, with space between */}
+        { }
         {!placed.length && (
           <div
             className={cn(
@@ -2911,7 +2911,7 @@ function Project({
           />
         )}
         {(!focus || focus.type === 'plan') && <Edges cam={cam} targets={edgeTargets} side={side} onOpen={open} />}
-        {/* in the app on a Mac the bar is the window's title bar: it moves the window (app/src/main.rs); beside the pinned navigation, the traffic lights sit in that */}
+        { }
         <header
           id="bar"
           ref={barRef}
@@ -2944,7 +2944,7 @@ function Project({
                 {talkButton}
               </div>
             )}
-            {/* Seismic has no user accounts yet: the avatar holds the place, without a menu */}
+            { }
             <Tooltip content={t.avatar}>
               <span className="grid size-[34px] place-items-center text-muted-foreground" aria-label={t.avatar} role="img">
                 <CircleUserRound size={22} strokeWidth={1.75} aria-hidden />
@@ -2952,7 +2952,7 @@ function Project({
             </Tooltip>
           </div>
         </header>
-        {/* Under an open card the floating controls (not the top bar) lie below the dim and blur with the canvas; a tall card reaches over them. */}
+        { }
         <div
           id="floating-row"
           ref={rowRef}
@@ -2970,7 +2970,7 @@ function Project({
                 )}
               </PillButton>
             </Tooltip>
-            {/* two buttons as one: the agents and what needs the owner */}
+            { }
             <div className="flex rounded-full shadow-glass hover:shadow-lift">
               <Tooltip content={t.agents.button(queued)}>
                 <PillButton size="bar" on={agentsOn} tone="ink" className="rounded-none rounded-l-full pl-3.5 shadow-none hover:shadow-none" aria-label={t.agents.button(queued)} aria-expanded={agentsOn} aria-pressed={agentsOn} onClick={toggleAgents}>
@@ -3007,7 +3007,7 @@ function Project({
         <ParkedView on={fullPage.active === 'parked'} items={items} open={openCardId} underway={isUnderway} onOpen={openFreshCard} onClose={() => showPage(null)} els={parkedEls} />
         <TableView on={fullPage.active === 'table'} project={snapshot.project.id} items={items} canvases={canvases} groups={snapshot.groups} repos={snapshot.project.repos} open={openCardId ?? (focus?.type === 'plan' ? focus.id : undefined)} onOpen={(i) => void openFresh(i)} onClose={() => showPage(null)} els={tableEls} />
         <QueueView on={fullPage.active === 'queue'} items={items} onOpen={(i) => void openFresh(i)} onClose={() => showPage(null)} />
-        {/* the status bar along the bottom: the connection (or the restart that waits), whom the microphone speaks to, the workstation pool and the usage limits */}
+        { }
         <footer
           id="status"
           className={cn('frost-bar fixed right-[var(--side,0px)] bottom-0 left-[var(--left,0px)] z-45 grid h-[34px] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3.5 border-t border-border px-2.5 text-sm transition-[right,left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none', dim && 'z-29')}
@@ -3035,14 +3035,14 @@ function Project({
         />
         <CanvasTabs project={snapshot.project.id} canvases={canvases} shown={canvasId} waiting={perCanvas.waiting} empty={perCanvas.empty} onDeleteError={fail} onShow={(c) => (focusRef.current?.type === 'plan' && closePlan(), showPage(null), showCanvas(c))} onRename={renamedCanvas} />
 
-        {/* over the inbox's view, its list stays undimmed beside the card, to work down from there */}
+        { }
         <div id="dim" className={cn('fixed inset-x-0 top-[50px] bottom-0 z-30 bg-scrim opacity-0 pointer-events-none [transition:opacity_.2s,left_0s]', dim && 'on opacity-100 pointer-events-auto backdrop-blur-[3px]')} onClick={() => closeCard()} />
         {helpOn && <Help note={helpNote} onClose={() => setHelpOn(false)} />}
         <WishDialog />
-        {/* the open card blurs only while it is open in full (`ready`): as it unfolds, folds and hides it is a solid
-            pane, and the card it lifted off the canvas keeps no blur either. Safari (an iPad's) can leave a hidden
-            element's blur layer painted where it was, an empty pane over the canvas once the card has folded.
-            App sets `anim` while it unfolds (over --unfold), and the card's rule across the top, as on the card */}
+        {
+
+
+}
         <div
           id="panel"
           ref={panelRef}
@@ -3054,10 +3054,10 @@ function Project({
               <CardMore key={openItem.id} item={openItem} onClose={() => closeCard()} />
             </div>
           )}
-          {/* keeps the final width while the panel unfolds, so the content can be measured before it shows; --pb is
-              the room below the content, more where the microphone covers the panel's foot (fitPanel) */}
+          {
+}
           <div className="inner card-sheet [--pb:26px] absolute left-0 top-0 bottom-0 w-full overflow-auto [scrollbar-gutter:stable] pt-6 px-8 pb-(--pb) opacity-0 transition-opacity duration-[120ms] group-[.ready]/panel:opacity-100" ref={innerRef}>
-            {/* The first line keeps clear of the menu; the last keeps the same room below as above the title. */}
+            { }
             <div className="content flow-root [&>:first-child]:pr-6 [&>:last-child]:mb-0">
               {openItem && (
                 <Cards.Provider value={{ items, open: (i) => void openFresh(i) }}>
@@ -3070,11 +3070,11 @@ function Project({
                   from={openItem.from ? itemOrArchived(openItem.from) : undefined}
                   onReadPlan={(plan, mark) => readPlan(plan, { mark })}
                   onClones={(repo, field) => {
-                    // the project's settings, beside the card, at where the repository's agents work
+                    
                     openSettingsAt({ project: snapshot.project.id, repo, section: 'agents', field });
                   }}
                   onDemoSites={() => {
-                    // the project chooses its demo site in its settings
+                    
                     closeCard();
                     if (!csOnRef.current) toggleProjectSettings();
                   }}
@@ -3133,18 +3133,18 @@ function Project({
           behind={dim}
         />
 
-        {/* the button for Seismic's sidebar, over the room the bar keeps for it: left of the avatar (34px and the
-            gap), going left with the bar's end beside another sheet; while the sidebar is open its corner has it */}
+        {
+}
         <div id="talk-docked" className={cn('fixed top-[9px] right-[calc(var(--side,0px)+14px+34px+10px)] z-27 [transition:right_.45s_cubic-bezier(.3,.9,.3,1)] resizing:[transition:none]', kOn && 'on right-[14px] hidden [@media(max-width:760px)]:top-[74px] [@media(max-width:760px)]:right-[22px]')}>
           {talkButton}
         </div>
         <DockShell dock={dock} />
-        {/* commands on their way and confirmations, stacked above the microphone */}
+        { }
         <div id="acks" className={acksClass}>
           <Cards.Provider value={{ items, open: (i) => void openFresh(i) }}>
             <Toasts toasts={toasts} open={focus?.type === 'card' ? focus.id : undefined} />
           </Cards.Provider>
-          {/* nearest the microphone: a line going above it does not move the stars under a finger */}
+          { }
           {ratePrompt.prompt}
           <NotifyAsk {...notifyAsk} />
         </div>
@@ -3175,13 +3175,13 @@ function Project({
  */
 function panelRect(i: Item, inner: HTMLElement, side: Sides, keep = 0) {
   const tall = i.state !== 'planned' && i.state !== 'proposal';
-  // a card with a conversation beside what it is about (an idea, a proposal, a task an agent worked on) gets the room of the mock's demo panel
+  
   const wide = split(i);
-  // a task an agent works on without a result yet is its conversation alone, and only as wide
+  
   const want = wide ? 1600 : talkAlone(i) ? TALK_W : tall ? 980 : 900;
-  // a plan's sheet lies dimmed under an open card, so a card wider than the project reaches over it; the
-  // pinned navigation and a sheet usable beside the card (`keep`) limit it unless the window leaves less
-  // than a conversation's width beside them, where the card lies under that sheet
+  
+  
+  
   const room = innerWidth - side.left - keep - 80;
   const W = Math.min(want, Math.max(room, Math.min(TALK_W, innerWidth - side.left - 80)));
   inner.style.width = `${W}px`;
@@ -3190,15 +3190,15 @@ function panelRect(i: Item, inner: HTMLElement, side: Sides, keep = 0) {
   const pad = getComputedStyle(inner);
   const base = parseFloat(pad.paddingBottom);
   const content = inner.firstElementChild as HTMLElement;
-  // heights unrounded: a content half a pixel higher than its panel scrolls it
+  
   const height = (e: HTMLElement) => e.getBoundingClientRect().height;
-  // the microphone only counts while it shows: beside the view switcher it shows while it listens, and the idle
-  // switcher lies under the dim, so a tall card reaches over it
+  
+  
   const ptt = document.getElementById('ptt');
   const micShown = ptt && (!ptt.classList.contains('switching') || document.getElementById('mic'));
   const mic = (micShown ? ptt.getBoundingClientRect().top : innerHeight) - MIC_GAP;
-  // a split (an idea, a proposal, a task) grows with its taller column up to the room from the top
-  // of the window down to the microphone: beyond that its columns scroll, and the panel itself does not
+  
+  
   const fill = content.querySelector<HTMLElement>('.split');
   if (fill) {
     fill.style.minHeight = fill.style.maxHeight = '';
@@ -3207,48 +3207,48 @@ function panelRect(i: Item, inner: HTMLElement, side: Sides, keep = 0) {
       const room = Math.floor(mic - PANEL_TOP_OVER - rest);
       fill.style.minHeight = `${SPLIT_MIN}px`;
       fill.style.maxHeight = `${Math.max(SPLIT_MIN, room)}px`;
-      // nothing to scroll to, so no scrollbar either; on a low window the panel scrolls past the microphone
+      
       if (room >= SPLIT_MIN) inner.style.overflowY = 'hidden';
     }
   }
   const need = height(content) + parseFloat(pad.paddingTop) + base;
-  // any other panel grows with its content up to the same room and scrolls beyond it; only a window
-  // too low for SPLIT_MIN lets it reach under the microphone
+  
+  
   const toMic = Math.floor(mic - PANEL_TOP_OVER);
   const max = Math.min(fill ? Infinity : Math.max(toMic, SPLIT_MIN), innerHeight - PANEL_TOP_OVER - PANEL_BOTTOM);
-  // in the middle of the window below the top bar, ending above the microphone; a panel too tall for
-  // the room scrolls, never reaching over the bar
-  // (a tall panel reaches up over the pills, and down over the status bar, which lie under the dim)
+  
+  
+  
   const top = (H: number) => Math.max(PANEL_TOP_OVER, Math.min(Math.max(PANEL_TOP, (innerHeight - H) / 2), innerHeight - PANEL_BOTTOM - H, mic - H));
-  // the microphone (while it shows) sits over the bottom of a tall panel: the content gets room below it to scroll
-  // up past the microphone, and the panel grows by that room where it can
+  
+  
   const under = (H: number) => Math.max(0, top(H) + H - mic - base);
   let H = Math.min(Math.ceil(need), max);
   H = Math.min(Math.ceil(need + under(H)), max);
   const extra = under(H);
-  // through --pb, which the card's sticky row of decisions reaches down over too (tailwind.css)
+  
   if (extra) inner.style.setProperty('--pb', `${base + extra}px`);
-  // in the middle of the project where it fits there, else as near to it as the window allows, but never
-  // over the pinned navigation or the inbox's list on the left
+  
+  
   const lo = side.left + 40;
   return { left: `${Math.max(lo, Math.min(midX(side) - W / 2, innerWidth - keep - W - 40))}px`, top: `${top(H)}px`, width: `${W}px`, height: `${H}px` };
 }
 
-/** A panel holding a conversation alone: its column at its widest (560 px, the split's grid in detail.tsx) and the panel's padding. */
+
 const TALK_W = 640;
-/** Below this the split's columns stack (its `max-[760px]` variants in detail.tsx) and the panel scrolls as a whole. */
+
 const NARROW = '(max-width: 760px)';
 
-/** Where a panel starts at the top: below the bar and the floating pills under it (project switcher, view and canvas switchers, ending at 90 px). */
+
 const PANEL_TOP = 102;
-/** The highest a panel starts, however tall: below the top bar, which stays sharp; it reaches over the pills under it, which blur under the dim while a card is open. */
+
 const PANEL_TOP_OVER = 62;
-/** The least room a panel keeps at the bottom of the window, on a window too low to end it above the microphone. */
+
 const PANEL_BOTTOM = 14;
-/** The least height of a split (an idea, a proposal, a task) and of a panel that scrolls: on a low window the panel reaches under the microphone instead. */
+
 const SPLIT_MIN = 320;
 
-/** Room between the panel's content and the microphone. */
+
 const MIC_GAP = 12;
 
 const rect = (r: DOMRect) => ({ left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
@@ -3272,6 +3272,6 @@ function BarIcon({ icon: I }: { icon: LucideIcon }) {
   return <I className="block" size={16} strokeWidth={2} aria-hidden />;
 }
 
-/** A word of the status bar's left end: online, or what the server is setting up. */
+
 const statusWord = 'rounded-full px-2.5 py-1 font-semibold whitespace-nowrap';
 

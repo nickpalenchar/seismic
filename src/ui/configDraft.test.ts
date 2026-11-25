@@ -11,7 +11,7 @@ test('a draft not saved yet comes back after a reload, until it is saved', () =>
   const saved = { voice: 'say' };
   keepConfigDraft(s, 'demo', { voice: 'piper' }, saved);
   expect(keptConfigDraft<{ voice: string }>(s, 'demo', saved)).toEqual({ voice: 'piper' });
-  // saved meanwhile: what is saved now is the draft, nothing to bring back
+  
   expect(keptConfigDraft(s, 'demo', { voice: 'piper' })).toBeNull();
   keepConfigDraft(s, 'demo', { voice: 'piper' }, { voice: 'piper' });
   expect(s.m.size).toBe(0);
@@ -26,7 +26,7 @@ test('the projects keep their draft with the ids they had, and each draft its ow
   keepConfigDraft(s, 'project:shop', k, saved, of);
   expect(keptConfigDraft(s, 'demo', {})).toBeNull();
   expect(keptConfigDraft<K>(s, 'project:shop', saved, of)).toEqual(k);
-  // put back as saved: forgotten
+  
   keepConfigDraft(s, 'project:shop', { draft: saved, origin: ['seismic'] }, saved, of);
   expect(keptConfigDraft<K>(s, 'project:shop', saved, of)).toBeNull();
 });

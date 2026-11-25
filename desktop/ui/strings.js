@@ -1,4 +1,4 @@
-// Written by scripts/desktop-strings.ts from desktopPages in src/ui/strings.ts; change it there.
+
 window.SEISMIC_STRINGS = {
   "title": "Seismic",
   "starting": "Seismic is starting …",
@@ -19,5 +19,5 @@ window.SEISMIC_STRINGS = {
     "switchFailed": "Couldn’t switch to {0}. Try again."
   }
 };
-/** A template's {0}, {1} … filled in with the values, in that order. */
+
 window.fillString = (template, ...values) => template.replace(/\{(\d+)\}/g, (_, i) => values[i]);

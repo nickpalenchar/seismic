@@ -1,8 +1,8 @@
-/**
- * The worker's briefing: the task text it starts with (and gets again when it restarts), by what the
- * card is: a review of a contributor's pull request, a prototype, work in a folder without git, or
- * an ordinary card.
- */
+
+
+
+
+
 import { hostName } from '../../../hosts';
 import { contributionOf, type StoredContribution } from '../../../board';
 import { dimensions } from '../../../../core/page-tags';
@@ -13,7 +13,7 @@ import type { Shipped } from '../../../board';
 import { CAPTURED_CHANGES } from '../../../workstations';
 import type { WorkerSupervisor } from '../../../workerSupervisor/workerSupervisor';
 
-/** What the briefing needs of the `WorkerSupervisor` that runs the card. */
+
 export type BriefingHost = Pick<WorkerSupervisor, 'artifacts' | 'captured' | 'demoSkill' | 'demosDir' | 'detailOf' | 'folder' | 'o' | 'prSource' | 'proposalBoards' | 'shares' | 'taskImages'>;
 
 /**
@@ -45,10 +45,10 @@ ${idea.idea.discussion.brief}` : '',
     parts.push(
       `The working changes this card finishes are captured as a complete binary patch (${captured.length} characters) in your workstation's git directory, outside the files git tracks. Apply it first: \`git apply --binary "$(git rev-parse --git-path ${CAPTURED_CHANGES})"\`.`,
     );
-  // the owner's own words: the language the worker writes them in until they say more (`ownersLanguage`)
+  
   if (card.idea?.mocks?.length) parts.push(mocksText(card.idea.mocks));
   if (card.idea?.builtOn) parts.push(builtOnPrototype(self, card.idea.builtOn, !!card.parent));
-  // the card it follows up on may be on another project (a proposal from a worker there)
+  
   const fromBoard = card.from && !card.idea?.prototypeOf ? self.proposalBoards().find((b) => b.item(card.from!) ?? b.archived().some((i) => i.id === card.from)) : undefined;
   const from = fromBoard ? fromBoard.item(card.from!) ?? fromBoard.archived().find((i) => i.id === card.from) : undefined;
   if (fromBoard && from) {
@@ -63,7 +63,7 @@ ${idea.idea.discussion.brief}` : '',
   if (plan?.plan?.file) parts.push(`This is workstream ${card.plan?.label ?? ''} of the plan “${plan.title}”. Read its plan doc ${plan.plan.file} first; it holds the context and decisions.`);
   const decisions = plan ? self.o.board.decisions(plan.id) : [];
   if (decisions.length) parts.push(`Decisions taken in this plan so far:\n${decisionLog(decisions)}`);
-  // a workstream that part landed for: the card of that part is the one this follows up on
+  
   const part = plan?.plan?.file && from && fromBoard === self.o.board ? self.o.board.row(from.id).shipped : null;
   if (part) {
     const s = JSON.parse(part) as Shipped;

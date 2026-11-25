@@ -1,5 +1,5 @@
-// The commands a repository asks the owner to trust, as the lines of their diff: by file or command,
-// each character that shows nothing written as a marker.
+
+
 
 import type { RepoCommands, TrustGroup } from '../core/types';
 
@@ -26,8 +26,8 @@ export function linesOf(text: string | undefined): { lines: string[]; ends: bool
 /** A file's extension, for its highlighting; none where it holds more than letters and digits. */
 export const extension = (file: string) => /\.[A-Za-z0-9]+$/.exec(file)?.[0] ?? '';
 
-// the marker's own opening bracket is written as a marker too, so a text that holds one reads apart
-// from the character it would stand for
+
+
 const INVISIBLE = /(?![\t ])[\p{Cc}\p{Cf}\p{Zl}\p{Zp}\p{Zs}\u27e8]/gu;
 const NAMED: Record<string, string> = { '\r': 'CR', '\u2028': 'LS', '\u2029': 'PS', '\u00a0': 'NBSP' };
 export const visible = (line: string) => line.replace(INVISIBLE, (c) => `⟨${NAMED[c] ?? `U+${c.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')}`}⟩`);

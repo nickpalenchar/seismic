@@ -1,7 +1,7 @@
-// Radio groups (shadcn/ui's RadioGroup, on Radix RadioGroup): one tab stop for the group, arrow keys
-// move the choice. `RadioGroup` is the group, `RadioOption` a round radio with its label (a click on
-// the text chooses it), `RadioGroupItem` the round radio alone, `Radio` the bare item for a choice
-// that draws itself (the canvas icons, the stars).
+
+
+
+
 
 import { cn } from 'cn';
 import { RadioGroup as RadioGroupPrimitive } from 'radix-ui';
@@ -12,7 +12,7 @@ export function RadioGroup({ label, labelledBy, ...props }: Omit<ComponentProps<
   return <RadioGroupPrimitive.Root data-slot="radio-group" aria-label={label} aria-labelledby={labelledBy} {...props} />;
 }
 
-/** The bare item: its look is the caller's `className`, `data-state=checked` marks the chosen one. */
+
 export const Radio = RadioGroupPrimitive.Item;
 
 export function RadioGroupItem({ className, ...props }: ComponentProps<typeof RadioGroupPrimitive.Item>) {

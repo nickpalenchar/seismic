@@ -1,20 +1,20 @@
-// Files dropped in the app. Its webview hands a drop from the desktop to the app instead of the page,
-// with the files' paths (app/src/main.rs), and the page would hear nothing of it. The app passes on
-// where the drag is and, at the drop, the paths; the page plays them to the element under the
-// pointer as the browser's own drag events, with Files, each empty and known by its path
-// (`droppedPath`): an image the field reads through Seismic on the same machine as it attaches it as a
-// screenshot (`withBytes`); any other file (or folder) goes into the text by that path.
+
+
+
+
+
+
 
 import { api } from './api';
 
 declare global {
   interface Window {
-    /** Called by the app while files are dragged over its window: where (CSS pixels), and at the drop their paths. */
+    
     seismicDrag?: (kind: 'over' | 'leave' | 'drop', x: number, y: number, paths?: string[]) => void;
   }
 }
 
-/** Images the page attaches as screenshots, by their extension; the server reads only these (`localImage`). */
+
 const IMAGE = /\.(png|jpe?g|gif|webp|bmp|heic|heif|tiff?)$/i;
 
 const paths = new WeakMap<File, string>();

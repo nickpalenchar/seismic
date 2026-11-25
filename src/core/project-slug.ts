@@ -1,5 +1,5 @@
-// How a project shows in addresses (`/p/<segment>`): its name as a slug, its id where the name
-// would not tell projects apart. Server and page share it.
+
+
 
 const fold = (s: string) => s.replace(/ß/g, 'ss').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -15,7 +15,7 @@ export const validProjectName = (s: string) => /\p{L}/u.test(s);
 interface Named {
   id: string;
   name: string;
-  /** Names it had before: their addresses lead to it. */
+  
   oldNames?: string[];
 }
 
@@ -38,7 +38,7 @@ export function projectAt<T extends Named>(all: T[], segment: string | undefined
   if (!segment) return undefined;
   const find = (seg: string) =>
     all.find((p) => projectSegment(p, all) === seg) ?? all.find((p) => p.id === seg) ?? all.find((p) => p.oldNames?.some((n) => slug(n) === seg));
-  // typed by hand ("/p/Store"), the name works as the owner writes it
+  
   const typed = slug(segment);
   return find(segment) ?? (typed && typed !== segment ? find(typed) : undefined);
 }

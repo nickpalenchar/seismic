@@ -1,22 +1,22 @@
-// Other cards named in a card's text: `/` in its task field opens a menu of the project's cards whose
-// titles fit what follows, and the one picked stands in the text as a markdown link to its address
-// (`[Title](/p/<project>/c/<code>)`); the field shows it as a pill (`cardMenu.tsx`), and so does
-// every place that shows the text: a smart link, with the card's state, its current title and its
-// priority (`SmartLink`). The agent reads the link as it stands: the card's title, and where it lives.
+
+
+
+
+
 
 import type { Item } from '../core/types';
 import { named } from './address';
 import { know, known } from './known';
 
-/** Set once the owner has picked a card from the menu: its hint under the field goes. */
+
 export const CARD_REFS_KNOWN = 'seismic-card-refs-known';
 export const usedCardRefs = () => know(CARD_REFS_KNOWN);
 export const knowsCardRefs = () => known(CARD_REFS_KNOWN);
 
-/** How many cards the menu lists at most. */
+
 const SHOWN = 8;
 
-/** A `/` search the cursor stands at the end of: where its slash is in the text, and what follows it. */
+
 export interface CardSearch {
   start: number;
   query: string;
@@ -72,7 +72,7 @@ export const referenced = (items: Item[], href: string): Item | undefined => {
   return at ? named(items, at.code) : undefined;
 };
 
-/** A piece of a line of the task text: words, or a link to a card. */
+
 export type Piece = string | { href: string; text: string };
 
 /** The task text as the field shows it: line by line, each line its words and its links to cards (other markdown stays as written). */
@@ -91,7 +91,7 @@ export function lines(md: string): Piece[][] {
   });
 }
 
-/** As much of a DOM node as the field's text is read from. */
+
 export interface NodeLike {
   nodeType: number;
   nodeName: string;

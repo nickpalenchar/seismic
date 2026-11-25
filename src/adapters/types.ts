@@ -1,6 +1,6 @@
-// What Seismic knows about how a repository works: its defaults (`generic.ts`) with the repository's
-// settings in front (`.seismic/settings.json`, then this machine's). The core only talks to this
-// interface.
+
+
+
 
 import type { AppSettings, DemoSite, SharedSettings } from '../core/types';
 
@@ -8,15 +8,15 @@ export type { AppSettings, DemoSite };
 
 export interface RepoInfo {
   path: string;
-  /** `origin` URL, if any. */
+  
   remote: string | null;
-  /** `origin`'s URL as the repository configures it, before git's `insteadOf` rewrites it (`remote` is after); read with the repository, so that nothing asks git for it again. Unset where the info was not read that way. */
+  
   origin?: string | null;
-  /** Its main branch, where cards start from and work lands (`defaultBranch`); empty in a folder without git. */
+  
   branch: string;
-  /** A folder without git (`RepoConfig.git` false): cards work in it directly. */
+  
   folder?: true;
 }
 
-/** The repository's settings in front of Seismic's defaults: a field with a default is always there. */
+
 export type RepoAdapter = SharedSettings & Required<Pick<SharedSettings, 'planDocs' | 'land' | 'softPaths' | 'workstations' | 'language'>>;

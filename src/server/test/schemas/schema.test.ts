@@ -30,7 +30,7 @@ function shape(db: Database) {
           const keys = (db.query(`PRAGMA index_xinfo("${i.name}")`).all() as { name: string | null; desc: number; coll: string; key: number }[])
             .filter((k) => k.key)
             .map((k) => `${k.name}${k.desc ? ' desc' : ''}${k.coll !== 'BINARY' ? ` collate ${k.coll.toLowerCase()}` : ''}`);
-          // positional: a database opened without `strict` binds a named parameter only by its prefixed key before Bun 1.4.4
+          
           const sql = (db.query("SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?").get(i.name) as { sql: string | null } | null)?.sql;
           const where = sql?.match(/\swhere\s([\s\S]*)$/i)?.[1]?.replace(/\s+/g, ' ').trim();
           const named = i.origin === 'c' && !i.name.endsWith('_unique');

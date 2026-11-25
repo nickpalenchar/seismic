@@ -1,35 +1,35 @@
-// The files a card's work made or changed, as its left column shows them beside its demo: the
-// change list that picks them, in which order, and how each one is shown; the paths and images the
-// server checks what it serves against.
+
+
+
 
 import { version as pdfjsVersion } from 'pdfjs-dist/package.json';
 import { type CardDiff, type FolderChange, shownChanges } from './diff';
 
-/** Where the server serves pdf.js and the files it loads: under its version, so that a browser takes no other version's from its cache. */
+
 export const PDFJS_BASE = `/pdfjs/${pdfjsVersion}/`;
 
-/**
- * A file a card's worker named as its result at its handover: its path in the repository (or
- * folder), with `/`, and a one-line caption. `dir`: it lies in the handover's demo directory
- * instead (a page rendered for review, such as a schema change, that stays out of git), its path
- * relative to that absolute directory.
- */
+
+
+
+
+
+
 export interface CardFile {
   path: string;
   caption: string;
   dir?: string;
 }
 
-/**
- * Files that open in an app to look at them. Anything else an agent wrote (a `.command`, `.app`,
- * `.bat`, `.desktop`, a script) would run when opened, so it is shown in its folder instead.
- */
+
+
+
+
 export const DOCUMENT = /\.(pdf|png|jpe?g|gif|webp|svg|html?|md|txt|csv|tsv|json|ya?ml|xml|log|xlsx?|docx?|pptx?|od[tsp]|rtf|mp4|mov|webm|mp3|wav|m4a|ogg)$/i;
 
-/** Files read as text by their name, where the change list does not say (a file whose earlier version Seismic did not keep). */
+
 const TEXT = /\.(md|markdown|txt|csv|tsv|json|ya?ml|xml|log|toml|ini|cfg|conf|html?|css|scss|svg|[cm]?[jt]sx?|py|rb|go|rs|java|kt|swift|c|h|cc|cpp|hpp|cs|php|sh|bash|zsh|ps1|bat|sql|r|lua|pl|tex|bib|ipynb|env|gitignore)$/i;
 
-/** How a file is shown: Markdown formatted, a PDF in the browser's viewer, an image, a page in a sandboxed frame, text as it is, anything else as a tile to open it on the computer. */
+
 export type FileKind = 'markdown' | 'pdf' | 'image' | 'page' | 'text' | 'other';
 
 export const isImage = (path: string) => /\.(png|jpe?g|gif|webp|svg|avif)$/i.test(path);
@@ -43,15 +43,15 @@ export function fileKind(path: string, text = TEXT.test(path)): FileKind {
   return text && (TEXT.test(path) || !DOCUMENT.test(path)) ? 'text' : 'other';
 }
 
-/** A file the card's left column can show. */
+
 export interface ShownFile {
   path: string;
-  /** Its worker named it as the result, with this caption. */
+  
   caption?: string;
   kind: FileKind;
-  /** It is new: shown as it is. A changed one shows its changes first, the file as it is a click away. */
+  
   added: boolean;
-  /** Its changes can be shown line by line. */
+  
   diff: boolean;
 }
 
@@ -78,33 +78,33 @@ export function shownFiles(diff: CardDiff | null, named: CardFile[] = []): Shown
     }
   }
   const shown = (f: ShownFile) => f.kind !== 'other' || DOCUMENT.test(f.path);
-  // a named file gone from the folder since has nothing to show either
+  
   const gone = new Set(diff?.folder?.changes.filter((c) => c.gone).map((c) => c.path));
-  // one beside the demo is no file of the change, whatever its name
+  
   const own = (n: CardFile) => !n.dir && changed.find((c) => c.path === n.path);
   const first = named.filter((n) => n.dir || !gone.has(n.path)).map((n) => ({ ...(own(n) || { path: n.path, kind: fileKind(n.path), added: true, diff: false }), caption: n.caption }));
-  // of the others, documents come before text and code, which is more often what made them
+  
   const rest = changed.filter((c) => shown(c) && !named.some((n) => !n.dir && n.path === c.path));
   return [...first, ...rest.filter((c) => c.kind !== 'text'), ...rest.filter((c) => c.kind === 'text')];
 }
 
-/** A line of a card's change list, which is also how its left column picks the file it shows. */
+
 export interface ChangeRow {
-  /** Where it is now; for a deleted one, where it was. */
+  
   path: string;
-  /** A moved or renamed one: where it was. */
+  
   from?: string;
-  /** What happened to it; none for a file its worker named that the change does not hold. */
+  
   kind?: FolderChange['kind'];
   dir?: true;
-  /** Lines added and removed, for a text file whose earlier version is known. */
+  
   added?: number;
   removed?: number;
-  /** Its worker named it as the result, with this caption. */
+  
   caption?: string;
-  /** How the left column shows it; none for one it cannot show (deleted, a directory, a `.pyc`, gone since). */
+  
   file?: ShownFile;
-  /** In a folder: a moved file the card also changed, one gone since, and what discarding would do with it. */
+  
   changed?: true;
   gone?: true;
   undo?: FolderChange['undo'];

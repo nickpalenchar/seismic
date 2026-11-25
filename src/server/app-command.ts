@@ -1,10 +1,10 @@
-// A command of the `app` of a repository's settings (`stop`, `keep`), run in a workstation by Seismic itself.
+
 
 import { remote } from './hosts';
 import { messageOf } from '../core/text';
 import { spawnOutput } from './spawn';
 
-/** An app's stop takes seconds; one that hangs this long counts as failed. */
+
 const APP_TIMEOUT = 2 * 60_000;
 
 /** Runs `command` through the platform's shell in `cwd` (there, for a workstation on another machine): whether it exited 0, and what it printed. */

@@ -1,21 +1,21 @@
-// The copy of an HTML artifact on a shared page (a site's page, a ZIP). There the artifact runs in
-// a sandboxed frame whose origin is `null`, so what it loads in CORS mode (a module script, a
-// `fetch()` of a file beside it, a font) needs the site to answer with `Access-Control-Allow-Origin`,
-// and from a ZIP opened from disk none of them loads at all. Behind a login (Cloudflare Access, say)
-// no request of the frame for a file beside it gets through: the browser sends them as cross-site,
-// without the login's cookie (Firefox never, Chrome where the cookie is not `SameSite=None`), and
-// the login answers with its own page, an image as much as a module script. Inside Seismic the files
-// are served under a keyed address instead (`keyed` in demo.ts); a static site cannot do that. So
-// the copy's pages load no file beside them: their module scripts are bundled into the page, the
-// files they name (an image, a stylesheet with what it loads in turn, a classic script, a font,
-// media) go in as `data:` URLs, and the files their scripts may fetch go into the page, answered by
-// `fetch` and `XMLHttpRequest` without asking the site. Only the frame's own navigation (a link to
-// another page or to an image) still asks the site, and that one carries the cookie. Nor does the
-// copy load anything from elsewhere or send anything there: it starts with the policy of a shared
-// artifact (`sealed` in src/core/frame.ts).
-//
-// What goes into the copy comes from the artifact's directory only: a file there that is a link to
-// elsewhere, or a module import that leads out of it, would publish a file of this machine.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, extname, join, relative, resolve, sep } from 'node:path';
@@ -23,7 +23,7 @@ import { parse } from '@babel/parser';
 import { sealed, withHeightReport, withImageViewer } from '../core/frame';
 import { demoFile } from './demo-file';
 
-/** What a page names in its markup or its styles, which the copy inlines there, so it stays out of the table of files to fetch. */
+
 const LOADED = /\.(?:[cm]?js|css|woff2?|ttf|otf|eot|png|jpe?g|gif|webp|avif|bmp|ico|mp4|webm|mov|m4v|mp3|wav|ogg|oga|m4a|flac)$/i;
 
 /** A file of the artifact's directory, read where its real path lies inside it, else null. */
@@ -65,19 +65,19 @@ function inside(dir: string, from: string, ref: string): string | null {
   return path && !path.startsWith('..') ? path.split('\\').join('/') : null;
 }
 
-/**
- * How much of `data:` URLs one page may carry: stylesheets that import each other several times
- * over would otherwise grow it beyond any memory. Past it the files left stay the URLs they were,
- * and a page this large is refused by the host's limit for one file anyway.
- */
+
+
+
+
+
 const DATA_BUDGET = 64 * 1024 * 1024;
 
-/**
- * What inlining one page goes by: the directory its files are in, how a file of it is read (by its
- * path relative to it; null for one that may not go in), and what is left of the page's budget.
- * `strict`: a reference that does not go in is dropped rather than left to load from wherever it
- * leads (a repository's theme, see `themeData`).
- */
+
+
+
+
+
+
 interface Inlining {
   dir: string;
   read: (path: string) => Buffer | null;
@@ -97,7 +97,7 @@ function dataUrl(at: Inlining, from: string, ref: string, outer: string[] = []):
   if (!path || !data) return null;
   const bytes = /\.css$/i.test(path) ? Buffer.from(withStyleData(data.toString('utf8'), at, dirname(path), [...outer, path])) : data;
   const url = `data:${Bun.file(path).type};base64,${bytes.toString('base64')}${/#.*$/.exec(ref)?.[0] ?? ''}`;
-  // past the budget nothing more goes in: a page grown this far goes out too large anyway
+  
   at.left = url.length > at.left ? 0 : at.left - url.length;
   return at.left > 0 ? url : null;
 }
@@ -116,13 +116,13 @@ function withStyleData(css: string, at: Inlining, from: string, outer: string[] 
     });
 }
 
-/** A reference that loads nothing, or what is in the page already: a `data:` URL, a part of the page (`#id`, an SVG's gradient). */
+
 const HELD = /^(?:data:|#)/i;
 
-/** The functions whose strings name an image to load (CSS Images 4), beside `url()` and `src()`. */
+
 const IMAGE_FUNCTIONS = new Set(['image-set', '-webkit-image-set', 'image']);
 
-/** Functions in a reference whose strings describe the file rather than name one (`type("image/avif")`). */
+
 const DESCRIBING = new Set(['type', 'format', 'tech']);
 
 /** Functions whose value is put in only where the page is drawn (a custom property's, an attribute's): in a reference, it could name anything. */
@@ -140,15 +140,15 @@ const SUBSTITUTED = (fn: string) => fn.startsWith('--') || ['var', 'env', 'attr'
 function strictStyleData(css: string, at: Inlining, from: string, outer: string[]): string {
   const out: string[] = [];
   const n = css.length;
-  // the functions open around the token read (`''` for a plain parenthesis, `[` and `{` for a block in one)
+  
   const open: string[] = [];
-  // how deep in blocks the token read is: an `@import` counts at the top alone
+  
   let depth = 0;
-  // an `@import` read until its end: where its rule starts in `out`, and whether it goes
+  
   let importing: { start: number; ref: boolean; drop: boolean } | null = null;
   /** What a reference becomes: its file's `data:` URL, null to stay as it is, or empty where it goes. */
   const ref = (value: string): string | null => {
-    // what the reference's `#` part brings along may hold no quote, parenthesis or space to end the URL early
+    
     const url = dataUrl(at, from, value, outer)?.replace(/[^A-Za-z0-9\-._~!$&*+,;=:@/?#%]/gu, (ch) => encodeURIComponent(ch).replace(/[!'()*]/g, (x) => `%${x.charCodeAt(0).toString(16).toUpperCase()}`));
     if (importing && !importing.ref) {
       importing.ref = true;
@@ -157,9 +157,9 @@ function strictStyleData(css: string, at: Inlining, from: string, outer: string[
     }
     return url ?? (HELD.test(value) ? null : '');
   };
-  // whether the token read is part of a reference
+  
   const inReference = () => open.some((fn) => fn === 'url' || fn === 'src' || IMAGE_FUNCTIONS.has(fn));
-  // where the rule of an `@import` that goes ended, with a space, so the tokens around it stay apart
+  
   const dropImport = () => {
     out.length = importing!.start;
     out.push(' ');
@@ -217,7 +217,7 @@ function strictStyleData(css: string, at: Inlining, from: string, outer: string[
         continue;
       }
       if (SUBSTITUTED(fn) && (inReference() || (importing && !importing.ref))) {
-        // the value it puts in could name anything: an empty string in its place
+        
         out.push('""');
         i = closing(css, j + 1);
         continue;
@@ -225,7 +225,7 @@ function strictStyleData(css: string, at: Inlining, from: string, outer: string[
       let k = j + 1;
       while (k < n && WHITE.test(css[k]!)) k++;
       if (fn === 'url' && css[k] !== '"' && css[k] !== "'") {
-        // a `url(` without quotes runs to its parenthesis, a broken one included (which loads nothing)
+        
         const [value, end, broken] = cssUrl(css, k);
         const url = broken ? null : ref(value);
         out.push(url === null && !broken ? css.slice(i, end) : url ? `url(${url})` : 'url("")');
@@ -240,7 +240,7 @@ function strictStyleData(css: string, at: Inlining, from: string, outer: string[
     const top = open.at(-1);
     if (c === '(') open.push('');
     else if ((c === '[' || c === '{') && open.length) open.push(c);
-    // a closing character ends what it closes alone; another stays a character in it
+    
     else if (c === ')' || ((c === ']' || c === '}') && open.length)) {
       if (top !== undefined && CLOSES[c] === (top === '[' || top === '{' ? top : '(')) open.pop();
     } else if (importing && !open.length && (c === ';' || c === '{' || c === '}')) {
@@ -253,7 +253,7 @@ function strictStyleData(css: string, at: Inlining, from: string, outer: string[
     } else if (c === '{' && !open.length) depth++;
     else if (c === '}' && !open.length) depth = Math.max(0, depth - 1);
     else if (c === '\\' && i + 1 < n) {
-      // an escape outside a name stands for itself; its character goes with it
+      
       out.push(css.slice(i, i + 2));
       i += 2;
       continue;
@@ -290,7 +290,7 @@ function closing(css: string, i: number): number {
   return css.length;
 }
 
-/** What each closing character closes. */
+
 const CLOSES: Record<string, string> = { ')': '(', ']': '[', '}': '{' };
 
 const WHITE = /[ \t\n\r\f]/;
@@ -446,7 +446,7 @@ function srcsetData(srcset: string, at: Inlining, from: string): string {
   return out.join(', ');
 }
 
-/** What a page names as a file to load, by element and attribute (a module script's comes bundled, see `withModules`). */
+
 const NAMED: [string, string][] = [
   ['img', 'src'],
   ['img', 'srcset'],
@@ -465,7 +465,7 @@ const NAMED: [string, string][] = [
   ['link', 'href'],
 ];
 
-/** `<link rel>` values that load the file they name. */
+
 const LINKED = /^(?:stylesheet|icon|apple-touch-icon|preload|prefetch)$/i;
 
 /**
@@ -557,7 +557,7 @@ function safeModule(path: string, contents: string): boolean {
   try {
     source = parse(contents, { sourceType: 'module', plugins: ['decorators-legacy', 'decoratorAutoAccessors', 'deprecatedImportAssert', ...(/\.[cm]?tsx?$/.test(extension) ? ['typescript' as const] : []), ...(/\.([jt]sx)$/.test(extension) ? ['jsx' as const] : [])] });
   } catch {
-    // Do not rely on parser recovery for syntax Bun might interpret differently.
+    
     return false;
   }
   const safeName = (node: any) => node?.type === 'StringLiteral' && !/^(?:macro|data):/i.test(node.value);
@@ -603,27 +603,27 @@ async function bundle(dir: string, entry: string, files?: Record<string, string>
             const virtual = files?.[path];
             if (virtual === undefined && !realpathSync(path).startsWith(root)) throw new Error('Outside artifact');
             const contents = virtual ?? readFileSync(path, 'utf8');
-            // Check before Bun parses the source: its macros:false option is not honored by
-            // every supported Bun. Data URLs and code loaders could bypass this load hook.
+            
+            
             if (!safeModule(path, contents)) throw new Error('Unsafe artifact module');
             return { contents, loader };
           });
         },
       }],
-      // a macro (`import … with { type: 'macro' }`) would run code of the artifact here, at the build
+      
       macros: false,
       metafile: true,
       throw: false,
     } as Bun.BuildConfig);
-    // a module that loads a stylesheet or splits into chunks needs files the copy does not have
+    
     if (!r.success || r.outputs.length !== 1 || !r.metafile) return null;
-    // the modules it read, relative to the working directory
+    
     for (const input of Object.keys(r.metafile.inputs)) {
       const path = resolve(input);
       if (files && path === resolve(entry)) continue;
       if (!realpathSync(path).startsWith(root)) return null;
     }
-    // the comments naming each module's path, which would tell where the artifact lay on this machine
+    
     const slashes = (path: string) => path.split('\\').join('/');
     const inputs = new Set(Object.keys(r.metafile.inputs).map((input) => `// ${slashes(input)}`));
     return (await r.outputs[0]!.text())

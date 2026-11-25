@@ -1,23 +1,23 @@
-// One Seismic per home: two serving one database on one port would trip over each other. A running
-// Seismic writes where it answers into its home (`server.json`), and a second start on that home
-// finds it there: the checkout says where it runs and ends, the app (desktop/) opens a window on it.
+
+
+
 
 import { readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ownerHeaders } from './owner';
 
-/** What a running Seismic writes into its home. */
+
 export interface Instance {
-  /** The process that stays for as long as this Seismic runs: the supervisor, else the server. */
+  
   pid: number;
   port: number;
   url: string;
   version: string;
-  /** Its server ended to start again (new code, a saved configuration) and does not answer yet. */
+  
   restarting?: boolean;
-  /** Started by the app's shell (desktop/), which may take it over once it runs without the app (desktop/src/main.rs, `orphaned`). */
+  
   app?: boolean;
-  /** It ended for the app's shell to start it again under itself; the process is gone. */
+  
   takenOver?: boolean;
 }
 
@@ -26,7 +26,7 @@ export const INSTANCE_FILE = 'server.json';
 /** Writes that this Seismic answers in `home`. */
 export function claim(home: string, instance: Instance) {
   const file = join(home, INSTANCE_FILE);
-  // written whole or not at all: the app reads it while Seismic starts
+  
   writeFileSync(`${file}.tmp`, `${JSON.stringify(instance, null, 2)}\n`);
   renameSync(`${file}.tmp`, file);
 }
@@ -47,7 +47,7 @@ export function takenOver(home: string, pid: number) {
   if (i?.pid === pid) claim(home, { ...i, takenOver: true });
 }
 
-/** How long a start waits for an Seismic that is starting again. */
+
 export const RESTART_GRACE_MS = 90_000;
 
 /** Removes the entry, if it is still the one process `pid` wrote. */
@@ -70,7 +70,7 @@ const alive = (pid: number) => {
     process.kill(pid, 0);
     return true;
   } catch (e) {
-    // the process is there but belongs to someone else
+    
     return (e as NodeJS.ErrnoException).code === 'EPERM';
   }
 };
@@ -94,7 +94,7 @@ export async function running(home: string, self = process.pid, graceMs = 5000, 
   if (!first || first.pid === self || !alive(first.pid)) return null;
   const start = Date.now();
   for (;;) {
-    // read again each time: the restarted server writes its own entry, perhaps with another port
+    
     const i = recorded(home);
     if (!i || i.pid !== first.pid || !alive(i.pid)) return null;
     if (await answers(i.url, home)) return i;

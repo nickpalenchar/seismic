@@ -1,11 +1,11 @@
-// A folder without git as a repository. Every card works in the
-// folder itself, beside other cards, the owner and whatever syncs it; nothing lands. What a card
-// changes is told from a manifest of the folder (path, size, mtime, inode; a hash only of what
-// changed), taken again after each of its tool calls that may write: a change goes to the card
-// whose call ran when it happened (its ctime, which no tool sets), so the changes of the others
-// stay theirs. Undo puts back what the card changed: from a clone of the folder taken at its start
-// where the file system clones (APFS, btrfs, XFS), else from copies of what its editing tools
-// overwrote and of the folder's text files.
+
+
+
+
+
+
+
+
 
 import { constants, mkdirSync, realpathSync, statSync, type Stats, writeFileSync } from 'node:fs';
 import { copyFile, lstat, mkdir, open, readdir, rename, rm, rmdir, stat, unlink, utimes } from 'node:fs/promises';
@@ -18,24 +18,24 @@ import type { Store } from './store';
 import { spawnOutput } from './spawn';
 import { type CardWorkstations, type Change, type FileAt, type FileVersions, GIT, boundedFileText, ownFile, type LandProblem, type Landed, type Lease, WorkstationError } from './workstations';
 
-/** A file or directory as the manifest has it. */
+
 export interface Entry {
   size: number;
   mtime: number;
-  /** When it last changed in any way, as only the file system sets it: what tells whose change it was. */
+  
   ctime: number;
   ino: number;
   dir?: true;
-  /** Its bytes are only in the cloud (a dataless file of a file provider): it is never read or copied, which would download it. */
+  
   cloud?: true;
-  /** Of its contents, where Seismic read them: of what a card changed, to tell later whether someone changed it again. */
+  
   hash?: string;
 }
 
-/** The folder's files and directories by their path relative to it (with `/`); `''` is the folder. */
+
 export type Manifest = Map<string, Entry>;
 
-/** What the folder's file manager, sync client or office suite keep there for themselves; never a card's change. */
+
 const SKIPPED = new Set(['.DS_Store', '.git', '.Trash', '.Trashes', '.localized', '.tmp.drivedownload', '.tmp.driveupload', 'Thumbs.db', 'desktop.ini', 'Icon\r', '.seismic-restore']);
 const skipped = (name: string) => SKIPPED.has(name) || name.startsWith('~$') || name.startsWith('.~lock.') || name.startsWith('.seismic-restore-');
 
@@ -90,12 +90,12 @@ export async function walk(root: string): Promise<Manifest> {
   return out;
 }
 
-/** A change between two manifests, with when it happened (`at`, the file system's clock). */
+
 export interface RawChange {
   kind: 'added' | 'modified' | 'deleted' | 'moved';
   path: string;
   from?: string;
-  /** A file a moved directory took along: where it was. */
+  
   was?: string;
   dir?: true;
   before?: Entry;
@@ -134,7 +134,7 @@ export function compare(last: Manifest, next: Manifest, only?: Iterable<string>)
     }
     return Date.now();
   };
-  // in the order of their paths, whatever order the folder was read in
+  
   for (const path of [...keys].sort()) {
     const a = last.get(path);
     const b = next.get(path);
@@ -157,7 +157,7 @@ export function compare(last: Manifest, next: Manifest, only?: Iterable<string>)
     const del = byIno.get(add.after!.ino)?.find((d) => !!d.dir === !!add.dir && deleted.includes(d));
     if (del) take(add, del);
   }
-  // a copy that kept its time and size, then the original deleted (a sync client's move, say)
+  
   for (const add of [...added]) {
     if (add.dir || !add.after!.size) continue;
     const same = (d: RawChange) => !d.dir && d.before!.size === add.after!.size && d.before!.mtime === add.after!.mtime;
@@ -166,18 +166,18 @@ export function compare(last: Manifest, next: Manifest, only?: Iterable<string>)
   }
   const dirMoves = moves.filter((m) => m.dir);
   const along = (m: RawChange) => dirMoves.some((d) => d !== m && under(m.from!, d.from!) && m.path === d.path + m.from!.slice(d.from!.length));
-  // what a moved directory took along is its move; what changed in it besides is a change of its own, where it is now
+  
   const carried = moves.filter(along);
   for (const m of carried)
     if (!m.dir && (m.before!.size !== m.after!.size || m.before!.mtime !== m.after!.mtime)) out.push({ kind: 'modified', path: m.path, was: m.from!, before: m.before!, after: m.after!, at: m.at });
   return [...moves.filter((m) => !carried.includes(m)), ...out, ...added, ...deleted];
 }
 
-/** How much of a file is read to tell text from binary, as git does: a NUL byte in it makes it binary. */
+
 const SNIFF = 8000;
-/** A text file larger than this is not copied for the partial undo nor shown as a diff. */
+
 const TEXT_MAX = 1024 * 1024;
-/** A file larger than this is not hashed: its size and mtime tell it. */
+
 const HASH_MAX = 256 * 1024 * 1024;
 
 /** Whether the file is text: not larger than `TEXT_MAX`, and no NUL byte in its first bytes. */
@@ -236,29 +236,29 @@ async function inBatches<T>(items: T[], n: number, f: (x: T) => Promise<void>) {
   for (let i = 0; i < items.length; i += n) await Promise.all(items.slice(i, i + n).map(f));
 }
 
-/** A change the card made, as its record keeps it: before its first change and after its last. */
+
 interface Tracked {
   kind: 'added' | 'modified' | 'deleted' | 'moved';
   path: string;
   from?: string;
   dir?: true;
-  /** Moved, and its contents changed too. */
+  
   changed?: true;
-  /** Where it was before a directory the card moved took it along: its copies are kept by that path. */
+  
   was?: string;
-  /** Another card's call ran when it changed too: whose change it was cannot be told, so undo leaves it. */
+  
   shared?: true;
   before?: Entry;
   after?: Entry;
 }
 
-/** A card's record in its folder (`folder_cards`). */
+
 export interface FolderCard {
-  /** It works in the folder (a workstation it holds, as a clone would be held). */
+  
   held?: true;
-  /** Its work is over: nothing is undone any more; a follow-up's changes are still its own. */
+  
   done?: true;
-  /** The undo it has, once Seismic made it ready (`snapshot/`, or `text/`); none before, and once done. */
+  
   undo: 'full' | 'partial' | null;
   changes: Tracked[];
 }
@@ -267,7 +267,7 @@ export interface FolderCard {
 export function merge(list: Tracked[], c: RawChange, shared = false) {
   const before = list.length;
   mergeOne(list, c);
-  // whatever entry the change went into is no longer this card's alone
+  
   if (shared) {
     const t = list.find((x) => x.path === c.path && !!x.dir === !!c.dir) ?? (list.length > before ? list.at(-1) : undefined);
     if (t) t.shared = true;
@@ -302,7 +302,7 @@ function mergeOne(list: Tracked[], c: RawChange) {
     else list[i] = { kind: 'deleted', path: t.path, ...dir, before: t.before! };
   } else {
     const from = c.from!;
-    // what the card changed in a directory goes along with it
+    
     if (c.dir)
       for (const t of list)
         if (under(t.path, from)) {
@@ -316,7 +316,7 @@ function mergeOne(list: Tracked[], c: RawChange) {
     else if (t.kind === 'added') Object.assign(t, { path: c.path, after: c.after! });
     else if (t.kind === 'moved') {
       if (t.from !== c.path) Object.assign(t, { path: c.path, after: c.after! });
-      // back where it was
+      
       else if (t.changed) list[i] = { kind: 'modified', path: c.path, before: t.before!, after: c.after! };
       else list.splice(i, 1);
     } else if (t.kind === 'modified') list[i] = { kind: 'moved', path: c.path, from, changed: true, before: t.before!, after: c.after! };
@@ -327,36 +327,36 @@ function mergeOne(list: Tracked[], c: RawChange) {
 async function unchanged(path: string, e: Entry | undefined, now: Entry | null): Promise<boolean> {
   if (!e || !now || !!e.dir !== !!now.dir) return false;
   if (e.dir) return true;
-  // nothing touched it since: its ctime is the system's alone
+  
   if (now.ctime === e.ctime && now.ino === e.ino) return true;
-  // touched: its contents tell, where they were read; else its size and time
+  
   if (e.hash && !now.cloud) return e.size === now.size && (await hashFile(path, now.size)) === e.hash;
   return e.size === now.size && Math.abs(e.mtime - now.mtime) < 1;
 }
 
-/** A tool call of an agent, as the session's hooks see it before and after it runs. */
+
 export interface ToolCall {
   id: string;
   name: string;
   input: Record<string, unknown>;
 }
 
-/** Follows an agent's tool calls in the folder (`AgentSpec.watch`). */
+
 export interface ToolWatch {
-  /** Before a call: settles once it may run (the card's undo is ready, what it overwrites is copied). */
+  
   before(call: ToolCall): Promise<void>;
-  /** After a call, done or failed: settles once what it changed is the card's. */
+  
   after(call: ToolCall): Promise<void>;
 }
 
-/** Tools that change no file: no manifest is taken around them. */
+
 const READS = new Set(['Read', 'Grep', 'Glob', 'LS', 'NotebookRead', 'WebFetch', 'WebSearch', 'TodoWrite', 'TodoRead', 'ToolSearch', 'TaskOutput', 'BashOutput', 'TaskList', 'TaskGet', 'TaskCreate', 'TaskUpdate', 'AskUserQuestion', 'ListMcpResourcesTool', 'ReadMcpResourceTool']);
-/** Tools that write the one file their input names. */
+
 const EDITS: Record<string, string> = { Edit: 'file_path', MultiEdit: 'file_path', Write: 'file_path', NotebookEdit: 'notebook_path' };
 
 const writes = (name: string) => !READS.has(name) && !name.startsWith('mcp__seismic__');
 
-/** A tool call's window: from just before it ran until Seismic has read what it changed. `only`: the paths it can change, for a call that writes one file. */
+
 interface Window {
   card: string;
   id: string;
@@ -365,32 +365,32 @@ interface Window {
   only?: Set<string>;
 }
 
-/**
- * How far after a window's end a change's time may lie and still count as the window's: the file
- * system's clock is finer than Date.now(), which is cut down to the millisecond. A file system that
- * keeps whole seconds (HFS+, ext3) gets a second on both sides.
- */
+
+
+
+
+
 const SLACK_MS = 1;
 
-/** What undoing a card did, by path (`from → path` for a move put back). */
+
 export interface UndoReport {
   undone: string[];
-  /** Someone changed these after the card: left as they are. */
+  
   changedSince: string[];
-  /** No copy from before the card's change was kept: left as they are. */
+  
   lost: string[];
-  /** Another card's call ran when they changed, so they may be its: left as they are. */
+  
   shared: string[];
 }
 
 export interface FolderOptions {
-  /** The folder, as the configuration names it (a symbolic link stays one: agents work there by that name). */
+  
   path: string;
-  /** Where the cards' undo goes (a clone of the folder, or copies), under Seismic's home. */
+  
   dir: string;
-  /** A card's change list changed. */
+  
   onChange?: (cardId: string) => void;
-  /** `false`: the partial undo even where the file system clones. */
+  
   clone?: false;
 }
 
@@ -401,19 +401,19 @@ export interface FolderOptions {
 export class FolderWorkstations implements CardWorkstations {
   readonly mode = 'folder' as const;
   readonly pooled = false;
-  /** The folder with its links resolved: what the manifest is of. */
+  
   private root: string;
   private last: Manifest = new Map();
   private baseline: Promise<void>;
   private windows: Window[] = [];
   private chain: Promise<unknown> = Promise.resolve();
-  /** A reading of the whole folder that has not started yet: later calls that ended share it. */
+  
   private pending: { started: boolean; done: Promise<void> } | null = null;
   private ready = new Map<string, Promise<void>>();
   private records = new Map<string, FolderCard | null>();
-  /** Undo under way, by card: a second click waits for the first. */
+  
   private undoing = new Map<string, Promise<UndoReport>>();
-  /** What an undo put back, until the folder is read after it: those changes are no card's. */
+  
   private quiet = new Set<string>();
 
   constructor(
@@ -437,7 +437,7 @@ export class FolderWorkstations implements CardWorkstations {
     return this.baseline;
   }
 
-  // ---------------------------------------------------------------- the card's record
+  
 
   private rec(cardId: string): FolderCard | null {
     if (!this.records.has(cardId)) {
@@ -462,7 +462,7 @@ export class FolderWorkstations implements CardWorkstations {
     void rm(this.undoDir(cardId), { recursive: true, force: true }).catch((e) => console.error(`removing the undo of ${cardId}:`, messageOf(e)));
   }
 
-  // ---------------------------------------------------------------- as a workstation
+  
 
   list() {
     return [];
@@ -605,7 +605,7 @@ export class FolderWorkstations implements CardWorkstations {
     }));
   }
 
-  // ---------------------------------------------------------------- following the cards' tool calls
+  
 
   /** The hooks around the card's tool calls (`AgentSpec.watch`). */
   watch(cardId: string): ToolWatch {
@@ -621,11 +621,11 @@ export class FolderWorkstations implements CardWorkstations {
         if (field) {
           const file = this.inside(call.input[field]);
           only = new Set(file ? [file, ...ancestors(file)] : []);
-          // what is there before it writes (a file the owner just made, say) is not the call's change
+          
           if (file) await this.scan([...only]);
           if (file && !rec.done) await this.keepBefore(cardId, file);
         }
-        // nor is what changed since the folder was last read, before a call that may write anywhere
+        
         else await this.scanAll();
         this.windows.push({ card: cardId, id: call.id, start: this.clock(), ...(only ? { only } : {}) });
       },
@@ -688,7 +688,7 @@ export class FolderWorkstations implements CardWorkstations {
   private inside(given: unknown): string | null {
     if (typeof given !== 'string' || !given) return null;
     const named = isAbsolute(given) ? resolve(given) : resolve(this.o.path, given);
-    // a link is written through: what changes is where it points (a file not there yet, in its directory)
+    
     let abs = named;
     try {
       abs = realpathSync(named);
@@ -745,7 +745,7 @@ export class FolderWorkstations implements CardWorkstations {
     for (const c of raw) {
       const cards = this.cardsFor(c);
       if (!cards.length) continue;
-      // what a card changed is hashed, to tell later whether someone changed it again
+      
       if (c.after && !c.after.dir && !c.after.cloud && c.kind !== 'deleted') c.after.hash = await hashFile(join(this.root, c.path), c.after.size);
       for (const card of cards) {
         const rec = this.rec(card);
@@ -769,7 +769,7 @@ export class FolderWorkstations implements CardWorkstations {
     return [...new Set(by.map((w) => w.card))];
   }
 
-  // ---------------------------------------------------------------- undo
+  
 
   /** Makes the card's undo ready, once: a clone of the folder where the file system clones, else copies of its text files. */
   private prepare(cardId: string): Promise<void> {
@@ -799,7 +799,7 @@ export class FolderWorkstations implements CardWorkstations {
         if (full) await copyKeeping(src, join(to, p), true);
         else if (e.size <= TEXT_MAX && (await isText(src))) await copyKeeping(src, join(to, p));
       } catch {
-        // gone meanwhile, or not readable: no copy of it
+        
       }
     });
     const now = this.rec(cardId);
@@ -888,7 +888,7 @@ export class FolderWorkstations implements CardWorkstations {
       left.push(t);
       report[why].push(t.kind === 'moved' ? `${t.from} → ${t.path}` : t.path);
     };
-    // what undo changes, and the directories it makes on the way
+    
     const touch = (...paths: string[]) => {
       for (const p of paths) for (const x of [p, ...ancestors(p)]) if (x) this.quiet.add(x);
     };
@@ -899,8 +899,8 @@ export class FolderWorkstations implements CardWorkstations {
       await copyKeeping(copy, tmp);
       await rename(tmp, dst);
     };
-    // contents first, where they are now (in a directory the card moved, say), then the moves back
-    // deepest first, so a directory is empty once its contents went
+    
+    
     const depth = (t: Tracked) => t.path.split('/').length;
     const rest = rec.changes.filter((t) => t.kind !== 'moved');
     for (const t of rest.filter((x) => x.kind === 'added' && !x.dir)) {
@@ -932,8 +932,8 @@ export class FolderWorkstations implements CardWorkstations {
         keep(t, 'lost');
       }
     }
-    // later moves first, so what moved twice goes back the way it came; what a directory took along
-    // is where the directory goes back to
+    
+    
     const moves = rec.changes.filter((t) => t.kind === 'moved').reverse();
     const along = (from: string, to: string) => {
       for (const x of [...moves, ...left]) if (under(x.path, from)) x.path = to + x.path.slice(from.length);
@@ -953,7 +953,7 @@ export class FolderWorkstations implements CardWorkstations {
           const copy = await this.copyOf(cardId, [t.from, t.path], t.before);
           if (copy) await put(copy, t.from!);
           else {
-            // moved back, its contents as the card left them
+            
             keep({ kind: 'modified', path: t.from!, before: t.before!, after: t.after! }, 'lost');
             continue;
           }
@@ -974,19 +974,19 @@ export class FolderWorkstations implements CardWorkstations {
         await rmdir(join(this.root, t.path));
         report.undone.push(`${t.path}/`);
       } catch {
-        // something else is in it now
+        
         keep(t, 'changedSince');
       }
     }
     this.save(cardId, { ...rec, changes: left, undo: null });
     this.dropUndo(cardId);
-    // what undo did is no card's change
+    
     await this.scanNow();
     this.o.onChange?.(cardId);
     return report;
   }
 
-  // ---------------------------------------------------------------- the change list
+  
 
   /** What the card changed in the folder, as its change list and the diffs of its text files. */
   async diff(cardId: string, full: boolean): Promise<CardDiff | null> {
@@ -1016,7 +1016,7 @@ export class FolderWorkstations implements CardWorkstations {
     const head = [`diff --git a/${t.from ?? name} b/${name}`];
     if (t.kind === 'added') head.push('new file mode 100644');
     if (t.kind === 'deleted') head.push('deleted file mode 100644');
-    // a move that also edited the file is no pure rename: its hunks follow
+    
     if (t.kind === 'moved') head.push(`similarity index ${t.changed ? 99 : 100}%`, `rename from ${t.from}`, `rename to ${name}`);
     const here = join(this.root, name);
     const was = t.kind === 'added' ? '/dev/null' : await this.copyOf(cardId, [t.from ?? name, name], t.before);

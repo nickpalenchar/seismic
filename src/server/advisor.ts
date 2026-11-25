@@ -1,5 +1,5 @@
-// What the agents that answer the owner's questions (the Koordinator, a plan agent) share, and
-// how an agent's question to the owner is put together.
+
+
 
 import { currentAgent } from './llms/harnesses/identity';
 import type { AgentAt, AgentIdentity, AgentSetting } from '../core/types';
@@ -12,7 +12,7 @@ import { type AgentRuntime, type AgentTool } from './runtime';
 import { BackgroundWait } from './llms/harnesses/claude';
 import { clip } from '../core/text';
 
-/** An answer to a question the owner asked, for the card or the sheet, with the files it comes with. */
+
 export interface OwnerAnswer {
   agent?: AgentIdentity;
   text: string;
@@ -28,30 +28,30 @@ export interface Briefing {
   setting?: AgentSetting;
   resolvedModel?: string;
   onSession?: (id: string, setting?: AgentSetting) => void;
-  /** What the agent reads, as it reads it. */
+  
   onTool?: (name: string, input: Record<string, unknown>) => void;
-  /** The owner's conversation language for the answer, unless a standing language preference overrides it. */
+  
   language: Language;
-  /** The workers' permission mode: the answering agent has their tools and runs as they do. */
-  /** The output directory of the thread: the answer may come with files in it. */
+  
+  
   dir?: string;
-  /** Tools besides answer_owner (to_seismic, on a Question card). */
+  
   tools?: AgentTool[];
-  /** Screenshot files that come with the message. */
+  
   images?: string[];
-  /** Ends the turn at once, its session with it (the owner paused the agent): the answer fails with `Interrupted`. */
+  
   signal?: AbortSignal;
-  /** Where the answer shows that it waits for the account's usage limit, until when; nothing once it goes on (`AgentSpec.onLimit`). */
+  
   onLimit: (until: number | null | undefined, retry?: () => void) => void;
-  /** Where the answering agent shows at work (`AgentSpec.at`). */
+  
   at?: AgentAt;
-  /** How long a turn waits for background work that has ended to wake it, and for work that still runs (ms). */
+  
   backgroundGrace?: number;
   backgroundLimit?: number;
-  /**
-   * The turn starts waiting for its background work, with `pass` to put the owner's words into its
-   * session at once (its answer answers them too), or stops waiting (`undefined`): it goes on, or ends.
-   */
+  
+
+
+
   onWaiting?: (pass: ((text: string, images: string[]) => void) | undefined) => void;
 }
 
@@ -96,7 +96,7 @@ export function inform(b: Briefing): Promise<OwnerAnswer> {
       work.stop();
       session.send(text, images);
     };
-    // words go in while the work runs; once it ended, it is about to wake the agent, and they wait for the next turn
+    
     const told = () => b.onWaiting?.(work.waiting && work.running > 0 ? pass : undefined);
     const work = new BackgroundWait(over, { grace: b.backgroundGrace, limit: b.backgroundLimit }, told);
     const session = b.runtime.start(
@@ -125,14 +125,14 @@ export function inform(b: Briefing): Promise<OwnerAnswer> {
           ...(b.tools ?? []),
         ],
         onEvent: (e) => {
-          // what a failed session still reports after its error
+          
           if (closed) return;
           if (e.type === 'background') {
             work.changed(e.tasks.length);
             if (work.waiting) told();
             return;
           }
-          // a turn may also start without a message (finished background work)
+          
           work.stop();
           if (e.type === 'session') b.onSession?.(e.id, e.setting);
           else if (e.type === 'text') last = e.text;
@@ -142,7 +142,7 @@ export function inform(b: Briefing): Promise<OwnerAnswer> {
             reject(new Error(e.message));
           } else if (e.type === 'idle') {
             work.running = e.background ?? 0;
-            // a message still to come (words passed in as the agent woke) starts the turn that answers
+            
             if (!answer && (work.running > 0 || e.more)) work.start();
             else over();
           }
@@ -158,7 +158,7 @@ export function inform(b: Briefing): Promise<OwnerAnswer> {
   });
 }
 
-/** Files one answer comes with, at most. */
+
 const MAX_FILES = 20;
 
 /**
@@ -182,7 +182,7 @@ export function answerFiles(dir: string, list: unknown): AnswerFile[] | string {
   return wrong.length ? `${wrong.join('; ')}: the files of an answer are in its output directory ${root}.` : files;
 }
 
-/** How to answer a question of the owner's, the same for every agent that answers one. */
+
 export const INFORM_RULES = `
 The owner asked a question about the project, spoken or typed. Seismic's quick reading of every command could not answer it from the cards alone and passed it to you; the owner heard that the answer comes in a moment. Take the time to look it up: the repository's docs and plan docs, CLAUDE.md, the code, and what the message gives you. You have the tools a worker has: what the answer depends on beyond the text (the git history, files on this machine and their dates, a release, pull request or CI run on GitHub with gh, a page on the web), check rather than guess.
 - "What would the agent do on this card?": the message holds the task the card's worker gets at its start. Derive from it, the plan doc and the repository's instructions the concrete steps the worker would take, in order, and what it would ask the owner. Say what it would change, and where the plan leaves it open.
@@ -202,7 +202,7 @@ export function toQuestion(text: unknown, options: unknown, multiple?: unknown):
   return { text: clip(String(text).trim(), 12000), options: opts, ...(multiple === true && opts.length > 1 ? { multiple: true } : {}) };
 }
 
-/** A question as an agent asks it through a tool: with its own pick, the options it would choose if it had to decide, and why. */
+
 export interface Asked {
   question: string;
   options?: string[];

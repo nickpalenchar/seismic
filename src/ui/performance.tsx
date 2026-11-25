@@ -1,8 +1,8 @@
-// The performance dashboard: the owner's responses on agents' work, on every project, grouped by the
-// harness, model and effort that did it. The main view is a table with each row's spread of stars;
-// the other draws each rating as a dot. Every row says how many ratings it rests on and is ordered by
-// what it is, not how well it did; with too few ratings in all, the responses stand alone, without
-// averages. A row opens to its responses, each linking back to its card.
+
+
+
+
+
 
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { createContext, useEffect, useMemo, useRef, useState } from 'react';
@@ -22,7 +22,7 @@ import { cn } from 'cn';
 import { aboutClass, barClass, choiceClass, clearClass, emptyClass, filtersClass, headClass, pageLinkClass, starsClass, tableClass, titleClass } from './performanceClasses';
 import { cfgCloseClass } from './configClasses';
 
-/** Opens the dashboard, where the page offers it (the project, not the phone view). */
+
 export const OpenPerformance = createContext<(() => void) | null>(null);
 
 type View = 'stars' | 'dots' | 'trend';
@@ -31,30 +31,30 @@ const VIEW_KEY = 'seismic.performance.view';
 
 const DAY = 86_400_000;
 
-/** A cell of the table: a line under each row. */
+
 const cell = 'py-2 px-2 border-b border-border text-left align-middle';
-/** A column's head: small and quiet, on one line. */
+
 const headCell = cn(cell, 'text-xs font-semibold text-muted-foreground whitespace-nowrap');
-/** A column of numbers: right-aligned figures of one width, as narrow as they allow. */
+
 const num = 'text-right tabular-nums w-[1%] whitespace-nowrap';
-/** The spread's or the dots' column takes the room the others leave. */
+
 const wide = 'w-[45%]';
-/** The last column, the comments, stands a little apart from the bar before it. */
+
 const last = 'pl-4';
-/** The heading of an empty dashboard. */
+
 const emptyHeadClass = '[font-family:var(--font)] font-medium text-xl mt-0 mb-1.5';
-/** The legend under the table and the chart. */
+
 const legendClass = 'flex flex-wrap gap-x-3.5 gap-y-1.5 mt-2.5 mx-0 mb-0 text-xs text-muted-foreground';
-/** A legend's key: a square in the ink of its stars (`--r`, `inkOf`). */
+
 const keyClass = "before:content-[''] before:inline-block before:size-2.5 before:rounded-xs before:mr-1 before:align-[-1px] before:bg-(--r)";
-/** A line's key in the chart's legend: a short stroke in its ink. */
+
 const lineKeyClass = "before:content-[''] before:inline-block before:w-3.5 before:h-[3px] before:rounded-xs before:mr-1 before:align-[3px] before:bg-(--r)";
-/** The chart's numbers and months. */
+
 const axisTextClass = 'fill-muted-foreground text-xs';
-/** What a response is about (its plan, repository, project, date) and whom it credits, under its card. */
+
 const contextClass = 'text-muted-foreground text-sm';
 
-/** The ink of a rating of 1 to 5 stars, as `--r`: from red through grey to green. */
+
 const STAR_INKS = [
   'var(--chart-1)',
   'var(--chart-2)',
@@ -68,10 +68,10 @@ interface Props {
   on: boolean;
   onClose: () => void;
   projects: ProjectInfo[];
-  /** The project the page shows: its cards open in place, another project's at their address. */
+  
   here: string;
   onOpenCard: (code: string) => void;
-  /** The filters it opens with: those the feedback log had, coming back from it. */
+  
   initial?: LogFilter;
 }
 
@@ -87,7 +87,7 @@ export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, ini
     setViewState(v);
   };
   const [open, setOpen] = useState<string | null>(null);
-  // the focus goes back to what had it when the dialog opened, unless a card opened from it
+  
   const toCard = useRef(false);
   useEffect(() => {
     if (!on) return;
@@ -126,7 +126,7 @@ export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, ini
     );
   };
   const filtered = !!(filter.project || filter.repo || filter.plan || period !== 'all');
-  // the log opens with the dashboard's filters; Back from it opens the dashboard again, with them
+  
   const logFilter: LogFilter = { ...filter, period };
   const logQ = logQuery({ filter: logFilter });
   const toLog = () => history.replaceState(history.state, '', `${location.pathname}${logQ ? `${logQ}&` : '?'}performance`);
@@ -253,7 +253,7 @@ export function PerformanceDialog({ on, onClose, projects, here, onOpenCard, ini
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent id="perf" glass className="flex-1 min-w-0 relative flex" layerClassName="z-55 items-stretch p-7 max-[700px]:p-2.5" onCloseAutoFocus={(e) => toCard.current && e.preventDefault()}>
         <CloseButton label={t.close} className={cfgCloseClass} onClick={onClose} />
-        {/* the right padding keeps a lane for the close button, so nothing scrolls under it or stands beside it */}
+        { }
         <div className="perf-main flex-1 overflow-y-auto pt-6 pr-16 pb-8 pl-10 [&>*]:max-w-[980px] max-[700px]:pt-5 max-[700px]:pr-14 max-[700px]:pb-6 max-[700px]:pl-4">
           <header className={headClass}>
             <DialogTitle asChild>
@@ -349,8 +349,8 @@ function Spread({ r }: { r: PerformanceRow }) {
   );
 }
 
-/** Each of the row's ratings as a dot on the scale from 1 to 5 stars, the median as a line. */
-/** The diameter of a dot by its age step (`ageStep`), the newest largest. */
+
+
 const DOT_SIZE = [10, 8, 6, 4, 2.5];
 
 /**
@@ -367,7 +367,7 @@ function Dots({ r }: { r: PerformanceRow }) {
     const v = stars(f.answer.rating);
     return v === null ? [] : [{ f, v }];
   });
-  // the oldest first, so newer dots lie on top
+  
   rated.sort((a, b) => (a.f.updatedAt ?? a.f.at).localeCompare(b.f.updatedAt ?? b.f.at));
   return (
     <span className="relative block min-w-[160px] max-[700px]:min-w-[100px] h-8 mx-6" role="img" aria-label={label} title={label}>
@@ -443,7 +443,7 @@ function Responses({ list, link, projectName, withConfig }: { list: Feedback[]; 
   );
 }
 
-/** Inks for the lines over time, one per row, in the rows' order. */
+
 const LINE_INKS = ['var(--working)', 'var(--approved)', 'var(--waiting)', 'var(--proposal)', 'var(--inPr)', 'var(--idea)', 'var(--question)', 'var(--planned)'];
 
 /** A row's name as plain text, for the chart's legend and labels. */
@@ -455,9 +455,9 @@ function rowText(r: PerformanceRow) {
 /** Each model and effort's average per month as a line; a month of fewer than `FEW` ratings is a hollow point. */
 function Trend({ rows }: { rows: PerformanceRow[] }) {
   const p = t.performance;
-  // the lines are the models': work credited to none of them has no line of its own
+  
   const { unit, periods: months, series } = trend(rows.filter((r) => r.kind === 'config'));
-  // an axis within one year leaves the year to the tooltips
+  
   const crossesYears = months.length > 0 && months[0]!.slice(0, 4) !== months.at(-1)!.slice(0, 4);
   const W = 900, H = 200, L = 44, R = 16, T = 12, B = 30;
   const x = (m: string) => (months.length < 2 ? L + (W - L - R) / 2 : L + (months.indexOf(m) / (months.length - 1)) * (W - L - R));

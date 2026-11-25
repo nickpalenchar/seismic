@@ -27,13 +27,13 @@ beforeEach(() => {
   project = open();
 });
 afterEach(async () => {
-  // git freeing a workstation in the background is done before its repository goes
+  
   await Promise.all(project.repos.map((r) => r.workers.freed()));
   project.shutdown();
   rmSync(dir, { recursive: true, force: true });
 });
 
-// the timers' work done, and the workers it started at work in their workstations
+
 const settle = async (ms = 5) => {
   await new Promise((r) => setTimeout(r, ms));
   await Promise.all(project.repos.map((r) => r.workers.prepared()));
@@ -71,7 +71,7 @@ describe('an idea', () => {
     const i = idea();
     project.act(i.id, { action: 'discuss', text: 'Lass uns das durchdenken.' });
     const s = explorer();
-    // it checks what the text does not say (git, gh, the web) in the workers' permission mode
+    
     expect(s.spec).toMatchObject({ cwd: project.repos[0]!.read.path });
     expect(s.spec.permission).toBeUndefined();
     expect(s.spec.system).toContain('You have the tools a worker has');
@@ -122,13 +122,13 @@ describe('an idea', () => {
     project.act(i.id, { action: 'discuss', text: 'Zweitens.' });
     project.act(i.id, { action: 'discuss', text: 'Ach, vergiss das.' });
     expect(first.inbox).toHaveLength(1);
-    // unread until its next turn, and until then the owner can take it back
+    
     const [second, forget] = board().events(i.id).slice(-2);
     expect([second!.unread, forget!.unread]).toEqual([true, true]);
     project.act(i.id, { action: 'unsay', id: forget!.id });
     first.call('reply', { text: 'Zu erstens.' });
     first.emit({ type: 'idle' });
-    // the queued message is the next turn of the same session
+    
     expect(first.closed).toBe(false);
     expect(first.inbox[1]).toContain('Zweitens.');
     expect(first.inbox[1]).not.toContain('vergiss');
@@ -138,7 +138,7 @@ describe('an idea', () => {
     first.call('reply', { text: 'Zu zweitens.' });
     first.emit({ type: 'idle' });
     expect(first.closed).toBe(true);
-    // days later
+    
     project.act(i.id, { action: 'discuss', text: 'Drittens.' });
     const later = explorer();
     expect(later).not.toBe(first);
@@ -149,23 +149,23 @@ describe('an idea', () => {
   test('a session from scratch of an idea discussed before hears where it stands: the brief, its mocks, its prototypes and the conversation so far', async () => {
     const i = idea();
     project.act(i.id, { action: 'discuss', text: 'Lass uns das durchdenken.' });
-    // a new idea has nothing to go on from
+    
     expect(explorer().inbox[0]).not.toContain('discussed before');
     turn(explorer(), 'CSV oder PDF?', () => {
       explorer().call('update_brief', { brief: '**Varianten:** A CSV, B PDF.', mocks: [{ title: 'A CSV', html: '<pre>a;b</pre>' }] });
       explorer().call('plan_prototypes', { prototypes: [{ approach: 'B PDF', show: 'Ein PDF mit Zählerständen.' }] });
-      // said during the turn, it is read after the reply
+      
       project.act(i.id, { action: 'discuss', text: 'Und für Mieter?' });
     });
     turn(explorer(), 'Mieter später.');
-    // however much the agents did since
+    
     for (let n = 0; n < 600; n++) board().log(i.id, 'activity', 'explorer', `Liest Datei ${n}`);
     project.act(i.id, { action: 'prototype', text: 'Den Export-Knopf.' });
     await settle();
     const [prototype] = board()
       .snapshot()
       .items.filter((x) => x.idea?.prototypeOf === i.id);
-    // the session is gone (Claude pruned it after weeks, say)
+    
     board().work(i.id, { session_id: null });
     project.act(i.id, { action: 'discuss', text: 'Eher CSV.' });
     const s = explorer();
@@ -177,7 +177,7 @@ describe('an idea', () => {
     expect(first).toContain('- B PDF: Ein PDF mit Zählerständen.');
     expect(first).toContain(`- “${prototype!.title}”, being built`);
     expect(first).toContain('Owner: Lass uns das durchdenken.\n\nYou: CSV oder PDF?\n\nOwner: Und für Mieter?\n\nYou: Mieter später.');
-    // what the owner says now comes once, after where the idea stands
+    
     expect(first.endsWith('The owner says:\n\nEher CSV.')).toBe(true);
     expect(first).not.toContain('Owner: Eher CSV.');
   });
@@ -201,7 +201,7 @@ describe('an idea', () => {
     const s = explorer();
     expect(s.images[0]).toEqual([project.images.path(id)!]);
     expect(board().events(i.id).at(-1)).toMatchObject({ kind: 'talk', author: 'owner', images: [id] });
-    // a second one during the turn waits, with its screenshot, for the turn to end
+    
     const id2 = project.images.save(new Uint8Array([4]), 'image/png');
     project.act(i.id, { action: 'discuss', text: '', images: [id2] });
     turn(s, 'Verstehe.');
@@ -253,14 +253,14 @@ describe('an idea', () => {
     project.act(i.id, { action: 'discuss', text: 'Zweitens.' });
     s.call('reply', { text: 'Zu erstens.' });
     s.emit({ type: 'idle' });
-    // the owner's second message is still to be answered
+    
     expect(item(i.id).idea?.discussion).toMatchObject({ thinking: true });
     s.call('reply', { text: 'Zu zweitens.' });
     s.emit({ type: 'idle' });
     expect(item(i.id).idea?.discussion).toMatchObject({ thinking: false, yourTurn: true, questions: [], variants: [] });
     project.act(i.id, { action: 'discuss', text: 'Drittens.' });
     expect(item(i.id).idea?.discussion).toMatchObject({ thinking: true, yourTurn: false });
-    // a turn that ends without words leaves nothing to answer
+    
     explorer().emit({ type: 'idle' });
     expect(item(i.id).idea?.discussion).toMatchObject({ thinking: false, yourTurn: false, questions: [] });
   });
@@ -273,18 +273,18 @@ describe('an idea', () => {
     s.emit({ type: 'background', tasks: [{ id: 'b1', description: 'Download market data' }] });
     s.emit({ type: 'text', text: 'Still downloading the market data.' });
     s.emit({ type: 'idle', background: 1 });
-    // its words show as it works on, and the owner is not next
+    
     expect(s.closed).toBe(false);
     expect(item(i.id).idea?.discussion).toMatchObject({ thinking: true, yourTurn: false });
     expect(talk(i.id)).toEqual([['owner', 'Rechne das nach.']]);
     expect(board().events(i.id).at(-1)).toMatchObject({ kind: 'say', text: 'Still downloading the market data.' });
-    // what the owner says meanwhile goes in at once, and the turn answers it too
+    
     project.act(i.id, { action: 'discuss', text: 'Nimm auch 2023.' });
     expect(s.inbox.at(-1)).toContain('Nimm auch 2023.');
     expect(board().events(i.id).at(-1)!.unread).toBeFalsy();
     s.emit({ type: 'idle', background: 1 });
     expect(s.closed).toBe(false);
-    // the download ends and wakes the agent for a turn of its own
+    
     s.emit({ type: 'background', tasks: [] });
     s.emit({ type: 'tool', name: 'Bash', input: { command: 'python3 sim.py' } });
     s.call('reply', { text: 'Mit 2023: 12 % weniger Ausgleichsenergie.' });
@@ -340,7 +340,7 @@ describe('an idea', () => {
     s.emit({ type: 'idle', background: 1 });
     s.emit({ type: 'background', tasks: [] });
     await settle(20);
-    // its last words are the reply after all
+    
     expect(s.closed).toBe(true);
     expect(item(one.id).idea?.discussion).toMatchObject({ thinking: false, yourTurn: true });
     expect(talk(one.id).at(-1)).toEqual(['explorer', 'Still downloading.']);
@@ -407,7 +407,7 @@ describe('an idea', () => {
       questions: [
         { text: 'Welches Format?', pick: { options: ['CSV'], why: 'Vermieter rechnen in Excel weiter.' } },
         { text: 'Für wen?', pick: { options: ['Vermieter', 'Verwalter'], why: 'Beide.' } },
-        // one option only where only one may be chosen
+        
         { text: 'Wann?', pick: { options: ['Sofort'] } },
         { text: 'Wie heißt es?' },
       ],
@@ -417,7 +417,7 @@ describe('an idea', () => {
     project.act(i.id, { action: 'discuss', text: '- **Welches Format?** CSV' });
     expect(item(i.id).idea?.discussion!.next).toBeUndefined();
     s = explorer();
-    // answering without questions, or a step there is no button for, is no suggestion
+    
     s.call('reply', { text: 'Danke.', next: { step: 'answer', why: '?' } });
     s.emit({ type: 'idle' });
     expect(item(i.id).idea?.discussion!.next).toBeUndefined();
@@ -447,14 +447,14 @@ describe('an idea', () => {
     project.act(i.id, { action: 'discuss', text: 'Lass uns das durchdenken.' });
     const s = explorer();
     expect(s.spec.system).toContain('- Antworten auf Deutsch.');
-    // what its instructions hold is nothing new
+    
     expect(s.toolStep()).toBeUndefined();
     const id = board().addPreference('Varianten immer mit Aufwand.');
     expect(s.toolStep()).toContain('- Varianten immer mit Aufwand.');
     expect(s.toolStep()).toBeUndefined();
     board().setPreference(id, null);
     expect(s.toolStep()).not.toContain('Varianten immer mit Aufwand.');
-    // silently: no message, no new turn
+    
     expect(s.inbox).toHaveLength(1);
   });
 
@@ -483,12 +483,12 @@ describe('an idea', () => {
     s.call('update_brief', { brief: '**Varianten:** A oder B.', mocks: [a, b, { title: 'C zu lang', html: 'x'.repeat(20001) }] });
     s.call('reply', { text: 'Zwei Varianten, siehe Stand. Und so sähe es im Dialog aus:', mocks: [{ title: '  Im   Dialog ', html: ' <dialog open>Export</dialog> ' }] });
     s.emit({ type: 'idle' });
-    // a mock too long for a sketch is left out
+    
     expect(item(i.id).idea?.discussion!.mocks).toEqual([a, b]);
     expect(board().events(i.id).filter((e) => e.kind === 'talk').at(-1)!.mocks).toEqual([{ title: 'Im Dialog', html: '<dialog open>Export</dialog>' }]);
     expect(board().events(i.id).filter((e) => e.kind === 'talk' && e.author === 'owner')[0]!.mocks).toBeUndefined();
 
-    // a brief without mocks keeps them; an empty list removes them
+    
     project.act(i.id, { action: 'discuss', text: 'Nimm A.' });
     turn(explorer(), 'A steht.', () => explorer().call('update_brief', { brief: '**Entscheidungen:** A.' }));
     expect(item(i.id).idea?.discussion).toMatchObject({ brief: '**Entscheidungen:** A.', mocks: [a, b] });
@@ -544,7 +544,7 @@ describe('an idea', () => {
     const worker = runtime.sessions.find((s) => s.spec.tools.some((t) => t.name === 'ready_for_review'))!;
     expect(worker.inbox[0]).toContain('Jeder Kunde bekommt eigene Daten.');
     expect(worker.inbox[0]).toContain('## Workstreams');
-    // once decided, and on a task someone has worked on, it is refused
+    
     expect(() => project.act(c.id, { action: 'planDoc' })).toThrow(expect.objectContaining({ code: 'notPlannable' }));
     const worked = board().create({ title: 'Schon begonnen', x: 0, y: 0 });
     board().work(worked.id, { branch: 'seismic/x' });
@@ -567,17 +567,17 @@ describe('an idea', () => {
     expect(item(i.id).body).not.toContain('Verweis darauf');
     expect(board().row(i.id).plan!.planDocs!).toEqual([file]);
     await settle();
-    // another card of the same title, planned before that doc is written, gets a name of its own
+    
     const twin = board().create({ title: 'Export für Vermieter', x: 0, y: 400 });
     project.act(twin.id, { action: 'planDoc' });
     expect(item(twin.id).body).toContain('export-fur-vermieter-3.md');
     await settle();
     const worker = runtime.sessions.find((s) => s.spec.tools.some((t) => t.name === 'ready_for_review'))!;
-    // the folder is the worker's to write in, as its workstation
+    
     expect(worker.spec.dirs).toEqual([plans.replaceAll('\\', '/')]);
     writeFileSync(file, '# Export\n\n## Ziel\n\nExport.\n\n## Workstreams\n\n- [ ] **W1:** CSV. Zuerst.\n');
     board().docsChanged();
-    // read at once, the doc is a plan, but the idea stays until the owner approves it
+    
     const plan = board().snapshot().items.find((x) => x.kind === 'plan' && x.title === 'Export')!;
     expect(plan.plan?.file).toBe(file);
     expect(plan.plan?.origin).toBeUndefined();
@@ -587,7 +587,7 @@ describe('an idea', () => {
     await worker.call('ready_for_review', { summary: 'Plan geschrieben.', demo: { dir: demo, kind: 'html', page: { title: 'Export', text: 'Ein Plan.' } } });
     worker.emit({ type: 'idle' });
     await project.act(i.id, { action: 'approve' });
-    // nothing is in the branch: approved, the card is done without a pull request
+    
     expect(board().row(i.id).state).toBe('done');
     worker.emit({ type: 'idle' });
     expect(board().item(plan.id)!.plan?.origin).toBe(i.id);
@@ -616,12 +616,12 @@ describe('an idea', () => {
     expect(s.inbox[0]).toContain('“Klon lädt sein Modell neu”');
     expect(s.inbox[0]).toContain('Für jeden Clip.');
     expect(s.inbox[0]).toContain('chose to discuss it first');
-    // the card's text is the starting point, not words of the owner's
+    
     expect(talk(c.id)).toEqual([]);
     turn(s, 'Zwei Wege, siehe Stand.');
     expect(talk(c.id)).toEqual([['explorer', 'Zwei Wege, siehe Stand.']]);
     expect(item(c.id).idea?.discussion).toMatchObject({ thinking: false, yourTurn: true });
-    // saving the idea again starts nothing new
+    
     project.patch(c.id, { state: 'idea' });
     expect(runtime.sessions).toHaveLength(1);
   });
@@ -658,7 +658,7 @@ describe('an idea', () => {
     project.act(i.id, { action: 'build' });
     expect(item(i.id)).toMatchObject({ state: 'idea', idea: { discussion: { thinking: true, buildAfterReply: true } } });
     expect(board().events(i.id).filter((e) => e.text.startsWith('Build it once the reply is there'))).toHaveLength(1);
-    // the agent hears it with its next step, once: the brief it leaves becomes the task
+    
     expect(s.toolStep()).toContain('The owner clicked "Build it like this" while you worked on this reply');
     expect(s.toolStep()).toBeUndefined();
     s.call('update_brief', { brief: '**Ziel:** CSV- und PDF-Export.' });
@@ -680,7 +680,7 @@ describe('an idea', () => {
     expect(item(i.id)).toMatchObject({ state: 'idea', idea: { discussion: { thinking: false, yourTurn: true } } });
     expect(item(i.id).idea?.discussion!.buildAfterReply).toBeUndefined();
     expect(board().events(i.id).at(-1)).toMatchObject({ kind: 'state', text: 'Not built: the agent still has a question.' });
-    // answered, the owner decides again
+    
     project.act(i.id, { action: 'discuss', text: 'Nein.' });
     turn(explorer(), 'Gut, ohne Excel.');
     expect(item(i.id).state).toBe('idea');
@@ -695,7 +695,7 @@ describe('an idea', () => {
     project.act(i.id, { action: 'discuss', text: 'Zweitens.' });
     s.call('reply', { text: 'Zu erstens.' });
     s.emit({ type: 'idle' });
-    // the second message goes in with the note, as the agent has not called a tool yet
+    
     expect(s.inbox.at(-1)).toContain('Zweitens.');
     expect(s.inbox.at(-1)).toContain('"Build it like this"');
     expect(item(i.id)).toMatchObject({ state: 'idea', idea: { discussion: { thinking: true, buildAfterReply: true } } });
@@ -742,14 +742,14 @@ describe('an idea', () => {
     expect(later.inbox[0]!.indexOf('Erstens.')).toBeLessThan(later.inbox[0]!.indexOf('Zweitens.'));
     expect(later.inbox[0]!.indexOf('Zweitens.')).toBeLessThan(later.inbox[0]!.indexOf('Drittens.'));
     expect(later.images[0]).toEqual([project.images.path(shot)!]);
-    // dropped in the middle of this turn, the three wait again, now as dropped
+    
     project.act(i.id, { action: 'drop' });
     project.act(i.id, { action: 'discuss', text: 'Viertens.' });
     const again = explorer();
     expect(again.inbox[0]).toContain('The owner dropped the idea');
     expect(again.inbox[0]).toContain('Drittens.');
     turn(again, 'Zu allen vier.');
-    // answered, nothing waits any more
+    
     project.act(i.id, { action: 'discuss', text: 'Fünftens.' });
     expect(explorer().inbox).toEqual(['The owner says:\n\nFünftens.']);
   });
@@ -795,7 +795,7 @@ describe('an idea', () => {
     expect(first.closed).toBe(true);
     expect(item(i.id)).toMatchObject({ hold: { reason: 'paused' }, idea: { discussion: { thinking: false } } });
     expect(item(i.id)?.hold?.reason).not.toBe('pausing');
-    // the owner's words let it go on, as they do a paused one
+    
     project.act(i.id, { action: 'discuss', text: 'Zweitens.' });
     expect(explorer().spec.resume).toBe('sess-1');
     expect(explorer().inbox[0]).toContain('Zweitens.');
@@ -861,7 +861,7 @@ describe('an idea', () => {
     s.emit({ type: 'session', id: 'sess-1' });
     s.emit({ type: 'error', message: "You've hit your session limit · resets 2:40pm (Europe/Berlin)", limit: { resetsAt: Date.now() + 20 } });
     s.emit({ type: 'idle' });
-    // no error in its conversation: the card says when it goes on, and the agent still works on its reply
+    
     expect(board().events(i.id).some((e) => e.kind === 'error' || e.text.includes('hit your'))).toBe(false);
     expect(item(i.id).idea?.discussion).toMatchObject({ thinking: true });
     expect(Date.parse(item(i.id).agent?.limitedUntil!)).toBeGreaterThan(Date.now());
@@ -873,7 +873,7 @@ describe('an idea', () => {
     expect(s.inbox[1]).toContain('The usage limit that stopped your last turn has reset');
     s.call('reply', { text: 'Zu erstens.' });
     s.emit({ type: 'idle' });
-    // what the owner said meanwhile is its next turn
+    
     expect(s.inbox[2]).toContain('Zweitens.');
     expect(talk(i.id)).toEqual([
       ['owner', 'Erstens.'],
@@ -953,9 +953,9 @@ describe('a prototype', () => {
     const [prototype] = prototypes(i.id);
     expect(prototype).toMatchObject({ state: 'working', title: 'Prototype: Export für Vermieter – Den Export-Knopf', from: i.id, body: 'Den Export-Knopf. Oben rechts in der Leiste.' });
     expect(item(i.id).state).toBe('idea');
-    // while the prototype is built, the owner waits for it, not the idea for the owner
+    
     expect(item(i.id).idea?.discussion).toMatchObject({ yourTurn: false, thinking: false });
-    // a reply to the owner meanwhile leaves them waiting for the prototype, unless it asks them something
+    
     project.act(i.id, { action: 'discuss', text: 'Die Spalten stehen schon fest.' });
     turn(explorer(), 'Notiert. Jetzt zählt, was der Prototyp zeigt.');
     expect(item(i.id).idea?.discussion).toMatchObject({ yourTurn: false, thinking: false });
@@ -968,13 +968,13 @@ describe('a prototype', () => {
     expect(w.inbox[0]).toContain('**Ziel:** CSV-Export.');
     expect(w.inbox[0]).toContain('<button>Export</button>');
     expect(w.inbox[0]).not.toContain('Before ready_for_review, run');
-    // a prototype never lands, so it holds no files for the Koordinator
+    
     expect(project.koordinator.inProgress()).toEqual([]);
 
     const ws = board().row(prototype!.id).workstation!;
     const branch = board().row(prototype!.id).branch!;
     await handOver(w, 'Knopf gebaut.');
-    // the demo stays the prototype's, and shows on the idea under its title
+    
     expect(item(i.id).demo?.latest).toBeUndefined();
     expect(item(i.id).idea?.prototypes).toMatchObject([{ id: prototype!.id, title: prototype!.title, demo: { latest: { chapters: [[0, 'Knopf']] } } }]);
     expect(explorer().inbox.at(-1)).toContain('Knopf gebaut.');
@@ -983,19 +983,19 @@ describe('a prototype', () => {
     expect(item(i.id).idea?.discussion).toMatchObject({ yourTurn: true });
     expect(item(prototype!.id)).toMatchObject({ state: 'waiting', need: 'demo' });
 
-    // approving a prototype is having seen enough: it is discarded
+    
     project.act(prototype!.id, { action: 'approve' });
     expect(board().item(prototype!.id)).toBeUndefined();
     await settle();
     expect(git(main, 'branch', '--list', branch)).toBe('');
     expect(git(ws, 'branch', '--list', branch)).toBe('');
     expect(project.repos[0]!.workstations.leasedBy(prototype!.id)).toBeNull();
-    // in the archive with its demo, summary and log, and it stays there
+    
     expect(archived(prototype!.id)).toMatchObject({ idea: { prototypeEnd: 'discarded' }, review: { summary: 'Knopf gebaut.' }, demo: { latest: { chapters: [[0, 'Knopf']] } } });
     expect(board().demoFiles(prototype!.id)).toEqual({ dir: join(dir, 'demo'), kind: 'video' });
     expect(board().events(prototype!.id).at(-1)!.text).toContain('Discarded');
     expect(() => board().unarchive(prototype!.id)).toThrow(expect.objectContaining({ code: 'prototypeEnded' }));
-    // the idea still shows its demo
+    
     expect(item(i.id).idea?.prototypes).toMatchObject([{ id: prototype!.id, idea: { prototypeEnd: 'discarded' }, demo: { latest: { chapters: [[0, 'Knopf']] } } }]);
     expect(board().events(i.id).at(-1)!.text).toContain('discarded');
   });
@@ -1011,11 +1011,11 @@ describe('a prototype', () => {
     const all = prototypes(i.id);
     expect(all.map((p) => p.title)).toEqual(['Prototype: Logo für Seismic – Wortmarke', 'Prototype: Logo für Seismic – Bildmarke', 'Prototype: Logo für Seismic']);
     expect(all.every((p) => p.state === 'working')).toBe(true);
-    // side by side below the idea, not on top of each other
+    
     expect(new Set(all.map((p) => p.y)).size).toBe(1);
     expect(all[1]!.x - all[0]!.x).toBeGreaterThan(200);
     await handOver(workerOf(all[0]!.id), 'Wortmarke.', 'a');
-    // the reply to one result, the others still built, leaves the owner waiting for them
+    
     turn(explorer(), 'Die Wortmarke trägt.');
     expect(item(i.id).idea?.discussion).toMatchObject({ yourTurn: false, thinking: false });
     await handOver(workerOf(all[1]!.id), 'Bildmarke.', 'b');
@@ -1024,7 +1024,7 @@ describe('a prototype', () => {
       ['Prototype: Logo für Seismic – Bildmarke', true],
       ['Prototype: Logo für Seismic', false],
     ]);
-    // a running prototype keeps a dropped idea on the project
+    
     project.act(i.id, { action: 'drop' });
     expect(() => board().archive([i.id])).toThrow(expect.objectContaining({ code: 'prototypeRunning' }));
   });
@@ -1057,23 +1057,23 @@ describe('a prototype', () => {
       }),
     );
     expect(item(i.id).idea?.discussion!.variants.map((v) => v.approach)).toEqual(['A Plasma-Felder', 'B Territorien', 'C Konturen']);
-    // the owner leaves one out
+    
     project.act(i.id, { action: 'prototype', variants: ['A Plasma-Felder', 'C Konturen'] });
     await settle();
     expect(prototypes(i.id).map((p) => [p.title, p.idea?.variant, p.state])).toEqual([
       ['Prototype: Leinwand ordnen – A Plasma-Felder', 'A Plasma-Felder', 'working'],
       ['Prototype: Leinwand ordnen – C Konturen', 'C Konturen', 'working'],
     ]);
-    // each builds its own variant only
+    
     expect(prototypes(i.id)[0]!.body).toBe('Gebiete als Metaballs.\n\nOnly this variant: B Territorien, C Konturen get prototypes of their own.');
     expect(workerOf(prototypes(i.id)[1]!.id).inbox[0]).toContain('Gebiete als Hüllen.');
     expect(board().events(i.id).at(-1)!.text).toBe('Prototypes started: “Prototype: Leinwand ordnen – A Plasma-Felder”, “Prototype: Leinwand ordnen – C Konturen”.');
-    // without a choice (a spoken command): the planned ones that have none yet
+    
     project.act(i.id, { action: 'prototype' });
     await settle();
     expect(prototypes(i.id).map((p) => p.idea?.variant)).toEqual(['A Plasma-Felder', 'C Konturen', 'B Territorien']);
     expect(() => project.act(i.id, { action: 'prototype' })).toThrow(expect.objectContaining({ code: 'variantsRunning' }));
-    // a discarded variant can be tried again
+    
     project.act(prototypes(i.id)[0]!.id, { action: 'discard' });
     project.act(i.id, { action: 'prototype' });
     await settle();
@@ -1093,19 +1093,19 @@ describe('a prototype', () => {
     const [w, wOther] = [workerOf(chosen!.id), workerOf(other!.id)];
     commit(chosen!.id, 'knopf.txt');
     commit(other!.id, 'menu.txt');
-    // the chosen one's worker asked the owner something on its card
+    
     w!.call('ask', { question: 'Knopf oben oder unten?', options: ['oben', 'unten'] });
     project.act(chosen!.id, { action: 'answer', text: 'oben' });
     await handOver(w!, 'Knopf oben gebaut; Export als CSV.');
     const ws = board().row(chosen!.id).workstation!;
     const otherWs = board().row(other!.id).workstation!;
     const otherBranch = board().row(other!.id).branch!;
-    // the idea's agent takes in the answer, then the handover
+    
     explorer().emit({ type: 'idle' });
     explorer().emit({ type: 'idle' });
 
     await project.act(chosen!.id, { action: 'buildPrototype' });
-    // the idea is the feature now, in the prototype's workstation, on its branch under the idea's name
+    
     const built = item(i.id);
     expect(built).toMatchObject({ state: 'planned', body: '**Ziel:** CSV-Export.', idea: { builtOn: chosen!.id } });
     expect(built.idea?.discussion).toBeUndefined();
@@ -1115,11 +1115,11 @@ describe('a prototype', () => {
     expect(git(ws, 'branch', '--show-current')).toBe(row.branch!);
     expect(git(ws, 'log', '--format=%s', '-1')).toBe('Prototyp knopf.txt');
     expect(project.repos[0]!.workstations.leasedBy(i.id)).toBe(ws);
-    // the chosen prototype goes into the archive as built, its worker stopped
+    
     expect(w!.closed).toBe(true);
     expect(archived(chosen!.id)).toMatchObject({ idea: { prototypeEnd: 'built' }, review: { summary: 'Knopf oben gebaut; Export als CSV.' } });
     expect(project.repos[0]!.workstations.leasedBy(chosen!.id)).toBeNull();
-    // the other one is discarded with its code
+    
     expect(wOther!.closed).toBe(true);
     expect(archived(other!.id)).toMatchObject({ idea: { prototypeEnd: 'discarded' } });
     await settle();
@@ -1127,7 +1127,7 @@ describe('a prototype', () => {
     expect(prototypes(i.id)).toEqual([]);
     expect(board().decisions(null).at(-1)).toMatchObject({ cardId: i.id, answer: `Build it, on the prototype “${chosen!.title}”.` });
 
-    // its worker goes on from the branch: the brief, the prototype's handover and the owner's answers
+    
     await settle();
     expect(item(i.id).state).toBe('working');
     const builder = workers().at(-1)!;
@@ -1153,7 +1153,7 @@ describe('a prototype', () => {
     expect(w.call('propose_build', { reason: 'Der Owner hat den Knopf gewählt.' })).toContain('owner decides');
     expect(item(prototype!.id).idea?.buildProposal).toBe('Der Owner hat den Knopf gewählt.');
     expect(board().snapshot().items.filter((x) => x.state === 'proposal')).toEqual([]);
-    // accepting it is "Build this prototype"
+    
     await project.act(prototype!.id, { action: 'buildPrototype' });
     expect(item(i.id)).toMatchObject({ state: 'planned', idea: { builtOn: prototype!.id } });
     expect(archived(prototype!.id)!.idea?.buildProposal).toBeUndefined();
@@ -1171,7 +1171,7 @@ describe('a prototype', () => {
     const s = explorer();
     expect(s.inbox.at(-1)).toContain('“Welche Farbe?”');
     expect(s.inbox.at(-1)).toContain('The owner answered: Blau');
-    // what it says on the way is no reply: the owner is not asked again
+    
     s.call('update_brief', { brief: '**Entscheidungen:** Blau.' });
     s.emit({ type: 'text', text: 'Im Stand festgehalten.' });
     s.emit({ type: 'idle' });
@@ -1203,7 +1203,7 @@ describe('a prototype', () => {
     await handOver(w!, 'Ruhige Seite mit großem Video oben.');
     explorer().emit({ type: 'idle' });
 
-    // the plan doc's worker hears what the prototypes showed, so it does not plan them again
+    
     project.act(i.id, { action: 'planDoc' });
     const task = item(i.id).body;
     expect(task).toContain(`“${film!.title}”, handed over like this:\n\nRuhige Seite mit großem Video oben.`);
@@ -1211,10 +1211,10 @@ describe('a prototype', () => {
     expect(task).toContain('So do not plan them again as workstreams');
     expect(task).toContain('Only the workstream that builds on the chosen prototype mentions prototypes');
     expect(prototypes(i.id).map((p) => p.id)).toEqual([film!.id, manifest!.id]);
-    // building waits for the plan
+    
     expect(() => project.act(film!.id, { action: 'buildPrototype' })).toThrow(expect.objectContaining({ code: 'planPending' }));
 
-    // the plan doc lands: the plan takes the idea's place, and the idea goes to the archive
+    
     await landDoc(
       'docs/plan/seite.md',
       '# Webseite\n\n## Ziel\n\nEine Seite.\n\n## Workstreams\n\n- [ ] **W1:** Lizenz. MIT.\n- [ ] **W2:** Seite bauen. Auf dem gewählten Prototyp.\n- [ ] **W3:** Aufräumen. Die alten Prototypen löschen.\n',
@@ -1226,20 +1226,20 @@ describe('a prototype', () => {
     expect(plan.title).toBe('Webseite');
     expect(board().item(i.id)).toBeUndefined();
     const [w1, w2, w3] = board().snapshot().items.filter((x) => x.parent === plan.id);
-    // the prototypes still name their idea
+    
     expect(prototypes(i.id).map((p) => p.idea?.ideaTitle)).toEqual(['Webseite', 'Webseite']);
 
-    // two workstreams mention prototypes: the owner chooses
+    
     expect(() => project.act(film!.id, { action: 'buildPrototype' })).toThrow(expect.objectContaining({ code: 'workstreamMissing' }));
     board().work(w1!.id, { branch: 'seismic/lizenz' });
     expect(() => project.act(film!.id, { action: 'buildPrototype', workstream: w1!.id })).toThrow(expect.objectContaining({ code: 'workstreamStarted' }));
     expect(() => project.act(film!.id, { action: 'buildPrototype', workstream: i.id })).toThrow(expect.objectContaining({ code: 'invalid' }));
 
     const ws = board().row(film!.id).workstation!;
-    // once the other one is under way, the plan doc names the workstream to build on the prototype
+    
     board().work(w3!.id, { branch: 'seismic/aufraeumen' });
     await project.act(film!.id, { action: 'buildPrototype' });
-    // the workstream takes over the prototype's workstation and branch, and starts
+    
     expect(item(w2!.id).idea?.builtOn).toBe(film!.id);
     expect(item(w2!.id).idea?.prototypes!.map((p) => p.id)).toEqual([film!.id]);
     expect(board().row(w2!.id).workstation).toBe(ws);
@@ -1248,8 +1248,8 @@ describe('a prototype', () => {
     expect(archived(manifest!.id)).toMatchObject({ idea: { prototypeEnd: 'discarded' } });
     expect(prototypes(i.id)).toEqual([]);
     expect(board().decisions(plan.id).at(-1)).toMatchObject({ cardId: w2!.id, answer: `On the prototype “${film!.title}”.` });
-    // the Koordinator estimates the scope of the plan doc's card first, then decides on the
-    // workstream, which may build on W1 or W3: they have not landed
+    
+    
     await until(() => {
       for (const k of runtime.sessions.filter((x) => x.spec.tools.some((t) => t.name === 'scope'))) k.call('scope', { files: [], conflicts_with: [], reason: '' });
       return item(w2!.id).state === 'working' && workers().at(-1)?.inbox[0]?.includes('build this workstream on the prototype');
@@ -1290,7 +1290,7 @@ describe('a prototype', () => {
       next: { step: 'splitOff' },
     });
     expect(board().events(i.id).some((e) => e.text === 'Marks a task to split off: “Lese-Lern-App: Spiel und Lernlogik”')).toBe(true);
-    // one prototype runs, the other is still only planned
+    
     project.act(i.id, { action: 'prototype', variants: ['P1 lokal'] });
     await settle();
     const [p1] = prototypes(i.id);
@@ -1301,14 +1301,14 @@ describe('a prototype', () => {
       .items.find((x) => x.title === 'Lese-Lern-App: Spiel und Lernlogik')!;
     expect(task).toMatchObject({ kind: 'task', state: 'planned', from: i.id, images: [shot], queue: { checking: true } });
     expect(task.body).toBe('**Ziel:** Das Spiel mit Platzhalterbildern.\n\nThe part of the idea “Lese-Lern-App” that is settled. What is still open there, the idea goes on discussing; it is not part of this task.');
-    // the idea stays open with its brief, its planned and running prototypes; the split is used up
+    
     expect(item(i.id)).toMatchObject({ state: 'idea', idea: { discussion: { status: 'open', brief: '**Ziel:** Lesen lernen. Die Spiellogik steht, die Bilder sind offen.' } } });
     expect(item(i.id).idea?.discussion!.variants.map((v) => v.approach)).toEqual(['P1 lokal', 'P2 Cloud']);
     expect(item(i.id).idea?.discussion!.split).toBeUndefined();
     expect(item(p1!.id).state).toBe('working');
     expect(board().decisions(null).at(-1)).toMatchObject({ cardId: i.id, answer: 'Split off a task: “Lese-Lern-App: Spiel und Lernlogik”.' });
     expect(board().events(i.id).some((e) => e.text === 'Task split off: “Lese-Lern-App: Spiel und Lernlogik” is now a task of its own; what is open stays here.')).toBe(true);
-    // its agent hears what became of the part, and trims the brief to what is open
+    
     const told = explorer();
     expect(told.inbox.at(-1)).toContain('the part you marked as settled is now the task “Lese-Lern-App: Spiel und Lernlogik”');
     expect(item(i.id).idea?.discussion!.thinking).toBe(true);
@@ -1317,7 +1317,7 @@ describe('a prototype', () => {
     await settle();
     expect(item(task.id).state).toBe('working');
     expect(workers().some((w) => w.inbox[0]!.includes('**Ziel:** Das Spiel mit Platzhalterbildern.'))).toBe(true);
-    // later the idea is built as before, and its prototypes go
+    
     project.act(i.id, { action: 'build' });
     expect(item(i.id)).toMatchObject({ state: 'planned', body: '**Ziel:** Bilder für die Lese-Lern-App.' });
     expect(archived(p1!.id)).toMatchObject({ idea: { prototypeEnd: 'discarded' } });
@@ -1342,7 +1342,7 @@ describe('a prototype', () => {
     s.call('reply', { text: 'CSV kann los.', next: { step: 'splitOff', why: 'CSV steht.' } });
     s.emit({ type: 'idle' });
     expect(item(i.id).idea?.discussion).toMatchObject({ split: { title: 'CSV-Export' }, next: { step: 'splitOff', why: 'CSV steht.' } });
-    // a split without a brief, or emptied, is none
+    
     project.act(i.id, { action: 'discuss', text: 'Doch alles zusammen.' });
     s = explorer();
     s.call('plan_split', { title: 'CSV-Export', brief: ' ' });
@@ -1390,12 +1390,12 @@ describe('by voice', () => {
     expect(k.inbox[0]).toContain('passes on a request from what the owner told it, asking Seismic for something: "Plan this idea as a plan"');
     expect(k.inbox[0]).toContain('The owner\'s own words to it, spoken (speech recognition, may contain errors): "Mach daraus ein Projekt"');
     expect(k.inbox[0]).toContain('The owner has this card open');
-    // the agent has the words already; planning waits for the reply it works on
+    
     expect(k.call('act', { actions: [{ do: 'discuss', card: 'K1', text: 'Projekt' }], confirm: 'Ok.' })).toContain('reached this card');
     expect(k.call('act', { actions: [{ do: 'plan_doc', card: 'K1' }], confirm: 'Ok.' })).toContain("waits for the reply the idea's agent is working on");
     k.call('reply', { confirm: 'Planen geht per Klick, sobald deine Antwort da ist.' });
     expect(await result).toBe('Seismic: Planen geht per Klick, sobald deine Antwort da ist.');
-    // the owner's words are on the card once, the Koordinator's answer under them
+    
     expect(board().events(i.id).filter((e) => e.author === 'owner').map((e) => e.text)).toEqual(['Mach daraus ein Projekt']);
     expect(board().events(i.id).at(-1)).toMatchObject({ kind: 'say', author: 'koordinator', text: 'Planen geht per Klick, sobald deine Antwort da ist.' });
   });
@@ -1417,11 +1417,11 @@ describe('by voice', () => {
     project.commander.arm(h.token!);
     await settle(30);
     expect(item(i.id)).toMatchObject({ state: 'idea', idea: { discussion: { thinking: true, buildAfterReply: true } } });
-    // the Koordinator sees what waits
+    
     const again = project.commander.hear('was ist mit der Idee', { card: i.id });
     await settle();
     expect(reader().inbox.at(-1)).toContain('[idea, its agent is working on its reply; built once the reply is there, unless it asks questions]');
-    // planning still waits for the reply
+    
     expect(reader().call('act', { actions: [{ do: 'plan_doc', card: 'K1' }], confirm: 'Wird geplant.' })).toContain('is still working on its reply');
     reader().call('reply', { text: 'Sie wird nach der Antwort gebaut.' });
     await again;

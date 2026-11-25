@@ -1,5 +1,5 @@
-// Shiki on its JavaScript regex engine: languages and the active GitHub theme load on demand.
-// Tokenizers retain their chosen theme even when another diff requests a different one.
+
+
 
 import { createHighlighterCore, type HighlighterCore } from 'shiki/core';
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript';
@@ -8,13 +8,13 @@ import { bundledThemes } from 'shiki/themes';
 import type { Theme } from '../core/types';
 import type { DiffLine, Hunk } from './diff-lines';
 
-/** A run of a line's text in one colour: `style` sets its active theme colour. */
+
 export interface Token {
   content: string;
   style?: Record<string, string>;
 }
 
-/** Extensions and file names Shiki knows by no name or alias of a language. */
+
 const NAMES: Record<string, string> = { h: 'c', dockerfile: 'docker', makefile: 'make', gnumakefile: 'make', cmakelists: 'cmake' };
 
 /** The language of a file by its name, or null for one Shiki does not know. */

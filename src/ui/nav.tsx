@@ -1,12 +1,12 @@
-// The left menu, behind ☰ and the logo in the bar: the inbox, the agents' configuration (a page of its
-// own that slides in), the projects (the open one with its canvases and views, every other one with the
-// agents' pause) and Seismic's settings and help. It
-// drops down under ☰, or stays docked as a sidebar on the left, the project the rest. On the phone the
-// same menu opens over the whole screen from the logo at the top left, with the entries the phone has a
-// view for. The floating row's project switcher lists the projects alone, while the menu is not docked.
-// What waits itself is in the inbox (src/ui/inbox.tsx), on every project at once. In the desktop app
-// the workspace switcher heads it (not on the phone): the Seismic the window shows, this machine's or
-// another's, the others a click away, and its cog to this machine's workspaces page (src/ui/desks/).
+
+
+
+
+
+
+
+
+
 
 import { Archive, ArrowLeft, Bot, Car, ChartLine, Check, ChevronDown, ChevronRight, Cog, FileCheck, Inbox, ListOrdered, Menu as Menu_, PanelLeft, PanelLeftClose, Plus, ScrollText, Settings, SlidersHorizontal, Users, X } from 'lucide-react';
 import { type ComponentProps, createContext, type ReactNode, type Ref, useContext, useLayoutEffect, useRef, useState } from 'react';
@@ -27,23 +27,23 @@ import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from '.
 import { DeskIcon } from './desks/page';
 import { currentDesk, deskError, desks, openWorkspaces, useDesks } from './desks/shell';
 
-// the looks the menu's pieces share, docked or dropped down
+
 const list = 'm-0 list-none p-0';
-/** entries under another: the open project's canvases and views, what sits under Settings and Performance */
+
 const tree = cn(list, 'mt-0.5 mb-1 pl-6');
 const rowButton = 'flex w-full cursor-pointer items-center gap-2 rounded-sm bg-transparent px-2.5 py-1.5 text-left text-sm text-muted-foreground no-underline outline-none hover:bg-muted data-highlighted:bg-muted [&_svg]:flex-none';
-/** the dropdown's panel: under ☰, or the floating row's project switcher */
+
 const menuPanel = 'w-[min(360px,calc(100vw-28px))] rounded-lg border border-glass-edge px-3.5 pt-3.5 pb-4';
 
-/** Default and limits for the docked menu's remembered width. */
+
 export const NAV_W = 256;
 export const NAV_MIN_W = 240;
 export const NAV_MAX_W = 460;
-/** The least room the project keeps beside the docked menu and a sheet on the right; with less, it folds back under ☰. */
+
 export const NAV_PROJECT_MIN = 480;
 const WIDTH_KEY = 'seismic-nav-width';
 const PIN_KEY = 'seismic-nav-pinned';
-// docked, ☰ hides the menu and shows it again; it stays docked meanwhile
+
 const HIDDEN_KEY = 'seismic-nav-hidden';
 
 const loadFlag = (key: string) => () => {
@@ -78,9 +78,9 @@ export const saveNavWidth = (width: number) => {
 interface ProjectsProps {
   project: ProjectInfo;
   projects: ProjectInfo[];
-  /** Opens the configuration with a new project added; none where there is no configuration (the phone). */
+  
   onNew?: () => void;
-  /** Shows another project in place, where its address alone does not (the phone); else a click on it follows its link. */
+  
   onProject?: (id: string) => void;
 }
 
@@ -90,7 +90,7 @@ export function NavPill(p: ProjectsProps) {
   const home = p.project.repos[0];
   return (
     <Menu open={open} onOpenChange={setOpen}>
-      {/* it fits as the bar does (barFit.ts): narrower than its buttons, the row gives up the branch, then the project's name shrinks */}
+      { }
       <div className="relative flex-none group-data-[fit~='3']/row:min-w-0 group-data-[fit~='3']/row:flex-[0_1_auto]">
         <MenuTrigger asChild>
           <PillButton size="bar" on={open} className="group-data-[fit~='3']/row:max-w-full group-data-[fit~='3']/row:[&_b]:overflow-hidden group-data-[fit~='3']/row:[&_b]:text-ellipsis" title={t.nav.button}>
@@ -116,10 +116,10 @@ export function NavPill(p: ProjectsProps) {
   );
 }
 
-/**
- * Whether the entries below are items of an open dropdown (`active`: its page is showing, else they
- * are skipped by the arrow keys) or plain buttons and links in the docked sidebar (no provider).
- */
+
+
+
+
 const InMenu = createContext<{ active: boolean } | null>(null);
 const ACTIVE = { active: true };
 const INACTIVE = { active: false };
@@ -128,21 +128,21 @@ function NavList(props: ComponentProps<'ul'>) {
   return useContext(InMenu) ? <ul {...props} /> : <SidebarMenu {...props} className={cn('gap-0', props.className)} />;
 }
 
-/**
- * What the menu's entries open; a floating menu closes first. An entry whose action is left out is
- * not shown: the phone has no canvases, archive, configuration or preferences to open.
- */
+
+
+
+
 export interface MenuActions {
   onInbox: () => void;
-  /** With it, the inbox opens as a page of the menu itself, docked or dropped down; without it (the phone), `onInbox` opens it. */
+  
   inbox?: InboxProps;
-  /** Agents, Rules and Review rules open nothing yet: with `onConfig` (the desktop) they show as "Coming soon" until given an action; without it (the phone) they stay out. */
+  
   onAgents?: () => void;
   onRules?: () => void;
   onReviewRules?: () => void;
   onPerformance?: () => void;
   onFeedbackLog?: () => void;
-  /** The open project's canvases, the one shown marked while no other view covers it. */
+  
   canvases: Canvas[];
   canvas?: string;
   onCanvas?: (c: Canvas) => void;
@@ -150,18 +150,18 @@ export interface MenuActions {
   onParked?: () => void;
   onArchived?: () => void;
   onProjectSettings: () => void;
-  /** Which of the open project's views is showing, marked in the menu. */
+  
   showing?: 'archived' | 'inbox' | 'parked' | 'queue' | 'settings';
-  /** The configuration: every project, its repositories, Seismic's agents, voice, demos; with it, the preferences, help and wishes under it. */
+  
   onConfig?: () => void;
   onPrefs?: () => void;
   onHelp?: () => void;
 }
 
 export interface MenuProps extends ProjectsProps, MenuActions {
-  /** Docked as a sidebar (it may still be folded back, see `docked`). */
+  
   pinned: boolean;
-  /** Docking is offered: the window has room for the sidebar. */
+  
   pinnable: boolean;
   onPin: (on: boolean) => void;
 }
@@ -182,7 +182,7 @@ export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { d
       onClick={docked ? () => onDocked(!dockedOn) : undefined}
     >
       <Menu_ className="mr-1 block flex-none" size={18} strokeWidth={2} aria-hidden />
-      {/* narrow, the bar gives up the wordmark for the sign (barFit.ts) */}
+      { }
       <span className="block leading-0 group-data-[fit~='1']/bar:hidden">
         <Wordmark height={22} />
       </span>
@@ -194,7 +194,7 @@ export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { d
   return (
     <Menu open={open && !docked} onOpenChange={setOpen}>
       <div>
-        {/* docked, the button toggles the sidebar: a trigger would swallow Enter and Space to open a menu that is not there */}
+        { }
         <Tooltip content={t.leftMenu.button}>{docked ? logo : <MenuTrigger asChild>{logo}</MenuTrigger>}</Tooltip>
       </div>
       <MenuContent className={cn(menuPanel, 'w-[min(310px,calc(100vw-28px))] overflow-x-hidden')}>
@@ -206,7 +206,7 @@ export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { d
 
 /** The menu docked as a sidebar on the left, sliding in and out. */
 export function NavSheet({ on, onOpenChange, width, maxWidth, onWidthChange, onWidthEnd, onResizing, ...p }: MenuProps & { on: boolean; onOpenChange: (open: boolean) => void; width: number; maxWidth: number; onWidthChange: (width: number) => void; onWidthEnd: (width: number) => void; onResizing: (active: boolean) => void }) {
-  // in the app on a Mac it reaches up to the window's top: the traffic lights sit in its head, which moves the window as the bar does
+  
   const titlebar = window.seismicApp?.platform === 'macos';
   const grip = useRef<{ x: number; width: number } | null>(null);
   const nextWidth = (width: number) => Math.max(NAV_MIN_W, Math.min(width, NAV_MAX_W, maxWidth));
@@ -227,8 +227,8 @@ export function NavSheet({ on, onOpenChange, width, maxWidth, onWidthChange, onW
     onResizing(false);
   };
   return (
-    // pinned: a sidebar docked to the window's left edge, from top to bottom, as the sheets are on the
-    // right; above the dim of an open card (#dim), so it stays in view and switches project from there
+    
+    
     <SidebarProvider open={on} onOpenChange={onOpenChange} className="contents" style={{ '--sidebar-width': `${width}px` } as React.CSSProperties}>
       <Sidebar
         id="nav"
@@ -299,7 +299,7 @@ export function PhoneNavSheet({ open, onOpenChange, ...p }: MenuProps & { open: 
             <X size={20} strokeWidth={2.25} aria-hidden="true" />
           </SheetClose>
         </div>
-        {/* the sidebar's entries are its buttons; a tap on one does its action and closes the sheet */}
+        { }
         <SidebarProvider open className="contents text-lg [&_[data-sidebar=menu-button]]:min-h-11 [&_[data-sidebar=menu-button]]:text-base">
           <MenuBody {...p} phone />
         </SidebarProvider>
@@ -317,9 +317,9 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
   const inboxBackButton = useRef<HTMLButtonElement>(null);
   useLayoutEffect(() => {
     if (previousPage.current !== page) {
-      // The old page becomes inert in this commit. Keep focus inside the newly active page,
-      // including when the menu is docked and Radix is not managing its items. Radix
-      // focuses the menu content after selection, so move focus after that has finished.
+      
+      
+      
       const frame = requestAnimationFrame(() => (page === 'main' ? configureButton : page === 'agents' ? backButton : inboxBackButton).current?.focus());
       previousPage.current = page;
       return () => cancelAnimationFrame(frame);
@@ -327,32 +327,32 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
   }, [page]);
   const m = t.leftMenu;
   const drag = titlebar ? { 'data-tauri-drag-region': '' } : {};
-  // an entry's action: in the dropdown the menu closes with the choice
+  
   const run = (f: () => void) => f;
   const pin = (p.pinnable || p.pinned) && (
     <Act sidebarItem={false} className={cn('ml-auto grid size-[30px] cursor-pointer place-items-center rounded-xs bg-muted p-0 text-muted-foreground hover:text-foreground', p.pinned && 'text-foreground')} tip={p.pinned ? m.unpin : m.pin} aria-label={p.pinned ? m.unpin : m.pin} aria-pressed={p.pinned} onAct={() => p.onPin(!p.pinned)}>
       {p.pinned ? <PanelLeftClose size={16} strokeWidth={2} aria-hidden /> : <PanelLeft size={16} strokeWidth={2} aria-hidden />}
     </Act>
   );
-  // an entry without an action is a "Coming soon" placeholder where the menu has the configuration, else it stays out
+  
   const soon = !!p.onConfig;
   const agentEntries = [
     { icon: <Users size={16} strokeWidth={2} aria-hidden />, label: m.agents, onClick: p.onAgents },
     { icon: <ScrollText size={16} strokeWidth={2} aria-hidden />, label: m.rules, onClick: p.onRules },
     { icon: <FileCheck size={16} strokeWidth={2} aria-hidden />, label: m.reviewRules, onClick: p.onReviewRules },
   ].filter((e) => e.onClick || soon);
-  // the "Configure agents" page is only offered while it has something on it
+  
   const hasAgentsPage = agentEntries.length > 0 || !!p.onPerformance || !!p.onFeedbackLog;
   const inbox = (
     <Entry icon={<Inbox size={16} strokeWidth={2} aria-hidden />} label={m.inbox} on={p.showing === 'inbox'} keep={!!p.inbox} onClick={p.inbox ? () => setPage('inbox') : run(p.onInbox)} />
   );
   return (
-    // the menu's pages side by side, "Configure agents" and the inbox sliding in over the main one; the
-    // page out of view takes no height, so the menu is as tall as the page it shows
+    
+    
     <div className={cn('grid grid-cols-[100%_100%_100%] items-start transition-transform duration-300 ease-[cubic-bezier(.3,.9,.3,1)]', page === 'agents' && '-translate-x-full', page === 'inbox' && '-translate-x-[200%]')}>
       <InMenu.Provider value={!floating ? null : page === 'main' ? ACTIVE : INACTIVE}>
       <div className={pageClass(page !== 'main')} inert={page !== 'main'}>
-        {/* in the app on a Mac the traffic lights take the head; the inbox's entry follows under it */}
+        { }
         <div className={head(titlebar)} {...drag}>
           {!titlebar && <NavList className={cn(list, 'min-w-0 flex-1')}>{inbox}</NavList>}
           {pin}
@@ -386,7 +386,7 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
           )}
           {p.onNew && <NewProject onNew={p.onNew} />}
         </NavList>
-        {/* the phone, without a configuration here, has no keyboard for it */}
+        { }
         {p.onConfig && <SwitcherHint className="mb-2" />}
         {p.onConfig && (
           <NavList className={cn(list, 'mt-0.5 border-t border-border pt-2.5')}>
@@ -425,7 +425,7 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
       </div>
       </InMenu.Provider>
       <InMenu.Provider value={!floating ? null : page === 'inbox' ? ACTIVE : INACTIVE}>
-      {/* the dropped-down menu is a Radix menu, which keeps Tab and typeahead for its own items: on this page the keys stay the page's own */}
+      { }
       <div className={pageClass(page !== 'inbox')} inert={page !== 'inbox'} onKeyDown={floating ? (e) => { if (e.key !== 'Escape') e.stopPropagation(); } : undefined}>
         <div className={head(titlebar)} {...drag}>
           <Act sidebarItem={false} className="-ml-0.5 flex h-8 cursor-pointer items-center gap-2 rounded-sm bg-transparent px-2.5 text-base text-foreground hover:bg-muted" ref={inboxBackButton} keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
@@ -434,7 +434,7 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
           </Act>
           {pin}
         </div>
-        {/* mounted while shown only: the entries are where a card opened from them unfolds from */}
+        { }
         {p.inbox && page === 'inbox' && (
           <InboxList {...p.inbox} onGo={(e) => { if (floating) leaveMenu(); p.inbox!.onGo(e); }} />
         )}
@@ -570,8 +570,8 @@ function ProjectRow({ project: c, here, repos, bold, onGo, onProject }: { projec
       aria-current={here ? 'page' : undefined}
       onClick={(e) => {
         onGo?.();
-        // switchTo prevents the link's click. Radix then skips MenuItem's select/close,
-        // so dismiss the dropdown explicitly before navigating within the page.
+        
+        
         if (menu && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
           leaveMenu();
           closeBarMenus();
@@ -583,7 +583,7 @@ function ProjectRow({ project: c, here, repos, bold, onGo, onProject }: { projec
       }}
     >
       <ProjectIcon icon={c.icon} />
-      {/* a long name and its repositories shorten rather than wrap, the repositories first */}
+      { }
       <b className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap" title={c.name}>{c.name}</b>
       {repos && <span className="min-w-0 flex-[0_1000_auto] overflow-hidden text-xs text-ellipsis whitespace-nowrap text-muted-foreground">{c.repos.map((r) => r.name).join(', ')}</span>}
     </a>

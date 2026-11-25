@@ -65,7 +65,7 @@ export function anchoredPath(a: Bounds, b: Bounds, anchor: ManualAnchor, head = 
   const route: Point[] = [];
   if (Number.isFinite(distance[target]!)) {
     for (let i = target; i !== -1; i = previous[i]!) route.unshift(points[i]!);
-  } else route.push(out, into); // overlapping cards leave no clear route
+  } else route.push(out, into); 
   const raw = [start, ...route, end].filter((p, i, all) => !i || p.x !== all[i - 1]!.x || p.y !== all[i - 1]!.y);
   const path: string[] = [`M${raw[0]!.x},${raw[0]!.y}`];
   for (let i = 1; i < raw.length - 1; i++) {

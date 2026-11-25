@@ -1,10 +1,10 @@
-/**
- * The MCP endpoint through which Antigravity (`agy`) reaches Seismic's tools. Claude gets its tools
- * from an in-process MCP server and Codex over its app-server protocol; `agy` can only connect to an
- * MCP server of its own: here a localhost HTTP endpoint (Streamable HTTP, JSON replies), one for the
- * whole server, on a port of its own. Each session registers its tools under a token of its own that
- * its stdio bridge forwards as a bearer header. The workspace configuration has no credentials.
- */
+
+
+
+
+
+
+
 import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -13,13 +13,13 @@ import { messageOf } from '../../../core/text';
 import type { AgentTool } from '../../runtime';
 import { COMPILED } from '../../resources';
 
-/** The name `agy` knows the server by, and the prefix of every tool, so none clashes with one of its own. */
+
 export const AGY_SERVER = 'seismic';
 export const AGY_TOOL_PREFIX = 'seismic_';
 export const AGY_BRIDGE_FLAG = '--agy-mcp-bridge';
 
-// cmd /c sees only the unquoted relative batch path. The batch file quotes the environment
-// values on a normal command line, so cmd's special /c quote stripping never sees either path.
+
+
 export const AGY_WINDOWS_BRIDGE = {
   path: '.agents/seismic-mcp.cmd',
   contents: [
@@ -35,7 +35,7 @@ export const AGY_WINDOWS_BRIDGE = {
   ].join('\r\n'),
 };
 
-// The shared config starts the same dispatcher regardless of where Seismic is installed.
+
 export const AGY_BRIDGE_COMMAND = process.platform === 'win32'
   ? { command: 'cmd.exe', args: ['/d', '/v:off', '/c', AGY_WINDOWS_BRIDGE.path.replaceAll('/', '\\')] }
   : { command: '/bin/sh', args: [
@@ -90,18 +90,18 @@ export async function runAgyMcpBridge() {
 }
 
 export interface AgyRegistration {
-  /** The tools of the session, by the name they have on the wire. */
+  
   tools: Map<string, { tool: AgentTool; schema: z.ZodObject }>;
-  /** Told of each call as it starts; what the call returns is the tool's text. */
+  
   called?: (tool: AgentTool, args: Record<string, unknown>) => void;
-  /** Appended to the text of every result: what changed since the session's instructions were built. */
+  
   update?: () => string | undefined;
 }
 
 export interface AgyEndpoint {
   url: string;
   token: string;
-  /** Takes the session's tools off the endpoint: its token opens nothing any more. */
+  
   dispose(): void;
 }
 

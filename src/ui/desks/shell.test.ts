@@ -24,6 +24,6 @@ test("the shell's codes become words, naming the address where it matters", () =
   expect(deskError('unreachable', 'https://studio')).toContain('https://studio does not answer');
   expect(deskError(new Error('notSeismic'), 'https://studio')).toContain('https://studio is not Seismic');
   expect(deskError('somethingNew')).toContain('(somethingNew)');
-  // a name of the table that is not a code stays a code
+  
   expect(deskError('other')).toContain('(other)');
 });

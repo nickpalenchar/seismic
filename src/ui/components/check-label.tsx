@@ -1,7 +1,7 @@
-// The label of a `Switch`, a `Checkbox` or a radio: the control and its text in a row, a click on the
-// text acting on the control. Spacing around it is the container's, which reaches it as
-// `[data-slot=check-label]`. On a touch screen the row is at least a finger tall, so a tap just
-// above or below the control or its text still lands on it.
+
+
+
+
 
 import { cn } from 'cn';
 import type { ComponentProps } from 'react';

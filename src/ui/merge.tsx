@@ -1,4 +1,4 @@
-// Merge selection and the owner's coverage review.
+
 
 import { mergeQuestionTexts } from '../core/merge';
 import { actionsClass } from './cardClasses';
@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 
 type Act = (a: CardAction, done: { close: true; ack: string; next?: string } | { close: false }, failed?: () => void) => Promise<void>;
 
-/** How many cards the picker lists before a search narrows them. */
+
 const SHOWN = 30;
 
 /** Eligible partners, matching the search and ordered by stage, then newest first. */
@@ -39,7 +39,7 @@ const kind = (i: Item) => i.archivedAt ? t.merge.archived : stateLabel(withPart(
 /** "Merge with" on an unworked task: opens the picker of the cards it can be merged with. */
 export function MergeButton({ item, all, act }: { item: Item; all: Item[]; act: Act }) {
   const [open, setOpen] = useState(false);
-  // a pick stays pending until the merge view arrives, so a delayed snapshot cannot take a second one
+  
   const [picked, setPicked] = useState(false);
   const cards = useContext(Cards);
   useEffect(() => setPicked(false), [item.idea?.proposal?.merge]);
@@ -87,12 +87,12 @@ function MergePicker({ item, all, onClose, onPick }: { item: Item; all: Item[]; 
   );
 }
 
-/** The picker's hint under the search, and its "nothing found". */
+
 const pickHint = 'hint mx-0 mt-2 mb-1.5';
-/**
- * The merge view: the two cards side by side (the one that dissolves dashed, in the proposal purple), cut to a
- * height until shown in full, glued by the knot; under them, centred, the merged card the arrow points at.
- */
+
+
+
+
 const viewClass = 'merge-view flex flex-col items-center gap-0 mt-2.5';
 const sidesClass = 'merge-sides flex items-stretch w-full';
 const sideClass = (cut: boolean, faded = false) =>
@@ -135,7 +135,7 @@ export function DuplicateMergePreview({ item, partner }: { item: Item; partner: 
  */
 export function MergeView({ item, partner, act, error }: { item: Item; partner?: Item; act: Act; error?: string | null }) {
   const now = item.idea!.proposal!.merge!;
-  // compared again after a card changed: the result before stays, dimmed, until the new one is in
+  
   const stale = now.task === undefined && !!now.previous;
   const updating = merging(item) && stale;
   const m = stale ? { ...now, ...now.previous, compared: undefined } : now;
@@ -221,7 +221,7 @@ export function MergeView({ item, partner, act, error }: { item: Item; partner?:
         <CalloutDescription>{t.merge.extra}</CalloutDescription>
       </Callout> : m.outcome === 'covered' ? <p className={cn(stale && 'stale opacity-45', "merge-callout covered w-[min(720px,100%)] box-border py-3 px-4 rounded-xs leading-[1.45] bg-approved/14 text-foreground")}>{t.merge.covered}</p> : m.task !== undefined && partner && <p className={cn("hint merge-intro text-center max-w-[720px]", stale && 'stale opacity-45')}>{t.merge.intro(plain(partner.title))}</p>}
       {error && <p className="p-error" role="alert">{error}</p>}
-      {/* on the phone the decisions stay in view at the page's foot, leaving 87px for the microphone below them (the page reserves 157px under its content) */}
+      { }
       <div className={cn(actionsClass, "merge-actions justify-center w-full [#panel_&]:panel-foot phone:sticky phone:-bottom-[70px] phone:z-5 phone:py-3 phone:px-0 phone:bg-background phone:border-t phone:border-t-border phone:after:content-[''] phone:after:absolute phone:after:top-full phone:after:left-0 phone:after:right-0 phone:after:h-[calc(87px+env(safe-area-inset-bottom))] phone:after:bg-background phone:after:pointer-events-none")}>
         {m.task !== undefined && partner && (
           <Button variant="primary" disabled={stale} onClick={() => act({ action: 'approveMerge' }, { close: true, ack: t.merge.approved, next: partner.archivedAt ? undefined : partner.id })}>

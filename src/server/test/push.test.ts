@@ -62,14 +62,14 @@ describe('what starts waiting', () => {
     ]);
     const after = [
       item({ id: 'a', state: 'waiting', need: 'demo' }),
-      // waited before already
+      
       item({ id: 'b', state: 'waiting', need: 'demo' }),
-      // its landing was refused: the owner approves again
+      
       item({ id: 'l', state: 'waiting', need: 'demo' }),
       item({ id: 's', state: 'waiting', need: 'question', question: { text: 'Fehler', options: [], stuck: true } }),
       item({ id: 'n', state: 'proposal' }),
       item({ id: 'w' }),
-      // waited before already, and its agent withdrew it now
+      
       item({ id: 'r', state: 'waiting', need: 'demo', idea: { proposed: true, superseded: { why: 'x' } } }),
     ];
     expect(startedWaiting(before, after).map((x) => [x.item.id, x.kind])).toEqual([
@@ -157,7 +157,7 @@ describe('Push', () => {
     push.waits([waits('c1')]);
     push.waits([waits('c2')]);
     await Promise.all([tablet, phone]);
-    endWindow(); // the phone's second alert queues behind its first
+    endWindow(); 
     expect(calls.filter((u) => u.endsWith('/abc'))).toHaveLength(1);
     release();
     await push.settled();
@@ -195,12 +195,12 @@ describe('Push', () => {
     expect(timers).toHaveLength(1);
     endWindow();
     expect((await shown())[1]).toEqual({ title: '3 cards wait for you', body: 'c2 · c3 · c5', url: '/', tag: 'several' });
-    // a new minute: one more within it waits for its end
+    
     push.waits([waits('c6', 'question')]);
     expect(await shown()).toHaveLength(2);
     endWindow();
     expect((await shown())[2]).toEqual({ title: 'c6', body: 'A question for you', url: '/?card=c6', tag: 'c6' });
-    // a quiet minute ends it: the next goes out at once
+    
     endWindow();
     expect(timers).toHaveLength(0);
     push.waits([waits('c7')]);

@@ -9,11 +9,11 @@ import { projects } from './projects';
 import { settingProposals } from './setting-proposals';
 import { talk } from './talk';
 
-/**
- * Each wait for the owner ("Needs you"): what waits (a card, a proposed rule, a setting proposal or
- * the Koordinator's answer, exactly one), since when, when what it waits on last changed, and when it
- * ended. A row stays once its wait ended; a target that waits again gets a new one.
- */
+
+
+
+
+
 export const needsYou = sqliteTable(
   'needs_you',
   {
@@ -24,18 +24,18 @@ export const needsYou = sqliteTable(
     preferenceId: integer('preference_id').references(() => preferences.id),
     settingProposalId: integer('setting_proposal_id').references(() => settingProposals.id),
     talkId: integer('talk_id').references(() => talk.id),
-    /** A digest of what it waits for (the question, the summary), to tell it changed; null on a wait moved over from before the table, taken as it is at its first reconcile. */
+    
     digest: text(),
-    /** When the wait began (ms). */
+    
     createdAt: integer('created_at').notNull(),
-    /** When what the owner waits on last changed (ms): its kind, or what it waits for. */
+    
     lastUpdated: integer('last_updated').notNull(),
-    /** When the wait ended (ms); null while it is open. */
+    
     resolvedAt: integer('resolved_at'),
   },
   (t) => [
     check('needs_you_one_target', sql`(card_id IS NOT NULL) + (preference_id IS NOT NULL) + (setting_proposal_id IS NOT NULL) + (talk_id IS NOT NULL) = 1`),
-    // at most one open wait per target
+    
     uniqueIndex('needs_you_open_card').on(t.cardId).where(sql`resolved_at IS NULL`),
     uniqueIndex('needs_you_open_preference').on(t.preferenceId).where(sql`resolved_at IS NULL`),
     uniqueIndex('needs_you_open_setting').on(t.settingProposalId).where(sql`resolved_at IS NULL`),
@@ -44,14 +44,14 @@ export const needsYou = sqliteTable(
   ],
 );
 
-/** What waits for the owner by one row: exactly one target. */
+
 export type NeedsYouTarget = { card: string } | { preference: number } | { setting: number } | { talk: number };
 
-/** What waits for the owner now, as the board finds it: its target, kind and what it waits for. A wait begins at the reconcile that first finds it. */
+
 export interface Wait {
   target: NeedsYouTarget;
   kind: NeedsYouKind;
-  /** What it waits for (all the owner decides on a card, `decidedOn`; the rule's text; the answer): a change to it is an update. */
+  
   text: string;
 }
 
@@ -73,7 +73,7 @@ const view = (r: Row): NeedsYouView => ({
 
 /** The waits' queries (`Store.needsYou`). */
 export class NeedsYou {
-  /** The time the last reconcile wrote; null until the first reads it from the table. */
+  
   private last: number | null = null;
 
   constructor(private readonly db: Db) {}

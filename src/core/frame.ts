@@ -1,6 +1,6 @@
-// Pages Seismic shows in a sandboxed frame (a worker's HTML artifact, an idea's mock): they tell the
-// page around them their height, so the frame grows to it instead of scrolling inside, and on
-// Seismic's own page what the owner marks in them, to quote it; they load nothing from the internet.
+
+
+
 
 /**
  * What a worker's page may load (an HTML artifact, an answer's page, an idea's mock): the files beside
@@ -19,7 +19,7 @@ export function pagePolicy(own?: string): string {
   return `default-src ${here}data: blob:; script-src ${here}'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' data: blob:; style-src ${here}'unsafe-inline' data: blob:; form-action 'none'`;
 }
 
-/** What Seismic's page (`src/ui/index.html`) may show in its frames: its own addresses, where the workers' pages are served, and nothing a frame navigates to elsewhere. */
+
 export const FRAMES_POLICY = "frame-src 'self' data: blob:";
 
 /**
@@ -33,23 +33,23 @@ export function sealed(html: string, own?: string): string {
   return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${pagePolicy(own)}"><meta http-equiv="x-dns-prefetch-control" content="off">${html}`;
 }
 
-/**
- * The page's height, sent to the page around it whenever it changes, by a pixel too: there the
- * frame grows to it. Rounded up (a page a fraction of a pixel higher than its frame scrolls), and a
- * page wider than its frame adds the scrollbar across its foot. Once its frame holds its height, the
- * page does not scroll up and down: a page whose images grow with its width fits beside a scrollbar
- * but not without one, and kept a bar that scrolled by a few pixels. It still scrolls sideways,
- * where it is wider than its frame (a wide table on a phone).
- * The height is the page's own, never the frame's: always without that bar, and from `scrollHeight`
- * (what reaches below the page's box, a box placed absolutely) only where that is more than the
- * frame, since below it `scrollHeight` is the frame's height; where the frame is higher, the height
- * said before stands until the page's box changes. The page hears of its frame's new height a step
- * late, and a page of images as wide as itself, measured beside the bar or at the frame's height,
- * had its frame jump between two heights for a second. A frame not laid out yet says nothing and
- * asks again shortly: one out of sight hears of no change of its own until it comes into sight.
- * The frame's own measures come from the scrolling element, not the root: a page without a doctype
- * renders in quirks mode, where the root's are the page's, and its frame stayed at its first height.
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 const HEIGHT_REPORT = `<script>(() => {
   let last = 0, box = -1, again = 0;
   const say = () => {
@@ -75,7 +75,7 @@ export function withHeightReport(html: string): string {
   return at < 0 ? html + HEIGHT_REPORT : html.slice(0, at) + HEIGHT_REPORT + html.slice(at);
 }
 
-/** Install image enlargement on every artifact page, independently of height reporting. */
+
 const IMAGE_VIEWER = `<script>(() => {
   let viewer, origin;
   const close = () => { if (!viewer) return; viewer.remove(); viewer = null; if (origin && origin.isConnected) origin.focus({ preventScroll: true }); origin = null; parent.postMessage({ seismicImage: false, obeyaImage: false }, '*'); };
@@ -102,13 +102,13 @@ export function withImageViewer(html: string): string {
   return at < 0 ? html + IMAGE_VIEWER : html.slice(0, at) + IMAGE_VIEWER + html.slice(at);
 }
 
-/**
- * What the owner marks in the page, sent to Seismic's page around it, where a button beside it quotes
- * it into the card's field (`CiteButton` in src/ui/cite.tsx): the text, its first and last line in
- * the frame's window, and whether it was marked backwards; null once nothing is marked. While the
- * mouse still drags it out, the marking is not said. `{ seismicUnmark }` from the page around takes the
- * marking away, as a click elsewhere there would on a page of its own.
- */
+
+
+
+
+
+
+
 const MARK_REPORT = `<script>(() => {
   let last = 'null', down = false;
   const tell = (m) => {
@@ -141,10 +141,10 @@ export function withMarkReport(html: string): string {
   return at < 0 ? html + MARK_REPORT : html.slice(0, at) + MARK_REPORT + html.slice(at);
 }
 
-/**
- * The height of a mock's content, not of its frame's window (that one only grows as the frame does):
- * a frame laid out narrow first shrinks back once it is wide.
- */
+
+
+
+
 const CONTENT_HEIGHT_REPORT = `<script>(() => {
   let last = 0;
   const say = () => {

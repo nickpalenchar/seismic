@@ -1,6 +1,6 @@
-// The cog's dialog on the workspaces page: a workspace's name, and for a remote one its address,
-// "Pair again" with a new code (at a new address, where it moved) and "Delete workspace", which is
-// here alone, never on a row of the list, so that it is not hit on the way to switching.
+
+
+
 
 import { useId, useState } from 'react';
 import { t } from '../strings';

@@ -1,8 +1,8 @@
-/**
- * Compares two cards the owner is merging, read-only: where both are unworked, one session writes the
- * card they become; where the right card has progressed, it marks what of the left card that one covers
- * and what is left for a follow-up. The owner reviews the result before anything dissolves.
- */
+
+
+
+
+
 import { z } from 'zod';
 import { ownersLanguage } from '../../../../core/locale';
 import { mergeRank, type Item, type Merge } from '../../../../core/types';
@@ -12,7 +12,7 @@ import { workerConfig } from '../../../worker-config';
 import { createCardMergePlanSystem } from '../../prompts/createCardMergePlanSystem';
 import { type JobRun, SeismicJob } from '../seismicJob';
 
-/** The plan for merging two cards: the merged text, or what of the left card the right one covers. */
+
 export type CardMergePlan = Omit<Merge, 'with' | 'failed'> & { title: string; task: string };
 
 const combined = z.object({ title: z.string().trim().min(1).max(200), task: z.string().trim().min(1).max(20000) });
@@ -31,16 +31,16 @@ const comparison = z.object({
 export interface CreateCardMergePlanRun {
   runtime: AgentRuntime;
   board: Board;
-  /** Where the session reads: the right card's checkout. */
+  
   cwd: string;
-  /** The left card, which dissolves, and the right one, which survives. */
+  
   card: Item;
   other: Item;
-  /** What the pair read, as the result records it. */
+  
   compared: NonNullable<Merge['compared']>;
-  /** The owner's standing preferences, added to the instructions. */
+  
   preferences?: string;
-  /** The files of the left card's screenshots. */
+  
   images?: string[];
   onLimit?: JobRun['onLimit'];
 }
@@ -51,7 +51,7 @@ class CreateCardMergePlanJob extends SeismicJob<CardMergePlan> {
   readonly name = 'createCardMergePlan';
   readonly description = 'Compares two cards the owner is merging.';
   private merged: CardMergePlan | undefined;
-  /** Whether the right card has progressed: the left one is then compared against it, not combined. */
+  
   private readonly preserve: boolean;
 
   constructor(private o: Pick<CreateCardMergePlanRun, 'board' | 'card' | 'other' | 'compared' | 'preferences'>) {

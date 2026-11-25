@@ -1,12 +1,12 @@
-// The Koordinator's prompt against the real model: requests the agent of an open card passes on from
-// the owner's words, in each state an agent is on; sentences said or typed with a card open that no
-// agent works on; new tasks that start, wait, or start at a time the owner names; questions with no card open (an opinion becomes
-// an idea, a fact stays in the conversation, work on the machine such as a new repository is a task);
-// actions that depend on reading first, looked up with the step to take then;
-// requests Seismic cannot do, or words for its makers; a step promised for once a card is done,
-// which it waits for and then takes by itself; and reviews of pull requests, a review card each.
-// Runs only with SEISMIC_LIVE=1 (it uses the machine's
-// Claude login and takes about a minute): `SEISMIC_LIVE=1 bun test src/server/commands.live.test.ts`.
+
+
+
+
+
+
+
+
+
 
 import { afterAll, beforeAll, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -22,14 +22,14 @@ import { type AgentRuntime, withAgentSetting } from '../runtime';
 import { sdkRuntime } from '../llms/harnesses/claude';
 import { gitRepo } from './helpers/testing';
 
-// the sessions need the machine's Claude login, which the test setup hides behind a scratch config
+
 const scratch = process.env.CLAUDE_CONFIG_DIR;
 const machine = (process.env.SEISMIC_MACHINE_CLAUDE_CONFIG_DIR ?? process.env.OBEYA_MACHINE_CLAUDE_CONFIG_DIR);
 const setConfig = (dir: string | undefined) => (dir === undefined ? delete process.env.CLAUDE_CONFIG_DIR : (process.env.CLAUDE_CONFIG_DIR = dir));
 beforeAll(() => void ((process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE) && setConfig(machine)));
 afterAll(() => void setConfig(scratch));
 
-// each Koordinator works in a directory of its own, removed once all have run
+
 const cwds: string[] = [];
 const cwd = () => cwds[cwds.push(mkdtempSync(join(tmpdir(), 'seismic-live-'))) - 1]!;
 afterAll(() => cwds.forEach((d) => rmSync(d, { recursive: true, force: true })));
@@ -43,16 +43,16 @@ const STATES: Record<string, CardUpdate> = {
   inPr: { state: 'inPr' },
   finishing: { state: 'live', workstation: '/w', landed: '{}' },
   planned: { state: 'planned' },
-  // LOGIN: the card “Login”, which it waits for
+  
   queued: { state: 'planned', queue: JSON.stringify({ behind: ['LOGIN'], reason: 'Beide ändern die Sitzungsverwaltung.' }) },
   proposal: { state: 'proposal', idea: { proposal: { reason: 'Beim Login aufgefallen.', questions: [{ text: 'Welche Kodierung?', options: ['UTF-8', 'Latin-1'] }] } } },
 };
 
-/**
- * State of the open card, what the owner says (or types), the request its agent passes on (`to_seismic`;
- * none: the card has no agent, and the words reach the Koordinator themselves), whether typed, and
- * the actions expected. What the owner says to an agent never comes back to it as a note, an answer or feedback.
- */
+
+
+
+
+
 const CASES: [string, string, string | null, boolean, Command['do'][]][] = [
   ['working', 'mach eine Folgeaufgabe für den Excel-Export', 'Create a follow-up card for an Excel export of this card.', false, ['newCard']],
   ['working', 'Merk dir: Exporte immer mit Kopfzeile', 'The owner wants Seismic to remember: exports always with a header row.', true, ['remember']],
@@ -87,7 +87,7 @@ async function hear(state: string, text: string, request: string | null, typed: 
   const { queue, ...fields } = STATES[state]!;
   board.work(card.id, { ...fields, ...(queue ? { queue: queue.replace('LOGIN', login.id) } : {}) });
   const executed: Command[] = [];
-  // what the session said: a command not understood shows why (not logged in, an API error)
+  
   const said: string[] = [];
   const runtime: AgentRuntime = { start: (spec, ...rest) => sdkRuntime.start({ ...spec, onEvent: (e) => (e.type === 'text' && said.push(e.text), spec.onEvent(e)) }, ...rest) };
   const k = new Commander({ board, runtime, cwd: cwd(), execute: (c) => void executed.push(c), delayMs: 1 });
@@ -109,7 +109,7 @@ test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
   300_000,
 );
 
-/** What the owner says for a new task, in which language, and whether it starts now, later (at a time the owner named) or not. */
+
 const NEW_TASKS: [string, 'en', boolean | 'later'][] = [
   ['Tipjar should split the bill Add a field for how many people there are and show what each person pays', 'en', true],
   ['Tipjar needs to split the bill, a field for the number of people and show what each person pays', 'en', true],
@@ -150,7 +150,7 @@ test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
   300_000,
 );
 
-/** What the owner says with no card open, whether typed, and the actions expected (none: a reply or a look-up). */
+
 const NO_CARD: [string, boolean, Command['do'][]][] = [
   ['Nochmal zu den nicht erlaubten Datenbankabfragen: das Skript steht in der eingecheckten Datei, reicht aber nicht. Was meinst du, was wir da jetzt machen sollen?', false, ['newIdea']],
   ['Wie sollten wir das Onboarding angehen?', true, ['newIdea']],
@@ -169,7 +169,7 @@ async function noCard(text: string, typed: boolean) {
   board.create({ title: 'Zählerstände nachtragen', x: 0, y: 0 });
   const executed: Command[] = [];
   const runtime = withAgentSetting(sdkRuntime, () => AGENT_DEFAULTS.koordinator);
-  // the configuration as Seismic serves it, one project on a repository that exists
+  
   const home = cwd();
   const started = [{ name: 'C', repos: [{ path: gitRepo(join(home, 'home')) }] }];
   const config = new Config({ file: join(home, 'projects.json'), source: 'file', started, store: new Store(':memory:'), running: () => ['c'], server: { port: 4417, home, permissionMode: 'auto' } });
@@ -192,11 +192,11 @@ test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
   300_000,
 );
 
-/**
- * What the owner asks to have done with no card open, whether the actions depend on reading first
- * (a task per open issue: looked up with the step to take then, no card that would only make cards),
- * and the actions expected at once.
- */
+
+
+
+
+
 const READ_FIRST: [string, boolean, Command['do'][]][] = [
   ['Es gibt im Moment drei offene Issues bei GitHub, erstelle für jedes eine eigene Karte.', true, []],
   ['Leg für jedes offene Issue auf GitHub eine Aufgabe an', true, []],
@@ -229,11 +229,11 @@ test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
   300_000,
 );
 
-/**
- * What the owner says with no card open, and what comes of it: a reply that Seismic cannot do it
- * (`cannot`, with a link to report it as a wish), a draft for Seismic's makers they asked for (`wish`),
- * or neither (unclear, a fact, a request that fails for the moment or does not fit a card's state).
- */
+
+
+
+
+
 const WISHES: [string, 'cannot' | 'wish' | null][] = [
   ['Sortier die Karten auf der Leinwand nach Erstellungsdatum', 'cannot'],
   ['Exportier die ganze Leinwand als PDF', 'cannot'],
@@ -268,7 +268,7 @@ test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
   300_000,
 );
 
-/** What the owner asked for a step that can only follow once a card is done, the actions expected now, and the card waited on (null: the new one). */
+
 const LATER: [string, Command['do'][], string | null][] = [
   ['Hmm, with my permission you should be able to do that, no? Create a card and let the agent try it', ['newCard', 'waitFor'], null],
   ['Starte Login, sobald Export als CSV fertig ist', ['waitFor'], 'Export als CSV'],
@@ -282,7 +282,7 @@ async function later(text: string) {
   const board = new Board(new Store(':memory:'), { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: '/r', branch: 'main' }] }, () => ({ docs: [], dirs: [] }), undefined, undefined, () => 'en');
   board.work(board.create({ title: 'Export als CSV', x: 0, y: 0 }).id, { state: 'working' });
   board.create({ title: 'Login', x: 0, y: 0 });
-  // a folder no repository is in yet, as on the owner's machine then: the Koordinator may look
+  
   const place = join(cwd(), 'recipes');
   board.addTalk(
     `Kannst du mir ein neues Repo in ${place} und einen entsprechenden Seismic project anlegen? Privater Account, erstmal nicht nach GitHub.`,
@@ -306,12 +306,12 @@ async function later(text: string) {
   const heard = await k.hear(text, {}, [], { typed: true });
   if (heard.token) k.arm(heard.token);
   await new Promise((r) => setTimeout(r, 20));
-  // a wait is the Koordinator's own: it stands on the exchange rather than running
+  
   const wait = board.waitingTalk()[0]?.waiting[0];
   const made = executed.length;
   const now = [...executed.map((c) => c.do), ...(wait ? ['waitFor' as const] : [])];
   if (!wait) return { now, confirm: heard.confirm };
-  // the card gets done, with the repository its agent made: the Koordinator takes the step by itself
+  
   gitRepo(place);
   board.work(wait.card, { state: 'done' });
   const notices: string[] = [];
@@ -339,11 +339,11 @@ test.skipIf(!(process.env.SEISMIC_LIVE ?? process.env.OBEYA_LIVE))(
   300_000,
 );
 
-/**
- * What the owner says to have pull requests reviewed (several in one sentence, or the step taken
- * once the open ones are looked up), on a project whose history holds tasks titled like reviews
- * beside a review card, and the number of review cards expected: one for each pull request.
- */
+
+
+
+
+
 const REVIEWS: [string, number][] = [
   ['Mach Reviews der Pull Requests 5, 6 und 7.', 3],
   ['Review Pull Requests 5 und 6, jeweils auf ihrer eigenen Karte.', 2],
@@ -358,7 +358,7 @@ async function reviews(text: string) {
   const contribution = { url: 'https://github.com/acme/shop/pull/4', number: 4, author: 'alice', title: 'Round totals to cents', canModify: true };
   board.work(board.create({ title: 'PR #4: Round totals to cents', x: 0, y: 0 }).id, { state: 'done', review: { contribution: contribution } });
   board.addTalk('Review bitte Pull Request Nummer 4.', 'Neue Aufgabe für das Review von Pull Request 4, der Agent prüft ihn.');
-  // tasks made for reviews before, which only look like review cards
+  
   board.work(board.create({ title: 'Review PR #2', body: 'Review Pull Request 2.', x: 0, y: 0 }).id, { state: 'done' });
   board.work(board.create({ title: 'Review PR #3', body: 'Review Pull Request 3.', x: 0, y: 0 }).id, { state: 'waiting', need: 'demo', demo: DEMO });
   board.addTalk('Review Pull Requests 2 und 3, jeweils auf ihrer eigenen Karte.', 'Neue Aufgaben “Review PR #2” und “Review PR #3”, die Agenten starten.');
@@ -370,7 +370,7 @@ async function reviews(text: string) {
   const k = new Commander({ board, runtime, cwd: cwd(), execute: (c) => void executed.push(c), lookUp: (t) => void asked.push(t), delayMs: 1 });
   const heard = await k.hear(text, {}, [], { typed: true });
   if (heard.token) k.arm(heard.token);
-  // the open pull requests, looked up: the Koordinator takes the step it looked them up for
+  
   if (asked.length) {
     board.answerTalk(asked[0]!, 'Three open pull requests are newer than PR #4:\n- #5 "Empty cart shows a hint" by bob: https://github.com/acme/shop/pull/5\n- #6 "Discount codes" by carol: https://github.com/acme/shop/pull/6\n- #7 "Currency symbol per locale" by dave: https://github.com/acme/shop/pull/7', 'koordinator');
     k.answerIn(asked[0]!);

@@ -1,6 +1,6 @@
-// Touch on the canvas: which gesture the fingers make (tap, double-tap, long press, pan, pinch), apart
-// from what the canvas does with it. The canvas's pointer handlers hand every touch pointer to a
-// `Touches` and act on what it reports through a `TouchHost`; mouse and pen never come here.
+
+
+
 
 import { type Cam, MAX_ZOOM, MIN_ZOOM, toWorld } from './camera';
 
@@ -9,13 +9,13 @@ export interface Pos {
   y: number;
 }
 
-/** Set once the owner has picked up a card or begun a lasso with a long press: the hint on it goes. */
+
 export const TOUCH_HOLD_KNOWN = 'seismic-touch-hold-known';
-/** How long a finger rests before a long press picks up the card under it, or starts the lasso. */
+
 export const HOLD_MS = 400;
-/** How far, in screen pixels, a finger may wander and still tap or hold rather than pan. */
+
 export const SLOP = 10;
-/** A second tap this soon and this near the first is a double-tap. */
+
 export const DOUBLE_TAP_MS = 350;
 export const DOUBLE_TAP_PX = 30;
 
@@ -36,19 +36,19 @@ export function pinchCam(c: Cam, from: [Pos, Pos], to: [Pos, Pos]): Cam {
   return { s, x: m1.x - w.x * s, y: m1.y - w.y * s };
 }
 
-/** What the canvas does with the gestures. `target` is what the first finger landed on: a card's id, or null for the empty canvas. */
+
 export interface TouchHost {
   pan(dx: number, dy: number): void;
   pinch(from: [Pos, Pos], to: [Pos, Pos]): void;
   tap(at: Pos, target: string | null): void;
-  /** Where the second tap ended. */
+  
   doubleTap(at: Pos): void;
-  /** A long press: the card is picked up, or on the empty canvas the lasso starts. */
+  
   hold(at: Pos, target: string | null): void;
   holdMove(at: Pos): void;
-  /** The finger let go of what it held; `cut` when a second finger or the browser ended the hold instead. */
+  
   holdEnd(at: Pos, cut: boolean): void;
-  /** Panning or pinching began (true) or every finger is off the glass (false). */
+  
   moving(on: boolean): void;
 }
 
@@ -102,7 +102,7 @@ export class Touches {
       });
       return;
     }
-    // a second finger: whatever the first did gives way to pinching, a held card staying where it is
+    
     this.stopTimer();
     if (this.mode === 'hold') {
       const first = [...this.fingers.entries()].find(([k]) => k !== id)![1];
@@ -129,7 +129,7 @@ export class Touches {
       this.mode = 'pan';
       this.lastTap = null;
       this.host.moving(true);
-      // the stretch the finger moved before it counted as panning goes along
+      
       this.host.pan(at.x - this.start.x, at.y - this.start.y);
     } else if (this.mode === 'pan') this.host.pan(at.x - was.x, at.y - was.y);
     else if (this.mode === 'hold') this.host.holdMove(at);
@@ -148,7 +148,7 @@ export class Touches {
     if (!this.fingers.delete(id)) return;
     const mode = this.mode;
     if (mode === 'pinch') {
-      // the finger that stays pans on; when it lets go too, that is no tap
+      
       this.mode = this.fingers.size ? 'pan' : 'done';
     } else if (mode === 'press') {
       this.stopTimer();
@@ -182,6 +182,6 @@ export const buzz = () => {
   try {
     navigator.vibrate?.(15);
   } catch {
-    // some browsers refuse it without a user gesture they accept; the lift shows anyway
+    
   }
 };

@@ -22,7 +22,7 @@ test('SIGKILL of a test runner ends its canary, detached child, and orphaned gra
   const marker = join(dir, 'should-not-run');
   const lateCode = join(dir, 'late-code');
   const fixture = join(dir, 'owner.test.ts');
-  // Even this nested runner is disposable if the outer suite is killed during this regression.
+  
   writeFileSync(fixture, testProcessCode(`
     import { test } from 'bun:test';
     import { spawn } from 'node:child_process';
@@ -56,16 +56,16 @@ test('SIGKILL of a test runner ends its canary, detached child, and orphaned gra
     pids = [...JSON.parse(readFileSync(ready, 'utf8')), Number(readFileSync(join(dir, 'leaf'), 'utf8'))];
     expect(pids).toHaveLength(3);
     expect(pids.every(alive)).toBe(true);
-    // The immediate parent can die while the test is still checking orphan recovery.
+    
     process.kill(pids[1]!, 'SIGKILL');
     await until(() => !alive(pids[1]!));
     await Bun.sleep(250);
     expect(alive(pids[0]!) && alive(pids[2]!)).toBe(true);
-    // The leaf's PID probe always succeeds, as it would for a zombie or a reused owner PID.
+    
     runner.kill('SIGKILL');
     await runnerExit;
     await until(() => pids.every((pid) => !alive(pid)));
-    // A helper scheduled before SIGKILL but only started afterwards exits before its body.
+    
     const late = spawn(process.execPath, ['-e', readFileSync(lateCode, 'utf8')], { stdio: 'ignore' });
     await exited(late);
     expect(existsSync(marker)).toBe(false);

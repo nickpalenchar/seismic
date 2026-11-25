@@ -20,7 +20,7 @@ let board: Board;
 let runtime: FakeRuntime;
 let retro: WorkRetro;
 let workers: WorkerSupervisor;
-/** The transcript file of each session id; the others have none. */
+
 let files: Record<string, string>;
 
 beforeEach(() => {
@@ -106,7 +106,7 @@ describe('Work retrospective', () => {
     await settle();
     const s = noteSessions()[0]!;
     expect(s.spec).toMatchObject({ permission: 'readOnly', role: 'chores', cwd: main });
-    // the earlier run's transcript is read too; the later one has none
+    
     expect(s.inbox[0]).toContain('The card: "A"');
     expect(s.inbox[0]).toContain("unknown option '--port=4500'");
     await note({ what: 'bun run dev has no --port flag' }, { what: 'the demo script failed and was rewritten' });
@@ -191,7 +191,7 @@ describe('Work retrospective', () => {
     first.call('card', { title: 'Skill für Demos', body: '…', basis: 'Demos scheitern.', cards: ['K1', 'K1'] });
     first.emit({ type: 'idle' });
     await settle();
-    // a proposal needs two different cards
+    
     expect(board.snapshot().items.filter((i) => i.idea?.retro)).toHaveLength(0);
     const p = board.proposeRetro('home', { title: 'Skill für Demos', body: '…', basis: 'Demos scheitern auf A und B.' });
     board.remove(p.id);
@@ -216,7 +216,7 @@ describe('Work retrospective', () => {
     files = { a: SAMPLE, b: SAMPLE };
     const a = ran('Login-Seite', 'a');
     await settle();
-    // the notes see what the repository's settings say, so a recipe worked out shows as friction with its value
+    
     expect(noteSessions()[0]!.inbox[0]).toContain('- run ("How to run the app": the recipe every worker reads, in prose: how to start the app, what to do after which kind of change, where it gives its address, the login and test data for a demo): (empty)');
     await note({ what: 'searched how to start the app', fix: 'set run: bun run dev -p 4500' });
     const b = ran('Warenkorb', 'b');
@@ -250,10 +250,10 @@ describe('Work retrospective', () => {
       },
       expect.objectContaining({ field: 'checks', value: ['bun test', 'bun run typecheck'], now: ['bun test'] }),
     ]);
-    // no card on the project: it waits with Seismic beside the rules
+    
     expect(board.snapshot().items.filter((i) => i.state === 'proposal')).toHaveLength(0);
 
-    // the next retrospective hears what became of them
+    
     const [run, checks] = board.snapshot().settingProposals!;
     board.decideSetting(run!.id, 'rejected');
     board.decideSetting(checks!.id, 'repository');
@@ -275,7 +275,7 @@ describe('Work retrospective', () => {
       if (board.setting('work_retro_runs:home') !== String(runs.length)) runs.push(i);
     }
     expect(runs).toEqual([1, 3, 7, 10, 13]);
-    // the owner's own retrospective counts as one, and the count starts again
+    
     retro.now('home');
     await retro.idle();
     expect([board.setting('work_retro_runs:home'), board.setting('work_retro_cards:home')]).toEqual(['6', '0']);
@@ -304,7 +304,7 @@ describe('Work retrospective', () => {
     worker.emit({ type: 'session', id: 's2' });
     await worker.call('ready_for_review', { summary: 'Fertig.', demo: artifact() });
     worker.emit({ type: 'idle' });
-    // approved without a change: nothing lands, and the card is done once its worker's turn ends
+    
     await workers.approve(c.id);
     worker.emit({ type: 'idle' });
     await settle();

@@ -1,7 +1,7 @@
-// The Agent Feedback Log: a page of its own, opened from the performance dashboard, listing every
-// response the owner gave on agents' work on every project, the newest first. It filters by the
-// dashboard's filters and by whom a response credits and how it rated, and groups by configuration,
-// plan, repository, project, week or month. Its filters and grouping stay in the address.
+
+
+
+
 
 import { useEffect, useMemo, useState } from 'react';
 import { creditOf, filtered, filterLog, givenAt, groupLog, LOG_GROUPS, logChoices, logQuery, type LogFilter, type LogGroup, type LogSection, type LogState, PERIODS, readLogQuery } from '../core/feedback-log';
@@ -17,12 +17,12 @@ import { Select, SelectItem } from './components/select';
 import { cn } from 'cn';
 import { aboutClass, barClass, choiceClass, clearClass, emptyClass, filtersClass, headClass, pageLinkClass, tableClass, titleClass } from './performanceClasses';
 
-/** A filter's value for an unknown harness, model or effort (the empty string in the core), as a `<Select>` can hold it apart from "all". */
+
 const UNKNOWN = '-';
 
-/** A cell of the log: a line under each row, the text on its first line's baseline. */
+
 const cell = 'py-2 px-2.5 border-b border-border text-left align-baseline';
-/** A column's head: small and quiet on one line, standing at the top while the log scrolls under it. */
+
 const headCell = cn(cell, 'text-xs font-semibold text-muted-foreground whitespace-nowrap sticky top-0 bg-surface z-1');
 
 export function FeedbackLog({ projects, here }: { projects: ProjectInfo[]; here: string }) {
@@ -33,13 +33,13 @@ export function FeedbackLog({ projects, here }: { projects: ProjectInfo[]; here:
   const [state, setState] = useState<LogState>(() => readLogQuery(location.search));
   const { filter, group } = state;
   useEffect(() => {
-    // the page's name while it shows, the app's again once a link or the project switcher goes on within the page
+    
     const was = document.title;
     document.title = `${l.title} · Seismic`;
     api.allFeedback().then(setAll, (e) => setError(failText(e)));
     return () => void (document.title = was);
   }, []);
-  // the address keeps the filters and grouping: a reload or a link shows the same
+  
   useEffect(() => history.replaceState(history.state, '', `${feedbackLogPath(here)}${logQuery(state)}`), [state]);
   const setFilter = (f: LogFilter) => setState((s) => ({ ...s, filter: f }));
   const set = (k: keyof LogFilter, v: string | undefined) => {
@@ -54,7 +54,7 @@ export function FeedbackLog({ projects, here }: { projects: ProjectInfo[]; here:
   const credits = useMemo(() => logChoices(all ?? []), [all]);
   const projectName = (id: string) => projects.find((c) => c.id === id)?.name ?? id;
   const ratings = shown.filter((f) => typeof f.answer.rating === 'number').length;
-  // back to the dashboard on the project it was opened from, with the filters it shares
+  
   const shared = logQuery({ filter: { project: filter.project, repo: filter.repo, plan: filter.plan, period: filter.period } });
   const back = `${projectPath(here)}${shared ? `${shared}&` : '?'}performance`;
   const clear = () => setFilter({});
@@ -201,7 +201,7 @@ export function FeedbackLog({ projects, here }: { projects: ProjectInfo[]; here:
   );
 }
 
-/** The columns of what a response is filed under; grouped by one of them, its section heading says it instead. */
+
 const COLUMNS = ['config', 'plan', 'repo', 'project'] as const;
 
 const known = (v: string | undefined) => (v === '' ? UNKNOWN : v);

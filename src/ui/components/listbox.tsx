@@ -1,30 +1,30 @@
-// A listbox with an active option, for the composer's two menus that list what fits what is typed: the
-// skill menu and the card-link menu, whose field is a textarea or a contentEditable. Focus stays in the
-// field; the arrow keys move the active option, Enter (and Tab where it is given) picks it, Escape
-// closes the list and `data-esc` keeps App from also closing the card. No library behind it: a plain
-// search field with a list is `Command` (components/command.tsx), but cmdk owns its input and cannot
-// sit in a textarea or a contentEditable. `useListbox` is the behaviour, `Listbox` the markup with the
-// ARIA wiring, `ListboxMenu` a `Listbox` on the solid surface of the dropdown menu (components/menu.tsx),
-// as a menu over a field shows it; where it stands is the caller's.
+
+
+
+
+
+
+
+
 
 import { cn } from 'cn';
 import { type CSSProperties, type KeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from 'react';
 
 export interface ListboxOptions {
-  /** How many options the list holds. */
+  
   count: number;
-  /** Whether the list is showing: only then do Escape and the arrow keys belong to it. */
+  
   open: boolean;
   onPick: (index: number) => void;
-  /** Escape in the field while the list is open; without it, Escape is not the list's. */
+  
   onEscape?: (e: KeyboardEvent) => void;
-  /** Arrow keys wrap around the ends instead of stopping at them. */
+  
   wrap?: boolean;
-  /** Keys that pick besides Enter. */
+  
   pickKeys?: string[];
-  /** The active option goes back to the first when this changes (the query). */
+  
   resetOn?: unknown;
-  /** The owner moved the active option with a key. */
+  
   onNavigate?: () => void;
 }
 
@@ -36,7 +36,7 @@ export function useListbox({ count, open, onPick, onEscape, wrap = false, pickKe
   const showing = open && count > 0;
   /** Handles a key pressed in the field; true when the list took it. */
   const onKeyDown = (e: KeyboardEvent): boolean => {
-    // Enter and arrows belong to the IME's candidate list while composing (Safari reports the confirming Enter as keyCode 229).
+    
     if (!open || e.nativeEvent.isComposing || e.keyCode === 229) return false;
     if (e.key === 'Escape' && onEscape) {
       e.preventDefault();
@@ -64,7 +64,7 @@ export function useListbox({ count, open, onPick, onEscape, wrap = false, pickKe
     setActive,
     onPick,
     onKeyDown,
-    /** What the field carries: the combobox role and wiring, and `data-esc` while an Escape would close the list. */
+    
     field: {
       role: 'combobox' as const,
       'aria-autocomplete': 'list' as const,
@@ -81,7 +81,7 @@ export type ListboxState = ReturnType<typeof useListbox>;
 /** The options of `items`, each drawn by `children`; the active one is `[data-active]`. A pointer over an option makes it active, a click picks it, and neither moves the focus out of the field. */
 export function Listbox<T>({ box, items, label, className, itemKey, children }: { box: ListboxState; items: T[]; label: string; className?: string; itemKey: (item: T) => string; children: (item: T, index: number) => ReactNode }) {
   const list = useRef<HTMLUListElement>(null);
-  // keyed by what the list holds, not by the array: a parent that rebuilds it on every render must not scroll the list back to the active option
+  
   const held = items.map(itemKey).join('\n');
   useEffect(() => {
     list.current?.children[box.active]?.scrollIntoView({ block: 'nearest' });
@@ -106,7 +106,7 @@ export function Listbox<T>({ box, items, label, className, itemKey, children }: 
   );
 }
 
-/** The surface of a menu over a field: solid, as the dropdown menu's, so the canvas beneath doesn't show through. */
+
 export const listboxMenuClassName =
   'z-5 box-border max-h-[min(320px,45vh)] overflow-x-hidden overflow-y-auto rounded-md border border-glass-edge bg-surface p-1 text-sm text-foreground shadow-lift';
 

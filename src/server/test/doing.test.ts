@@ -25,7 +25,7 @@ describe('what a worker is doing', () => {
     expect(shownDoing(preparing)).toBe('preparingDemo');
     const recording = run(() => preparing, bash('cd /home/me/demos/shop-x && node demo.ts'));
     expect(shownDoing(recording)).toBe('recordingDemo');
-    // what it reports changes nothing; looking at the result is finalizing it
+    
     expect(shownDoing(run(() => recording, tool('mcp__seismic__report')))).toBe('recordingDemo');
     const finalizing = run(() => recording, tool('Read', { file_path: '/home/me/demos/shop-x/report.md' }));
     expect(shownDoing(finalizing)).toBe('finalizingDemo');

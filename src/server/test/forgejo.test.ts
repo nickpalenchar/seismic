@@ -13,7 +13,7 @@ function server(answers: Record<string, unknown>, origin: string | null = null) 
     const key = `${method} ${path.split('?')[0]}`;
     const a = answers[key];
     if (a instanceof Error) throw a;
-    // a list answers on its first page only
+    
     if (page) return page === '1' ? a : [];
     return a;
   };
@@ -48,7 +48,7 @@ test('Forgejo’s answers become a PR status: checks, conversation, reviews and 
       { id: 5, user: { login: 'bot' }, body: 'Summary', html_url: 'https://cb/c5', created_at: '2026-10-02T10:00:00+02:00', updated_at: '2026-10-02T10:09:00+02:00' },
       { id: 6, user: { login: 'owner' }, body: 'Typo fixed', html_url: 'https://cb/c6', created_at: '2026-10-02T10:10:00+02:00', updated_at: '2026-10-02T10:10:30+02:00' },
     ],
-    // the last commit merges the base in: the PR's own changes are older
+    
     'GET repos/acme/app/pulls/12/commits': [
       { commit: { committer: { date: '2026-10-02T07:58:00Z' } }, parents: [{}] },
       { commit: { committer: { date: '2026-10-02T08:20:00Z' } }, parents: [{}, {}] },
@@ -62,9 +62,9 @@ test('Forgejo’s answers become a PR status: checks, conversation, reviews and 
     },
   });
   const s = await forge.status('/repo', URL_);
-  // times in UTC, whatever zone the server or the committer wrote them in
+  
   expect(calls[0]).toEqual({ base: 'https://codeberg.org', method: 'GET', path: 'repos/acme/app/pulls/12' });
-  // the pending review's comments are a draft nobody else sees
+  
   expect(calls.some((c) => c.path.includes('reviews/92'))).toBe(false);
   expect(s).toEqual({
     state: 'OPEN',
@@ -86,7 +86,7 @@ test('Forgejo’s answers become a PR status: checks, conversation, reviews and 
       { id: 'i8', author: 'owner', body: 'Added.', at: '2026-10-02T08:03:00.000Z', path: 'src/a.ts', line: 3, url: 'https://cb/i8', round: '91', replyTo: 'i7' },
     ],
   });
-  // the card shows it as a GitHub PR's: one round, its thread resolved with the agent's reply
+  
   const review = reviewOf(s);
   expect(review.filter((e) => 'threads' in e)).toEqual([
     {
@@ -145,7 +145,7 @@ test('a server without the Forgejo API (GitHub Enterprise, before gh is logged i
   await expect(forge.body('/repo', 'https://github.example.com/team/app/pulls/7')).rejects.toThrow(
     'Not Found; if github.example.com is a GitHub Enterprise server, log gh in there: gh auth login --hostname github.example.com (GET repos/team/app/pulls/7)',
   );
-  // another failure is the server's own
+  
   const { forge: down } = server({ 'GET repos/acme/app/pulls/12': new ForgeError('HTTP 502', 'GET repos/acme/app/pulls/12', 502) });
   await expect(down.body('/repo', URL_)).rejects.toThrow(/^HTTP 502 \(GET/);
 });
@@ -180,7 +180,7 @@ test('a head Forgejo cannot merge is a conflict only once it still cannot at the
   };
   expect(await look()).toEqual(['UNKNOWN', 'UNKNOWN']);
   expect(await look()).toEqual(['CONFLICTING', 'DIRTY']);
-  // a new push is checked afresh
+  
   answers['GET repos/acme/app/pulls/12'] = { ...pr, mergeable: false, head: { sha: 'def' } };
   expect(await look()).toEqual(['UNKNOWN', 'UNKNOWN']);
   answers['GET repos/acme/app/pulls/12'] = { ...pr, mergeable: true, head: { sha: 'def' } };

@@ -1,11 +1,11 @@
-/**
- * The tools a Codex worker reaches what its sandbox keeps from it through:
- * network, a browser, a local server, a git write in a worktree (its `.git` lies in the main
- * repository, outside the workstation), a place outside the workstation. Seismic runs the call itself,
- * on the owner's machine and with the owner's rights; what makes that safe is the gate (the
- * repository's confirmed allow list, else the owner is asked) and the places a command may run in,
- * not a sandbox. Claude workers have no use for them: their own tools and the same allow list cover this.
- */
+
+
+
+
+
+
+
+
 
 import { spawn } from 'node:child_process';
 import { realpathSync } from 'node:fs';
@@ -16,27 +16,27 @@ import { cleanEnv, endWithAgents, type AgentTool, type PermissionAnswer, type Pe
 import { OWN_GROUP } from '../../spawn';
 
 export interface ExecLane {
-  /** The card's workstation on this machine: where commands run by default, and where git works. */
+  
   workstation: string;
-  /** Other places a command may run in (the temporary directories, the demos directory). */
+  
   places: () => string[];
-  /** The `Bash` rules of the allow list the owner confirmed; a command all of whose parts they cover runs without a question. */
+  
   rules: () => string[];
-  /** Asks the owner (the card's question); only an answer that allows lets the command run. */
+  
   ask: (request: PermissionRequest) => Promise<PermissionAnswer>;
-  /** Added to the command's environment. */
+  
   env?: Record<string, string>;
-  /**
-   * Codex's own automatic review decides for the worker (`AgentSpec.autoReview`): a command the
-   * allow list does not cover is not asked, the worker runs it in its own shell with escalated
-   * permissions, where that review judges it.
-   */
+  
+
+
+
+
   auto?: boolean;
 }
 
 export const DEFAULT_TIMEOUT = 300;
 export const MAX_TIMEOUT = 1800;
-/** How much of a command's output the agent gets: this many characters from its start and from its end. */
+
 const OUTPUT_HEAD = 12_000;
 const OUTPUT_TAIL = 12_000;
 
@@ -81,7 +81,7 @@ function execute(command: string, args: string[], o: { cwd: string; env: Record<
         if (OWN_GROUP && p.pid) process.kill(-p.pid, signal);
         else p.kill(signal);
       } catch {
-        // gone already
+        
       }
     };
     const timer = setTimeout(() => {
@@ -101,9 +101,9 @@ function execute(command: string, args: string[], o: { cwd: string; env: Record<
   });
 }
 
-/** The git subcommands the agent may run: the work in its worktree, nothing that reaches a remote or changes git's own settings. */
+
 export const GIT_ALLOWED = new Set(['status', 'diff', 'log', 'show', 'add', 'rm', 'mv', 'restore', 'commit', 'rebase', 'merge', 'cherry-pick', 'stash', 'switch', 'checkout', 'branch', 'reset', 'revert']);
-/** Flags that make git run a program of the caller's choosing, or work somewhere else than in the worktree. */
+
 const GIT_REFUSED_FLAGS = /^(?:--git-dir|--work-tree|--exec|--upload-pack|--receive-pack|--output|--exec-path|--namespace|--super-prefix)(?:=|$)/;
 
 /** Why git with these arguments is not run; null where it is. */
@@ -115,12 +115,12 @@ export function gitRefusal(args: string[]): string | null {
   return flag ? `${flag} is not accepted.` : null;
 }
 
-/** What a Codex worker's system prompt says of its two tools: what they are for, in terms of what its own shell cannot do. */
+
 export const EXEC_LANE_NOTE =
   'Your own shell is sandboxed: it writes only in your workstation and the temporary directories, has no network and cannot reach a local server, and cannot write your worktree’s .git. ' +
   'The tools seismic_run (a shell command outside the sandbox) and seismic_git (git in your workstation) do what it cannot: git writes such as add, commit and rebase, installing packages, running a browser or a local app, recording a demo, writing into the demos directory.';
 
-/** The same for a worker whose approvals Codex's automatic review decides. */
+
 export const EXEC_LANE_AUTO_NOTE =
   'Your own shell is sandboxed: it writes only in your workstation and the temporary directories, has no network and cannot reach a local server, and cannot write your worktree’s .git. ' +
   'For a command the sandbox stops, request escalated permissions: Codex’s automatic review decides, nobody is asked. ' +

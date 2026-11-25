@@ -1,33 +1,33 @@
-// What a restart's reload keeps: which card, plan and sheet were open, where they were scrolled
-// to, where the demo video stood, and what was typed but not sent. Written down just before the
-// reload (sessionStorage, per tab), and taken once by the page that loads.
 
-/** A sheet on the right that is not a plan's, or the archive's view. */
+
+
+
+
 export type SideSheet = 'koordinator' | 'needs-you' | 'settings' | 'agents' | 'archive';
 
 export interface Kept {
   at: number;
-  /** The open card, and the plan whose sheet it was opened from or that is open itself. */
+  
   card?: string;
   plan?: string;
-  /** The plan's plan doc was read in its sheet. */
+  
   reading?: boolean;
   sheet?: SideSheet;
-  /** The configuration's dialog was open over the page. */
+  
   config?: boolean;
-  /** The preferences' dialog was open over the page. */
+  
   prefs?: boolean;
-  /** Scrolled boxes, by `place`. */
+  
   scroll: [string, number][];
-  /** Text fields with a draft in them, by `place`. */
+  
   drafts: [string, string][];
   video?: { time: number; playing: boolean };
 }
 
-/** Where the open things are: the panel of the open card, the sheets, the pinned navigation, the inbox's view, the archive's list and the configuration's dialog. */
+
 export const ROOTS = ['panel', 'sheet', 'ksheet', 'nav', 'amenu', 'config'];
 
-/** How old what was kept may be to come back: a restart takes seconds, a page reloaded much later starts afresh. */
+
 const FRESH_MS = 5 * 60_000;
 export const keptKey = (project: string) => `seismic-kept-${project}`;
 
@@ -80,16 +80,16 @@ export function collect(): Pick<Kept, 'scroll' | 'drafts' | 'video'> {
     const root = document.getElementById(id);
     if (!root) continue;
     for (const el of [root, ...root.querySelectorAll('*')]) if (el.scrollTop > 0) scroll.push([place(root, el), el.scrollTop]);
-    // the configuration's dialog writes down its own drafts (configDraft.ts)
+    
     if (id !== 'config') for (const el of root.querySelectorAll('textarea')) if (el.value.trim()) drafts.push([place(root, el), el.value]);
   }
   const v = document.querySelector<HTMLVideoElement>('#panel video');
   return { scroll, drafts, ...(v && v.currentTime > 0 && !v.ended ? { video: { time: v.currentTime, playing: !v.paused } } : {}) };
 }
 
-/** How long content arriving after the reload may still move the boxes. */
+
 const SETTLE_MS = 2500;
-/** How long a box may wait for content tall enough to scroll as far as it was: a server just restarted answers slowly. */
+
 const WAIT_MS = 20_000;
 
 /**
@@ -119,11 +119,11 @@ export function restore(k: Pick<Kept, 'scroll' | 'drafts' | 'video'>): () => voi
     for (const [name, top] of k.scroll) {
       const el = find(name);
       if (el && el.scrollTop !== top) el.scrollTop = top;
-      // a pixel off (scrolling in fractions of one) counts as back
+      
       if (!el || Math.abs(el.scrollTop - top) > 1) short = true;
     }
     until = settleUntil(start, until, performance.now(), short);
-    // a controlled field takes the draft through the input event React listens to
+    
     for (const [name, text] of drafts) {
       const el = find(name);
       if (!(el instanceof HTMLTextAreaElement)) continue;
@@ -135,14 +135,14 @@ export function restore(k: Pick<Kept, 'scroll' | 'drafts' | 'video'>): () => voi
     const v = video && document.querySelector<HTMLVideoElement>('#panel video');
     if (video && v && v.readyState >= HTMLMediaElement.HAVE_METADATA) {
       v.currentTime = video.time;
-      // a tab reloaded in the background keeps the place but does not play on out of sight
+      
       if (video.playing && !document.hidden) v.play().catch(() => {});
       video = undefined;
     }
     setTimeout(tick, 100);
   };
   tick();
-  // the page went on to another project, whose fields and boxes are not these
+  
   return owner;
 }
 

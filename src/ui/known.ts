@@ -1,4 +1,4 @@
-// A hint that shows until the owner has used once what it points to: one flag in localStorage per hint.
+
 
 /** Whether the owner has used what the hint under `key` points to. */
 export function known(key: string) {

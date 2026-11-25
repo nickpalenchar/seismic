@@ -1,59 +1,59 @@
-// A static site Seismic keeps itself, one of this machine's demo sites (demo-sites.ts) as a project
-// shares on it: the share target for hosts that take a directory and serve it as it is.
-//
-// The site lives under Seismic's home in `sites/<key>/`, the key made of its URL's host and path, so
-// every project sharing on the same site shares one directory (and the one queue all shares go
-// through, `serial` in share.ts). Its `site/` is what is deployed: under each project's path (`paths`
-// in the manifest; '' for the root) one directory per page with the demo's files, its `index.html`
-// and a `meta.json`, plus that path's overview and feed. A project's path is initialized before its
-// first page (`init`): its entry in the manifest, with the title, language, tag vocabulary and
-// theme its overview is written with, so that a deploy from any project or machine writes every
-// path's overview alike. A host
-// deployment is a full snapshot of that directory, so each publish or withdrawal changes it and runs
-// the deploy line on the whole of it (`{dir}` in the line stands for it), with the `KEY=value` lines
-// of the site's env file added to its environment. A deploy that fails puts the page back as it was
-// (it is set aside in `backup/` meanwhile); a directory lacking pages Seismic has as shared is not
-// deployed, since the deployment would take them offline.
-//
-// Several machines may publish to one site, so each change pulls before it pushes: the site's
-// manifest (`obeya-site.json`: every page with its files, a revision and the machine; tombstones
-// for withdrawn pages) is read first, pages missing here or newer there are downloaded, pages
-// withdrawn there removed; it is read again right before the deploy and after it, and a change
-// another machine's deployment came in between with is made once more. A deployment that lands
-// later still takes pages offline: `audit` finds the pages shared from here that the live site
-// lacks, and `repair` deploys them again. A manifest that cannot be read refuses the deploy (a site
-// with nothing at its URL is the first one). A host may answer every missing file with a page of its
-// own (Cloudflare Pages serves the overview): a manifest answered that way is missing, not unreadable.
-//
-// The pages come from Seismic's own templates (`demo-page.ts`), each in its demo's language, the
-// overview in the site's. A call writes only its own page and the overview: a page shared earlier
-// keeps the template it was written with until it is published again (the page changes since,
-// page-changes.ts, say what that would bring). A page published again with the same video, or the same artifact
-// files, keeps its date, so the overview keeps its order when pages are brought up to date or get
-// their pull request's link. What counts is the demo's own files (`source` in meta.json), not the
-// copies on the site, which carry what Seismic adds to an artifact (artifact-copy.ts).
-//
-// A repository's theme (theme.ts) goes into each page of its cards, and into the overview of a listed
-// site whose target names it (the repository publishing), after Seismic's style. Without one, the
-// pages are what they were.
-//
-// A host may serve no byte ranges (Cloudflare Pages does not): the video page then loads the video
-// whole, so a browser can seek in it (`demo-page.ts`).
-//
-// A host that reads a `_headers` file (Cloudflare Pages, Netlify) sends an artifact's files with the
-// headers that keep it from the internet beyond what its CSP covers (`artifactHeaders`).
-//
-// A site in a folder of an existing GitHub repository (`site.git`, github-folder.ts) reads and
-// writes through a clone of that folder instead: its manifest and pages come from the branch the
-// change goes on, the change is a commit there, and a push rejected because another machine pushed
-// meanwhile makes the change once more. In pull-request mode the change is pending until the rolling
-// pull request is merged (`merge` in what a publish returns). No deployment can take a page offline
-// there, so `audit` finds nothing missing: what the folder lacks, a person took off or never merged.
-//
-// An unlisted site (demo-sites.ts) has `unlisted`: a page lies at `<path>/<token>/<slug>/`, the
-// token drawn per card; the manifest lies in a secret directory; the root and
-// the answer to a missing address are blank; there is no feed; pages and headers keep search engines
-// out and send no referrer.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { bothNames } from '../core/env';
 import { createHash, randomUUID } from 'node:crypto';
@@ -78,36 +78,36 @@ import { folderStore } from './github-folder';
 import { COMMAND_TIMEOUT, commandWords, SHARE_CWD, type SharePage, type ShareTarget, scriptArgv, tail } from './share';
 import { messageOf } from '../core/text';
 
-/** Where the sites live under Seismic's home. */
+
 export const SITES_DIR = 'sites';
-/** The largest file a site takes without `maxFile` (Cloudflare Pages' limit). */
+
 export const MAX_FILE = 25 * 1024 * 1024;
 
-/** What a page's directory on the site keeps besides its files, for the overview. */
+
 interface Meta {
-  /** Absent on video pages. */
+  
   kind?: 'html';
   title: string;
   text: string;
   chapters: [number, string][];
   pr: string | null;
-  /** Without a pull request: where the work landed on the default branch; absent before it did, and on pages from before (until 2026-10-30). */
+  
   commit?: PageCommit;
-  /** When it was first shared, and when its video or artifact last changed (the date the page and the overview show). */
+  
   first: string;
   at: string;
-  /** A hash of the video or the artifact's files as the demo has them. */
+  
   source: string;
   language: PageLanguage;
-  /** Who shared it: git's name (`user.name`) in the repository of the Seismic that published it; absent on pages from before (until 2026-10-20) or where git has none. */
+  
   by?: string;
-  /** The later demo versions on the page, in order of handover, each in a directory of the page's (`dir`). */
+  
   more?: MoreMeta[];
-  /** The page's tags from the site's vocabulary (the project's), by dimension; absent on pages without. */
+  
   tags?: PageTags;
 }
 
-/** A later demo version on a page: what its section shows, and when it was handed over (`handed`, its heading). */
+
 interface MoreMeta {
   kind?: 'html';
   title: string;
@@ -144,7 +144,7 @@ export const siteName = (site: DemoSite) => site.url.replace(/^https?:\/\//, '')
 const envPath = (home: string, site: DemoSite) => {
   if (!site.env) return null;
   const file = resolve(home, site.env);
-  // under the home alone (the settings' check says so): what is in it goes to the site's URL
+  
   if (!file.startsWith(resolve(home) + sep)) throw new Refused(`the site's env file ${site.env} is not under Seismic's home`);
   return file;
 };
@@ -174,78 +174,78 @@ export function parseEnv(text: string): Record<string, string> {
 
 class Refused extends Error {}
 
-/** The site's manifest, at its root: every page with its files, the pages withdrawn, and the projects' paths. */
-/** The manifest keeps its name from before the rename: published sites and other machines read it by that path (docs/design.md). */
+
+
 export const MANIFEST = 'obeya-site.json';
 
-/** A page in the manifest, or a withdrawn one (a tombstone). Only the machine whose card it is changes a page, so its revision counts up. */
+
 interface Entry {
   rev: number;
-  /** Which machine wrote this revision (its host name). */
+  
   machine: string;
-  /** When: written, or withdrawn. */
+  
   at: string;
   withdrawn?: true;
   meta?: Meta;
-  /** Every file of the page's directory, its path relative to it. */
+  
   files?: Record<string, { size: number; hash: string }>;
 }
 
 interface Manifest {
-  /** Names the deployment that carried it, so the check after a deploy tells its own from another machine's. */
+  
   deploy: string;
   machine: string;
   at: string;
   pages: Record<string, Entry>;
-  /** The projects' paths on the site ('' for its root), each with what its overview is written with; absent on sites from before (until 2026-11-06). */
+  
   paths?: Record<string, PathInfo>;
 }
 
-/** A project's path on the site: what its overview and feed are written with. */
+
 interface PathInfo {
   title: string;
   language: PageLanguage;
-  /** The project's vocabulary of tags, for the overview's filter. */
+  
   tags?: PageTags;
-  /** The theme of the repository that published there last (its CSS), for the overview. */
+  
   theme?: string;
 }
 
-/** The live site: its manifest; none for a site not deployed yet. */
+
 interface Live {
   deploy: string | null;
   pages: Record<string, Entry>;
   paths: Record<string, PathInfo>;
 }
 
-/** A page this Seismic may have as shared that another machine withdrew. */
+
 export interface Gone {
   slug: string;
   machine: string;
 }
 
 export interface SiteOptions {
-  /** This machine's name in the manifest; the host name (without its domain) without it. */
+  
   machine?: string;
-  /** How long to wait (ms) before each look at the live site after a deploy, until it shows the deployment. */
+  
   checkWaits?: number[];
-  /** The overview's words: the language the repository names for its demos (`demo.language`); without it the narration language of the demo settings. */
+  
   language?: PageLanguage;
-  /** The project's path on the site, where its pages and overview lie (`billing`); '' (the root) without it. Its pages' places start with it. */
+  
   path?: string;
-  /** Who the pages published from here say shared them; git's name (`user.name`) in the repository without it. */
+  
   by?: string;
-  /**
-   * An unlisted site (the owner's personal one): each page under a random part of its address
-   * (`<token>/<slug>`), the manifest under a secret directory, no overview and no feed, nothing
-   * for search engines, no referrer for the links leaving it.
-   */
+  
+
+
+
+
   unlisted?: { secret: string };
-  /** The theme of the repository publishing (theme.ts), for the overview: a listed site's overview of the path carries the theme of the repository that published there last. */
+  
   theme?: () => Theme | null;
-  /** Runs gh and git for a site in a repository's folder; a stand-in in tests. */
+  
   x?: Exec;
-  /** The repository a folder site's clone fetches from and pushes to, in place of GitHub's; tests name a local one. */
+  
   gitRemote?: string;
 }
 
@@ -259,11 +259,11 @@ function gitName(repo: string): string | undefined {
   }
 }
 
-/** About 30 s for a deployment to show: a host or its CDN may serve the earlier one for a moment. */
+
 const CHECK_WAITS = [0, 1000, 2000, 4000, 8000, 15000];
-/** About two minutes on GitHub Pages, whose build takes a minute or so after the push. */
+
 const PAGES_CHECK_WAITS = [0, 5000, 10000, 15000, 20000, 30000, 40000];
-/** Reading the manifest takes a moment; a file of a page (at most the site's limit) a few minutes on a slow line. */
+
 const FETCH_TIMEOUT = 30_000;
 const DOWNLOAD_TIMEOUT = 5 * 60_000;
 
@@ -290,15 +290,15 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
     const theme = opts.theme?.()?.css;
     return { title: site.title, language: overviewLanguage(), ...(dimensions(site.tags).length ? { tags: site.tags } : {}), ...(theme ? { theme } : {}) };
   };
-  /** Where the manifest is on the site: at its root, or in the unlisted site's secret directory. */
+  
   const manifestAt = opts.unlisted ? `${opts.unlisted.secret}/${MANIFEST}` : MANIFEST;
-  /** A site in a folder of an existing repository: git holds its pages. */
+  
   const store = site.git
     ? folderStore({ repo: commandWords(site.deploy)[1] ?? '', git: site.git, clone: join(base, 'repo'), manifestAt, pageUrl: (place) => pageUrl(site, place), unlisted, ...(opts.x ? { x: opts.x } : {}), ...(opts.gitRemote ? { remote: opts.gitRemote } : {}) })
     : null;
-  /** A GitHub Pages site: no `_headers` file, which only Cloudflare and Netlify read. */
+  
   const github = !!store || commandWords(site.deploy)[0] === GITHUB_PAGES;
-  /** The rolling pull request the last change went into, in pull-request mode. */
+  
   let pending: string | undefined;
 
   /** The site lives only in its directory: one that lost pages Seismic has as shared would drop them with the next deployment. */
@@ -379,13 +379,13 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
       const body = await r.text();
       const m = manifestOf(body);
       if (m) return { deploy: m.deploy, pages: m.pages, paths: m.paths ?? {} };
-      // a host may answer a missing file with a page of its own (Cloudflare Pages serves the
-      // overview for a site without a 404.html): the manifest is missing when a file that cannot
-      // be there gets the same answer
+      
+      
+      
       const missing = await answer(`${manifestAt}.${randomUUID()}`);
       if (!missing.ok || (await missing.text()) !== body) throw unreadable(t.notManifest);
     } else if (r.status !== 404) throw unreadable(status(r));
-    // no manifest: a site not deployed yet
+    
     return { deploy: null, pages: {}, paths: {} };
   };
 
@@ -466,11 +466,11 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
           copyFileSync(have, to);
           continue;
         }
-        // read whole (a file is at most the site's limit), so the timeout covers the body too
+        
         let bytes: Uint8Array;
         try {
           if (store) {
-            // the clone checked the folder out
+            
             const at = join(store.root, slug, f);
             if (!existsSync(at)) throw new Error('not in the repository');
             bytes = new Uint8Array(readFileSync(at));
@@ -486,7 +486,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
         writeFileSync(to, bytes);
       }
       rmSync(join(dir, slug), { recursive: true, force: true });
-      // a page under a project's path, or in the random part of its address, lies a level deeper
+      
       mkdirSync(dirname(join(dir, slug)), { recursive: true });
       mkdirSync(into, { recursive: true });
       renameSync(into, join(dir, slug));
@@ -538,9 +538,9 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
       rmSync(join(dir, FEED), { force: true });
       return;
     }
-    // a site from before the paths keeps its overview at the root while pages lie there
+    
     const overviews: [string, PathInfo][] = at.length ? Object.entries(paths) : readPages(dir).length ? [['', ownInfo()]] : [];
-    // the root of a site whose projects all have a path of their own lists none of them
+    
     if (!overviews.some(([p]) => p === '')) writeFileSync(join(dir, 'index.html'), BLANK_PAGE);
     for (const [p, info] of overviews) {
       const { tags: _, ...bare } = site;
@@ -559,7 +559,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
   const deploy = async (env: Record<string, string>): Promise<string> => {
     mkdirSync(dir, { recursive: true });
     const words = commandWords(site.deploy).map((a) => a.replaceAll('{dir}', dir));
-    // the deploy Seismic builds in for GitHub Pages
+    
     if (words[0] === GITHUB_PAGES) {
       try {
         const host = new URL(site.url).hostname;
@@ -570,7 +570,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
       }
     }
     const argv = scriptArgv(words, repo);
-    // from the root of the repository whose demo goes out (Seismic's home where there is none, adding a site)
+    
     const cwd = repo !== home && existsSync(repo) ? repo : join(home, SHARE_CWD);
     mkdirSync(cwd, { recursive: true });
     keepOutOfGit(cwd);
@@ -617,9 +617,9 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
       const live = await readLive(env);
       const local = readLocal();
       const lost = await pull(local, live, env, log);
-      // the paths as the live site has them, the project's own as it is now
+      
       const paths = { ...local.paths, ...live.paths };
-      // a page going out under the path puts it there too, as Initialize does
+      
       if (register || slug || own in paths) paths[own] = ownInfo();
       if (Object.keys(paths).length) local.paths = paths;
       gone.push(...lost.filter((g) => g.slug !== slug));
@@ -648,7 +648,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
         const id = writeLocal(local);
         writeOverview(local);
         if (store) {
-          // git says whether another machine came in between: the push is rejected
+          
           const pushed = await store.push(dir, message);
           if (pushed === 'rejected') seen = false;
           else {
@@ -657,7 +657,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
             seen = true;
           }
         } else {
-        // another machine deployed since the pull: its deployment would be lost, so pull again
+        
         const now = await readLive(env);
         if (now.deploy !== live.deploy) seen = false;
         else {
@@ -710,7 +710,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
     publish: (p: SharePage, log = () => {}) =>
       attempt(async (gone) => {
         const slug = checkSlug(p.slug);
-        // the first version at the page's root, each later one in a directory of its own
+        
         const parts = [{ ...p, sub: '' }, ...(p.more ?? []).map((m, i) => ({ ...m, sub: String(i + 2) }))];
         const ready = await Promise.all(
           parts.map(async (d) => {
@@ -718,7 +718,7 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
             const html = d.kind === 'html';
             const files = html ? artifactFiles(d.dir) : DEMO_FILES.filter((f) => demoFile(d.dir, f));
             for (const f of html ? ['index.html'] : ['demo.mp4', 'captions.vtt']) if (!files.includes(f)) throw new Refused(t.fileMissing(f, d.dir));
-            // what the artifact loads in CORS mode goes into its copy (artifact-copy.ts)
+            
             const copy = html ? await artifactCopy(d.dir, files, new URL(site.url).origin) : new Map<string, string>();
             const max = site.maxFile ?? MAX_FILE;
             for (const f of files) {
@@ -734,10 +734,10 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
           p.shared ?? [],
           (rev, entry) => {
             const before = entry?.withdrawn ? null : entry?.meta;
-            // a version keeps its date while its demo's own files stay the same, wherever it was on the page
+            
             const dated = new Map<string, string>(before ? [[before.source, before.at], ...(before.more ?? []).map((m) => [m.source, m.at] as [string, string])] : []);
             const now = new Date().toISOString();
-            // the one whose Seismic publishes it now; a machine whose git has no name keeps whom the page named
+            
             const by = opts.by ?? gitName(repo) ?? before?.by;
             const written = ready.map(({ d, html, files, copy }) => {
               const into = join(target, d.sub, html ? ARTIFACT_DIR : '');
@@ -807,11 +807,11 @@ export function siteTarget(site: DemoSite, repo: string, home: string, t: Messag
           const mine = local.pages[slug];
           return e.withdrawn && mine && !mine.withdrawn && mine.rev < e.rev ? [{ slug, machine: e.machine }] : [];
         });
-        // shared from here, and not on the live site as written here: another machine's deployment took it offline.
-        // Not in a repository's folder, in either mode: git refuses a push that would drop another
-        // machine's commit, so a page the branch lacks or has older was taken off there by a person,
-        // or only ever proposed (in a pull request closed, or still open, before a switch to direct
-        // publishing). Only an explicit share puts those out again, never the minute check.
+        
+        
+        
+        
+        
         const missing = store ? [] : shared.filter((slug) => {
           const mine = local.pages[slug];
           return mine && !mine.withdrawn && (live.pages[slug]?.rev ?? 0) < mine.rev;
@@ -912,24 +912,24 @@ export function pagesHash(): { video: string; html: string; stacked: string } {
   };
   const hash = (pages: string[]) => createHash('sha256').update(pages.join('\0')).digest('hex').slice(0, 12);
   const languages: PageLanguage[] = ['en'];
-  // without a pull request, the commit (the commits) the work landed as
+  
   const commit = { url: 'https://github.com/o/r/commit/b' };
   const commits = { url: 'https://github.com/o/r/compare/a...b', several: true as const };
   const video = hash(languages.flatMap((language) => [pageHtml(site, { ...sample, language }, () => true), pageHtml(site, { ...sample, language, pr: null, commit }, () => true)]));
   const html = hash(languages.map((language) => pageHtml(site, { ...sample, kind: 'html', chapters: [], language }, () => false) + sealed(withImageViewer(withHeightReport('<body></body>')), new URL(site.url).origin)));
-  // a page with several versions: a video, then an artifact and a video as addenda
+  
   const more: MoreMeta[] = [
     { kind: 'html', title: 'Second', text: 'A detail.', chapters: [], dir: '2', handed: at, at, source: '' },
     { title: 'Third', text: 'Another detail.', chapters: [[0, 'Only']], dir: '3', handed: at, at, source: '' },
   ];
-  // the same on every machine: the time of an addendum is said in the machine's time zone
+  
   const stacked = hash(languages.flatMap((language) => [pageHtml(site, { ...sample, language, more }, () => true, 'UTC'), pageHtml(site, { ...sample, language, more, pr: null, commit: commits }, () => true, 'UTC')]));
   return { video, html, stacked };
 }
 
-/** The file a host such as Cloudflare Pages or Netlify reads the headers of the site's files from; on another host it is a file nobody asks for. */
+
 export const HEADERS = '_headers';
-/** The page a host (Cloudflare Pages, GitHub Pages, Netlify) answers an address it lacks with. */
+
 export const NOT_FOUND = '404.html';
 
 /** Every file of an unlisted site is kept out of search engines, and a link leaving it says nothing of where it came from. */
@@ -947,9 +947,9 @@ const unlistedHeaders = () => `/*
 export function artifactHeaders(site: DemoSite, unlisted = false, paths: string[] = []): string {
   const u = new URL(site.url);
   const base = u.pathname.replace(/\/+$/, '');
-  // under each project's path, on an unlisted site behind the random part of the page's address
+  
   const prefixes = (paths.length ? paths : ['']).map((p) => (p ? `${base}/${p}` : base) + (unlisted ? '/:token' : ''));
-  // an artifact as the page's first version, and as a later one in a directory of its own
+  
   return prefixes
     .flatMap((path) => [`${path}/:slug/${ARTIFACT_DIR}/*`, `${path}/:slug/:n/${ARTIFACT_DIR}/*`])
     .map(
@@ -983,7 +983,7 @@ function pageHtml(site: DemoSite, m: Meta, poster: (dir: string) => boolean, tim
       ? { unlisted: true as const }
       : {
           top: { href: '../', text: w.allDemos },
-          // each links the overview showing the pages that have it
+          
           tags: Object.entries(m.tags ?? {}).flatMap(([dimension, values]) => values.map((value) => ({ dimension, value, href: `../?${new URLSearchParams({ [dimension]: value })}` }))),
         }),
   };
@@ -1011,13 +1011,13 @@ function readPages(dir: string): (Meta & { slug: string })[] {
     .sort((a, b) => newest(b).localeCompare(newest(a)));
 }
 
-/** The site's Atom feed, at its root beside the overview. */
+
 export const FEED = 'feed.xml';
 
 /** The first sentence of a page's text, as the overview shows it. */
 const firstSentence = (t: string) => (t.match(/^.+?[.!?](?=\s|$)/)?.[0] ?? t).slice(0, 240);
 
-/** The style the overview adds: its filter (search, a row of chips per dimension), the count and "Copy links", each page's copy icon. */
+
 const OVERVIEW_STYLE = `
   .filter { display: grid; gap: 12px; margin: 0 0 20px; }
   .filter input { font: inherit; font-size: 15px; width: 100%; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--ink); box-shadow: var(--shadow); transition: border-color 0.15s, box-shadow 0.15s; }
@@ -1045,7 +1045,7 @@ const OVERVIEW_STYLE = `
   .none { color: var(--muted); font-size: 14px; padding: 16px 0; }
 `;
 
-/** Two overlapping sheets: the mark for copying. */
+
 const COPY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
 
 /**

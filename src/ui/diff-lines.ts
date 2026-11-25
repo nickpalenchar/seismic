@@ -1,30 +1,30 @@
-// A file's diff as lines to draw: its hunks read from the patch, the unchanged lines between and
-// around them once the whole file is there, the pairs of a split layout, and the words that changed
-// within a changed line.
+
+
+
 
 import { diffWordsWithSpace } from 'diff';
 
 export type LineKind = 'context' | 'added' | 'removed';
 
-/** A line of the diff, with its number in the old file, the new one, or both. */
+
 export interface DiffLine {
   kind: LineKind;
   text: string;
   old?: number;
   new?: number;
-  /** Where the line differs from the one it replaces or is replaced by: `[from, to)` in `text`. */
+  
   marks?: [number, number][];
-  /** The file ends with this line, without a newline after it. */
+  
   noEol?: true;
 }
 
 export interface Hunk {
-  /** First line in the old and the new file (the line before it where the hunk takes none from that side). */
+  
   oldStart: number;
   oldCount: number;
   newStart: number;
   newCount: number;
-  /** What git names after the hunk's numbers: the function or heading it is in. */
+  
   section: string;
   lines: DiffLine[];
 }
@@ -50,7 +50,7 @@ export function parseHunks(patch: string[]): Hunk[] {
       continue;
     }
     if (hunk && line.startsWith('\\')) {
-      // `\ No newline at end of file`, about the line before it
+      
       const last = hunk.lines.at(-1);
       if (last) last.noEol = true;
       continue;
@@ -65,7 +65,7 @@ export function parseHunks(patch: string[]): Hunk[] {
       hunk.lines.push({ kind: 'added', text, new: neu++ });
       left.new--;
     } else if (sign === ' ' || line === '') {
-      // a blank context line may have lost its space on the way
+      
       hunk.lines.push({ kind: 'context', text, old: old++, new: neu++ });
       left.old--;
       left.new--;
@@ -93,7 +93,7 @@ export function gap(hunks: Hunk[], i: number, newLength?: number): { from: numbe
   return { from: prev.newTo, to: next ? next.newFrom : newLength === undefined ? null : newLength + 1, shift: prev.newTo - prev.oldTo };
 }
 
-/** The unchanged lines git shows around a change (its default, and what Seismic asks of it for a folder). */
+
 export const CONTEXT = 3;
 
 /**
@@ -122,7 +122,7 @@ export function splitLines(text: string): string[] {
   return lines;
 }
 
-/** One row of a split diff: the old file's line on the left, the new one's on the right; a side without one is empty. */
+
 export interface SplitRow {
   left?: DiffLine;
   right?: DiffLine;

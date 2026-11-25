@@ -12,8 +12,10 @@
     "build:app": "bun scripts/build-app.ts",
     "app": "bun scripts/app.ts",
     "test": "bun test --parallel",
-    "typecheck": "tsc --noEmit && bun run lint",
-    "lint": "oxlint --deny-warnings src/ui"
+    "knip": "knip-bun --include dependencies",
+    "validate": "bun run knip && bun run typecheck",
+    "typecheck": "tsc --noEmit && bun run lint --all",
+    "lint": "bun tools/lint.ts"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.12.1",
@@ -22,6 +24,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "drizzle-kit": "^0.31.11",
+    "knip": "^6.48.0",
     "oxlint": "^1.94.0",
     "typescript": "^7.0.2"
   },

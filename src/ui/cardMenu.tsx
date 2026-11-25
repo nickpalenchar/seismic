@@ -1,9 +1,9 @@
-// A card's task field, where other cards are linked (`cardRefs.ts`): an editable text in which each
-// linked card stands as its smart link, a pill that the cursor steps over and that Backspace or
-// Delete takes out whole. The text is kept as markdown, a pill as the link to its card's address.
-// `/` and words of a title open a menu of the project's cards that fit, just under the line being
-// typed, each as the smart link it will become. The arrow keys move the active option, Enter, Tab or a click picks,
-// Escape closes it and leaves the card open. Picking puts the pill and a space in place of the search.
+
+
+
+
+
+
 
 import { type ClipboardEvent, forwardRef, useContext, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import type { Item } from '../core/types';
@@ -18,16 +18,16 @@ import { Cards } from './message';
 import { t } from './strings';
 import { PromptInputHint } from './components/ai/prompt-input';
 
-/** What the task field offers the card around it. */
+
 export interface LinkFieldHandle {
   el: HTMLDivElement | null;
-  /** Types `s` where the cursor is, as a keystroke would. */
+  
   type: (s: string) => void;
-  /** Puts the cursor at the end of the text. */
+  
   focusEnd: () => void;
 }
 
-/** The flag of a priority, as `PriorityMark` draws it (Lucide's Flag, as markup since the pill is built outside React). */
+
 const FLAG = '<svg class="lucide lucide-flag" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/></svg>';
 
 /** A pill as the field holds it: its card's state, title and priority, the link it stands for in its data. */
@@ -86,15 +86,15 @@ function searchAt(root: HTMLElement): { search: CardSearch; node: Text; offset: 
   holder.append(before.cloneContents());
   const text = textOf(holder);
   const search = cardSearchAt(text, text.length);
-  // the search lies within the text node the cursor is in (a pill or a line break ends it)
+  
   if (!search || search.query.length + 1 > at.startOffset) return null;
   return { search, node: at.startContainer as Text, offset: at.startOffset };
 }
 
-/** Where the menu stands in the field's frame, and how wide it is. */
+
 type Place = { left: number; top: number; width: number };
 
-/** How wide the menu is at most. */
+
 const MENU_WIDTH = 460;
 
 /** Just under the line of the search's slash, from the slash on, but not out past the field's right edge. */
@@ -110,22 +110,22 @@ function menuPlace(root: HTMLElement, node: Text, slash: number): Place | undefi
   return {
     width,
     left: box.left - frame.left + Math.max(0, Math.min(at.left - box.left - 8, box.width - width)),
-    // never below the field's bottom edge, where its text scrolls on
+    
     top: Math.min(at.bottom, box.bottom) - frame.top + 4,
   };
 }
 
-/**
- * The task text of card `self` (`value`, markdown), edited in place; `onChange` hears each change.
- * The menu stands in the positioned frame around the field, the hint under it.
- */
+
+
+
+
 export const LinkField = forwardRef<
   LinkFieldHandle,
   { self: Item; value: string; placeholder: string; className?: string; onChange: (md: string) => void; onPaste?: (e: ClipboardEvent) => void }
 >(function LinkField({ self, value, placeholder, className, onChange, onPaste }, handle) {
   const { items } = useContext(Cards);
   const root = useRef<HTMLDivElement>(null);
-  // the text the field holds, as last read or written: a value that differs came from outside
+  
   const held = useRef<string | null>(null);
   const [focused, setFocused] = useState(false);
   const [found, setFound] = useState<{ search: CardSearch; place?: Place } | null>(null);
@@ -135,7 +135,7 @@ export const LinkField = forwardRef<
     held.current = value;
     fill(root.current, value, items);
   }, [value]);
-  // the pills follow their cards: a new title, another state or priority
+  
   useEffect(() => {
     for (const el of root.current?.querySelectorAll<HTMLElement>('[data-href]') ?? []) dress(el, referenced(items, el.dataset.href!));
   }, [items]);
@@ -174,7 +174,7 @@ export const LinkField = forwardRef<
     const el = root.current;
     const at = el && searchAt(el);
     if (!el || !at) return;
-    // put in by hand: the browser's insertHTML lifts a pill out of its line
+    
     const r = document.createRange();
     r.setStart(at.node, at.offset - at.search.query.length - 1);
     r.setEnd(at.node, at.offset);
@@ -182,7 +182,7 @@ export const LinkField = forwardRef<
     const space = document.createTextNode('\u00a0');
     r.insertNode(space);
     r.insertNode(pill(cardPath(projectOf(card.id), card), linkText(card.title), card));
-    // the cursor after the space after it
+    
     const sel = getSelection()!;
     sel.removeAllRanges();
     sel.collapse(space, 1);
@@ -196,7 +196,7 @@ export const LinkField = forwardRef<
     pickKeys: ['Tab'],
     resetOn: found?.search.query,
     onPick: (i) => pick(menu[i]!),
-    // while the menu is open, Escape closes it, not the card
+    
     onEscape: () => found && setDismissed(found.search.start),
   });
   return (
@@ -225,7 +225,7 @@ export const LinkField = forwardRef<
         onPaste={(e) => {
           onPaste?.(e);
           if (e.defaultPrevented) return;
-          // only the words: a page's formatting has no place in the task
+          
           e.preventDefault();
           document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
         }}
@@ -243,7 +243,7 @@ function CardMenu({ cards, box, at }: { cards: Item[]; box: ListboxState; at?: P
     <ListboxMenu className="card-menu absolute left-0 top-full mt-1 [&_li]:items-center! [&_li]:justify-between" style={at} box={box} items={cards} label={t.cardRefs.menu} itemKey={(c) => c.id}>
       {(c) => (
         <>
-          {/* a click on it picks the card rather than opening it */}
+          { }
           <span className="cm-pill min-w-0 pointer-events-none">
             <SmartLink href={cardPath(projectOf(c.id), c)} text={c.title} />
           </span>

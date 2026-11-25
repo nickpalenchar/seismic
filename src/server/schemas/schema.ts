@@ -1,6 +1,6 @@
-// Every table of Seismic's database, each defined in its model: what the shared Drizzle connection
-// (`Store.orm`, db.ts) knows, with the relations its relational queries follow (`with: { idea: true }`). It must describe the database the migrations in db.ts build;
-// schema.test.ts holds it to that.
+
+
+
 
 export { activity } from './activity';
 export { agentRuns } from './agent-runs';

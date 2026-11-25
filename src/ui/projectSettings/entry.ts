@@ -1,4 +1,4 @@
-// A project's entry as its editor saves it: over the configuration as saved at that moment.
+
 
 import type { ProjectConfig, RepoConfig } from '../../core/types';
 
@@ -13,14 +13,14 @@ export function entryDraft(entry: ProjectConfig, saved: ProjectConfig | null = e
       if (repo.originalPath !== undefined) return { ...repo, originalPath: repo.originalPath };
       const original = saved?.repos.find((r) => r.path.trim() === repo.path.trim());
       if (original) return { ...repo, originalPath: original.path };
-      // A draft from before identities were stored can have a changed path of unknown origin.
+      
       const { path, git } = repo;
       return { path, ...(git === false ? { git } : {}), originalPath: null };
     }),
   };
 }
 
-/** The project fields owned by the entry editor. */
+
 const EDITED = ['name', 'id', 'oldNames', 'icon'] as const;
 
 /**

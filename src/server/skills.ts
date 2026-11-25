@@ -1,28 +1,28 @@
-// The skills a card's agent can be asked for by `/name` in the owner's words, as Claude Code lists
-// them for a session in that repository: the repository's own, the user's, those of the plugins the
-// session loads, and the skills Claude Code brings. Claude Code tells without a session doing any work
-// (no message, no tokens): a process starts, answers, and ends.
+
+
+
+
 
 import { query, type SlashCommand } from '@anthropic-ai/claude-agent-sdk';
 import type { Skill } from '../core/types';
 import { cleanEnv, spawnHere } from './runtime';
 import { claudeExecutable } from './llms/harnesses/claude';
 
-/** Where an agent works, as far as its skills go. */
+
 export interface SkillPlace {
   cwd: string;
-  /** Local plugins the agent's sessions load. */
+  
   plugins: string[];
-  /** The repository's Claude Code settings wait for the owner's trust: the session reads none of its files, its skills neither. */
+  
   untrusted: boolean;
 }
 
-/** Lists the skills of a session at `place`. */
+
 export type SkillLister = (place: SkillPlace) => Promise<Skill[]>;
 
-/** How long a list stays as it was asked; after that it is asked again, and the old one serves meanwhile. */
+
 const FRESH_MS = 2 * 60_000;
-/** A Claude Code that does not answer within this has no skills to offer. */
+
 const ANSWER_MS = 20_000;
 
 /**
@@ -64,7 +64,7 @@ const DESCRIPTION_MAX = 200;
 export const sdkSkills: SkillLister = async (place) => {
   const abort = new AbortController();
   const claude = claudeExecutable();
-  // no message ever comes: the session answers its control requests and ends with the abort
+  
   const prompt = (async function* () {
     await new Promise((r) => abort.signal.addEventListener('abort', r));
   })() as AsyncIterable<never>;
@@ -83,7 +83,7 @@ export const sdkSkills: SkillLister = async (place) => {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const late = new Promise<never>((_, fail) => (timer = setTimeout(() => fail(new Error('Claude Code did not list its skills')), ANSWER_MS)));
-    // which of Claude Code's own commands are skills, only the skill list says
+    
     const [commands, skills] = await Promise.race([Promise.all([q.supportedCommands(), q.reloadSkills().then((r) => r.skills)]), late]);
     return skillsOf(commands, new Set(skills.map((s) => s.name)));
   } finally {

@@ -1,23 +1,23 @@
-/**
- * The base class of Seismic's agents. An agent is a role, a model (chosen per run, since many agents
- * have no fixed one), skills, MCPs, in-process tools and prompts. A subclass supplies the pieces; the
- * base class assembles an `AgentSpec` and starts it on a runtime (`src/server/llms/harnesses/`).
- *
- * ```ts
- * class WorkerAgent extends SeismicAgent<WorkerContext> {
- *   readonly role = 'worker';
- *   readonly name = 'worker';
- *   readonly description = 'Works one card: implementation, checks, demo.';
- *   getModel(ctx) { return ctx.setting; }
- *   getPrompt(ctx) { return workerSystemPrompt(ctx); }
- *   getBriefing(ctx) { return briefing(ctx.card); }
- *   getTools(ctx) { return workerTools(ctx); }
- * }
- * ```
- *
- * Session options (where it shows, trust flags, hooks that carry news and ask the owner) come from
- * `getSessionOptions`.
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import type { AgentRole, AgentSetting } from '../../../core/types';
 import type { AgentEvent, AgentRuntime, AgentSession, AgentSpec, AgentTool } from '../../runtime';
 import { ownerPermission } from './permission';
@@ -25,23 +25,23 @@ import { CapabilityCheck, mergeCapabilities } from '../models/capabilityCheck';
 import type { Capabilities, SeismicModel } from '../models/seismicModel';
 import type { AgentMcp, AgentPermission, AgentSkill, SessionOptions } from './types';
 
-/** What a run needs from its caller. */
+
 export interface AgentRun {
   cwd: string;
   onEvent: (e: AgentEvent) => void;
-  /** Resume this session instead of starting one. */
+  
   resume?: string;
-  /** Files that go with the first message. */
+  
   images?: string[];
 }
 
 export abstract class SeismicAgent<Ctx = void> {
-  /** Ties the agent to its settings entry (`AGENT_DEFAULTS`, a project's overrides). */
+  
   abstract readonly role: AgentRole;
   abstract readonly name: string;
   abstract readonly description: string;
 
-  /** The model, effort and harness for this run: by the role's setting and whatever else the context says; none leaves it to the role's setting. */
+  
   abstract getModel(ctx: Ctx): AgentSetting | undefined;
   /**
    * What the agent may do without asking the owner: what the owner's `--permission-mode` says, unless
@@ -52,10 +52,10 @@ export abstract class SeismicAgent<Ctx = void> {
    */
   getPermissionMode(_ctx: Ctx): AgentPermission | undefined { return ownerPermission(); }
 
-  /**
-   * What this agent asks of any model it runs on (a vision agent declares `{ images: 'required' }`),
-   * checked once the harness has resolved the model, before the first turn.
-   */
+  
+
+
+
   readonly capabilities: Capabilities = {};
 
   /** What this run asks of its model: the agent's own capabilities, and a subclass may add the run's. */
@@ -65,7 +65,7 @@ export abstract class SeismicAgent<Ctx = void> {
   checkCapabilities(model: SeismicModel, needed: Capabilities = {}): CapabilityCheck {
     return new CapabilityCheck(model, mergeCapabilities(this.capabilities, needed));
   }
-  /** Appended to the harness's default system prompt. */
+  
   abstract getPrompt(ctx: Ctx): string;
   /** The first message of a run; none lets the session start up and wait. */
   getBriefing(_ctx: Ctx): string | undefined { return undefined; }

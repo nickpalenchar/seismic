@@ -1,9 +1,9 @@
-// Answering a part of what the card shows: text the owner marks in a conversation (an agent's message
-// or their own), in what the card is about beside it (an idea's brief, a task's text, a file) or in a
-// page framed there (an HTML artifact, a page among the files, an idea's mock) gets a small button
-// beside it, which puts it into the card's field in quotation marks, followed by " - ", with the
-// cursor behind it (`cite` in `draft.ts` says where). Until the owner has used it once the button
-// names what it does beside its icon, so it is found.
+
+
+
+
+
+
 
 import { cn } from 'cn';
 import { Quote } from 'lucide-react';
@@ -21,15 +21,15 @@ export const citable = (marked: string) => marked.replace(/\s+/g, ' ').trim();
 
 interface Marked {
   text: string;
-  /** Where the button goes, in the window: the point it is centred on, and whether it hangs below that point rather than standing above it. */
+  
   x: number;
   y: number;
   below: boolean;
-  /** Whether it ends at that point rather than being centred on it. */
+  
   left: boolean;
 }
 
-/** A line of the marking, or the part of the window the marking's button may stand beside: left, top, right, bottom. */
+
 type Box = [number, number, number, number];
 
 const boxOf = (r: DOMRect): Box => [r.left, r.top, r.right, r.bottom];
@@ -47,18 +47,18 @@ export function spot(first: Box, last: Box, backwards: boolean, view: Box, touch
   if (last[3] < top || first[1] > bottom || last[2] < left || first[0] > right) return null;
   const below = touch || !backwards ? bottom - last[3] > 40 || first[1] - top < 36 : first[1] - top < 36;
   const x = touch ? (last[0] + last[2]) / 2 : backwards ? first[0] : last[2];
-  // below where the mouse let go it ends there, left of the pointer, which would cover it
+  
   const ends = below && !touch && !backwards;
-  // never off the view's edge: a framed page may say its marking lies anywhere
+  
   const y = Math.min(Math.max(below ? last[3] : first[1], top), bottom);
   return { x: Math.min(Math.max(x, left + (ends ? 80 : 24)), right - 24), y, below, left: ends };
 }
 
-/**
- * The marking in a framed page, as the page says it (`withMarkReport` in src/core/frame.ts): its
- * lines in the frame's window. There is one marking at a time, on Seismic's page or in one frame: a new
- * one in a frame takes the page's away, a press on Seismic's page the frame's.
- */
+
+
+
+
+
 interface FrameMark {
   frame: HTMLIFrameElement;
   text: string;
@@ -99,10 +99,10 @@ function hearFrames() {
       framed = null;
       return framedChanged();
     }
-    // only the frame the owner is at marks anything: no other can take the page's marking away
+    
     if (document.activeElement !== frame) return;
     if (framed && framed.frame !== frame) unmarkFrame();
-    // the page's marking goes, as a new marking in a page of its own would take it
+    
     const sel = getSelection();
     if (sel && !sel.isCollapsed) sel.removeAllRanges();
     framed = { frame, text: said.text, first: said.first, last: said.last, backwards: !!said.backwards };
@@ -121,12 +121,12 @@ export function CiteButton({ box, draft, anywhere, onCite }: { box: RefObject<HT
   useEffect(() => {
     hearFrames();
     const touch = matchMedia('(pointer: coarse)').matches;
-    // while the mouse still drags out the marking, the button waits for it to let go
+    
     let dragging = false;
     const place = () => {
       const b = box.current;
       if (dragging || !b) return setMarked(null);
-      // scrolled out of the box's view, or out of the window, the marking takes its button along
+      
       const view = within(boxOf(b.getBoundingClientRect()), [0, 0, innerWidth, innerHeight]);
       if (framed) {
         const { frame, first, last, backwards } = framed;
@@ -136,7 +136,7 @@ export function CiteButton({ box, draft, anywhere, onCite }: { box: RefObject<HT
         const dx = f.left + frame.clientLeft;
         const dy = f.top + frame.clientTop;
         const moved = (l: Box): Box => [l[0] + dx, l[1] + dy, l[2] + dx, l[3] + dy];
-        // a page can say anything: its button stays beside its frame
+        
         const at = spot(moved(first), moved(last), backwards, within(view, boxOf(f)), touch);
         return setMarked(at && { text, ...at });
       }
@@ -173,7 +173,7 @@ export function CiteButton({ box, draft, anywhere, onCite }: { box: RefObject<HT
     document.addEventListener('selectionchange', place);
     document.addEventListener('pointerdown', down, true);
     document.addEventListener('pointerup', up, true);
-    // any scroll moves the marking: the box's, a column's around it, the page's
+    
     document.addEventListener('scroll', place, true);
     addEventListener('resize', place);
     onFramed.add(place);
@@ -192,12 +192,12 @@ export function CiteButton({ box, draft, anywhere, onCite }: { box: RefObject<HT
       <button
           className={cn(
             'fixed z-50 flex h-7 min-w-7 cursor-pointer items-center justify-center gap-1 rounded-xs bg-foreground px-1.5 py-0 text-sm text-background shadow-glass select-none hover:bg-foreground/85 pointer-coarse:h-9 pointer-coarse:min-w-9',
-            // above the end of the marking, or below its last line, on a touch screen clear of the selection handles
+            
             !marked.below ? '[transform:translate(-50%,calc(-100%-6px))]' : marked.left ? '[transform:translate(calc(-100%+2px),6px)]' : '[transform:translate(-50%,6px)] pointer-coarse:[transform:translate(-50%,30px)]',
             named && 'pr-2 pl-2',
           )}
           style={{ left: marked.x, top: marked.y }} aria-label={t.talk.citeHint}
-          // the marking stays while the button is pressed, and so does the focus where it is
+          
           onPointerDown={(e) => e.preventDefault()}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => {

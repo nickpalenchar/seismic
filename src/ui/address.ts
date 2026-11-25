@@ -1,16 +1,16 @@
-// The page's address: `/p/<project>` shows a project, `/p/<project>/c/<code>` a card open on it,
-// the code being the card's short code or its whole id, `/p/<project>/feedback` the Agent Feedback
-// Log, a page of its own opened from that project. What else the page shows (the phone view,
-// the conversation open on the phone, the view over the canvas as `?view=table`) stays in the query.
+
+
+
+
 import { projectAt, projectSegment } from '../core/project-slug';
 import type { Item } from '../core/types';
 import { leave, leavesPage } from './leaving';
 
 export interface Address {
   project?: string;
-  /** A card's code or id, as the address has it. */
+  
   card?: string;
-  /** A page in place of the project. */
+  
   page?: 'feedback';
 }
 
@@ -71,7 +71,7 @@ export function cameByGoTo(): boolean {
  * loading it again: a step in the history, Back returns.
  */
 export function goTo(path: string) {
-  // another project's page (or another page of the app) replaces this one: an unsaved draft on it asks first (`leaving`)
+  
   leave(() => pushAddress(path), path);
 }
 
@@ -100,7 +100,7 @@ export const cardPath = (project: string, card: Pick<Item, 'id' | 'short'> | str
 export const named = <T extends Pick<Item, 'id' | 'short'>>(items: T[], code: string): T | undefined =>
   items.find((i) => i.id === code) ?? items.find((i) => i.short === code.toLowerCase());
 
-/** The views over the canvas the address names (`?view=`); the canvas itself is the address without one. */
+
 export const VIEWS = ['table'] as const;
 export type AddressView = (typeof VIEWS)[number];
 

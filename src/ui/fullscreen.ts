@@ -1,13 +1,13 @@
-// The demo video's full screen on the phone. Chrome on Android gives a video in full screen from its
-// own controls a landscape lock, and once the phone is turned to match it turns the lock into "any"
-// and ends full screen when the screen turns back to portrait. Right after that change the screen
-// can still report the orientation it had before the lock, so turning the phone into landscape
-// sometimes ended full screen, and turning it back sometimes started it (Chromium's
-// media_controls_orientation_lock_delegate.cc describes the race). So on the phone the video's own
-// full screen button is hidden (`controlsList="nofullscreen"`, which also ends Chrome's turning into
-// full screen) and Seismic puts the player into full screen itself: it locks the screen to the
-// video's orientation and holds the lock until full screen ends; the phone held the other way again
-// (read from the device's orientation, which goes on while the screen is locked) ends it.
+
+
+
+
+
+
+
+
+
+
 
 import { type RefObject, useEffect, useRef, useState } from 'react';
 
@@ -22,22 +22,22 @@ export type Held = 'portrait' | 'landscape' | 'flat' | 'diagonal';
 export function held(beta: number | null, gamma: number | null, naturalPortrait = true): Held | null {
   if (beta === null || gamma === null) return null;
   const rad = Math.PI / 180;
-  // the up vector projected onto the screen in its natural orientation
+  
   const x = -Math.sin(gamma * rad) * Math.cos(beta * rad);
   const y = -Math.sin(beta * rad);
   if (Math.hypot(x, y) < Math.sin(24 * rad)) return 'flat';
-  // clockwise from the natural orientation, 0 with the top of the device up
+  
   const angle = (Math.atan2(x, -y) / rad + 360) % 360;
   const angle90 = Math.round(angle / 90) * 90;
   if (Math.abs(angle - angle90) > 23) return 'diagonal';
   return angle90 % 180 === (naturalPortrait ? 0 : 90) ? 'portrait' : 'landscape';
 }
 
-/** How long the phone is held against the video before full screen ends: a turn passing through does not end it. */
+
 export const TURNED_BACK_MS = 300;
 
 type Shape = 'portrait' | 'landscape';
-// lock() is in the browsers but no longer in TypeScript's DOM types
+
 type Lockable = ScreenOrientation & { lock?: (o: Shape) => Promise<void> };
 
 const orientation = (): Lockable | undefined => (typeof screen !== 'undefined' ? (screen.orientation as Lockable | undefined) : undefined);
@@ -54,7 +54,7 @@ export function unstick(el: Element) {
     const top = box.scrollTop;
     const scroller = box;
     scroller.scrollTop = top > 0 ? top - 1 : top + 1;
-    // back in the next frame: set back at once, Safari never scrolled
+    
     requestAnimationFrame(() => (scroller.scrollTop = top));
   }
 }
@@ -70,10 +70,10 @@ export function useFullscreen(el: RefObject<HTMLElement | null>, video: RefObjec
   const [full, setFull] = useState(false);
   const fullRef = useRef(false);
   const locked = useRef(false);
-  /** the phone has been held in the video's orientation since full screen began */
+  
   const matched = useRef(false);
   const backSince = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** the device reports how it is held: without that, turning the phone would not end full screen */
+  
   const sensed = useRef(false);
   const visible = useRef(false);
 
@@ -117,7 +117,7 @@ export function useFullscreen(el: RefObject<HTMLElement | null>, video: RefObjec
     };
     const tilt = (e: DeviceOrientationEvent) => {
       const o = orientation();
-      // the natural orientation from the screen's: portrait at 0° or 180° on a phone
+      
       const natural = o ? (screenShape() === 'portrait') === (o.angle % 180 === 0) : true;
       const h = held(e.beta, e.gamma, natural);
       if (h === null) return;
@@ -130,7 +130,7 @@ export function useFullscreen(el: RefObject<HTMLElement | null>, video: RefObjec
       } else if (h === 'flat' || h === 'diagonal') clearBack();
       else if (matched.current && !backSince.current) backSince.current = setTimeout(leave, TURNED_BACK_MS);
     };
-    // the browser lets a page go full screen from the screen's change event, as it does from a tap
+    
     const turned = () => {
       const v = video.current;
       if (fullRef.current || !v || v.paused || !visible.current || !sensed.current || screenShape() !== shape()) return;
@@ -151,8 +151,8 @@ export function useFullscreen(el: RefObject<HTMLElement | null>, video: RefObjec
     };
   }, [can]);
 
-  // Safari on the iPhone: once its own player's full screen closed, taps on the page it returned to
-  // landed beside what they were aimed at (Approve took none) until the page was scrolled
+  
+  
   useEffect(() => {
     const v = video.current;
     if (!enabled || can || !v) return;

@@ -78,12 +78,12 @@ describe('a workstream card keeps its workstream', () => {
     read(parse([NEW[0]!]));
     expect(board.archived().find((i) => i.id === g!.id)).toMatchObject({ title: '1G Testlücken schließen', body: 'Only tests.', state: 'done' });
     expect(board.events(g!.id).at(-1)!.text).toBe('Left the plan “Audit”: the plan doc no longer lists this workstream.');
-    // at work, it stands beside the plan
+    
     const items = board.snapshot().items;
     const plan = items.find((i) => i.kind === 'plan')!;
     expect(items.find((i) => i.id === c!.id)).toMatchObject({ title: '3C Gleichzeitige Bearbeitung', state: 'working', source: 'manual' });
     expect(items.find((i) => i.id === c!.id)!.x).toBeGreaterThan(plan.x);
-    // nobody worked on it: it just goes
+    
     expect(items.some((i) => i.id === b!.id)).toBe(false);
     expect(board.archived().some((i) => i.id === b!.id)).toBe(false);
   });
@@ -96,7 +96,7 @@ describe('a sibling dropped or added changes no card’s workstream', () => {
     const after = read(parse(['[ ] **4A Sitzungen.** Revoke.']));
     expect(after.map((k) => [k.id, k.title])).toEqual([[a!.id, '4A Sitzungen']]);
     expect(board.archived()).toEqual([]);
-    // and back: a second code makes it a label again
+    
     expect(read(parse(['[ ] **4A Sitzungen.** Revoke.', '[ ] **5C Neu.** New.'])).map((k) => [k.plan?.label, k.id === a!.id])).toEqual([
       ['4A', true],
       ['5C', false],
@@ -122,7 +122,7 @@ describe('a card follows its own workstream, not one that would have had its key
   test('a hidden card of a dropped workstream gives way to the card with the log', () => {
     const [up, down] = read(parse(['[ ] **W1:** Upload. x', '[ ] **W1:** Download. y']));
     read(parse(['[ ] **W1:** Download. y']));
-    // the doc rewords the one left, and an agent works on it
+    
     expect(read(parse(['[ ] **W1:** Upload. x'])).map((k) => k.id)).toEqual([down!.id]);
     work(down!.id, 'W1 Upload', { state: 'planned' });
     const after = read(parse(['[ ] **W1:** Upload. x', '[ ] **W1:** Download. y']));
@@ -156,11 +156,11 @@ describe('a doc in a plan folder outside the repository', () => {
     const [g, b] = read(outside(OLD));
     work(g!.id, '1G Testlücken schließen', { state: 'done' });
     work(b!.id, '3B Auth zusammenführen', { state: 'planned' });
-    // the doc is saved in two edits: 3B is missing for a moment
+    
     read(outside([OLD[0]!, OLD[2]!]));
     expect(board.archived()).toEqual([]);
     expect(read(outside(OLD)).find((k) => k.plan?.label === '3B')!.id).toBe(b!.id);
-    // now 1G goes for good
+    
     const t = Date.now();
     read(outside(OLD.slice(1)));
     read(outside(OLD.slice(1)));
@@ -217,7 +217,7 @@ describe('a doc in a plan folder outside the repository', () => {
 
 describe('cards of a doc read by an older Seismic', () => {
   test('a card holding another workstream’s log leaves the plan, and the workstream gets a fresh card in its place', () => {
-    // as the bug left it: the doc was read anew, and 3B took the card of 1G at its place
+    
     history = [parse(OLD)];
     docs = [positional(parse(NEW))];
     const [a, b, c] = kids();
@@ -226,7 +226,7 @@ describe('cards of a doc read by an older Seismic', () => {
     work(a!.id, '4A Sitzungen und Mandantensperre', { state: 'planned' });
     board.patch(b!.id, { x: 900, y: 500 });
 
-    // the new Seismic reads the same doc
+    
     const after = read(parse(NEW));
     expect(after.map((k) => [k.plan?.label, k.state])).toEqual([
       ['4A', 'planned'],
@@ -235,11 +235,11 @@ describe('cards of a doc read by an older Seismic', () => {
     ]);
     expect(after[0]!.id).toBe(a!.id);
     expect(after[2]!.id).toBe(c!.id);
-    // 3B is a fresh card, and the plan lays out afresh in the doc's order
+    
     expect(after[1]!.id).not.toBe(b!.id);
     expect(after.map((k) => ({ x: k.x, y: k.y }))).toEqual(placeWorkstreams(parse(NEW).workstreams));
     expect(board.events(after[1]!.id)).toEqual([]);
-    // the card with 1G's log is done, in the archive, under 1G's title
+    
     expect(board.archived().find((i) => i.id === b!.id)).toMatchObject({ title: '1G Testlücken schließen', state: 'done', source: 'manual' });
     expect(board.events(b!.id).at(-1)!.text).toContain('this history belongs to a workstream the plan doc no longer lists');
   });
@@ -248,7 +248,7 @@ describe('cards of a doc read by an older Seismic', () => {
     docs = [positional(parse(OLD))];
     const [g, b] = kids();
     work(b!.id, '3B Auth zusammenführen', { state: 'planned' });
-    // the doc changed while the older Seismic did not look: 3B is first now
+    
     const moved = parse([OLD[1]!, OLD[0]!, OLD[2]!]);
     store.updateCard(store.cards.plans('c')[0]!.id, { plan: { doc: positional(moved) } });
     const after = read(moved);
@@ -274,7 +274,7 @@ describe('cards of a doc read by an older Seismic, as workers left it', () => {
       ['S2', expect.any(String)],
     ]);
     expect(board.archived()).toEqual([]);
-    // no card the move dropped reads as one the owner deleted
+    
     expect(store.cards.removed('c', since)).toEqual([]);
   });
 });

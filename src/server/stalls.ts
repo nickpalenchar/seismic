@@ -1,44 +1,44 @@
-// Stalls: moments Seismic's server did nothing else (a synchronous git call, a long computation), so
-// that no page got an answer meanwhile, and moments a page froze; each goes into the server's log
-// and into `stalls.log` in the home, with where the time went.
+
+
+
 
 import * as jsc from 'bun:jsc';
 import { appendFileSync, renameSync, statSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import type { PageStall } from '../core/types';
 
-/** A stall from this long on is logged: a pause of half a second is one the owner notices. */
+
 export const STALL_MS = 500;
-/** How often the server looks whether it was held up. */
+
 const TICK_MS = 100;
-/** A process the server waited for this long is named in the stall it falls into. */
+
 const SLOW_PROCESS_MS = 50;
-/** The places a stall names: the few where most of its time went. */
+
 const PLACES = 3;
-/** Frames of Seismic's own code a place names, innermost first. */
+
 const FRAMES = 4;
-/** `stalls.log` grows to this size, then starts afresh beside the one before (`stalls.previous.log`). */
+
 const KEPT_BYTES = 1_000_000;
-/** Below this share of the stall covered by samples, the thread did not run: the machine slept, or the process was suspended. */
+
 const RAN_SHARE = 0.25;
-/** How often the profiler samples the thread's stack, in microseconds: 250 samples in the shortest stall logged. */
+
 const SAMPLE_US = 2000;
-/** A page's stalls of one kind that come no further apart than this are one run, logged together. */
+
 const RUN_GAP_MS = 60_000;
-/** A run that goes on is logged at least this often. */
+
 const RUN_LOGGED_MS = 3600_000;
-/** JavaScriptCore's line and column of a frame it knows no source position of. */
+
 const NO_POSITION = 4294967295;
 
 export const STALLS_FILE = 'stalls.log';
 
-/** A stack the sampling profiler took, innermost frame first. */
+
 export interface Trace {
   timestamp: number;
   frames: { name: string; sourceURL?: string | null; line: number; column: number }[];
 }
 
-/** A process run synchronously, and how long the server waited for it. */
+
 export interface Waited {
   argv: string[];
   ms: number;
@@ -54,9 +54,9 @@ function frame(f: Trace['frames'][number]): string {
 export function placeOf(t: Trace): string {
   if (!t.frames.length) return '(no JavaScript: garbage collection or the runtime itself)';
   const native = t.frames[0]!.sourceURL ? null : t.frames[0]!.name;
-  // the timing of synchronous processes (`Stalls.start`) is not where the time went
+  
   const sourced = t.frames.filter((f) => f.sourceURL && f.name !== 'timedSpawnSync');
-  // Seismic's own code says more than a library's; a stall entirely inside one names the library's
+  
   const own = sourced.filter((f) => !f.sourceURL!.includes('/node_modules/'));
   const shown = (own.length ? own : sourced).slice(0, FRAMES).map(frame);
   return [...(native ? [native] : []), ...shown].join(' ← ') || native || '(unknown)';
@@ -100,12 +100,12 @@ export function describePageStall(s: PageStall, where: string): string[] {
   ];
 }
 
-/** A run of a page's stalls of one kind: the first logged, those after it counted until the run is logged. */
+
 interface Run {
   where: string;
-  /** When the first was logged. */
+  
   first: string;
-  /** Since when the run counts, and when the last of it came. */
+  
   since: number;
   last: number;
   count: number;
@@ -126,7 +126,7 @@ export function pageStall(msg: unknown): PageStall | null {
   const m = msg as Partial<PageStall> | null;
   const length = (n: unknown, least: number): n is number => typeof n === 'number' && n >= least && n <= 3600_000;
   if (!m || !length(m.ms, STALL_MS)) return null;
-  // one line each, without what a terminal would take for a command
+  
   const text = (s: unknown) => (typeof s === 'string' ? s.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, ' ').slice(0, 200) : '');
   const scripts = (Array.isArray(m.scripts) ? m.scripts : []).slice(0, PLACES).flatMap((x) => (x && length(x.ms, 0) && text(x.what) ? [{ ms: x.ms, what: text(x.what) }] : []));
   const before = (Array.isArray(m.before) ? m.before : []).slice(-8).map(text).filter(Boolean);
@@ -134,9 +134,9 @@ export function pageStall(msg: unknown): PageStall | null {
 }
 
 export interface StallOptions {
-  /** Seismic's home, where `stalls.log` is kept. */
+  
   home: string;
-  /** The server's log. */
+  
   log?: (line: string) => void;
 }
 
@@ -148,10 +148,10 @@ function drain(): { traces: Trace[]; intervalMs: number } | null {
   return { traces, intervalMs: interval * 1000 };
 }
 
-/**
- * The watcher the samples go to. The profiler, once started, runs for the rest of the process, so
- * its samples are taken out on every tick, and dropped while no watcher is there to look at them.
- */
+
+
+
+
 let watching: Stalls | null = null;
 let ticking: ReturnType<typeof setInterval> | undefined;
 let last = 0;
@@ -173,7 +173,7 @@ function tick() {
  */
 export class Stalls {
   private waited: (Waited & { end: number })[] = [];
-  /** The runs of page stalls, by the page and where their time went. */
+  
   private runs = new Map<string, Run>();
   private spawnSync: typeof Bun.spawnSync | undefined;
 
@@ -190,7 +190,7 @@ export class Stalls {
     watching = this;
     const spawnSync = (this.spawnSync = Bun.spawnSync);
     const waited = this.waited;
-    // by its name, the stall's places leave this frame out: the time went to the process
+    
     Bun.spawnSync = function timedSpawnSync(...args: Parameters<typeof Bun.spawnSync>) {
       const start = performance.now();
       try {

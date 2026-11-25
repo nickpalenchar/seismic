@@ -68,10 +68,10 @@ describe('a project over a folder without git', () => {
     const listOf = async (id: string) => (await project.diff(id, false))!.folder!.changes.map((c) => `${c.kind} ${c.from ? `${c.from} → ` : ''}${c.path}`);
     expect(await listOf(sort.id)).toEqual(['moved Scans/scan-1.pdf → Tax/2025/scan-1.pdf', 'added Tax', 'added Tax/2025']);
     expect(await listOf(letter.id)).toEqual(['added Estate/Reply.md', 'modified Estate/Inventory.md']);
-    // the Koordinator sees what each changed
+    
     expect((await project.repos[0]!.workstations.changes(letter.id)).map((c) => c.file)).toEqual(['Estate/Reply.md', 'Estate/Inventory.md']);
 
-    // a handover without a demo: the change list shows what changed
+    
     expect(await a.call('ready_for_review', { summary: 'Sorted.' })).toContain('Recorded');
     expect(await b.call('ready_for_review', { summary: 'Drafted.' })).toContain('Recorded');
     expect(item(sort.id)).toMatchObject({ state: 'waiting', need: 'review' });
@@ -82,14 +82,14 @@ describe('a project over a folder without git', () => {
     expect(await listOf(sort.id)).toEqual([]);
     expect(item(sort.id)).toMatchObject({ state: 'waiting', review: { noChange: true } });
     expect(project.board.events(sort.id).at(-1)!.text).toBe('Changes discarded: 1 file put back.');
-    // the other card's changes stay
+    
     expect(readFileSync(join(docs, 'Estate', 'Reply.md'), 'utf8')).toBe('Dear court,\n');
 
     await project.act(letter.id, { action: 'approve' });
     expect(item(letter.id).state).toBe('done');
     expect(project.board.events(letter.id).some((e) => e.text === 'Approved. The changes stay in the folder: done.')).toBe(true);
     expect(b.inbox.at(-1)).toContain('Your changes stay in the folder');
-    // done: nothing is undone any more, but the list stays the card's record
+    
     expect((await project.diff(letter.id, false))!.folder!.undo).toBeNull();
     expect(() => project.act(letter.id, { action: 'undo' })).toThrow();
   });
@@ -101,7 +101,7 @@ describe('a project over a folder without git', () => {
     project.koordinator.request(sort.id);
     await settle();
     expect(item(sort.id).state).toBe('working');
-    // its scope, estimated once it runs
+    
     estimates()[0]!.call('scope', { files: ['Scans/'], conflicts_with: [], reason: '.' });
     estimates()[0]!.emit({ type: 'idle' });
     await settle();
@@ -135,7 +135,7 @@ describe('a project over a folder without git', () => {
     expect(await a.call('ready_for_review', { summary: 'Done.' })).toContain('Recorded');
     expect(item(plan.id)).toMatchObject({ state: 'waiting', need: 'review' });
     expect(item(plan.id).demo?.latest).toBeUndefined();
-    // kept with the card's earlier demos, which show once a later handover brings a demo
+    
     expect(project.board.row(plan.id).demo!.earlier).toMatchObject([{ kind: 'html', asked: true }]);
   });
 
@@ -151,7 +151,7 @@ describe('a project over a folder without git', () => {
       writeFileSync(join(docs, 'Estate', '__pycache__', 'model.pyc'), bytes(100, 3));
     });
     expect(await a.call('ready_for_review', { summary: 'Done.', files: [{ path: 'Estate/Inventory.md', caption: 'x' }] })).toContain('Estate/Inventory.md is not among the files your card made or changed');
-    // without files named, the card still shows what it changed, beside its conversation
+    
     expect(await a.call('ready_for_review', { summary: 'Done.' })).toContain('Recorded');
     expect(item(plan.id).demo?.files).toEqual([]);
     workers.message(plan.id, 'Name the plan.');
@@ -161,7 +161,7 @@ describe('a project over a folder without git', () => {
     const file = (path: string) => project.cardFile(plan.id, path);
     expect(await file('Estate/Plan.md')).toMatchObject({ path: expect.stringMatching(/Estate\/Plan\.md$/) });
     expect(await file('Estate/__pycache__/model.pyc')).not.toBeNull();
-    // in the folder, but not the card's: neither a file it did not change nor one its Markdown links to that is no image
+    
     expect(await file('Estate/Inventory.md')).toBeNull();
     expect(await file('Scans/scan-1.pdf')).toBeNull();
     expect(await file('../Documents/Estate/Inventory.md')).toBeNull();
@@ -180,7 +180,7 @@ describe('a project over a folder without git', () => {
     await a.use('Write', { file_path: join(docs, 'Tidied.md') }, () => writeFileSync(join(docs, 'Tidied.md'), '# Tidied\n'));
     expect(await a.call('ready_for_review', { summary: 'Written.' })).toContain('Recorded');
     expect(item(tidy.id).demo?.files).toEqual([]);
-    // the owner deletes it before handing over again: nothing of the change is left to show
+    
     rmSync(join(docs, 'Tidied.md'));
     expect((await project.diff(tidy.id, false))!.folder!.changes.find((c) => c.path === 'Tidied.md')).toMatchObject({ kind: 'added', gone: true });
     workers.message(tidy.id, 'Again.');
@@ -208,7 +208,7 @@ describe('a project over a folder without git', () => {
       const a = runtime.last;
       await a.use('Write', { file_path: join(docs, file) }, () => writeFileSync(join(docs, file), `# ${title}\n`));
       expect(await a.call('ready_for_review', { summary: 'Done.' })).toContain('Recorded');
-      // as an Seismic before kept it
+      
       project.board.work(card.id, { demo: { files: null } });
       return { id: card.id, a };
     };
@@ -222,7 +222,7 @@ describe('a project over a folder without git', () => {
     project.board.work(archived, { archived_at: new Date().toISOString() });
     const gone = (await handed('Gone', 'Gone.md')).id;
     rmSync(join(docs, 'Gone.md'));
-    // a card at work that never handed over waits for its handover
+    
     const working = project.board.create({ title: 'Working', x: 0, y: 0 });
     await project.repoOf(working).workers.start(working.id);
     await runtime.last.use('Write', { file_path: join(docs, 'Working.md') }, () => writeFileSync(join(docs, 'Working.md'), '# Working\n'));

@@ -1,19 +1,19 @@
-// The lines of the commands spoken or typed, in the toast stack: React-free, so the timing is
-// tested with a toast store on a fake clock. `useTold` (voice.tsx) wraps it.
+
+
 
 import type { Notice } from '../../core/types';
 import { confirmShownMs, type Heard, undoShownMs } from '../api';
 import { failText, t } from '../strings';
 import type { ToastStore } from './toast';
 
-/** How long a confirmation's line stays once it offers to go to the cards its command made: time to read it and reach for the button. */
+
 export const MADE_SHOWN_MS = 15_000;
 
-/** A command on its way: while it is transcribed or the Koordinator reads it, then its confirmation. */
+
 interface Told {
-  /** Its toast, while it has one: a typed command's comes with its confirmation. */
+  
   toast?: number;
-  /** The card it was said to, named in the confirmation when another card is open by then. */
+  
   card?: { id: string; title: string };
   heard?: Heard;
 }
@@ -24,7 +24,7 @@ export interface ToldDeps {
   inView: (h: Heard) => boolean;
   onGo: (card: NonNullable<Notice['made']>[number]) => void;
   undo: (token: string) => Promise<{ undone: boolean }>;
-  /** Whether a command is still being read, each time that changes. */
+  
   onReading: (reading: boolean) => void;
 }
 
@@ -68,7 +68,7 @@ export function toldLines({ toasts, onHeard, inView, onGo, undo: undoRequest, on
     const x: Told = card ? { card } : {};
     lines.add(x);
     changed();
-    // typed words show in the conversation at once: their line comes with the confirmation
+    
     if (pending) x.toast = toasts.show({ kind: 'command', text: pending, reading: true, ...(card ? { card } : {}), onGone: () => forget(x) });
     let h: Heard;
     try {
@@ -82,7 +82,7 @@ export function toldLines({ toasts, onHeard, inView, onGo, undo: undoRequest, on
   }
 
   function show(card: Told['card'], h: Heard) {
-    // the server offers a command's undo again when the connection comes back: one line for it
+    
     if (h.token && [...lines].some((x) => x.heard?.token === h.token)) return;
     const x: Told = card ? { card } : {};
     lines.add(x);
@@ -95,7 +95,7 @@ export function toldLines({ toasts, onHeard, inView, onGo, undo: undoRequest, on
     try {
       const { undone } = await undoRequest(x.heard!.token!);
       if (undone) return toasts.remove(id);
-      // no longer its command's line: an offer of its undo the server makes again gets a line of its own
+      
       x.heard = { confirm: t.voice.tooLate };
       toasts.update(id, { text: t.voice.tooLate });
     } catch {

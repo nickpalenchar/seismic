@@ -1,9 +1,9 @@
-/**
- * Code reviews of a card's work where its project reviews work that lands on main: a separate,
- * read-only agent of the "Code reviews" group, started with the demo or on the owner's word, whose
- * items (one running list across all reviews) the owner sends to the worker to fix or makes
- * follow-up tasks, and which verifies what the worker resubmitted.
- */
+
+
+
+
+
+
 
 import { describe, expect, test } from 'bun:test';
 import { writeFileSync } from 'node:fs';
@@ -73,7 +73,7 @@ type Verdict = { number: number; fixed: boolean; why?: string };
 async function review(id: string, s: FakeSession, items: unknown[] = FINDINGS, verdicts: Verdict[] = [], regressions: { number: number; why: string }[] = []) {
   expect(s.call('review', { verdicts, regressions, items })).toContain('Recorded');
   s.emit({ type: 'idle' });
-  // Another run may already be pending for an item submitted during this one.
+  
   await until(() => board.row(id).review?.codeReview?.review?.state === 'done');
 }
 
@@ -172,7 +172,7 @@ describe('code reviews', () => {
     const findings = itemsOf(id);
     expect(board.item(id)!.review?.codeReview?.state).toBe(completed ? 'done' : 'running');
     expect(state(id)).toBe('waiting:demo');
-    // The review is intact until the owner confirms approval in the UI.
+    
     expect(git(origin, 'log', '--format=%s', '-1', 'main')).not.toBe('direct.ts');
     const head = git(ws, 'rev-parse', 'HEAD');
     await workers.approve(id, { direct: true });
@@ -209,7 +209,7 @@ describe('code reviews', () => {
       [2, 'major', 'export.ts', 40],
       [3, 'minor', undefined, undefined],
     ]);
-    // bundles hold in both directions
+    
     expect(done.items[1]!.with).toEqual([3]);
     expect(done.items.map((i) => [i.status, i.log.map((e) => [e.who, e.from, e.to])])).toEqual(done.items.map(() => ['raised', [['reviewer', undefined, 'raised']]]));
     expect(board.events(id).at(-1)!.text).toBe(board.t.worker.codeReviewDone(3, { blocker: 0, critical: 1, major: 1, minor: 1, low: 0, info: 0 }));
@@ -237,13 +237,13 @@ describe('code reviews', () => {
     await until(() => reviewers().length === 1);
     const reviews = (workers as unknown as { reviews: { finish(id: string, run: null, f: undefined, e: string): void; interrupted(): void } }).reviews;
     const stored = () => board.row(id).review!.codeReview!;
-    // a second handover is pending while the first review ends
+    
     board.work(id, { review: { codeReview: { ...stored(), pending: true } } });
     reviews.finish(id, null, undefined, 'x');
     expect(stored().pending).toBe(true);
     expect(stored().review!.state).toBe('failed');
     expect(needsYou(board.item(id)!)).toBe(false);
-    // a restart starts the review the handover (of a newer commit) was about to start
+    
     board.work(id, { review: { codeReview: { ...stored(), review: { ...stored().review!, head: 'older' } } } });
     reviews.interrupted();
     await until(() => reviewers().length === 2);
@@ -264,13 +264,13 @@ describe('code reviews', () => {
     expect(workers.reviews.busy()).toEqual([id]);
     workers.restartDue({ reason: 'code', deadline: Date.now() + 15 * 60_000 });
     expect(first.inbox.at(-1)).toContain('Pause it now');
-    // it ends its turn without findings: paused, not failed, and the restart no longer waits for it,
-    // nor does the Workstations pill count its agent at work, though the card still shows the review running
+    
+    
     first.emit({ type: 'idle' });
     expect(workers.busyCards()).not.toContain(id);
     expect(workers.reviews.busy()).toEqual([]);
     expect(board.item(id)!.review?.codeReview!.state).toBe('running');
-    // Seismic restarts: the review goes on in its session
+    
     workers.shutdown();
     reviewing('auto');
     workers.resumeAll();
@@ -289,7 +289,7 @@ describe('code reviews', () => {
     await until(() => reviewers().length === 1);
     const reviews = (workers as unknown as { reviews: { finish(id: string, run: null, f: unknown): void } }).reviews;
     const recorded = { verdicts: [], regressions: [], items: FINDINGS };
-    // Seismic stops right after the first write that stores anything of the results
+    
     const work = board.work.bind(board);
     board.work = (...a: Parameters<typeof work>) => {
       work(...a);
@@ -297,10 +297,10 @@ describe('code reviews', () => {
       throw new Error('stopped');
     };
     expect(() => reviews.finish(id, null, recorded)).toThrow('stopped');
-    // the run is either still running with no results, or done with them: never running with results applied
+    
     const stored = board.item(id)!.review?.codeReview?.state;
     expect(itemsOf(id).length > 0).toBe(stored === 'done');
-    // the resumed run records again: the items are there once
+    
     reviews.finish(id, null, recorded);
     expect(itemsOf(id).map((i) => i.number)).toEqual([1, 2, 3]);
     expect(board.item(id)!.review?.codeReview?.state).toBe('done');
@@ -372,7 +372,7 @@ describe('code reviews', () => {
     await until(() => board.item(id)!.review?.codeReview?.state === 'failed');
     expect(board.item(id)!.review?.codeReview).toMatchObject({ limited: true, agent: { harness: 'claude', model: 'opus' } });
     expect(board.item(id)!.state).toBe('waiting');
-    // another agent for this run and its retries
+    
     const other: AgentSetting = { harness: 'claude', model: 'sonnet', effort: 'medium' };
     workers.startCodeReview(id, other);
     await until(() => reviewers().length === 2);
@@ -382,14 +382,14 @@ describe('code reviews', () => {
     reviewers()[1]!.emit({ type: 'error', message: "You've hit your usage limit", limit: {} });
     await until(() => board.item(id)!.review?.codeReview?.state === 'failed');
     expect(board.item(id)!.review?.codeReview?.limited).toBe(true);
-    // the same model again, once usage is added
+    
     workers.startCodeReview(id);
     await until(() => reviewers().length === 3);
     expect(reviewers()[2]!.spec.setting).toEqual(other);
     expect(reviewers()[2]!.spec.model).toBe('sonnet');
     reviewers()[2]!.emit({ type: 'error', message: "You've hit your usage limit", limit: {} });
     await until(() => board.item(id)!.review?.codeReview?.state === 'failed');
-    // skipped: no review stands, the card waits for approval, and the review can still start later
+    
     workers.reviews.skip(id);
     expect(board.item(id)!.review?.codeReview).toMatchObject({ mode: 'auto', items: [] });
     expect(board.item(id)!.review?.codeReview?.state).toBeUndefined();
@@ -421,7 +421,7 @@ describe('code reviews', () => {
     expect(reviewers()[1]!.spec.model).toBeUndefined();
     reviewers()[1]!.emit({ type: 'session', id: 'review-1', model: 'claude-test' });
 
-    // A limit on a resumed session also goes to the card. The retry pins its resolved model.
+    
     workers.shutdown();
     reviewing('auto', true, 'main', () => selected);
     workers.reviews.interrupted();
@@ -462,7 +462,7 @@ describe('code reviews', () => {
     expect(fresh.spec.setting).toEqual(setting);
     expect(fresh.inbox[0]).toContain('SQL built from input');
     expect(fresh.inbox[0]).toContain('Race on a second handover');
-    // the item ignored in the same Send shows closed in the fresh worker's list
+    
     expect(fresh.inbox[0]).toContain('Closed (the owner ignored them; the review does not raise them again):\n  #3 “Name the constant”');
     expect(statuses(id)).toEqual(['fixing', 'followUp', 'closed']);
   });
@@ -473,7 +473,7 @@ describe('code reviews', () => {
     await handOver(id, 'export.ts');
     await until(() => reviewers().length === 1);
     await review(id, reviewers()[0]!);
-    // only a review card's findings go to a contributor
+    
     expect(() => workers.message(id, '', [], false, undefined, undefined, { 1: 'contributor' })).toThrow();
     workers.message(id, 'The race matters most.', [], false, undefined, undefined, { 1: 'self', 2: 'later', 3: 'later' }, { 1: 'Use a parameter.' });
     const note = worker().inbox.at(-1)!;
@@ -485,9 +485,9 @@ describe('code reviews', () => {
     expect(statuses(id)).toEqual(['fixing', 'followUp', 'followUp']);
     expect(itemsOf(id)[0]!.context).toBe('Use a parameter.');
     expect(itemsOf(id)[0]!.log.map((e) => [e.who, e.from, e.to])).toEqual([['reviewer', undefined, 'raised'], ['owner', 'raised', 'fixing']]);
-    // a decided item is not decided again
+    
     expect(() => workers.message(id, '', [], false, undefined, undefined, { 1: 'later' })).toThrow();
-    // the follow-up tasks come first
+    
     expect(await handOver(id, 'fix.ts')).toContain('follow-up tasks');
     expect(await worker().call('follow_up_task', { findings: [2, 3], title: 'Serialize exports', task: 'Two exports at once overwrite each other.' })).toContain('until your work has landed');
     const task = board.items().find((i) => i.title === 'Serialize exports')!;
@@ -496,7 +496,7 @@ describe('code reviews', () => {
     expect(followed).toEqual([[task.id, id]]);
     expect(itemsOf(id).map((i) => [i.status, i.card])).toEqual([['fixing', undefined], ['followUp', task.id], ['followUp', task.id]]);
     await worker().call('ready_for_review', { summary: 'Fixed.', demo: artifact() });
-    // the fix is in: the item is under review while the review of the new commit runs
+    
     await until(() => reviewers().length === 2);
     expect(board.item(id)!.review?.codeReview!.state).toBe('running');
     expect(statuses(id)).toEqual(['underReview', 'followUp', 'followUp']);
@@ -507,15 +507,15 @@ describe('code reviews', () => {
     expect(brief).toContain('The owner wrote: Use a parameter.');
     expect(brief).toContain('- #2 “Race on a second handover” (major, export.ts:40): Two exports at once overwrite each other.');
     expect(brief).toContain('Follow-ups');
-    // a review that gives no verdict on an item under review is refused, and so is a verdict on one that is not
+    
     const second = reviewers()[1]!;
     expect(second.call('review', { verdicts: [], regressions: [], items: [] })).toContain('no verdict on #1');
     expect(second.call('review', { verdicts: [{ number: 1, fixed: true }, { number: 2, fixed: true }], regressions: [], items: [] })).toContain('#2 is not under review');
-    // more new items than a review takes are refused, not cut
+    
     const many = Array.from({ length: 31 }, (_, k) => ({ title: `Item ${k}`, text: 'x', severity: 'low' as const }));
     expect(second.call('review', { verdicts: [{ number: 1, fixed: true }], regressions: [], items: many })).toContain('31 new items are more than the 30');
     expect(statuses(id)).toEqual(['underReview', 'followUp', 'followUp']);
-    // numbers stay: the new item is #4
+    
     await review(id, second, [{ title: 'Missing test', text: 'Nothing covers the fix.', severity: 'minor' }], [{ number: 1, fixed: true }]);
     expect(statuses(id)).toEqual(['fixed', 'followUp', 'followUp', 'raised']);
     expect(itemsOf(id).map((i) => i.number)).toEqual([1, 2, 3, 4]);
@@ -532,30 +532,30 @@ describe('code reviews', () => {
     workers.message(id, '', [], false, undefined, undefined, { 1: 'self', 2: 'self' });
     await handOver(id, 'fix.ts');
     await until(() => reviewers().length === 2);
-    // a verdict of not fixed needs why
+    
     expect(reviewers()[1]!.call('review', { verdicts: [{ number: 1, fixed: true }, { number: 2, fixed: false }], regressions: [], items: [] })).toContain('#2 needs why');
     await review(id, reviewers()[1]!, [], [{ number: 1, fixed: true }, { number: 2, fixed: false, why: 'The lock is taken after the write.' }]);
     expect(statuses(id)).toEqual(['fixed', 'reopened', 'raised']);
     expect(itemsOf(id)[1]!.log.at(-1)).toMatchObject({ who: 'reviewer', from: 'underReview', to: 'reopened', note: 'The lock is taken after the write.' });
     expect(needsYou(board.item(id)!)).toBe(true);
-    // the owner decides on the reopened item again; the next review finds #1 regressed
+    
     workers.message(id, '', [], false, undefined, undefined, { 2: 'self' });
     expect(statuses(id)).toEqual(['fixed', 'fixing', 'raised']);
     expect(worker().inbox.at(-1)).toContain('Fixed (the reviewer verified them):\n  #1 “SQL built from input”');
     expect(worker().inbox.at(-1)).toContain('The reviewer wrote: ');
     await handOver(id, 'fix2.ts');
     await until(() => reviewers().length === 3);
-    // so does a regression
+    
     expect(reviewers()[2]!.call('review', { verdicts: [{ number: 2, fixed: true }], regressions: [{ number: 1, why: ' ' }], items: [] })).toContain('#1 needs why');
     await review(id, reviewers()[2]!, [], [{ number: 2, fixed: true }], [{ number: 1, why: 'The retry builds the query by hand again.' }]);
     expect(statuses(id)).toEqual(['reopened', 'fixed', 'raised']);
     expect(itemsOf(id)[0]!.log.map((e) => e.to)).toEqual(['raised', 'fixing', 'underReview', 'fixed', 'reopened']);
-    // a regression of an item that is not fixed is refused
+    
     workers.message(id, '', [], false, undefined, undefined, { 1: 'self' });
     await handOver(id, 'fix3.ts');
     await until(() => reviewers().length === 4);
     expect(reviewers()[3]!.call('review', { verdicts: [{ number: 1, fixed: true }], regressions: [{ number: 3, why: 'x' }], items: [] })).toContain('#3 is not marked fixed');
-    // an item named twice, among the verdicts or the regressions, is refused
+    
     expect(reviewers()[3]!.call('review', { verdicts: [{ number: 1, fixed: true }, { number: 1, fixed: false, why: 'Still open.' }], regressions: [], items: [] })).toContain('#1 has more than one verdict');
     expect(reviewers()[3]!.call('review', { verdicts: [{ number: 1, fixed: true }], regressions: [{ number: 2, why: 'a' }, { number: 2, why: 'b' }], items: [] })).toContain('#2 is named more than once');
     const both = reviewers()[3]!.call('review', { verdicts: [{ number: 1, fixed: true }, { number: 1, fixed: true }], regressions: [{ number: 2, why: 'a' }, { number: 2, why: 'b' }], items: [] });
@@ -571,22 +571,22 @@ describe('code reviews', () => {
     await review(id, reviewers()[0]!);
     workers.message(id, '', [], false, undefined, undefined, { 1: 'self', 2: 'self', 3: 'ignore' });
     expect(statuses(id)).toEqual(['fixing', 'fixing', 'closed']);
-    // an item that is closed but its work fixes anyway: resubmitted, so the reviewer looks at it too
+    
     expect(await worker().call('resubmit_review_item', { items: [{ number: 3, note: 'The constant is named now.' }, { number: 3 }] })).toContain('#3');
     expect(itemsOf(id)[2]).toMatchObject({ status: 'underReview' });
     expect(itemsOf(id)[2]!.log.at(-1)).toMatchObject({ who: 'worker', from: 'closed', to: 'underReview', note: 'The constant is named now.' });
     expect(await worker().call('resubmit_review_item', { items: [{ number: 9 }] })).toContain('there is no item #9');
-    // a later note on an item under review joins its log; one without a note is refused
+    
     expect(await worker().call('resubmit_review_item', { items: [{ number: 3, note: 'Also covered by a test.' }] })).toContain('Note added to #3');
     expect(await worker().call('resubmit_review_item', { items: [{ number: 3 }] })).toContain('#3 is under review already');
     expect(itemsOf(id)[2]!.log.at(-1)).toMatchObject({ who: 'worker', from: 'underReview', to: 'underReview', note: 'Also covered by a test.' });
-    // an item it holds wrong goes back to the owner, with its reasons
+    
     expect(await worker().call('dispute_review_item', { items: [{ number: 2, note: '' }] })).toContain('needs your reasons');
     expect(await worker().call('dispute_review_item', { items: [{ number: 2, note: 'Exports are serialized by the queue already.' }] })).toContain('Disputed: #2');
     expect(await worker().call('dispute_review_item', { items: [{ number: 3, note: 'x' }] })).toContain('not one you are fixing');
     expect(statuses(id)).toEqual(['fixing', 'reopened', 'underReview']);
     expect(needsYou(board.item(id)!)).toBe(false);
-    // the handover resubmits what it still fixes
+    
     await handOver(id, 'fix.ts');
     expect(statuses(id)).toEqual(['underReview', 'reopened', 'underReview']);
     await until(() => reviewers().length === 2);
@@ -604,11 +604,11 @@ describe('code reviews', () => {
     await worker().call('reply', { text: 'Fixed.' });
     worker().emit({ type: 'text', text: 'Fixed.' });
     worker().emit({ type: 'idle' });
-    // The Git lookup has not returned yet, but the owner already sees the next review.
+    
     expect(board.row(id).review?.codeReview?.pending).toBe(true);
     expect(board.item(id)!.review?.codeReview).toMatchObject({ state: 'running', runs: 2 });
     expect(needsYou(board.item(id)!)).toBe(false);
-    // A restart during the lookup resumes it; the original callback must not start a second run.
+    
     workers.reviews.interrupted();
     await until(() => reviewers().length === 2);
     expect(board.item(id)!.review?.codeReview).toMatchObject({ state: 'running', runs: 2 });
@@ -641,7 +641,7 @@ describe('code reviews', () => {
     const c = board.row(id).review!.codeReview!;
     expect(c.pending).toBe(true);
     workers.reviews.applyMode(id, c.handover, 'manual');
-    // A restart before Git answers retains both the pending run and the new mode.
+    
     workers.reviews.interrupted();
     await until(() => reviewers().length === 2, 15000);
     expect(board.item(id)!.review?.codeReview).toMatchObject({ mode: 'manual', state: 'running', runs: 2 });
@@ -693,14 +693,14 @@ describe('code reviews', () => {
     await until(() => reviewers().length === 2);
     await until(() => !!board.row(id).review?.codeReview?.review?.scope);
     expect(board.row(id).review?.codeReview?.review?.scope).toEqual([1]);
-    // the worker resubmits #3 while the review runs: not in this review's brief
+    
     expect(await worker().call('resubmit_review_item', { items: [{ number: 3, note: 'Named it.' }] })).toContain('Resubmitted: #3');
     const second = reviewers()[1]!;
     expect(second.inbox[0]).not.toContain('#3 “Name the constant”: A magic number.\n    The worker wrote');
     expect(second.call('review', { verdicts: [{ number: 1, fixed: true }, { number: 3, fixed: true }], regressions: [], items: [] })).toContain('#3 is not under review in your brief');
     await review(id, second, [], [{ number: 1, fixed: true }]);
     expect(statuses(id)).toEqual(['fixed', 'raised', 'underReview']);
-    // the next review starts by itself and verifies #3
+    
     await until(() => reviewers().length === 3);
     const third = reviewers()[2]!;
     expect(third.inbox[0]).toContain('The worker wrote: Named it.');
@@ -721,7 +721,7 @@ describe('code reviews', () => {
     await handOver(id, 'fix.ts');
     await until(() => reviewers().length === 2);
     await until(() => !!board.row(id).review?.codeReview?.review?.scope);
-    // the worker answers without changing code and hands over again: the running review stands
+    
     await worker().call('ready_for_review', { summary: 'Nothing changed.', demo: artifact() });
     await until(() => !board.row(id).review?.codeReview?.pending);
     expect(reviewers()).toHaveLength(2);
@@ -750,7 +750,7 @@ describe('code reviews', () => {
     await handOver(id, 'export.ts');
     await until(() => reviewers().length === 1);
     await review(id, reviewers()[0]!);
-    // as a list carried over from before puts them: under review, with the review done
+    
     board.work(id, { review: { items: itemsOf(id).map((i) => (i.number === 1 ? { ...i, status: 'underReview' as const } : i)) } });
     workers.shutdown();
     reviewing('auto');
@@ -775,7 +775,7 @@ describe('code reviews', () => {
     workers.message(id, '', [], false, undefined, undefined, { 1: 'self' });
     expect(worker().inbox.at(-1)).toContain('- Fix these now:\n  #1 “SQL built from input”');
     expect(worker().inbox.at(-1)).toMatch(/Fix these now:\n  #1[^\n]*\n(    .*\n)*    The owner wrote: Use a parameter\./);
-    // context the owner clears goes from the item and from what the worker reads
+    
     await handOver(id, 'fix2.ts');
     await until(() => reviewers().length === 3);
     await review(id, reviewers()[2]!, [], [{ number: 1, fixed: false, why: 'Still concatenated.' }]);
@@ -820,7 +820,7 @@ describe('code reviews', () => {
     expect(worker().inbox.length).toBe(before);
     expect(statuses(id)).toEqual(['raised', 'raised', 'closed']);
     expect(board.events(id).at(-1)!.text).toBe(board.t.worker.findingDecided(3, itemsOf(id)[2]!.title, board.t.worker.findingIgnored));
-    // a closed item is not decided again, but can be reopened (once)
+    
     expect(() => workers.message(id, '', [], false, undefined, undefined, { 3: 'self' })).toThrow();
     expect(() => workers.reviews.reopen(id, 1)).toThrow();
     workers.reviews.reopen(id, 3);
@@ -829,10 +829,10 @@ describe('code reviews', () => {
     workers.message(id, '', [], false, undefined, undefined, { 1: 'self', 2: 'ignore', 3: 'ignore' });
     const note = worker().inbox.at(-1)!;
     expect(note).toContain('#1 “SQL built from input”');
-    // the whole list goes with it: the closed ones too
+    
     expect(note).toContain('Closed (the owner ignored them; the review does not raise them again):\n  #2 “Race on a second handover”');
     expect(statuses(id)).toEqual(['fixing', 'closed', 'closed']);
-    // the next review knows what the owner closed, and is told not to raise it again
+    
     await handOver(id, 'fix.ts');
     await until(() => reviewers().length === 2);
     const brief = reviewers()[1]!.inbox[0]!;
@@ -840,10 +840,10 @@ describe('code reviews', () => {
     expect(brief).toContain('- #2 “Race on a second handover” (major, export.ts:40): Two exports at once overwrite each other.');
     expect(brief).toContain('- #3 “Name the constant” (minor): A magic number.');
     await review(id, reviewers()[1]!, [], [{ number: 1, fixed: true }]);
-    // a fixed item can be reopened by the owner too
+    
     workers.reviews.reopen(id, 1);
     expect(statuses(id)).toEqual(['reopened', 'closed', 'closed']);
-    // the second review's numbering continues across runs
+    
     await handOver(id, 'again.ts');
     await until(() => reviewers().length === 3);
     await review(id, reviewers()[2]!, [{ title: 'New', text: 'One more.', severity: 'low', with: [1] }]);
@@ -860,11 +860,11 @@ describe('code reviews', () => {
     expect(reviewers()).toHaveLength(0);
     workers.startCodeReview(id);
     await until(() => reviewers().length === 1);
-    // once running, not twice
+    
     expect(() => workers.startCodeReview(id)).toThrow();
     await review(id, reviewers()[0]!);
     expect(() => workers.startCodeReview(id)).toThrow();
-    // the worker hands over again with a new commit: the review is of an earlier handover
+    
     workers.message(id, 'One more column.');
     await handOver(id, 'column.ts');
     await until(() => board.item(id)!.review?.codeReview?.stale === true);
@@ -873,7 +873,7 @@ describe('code reviews', () => {
     workers.startCodeReview(id);
     await until(() => reviewers().length === 2);
     expect(board.item(id)!.review?.codeReview!.stale).toBeUndefined();
-    // the items of the earlier review stay while the new one runs
+    
     expect(itemsOf(id)).toHaveLength(3);
     await review(id, reviewers()[1]!, []);
     expect(itemsOf(id)).toHaveLength(3);
@@ -932,7 +932,7 @@ describe('code reviews', () => {
     workers.message(id, '', [], false, undefined, undefined, { 1: 'self', 2: 'self' });
     worker().call('dispute_review_item', { items: [{ number: 2, note: 'The exports are serialized upstream.' }] });
     await handOver(id, 'fix.ts');
-    // the list and its history stay, and the review verifying the fix starts without the owner, as in automatic mode
+    
     expect(statuses(id)).toEqual(['underReview', 'reopened', 'raised']);
     expect(itemsOf(id)[1]!.log.at(-1)).toMatchObject({ who: 'worker', from: 'fixing', to: 'reopened', note: 'The exports are serialized upstream.' });
     expect(board.item(id)!.review?.codeReview).toMatchObject({ mode: 'manual', state: 'running', runs: 2 });
@@ -943,7 +943,7 @@ describe('code reviews', () => {
     expect(statuses(id)).toEqual(['fixed', 'reopened', 'raised', 'raised']);
     expect(itemsOf(id).map((i) => i.number)).toEqual([1, 2, 3, 4]);
     expect(board.item(id)!.review?.codeReview?.runs).toBe(2);
-    // a handover that Seismic sees no change in keeps them too, and the review of the same commit stands for it
+    
     const hasWork = spaces.hasWork;
     spaces.hasWork = async () => false;
     try {
@@ -966,7 +966,7 @@ describe('code reviews', () => {
     await until(() => reviewers().length === 1);
     await review(id, reviewers()[0]!, [FINDINGS[1]]);
     workers.message(id, '', [], false, undefined, undefined, { 1: 'self' });
-    // the fix: the change goes again, and the branch is the same as main
+    
     const ws = board.row(id).workstation!;
     git(ws, 'rm', '--quiet', 'export.ts');
     git(ws, 'commit', '--quiet', '-m', 'Take the export out again');
@@ -1039,7 +1039,7 @@ describe('code reviews', () => {
     await handOver(id, 'export.ts');
     await until(() => reviewers().length === 1);
     await review(id, reviewers()[0]!);
-    // A failed review can be explicitly retried, then the project switches to manual.
+    
     const c = board.row(id).review!.codeReview!;
     board.work(id, { review: { codeReview: { ...c, review: { ...c.review!, state: 'failed' } } } });
     workers.startCodeReview(id);
@@ -1069,7 +1069,7 @@ describe('code reviews', () => {
     const id = await started();
     await handOver(id, 'export.ts');
     await until(() => reviewers().length === 1);
-    // an answer to the owner's words, handed over without a new commit
+    
     workers.message(id, 'Does it handle empty meters?');
     await worker().call('ready_for_review', { summary: 'Yes: an empty file.' });
     worker().emit({ type: 'idle' });
@@ -1108,13 +1108,13 @@ describe('code reviews', () => {
     await until(() => reviewers().length === 1);
     await review(id, reviewers()[0]!);
     workers.message(id, '', [], false, undefined, undefined, { 1: 'self', 3: 'ignore' });
-    // the follow-up tool refuses an item being fixed, one the owner closed, and any under review
+    
     expect(await worker().call('follow_up_task', { findings: [1], title: 'T', task: 'x' })).toContain('item 1 is fixing');
     expect(await worker().call('follow_up_task', { findings: [3], title: 'T', task: 'x' })).toContain('item 3 is closed');
-    // and one the owner has not decided on yet
+    
     expect(await worker().call('follow_up_task', { findings: [2], title: 'T', task: 'x' })).toContain('item 2 is raised');
     expect(statuses(id)).toEqual(['fixing', 'raised', 'closed']);
-    // resubmitted by tool, then handed over without a new commit: a review still starts
+    
     await worker().call('resubmit_review_item', { items: [{ number: 1 }] });
     await worker().call('ready_for_review', { summary: 'Done.', demo: artifact() });
     await until(() => reviewers().length === 2);
@@ -1135,7 +1135,7 @@ describe('history of a reopened item', () => {
     const worker = described(item);
     for (const n of ['checked A', 'race A', 'checked B', 'race B']) expect(worker).toContain(n);
     expect(worker.indexOf('race A')).toBeLessThan(worker.indexOf('race B'));
-    // the reviewer reads the count and the history of an item under review and of a fixed one
+    
     for (const status of ['underReview', 'fixed'] as const) {
       const brief = listed([{ ...item, status }]);
       expect(brief).toContain('Reopened 2 times before');

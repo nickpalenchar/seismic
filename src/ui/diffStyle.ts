@@ -1,5 +1,5 @@
-// How a diff lays out its lines: side by side (`split`) or one under the other (`unified`). The
-// owner's choice is kept in this browser for every card; the phone view shows unified only.
+
+
 
 import { useSyncExternalStore } from 'react';
 import { phoneView } from './phoneEnvironment';

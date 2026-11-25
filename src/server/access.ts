@@ -1,12 +1,12 @@
-// Who may talk to the server: every request and WebSocket upgrade, from this machine too, names one
-// of Seismic's own hosts and comes from no other site. A page elsewhere in the owner's browser may
-// send requests to 127.0.0.1 (a `text/plain` POST needs no preflight) and a DNS name rebound to it
-// reaches the server under that name; neither gets an answer. Then the gate has its say (remote.ts):
-// on this machine the owner's key (owner.ts), from another device a paired one.
+
+
+
+
+
 
 import { timingSafeEqual } from 'node:crypto';
 
-/** The names this machine reaches Seismic by. */
+
 export const LOCAL_HOSTS: readonly string[] = ['localhost', '127.0.0.1', '[::1]'];
 
 const PLAIN = { 'content-type': 'text/plain; charset=utf-8' };
@@ -60,21 +60,21 @@ export function ownOrigin(req: Request): string {
   return `${proto ? `${proto}:` : new URL(req.url).protocol}//${host.toLowerCase()}`;
 }
 
-/** Who may come in beyond what `refusal` checks: the owner, and other devices (remote.ts). */
+
 export interface Gate {
-  /** The names requests may come under. */
+  
   hosts(): readonly string[];
-  /** The answer a request to `route` gets instead of the route's own, or `null` to let it through. */
+  
   admit(req: Request, server: Bun.Server<unknown>, route: string): Response | null;
 }
 
 type Routes<D, R extends string> = Bun.Serve.RoutesWithUpgrade<D, R>;
 type Handler = (req: Request, server: Bun.Server<unknown>) => unknown;
 
-/** The routes that serve the workers' files: an HTML artifact's, a looked-up answer's. */
+
 const FILES = ['/cards/:id/demo/*', '/cards/:id/demos/:n/*', '/cards/:id/files/*', '/threads/:thread/files/*'];
 
-/** Keys the addresses of the workers' files with; new at every start, so an address with an old key is sent on to the new one. */
+
 const FILES_SECRET = crypto.getRandomValues(new Uint8Array(32));
 
 /** The key in the address of the workers' files under `base` (`/api/c/x/cards/y/demo/`): `<base>~<key>/index.html`. */

@@ -1,8 +1,8 @@
-// The read checkout of a repository: the directory on its default branch that the project reads plan
-// docs from and the agents that only read work in. Where work lands on the local main (Seismic's own
-// checkout), that is the checkout itself; otherwise the checkout is one of the pool's clones, on
-// whatever card's branch leased it last, and the read checkout is a detached worktree of it under
-// Seismic's home, kept on the default branch as `origin` has it.
+
+
+
+
+
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
@@ -20,7 +20,7 @@ const gitIn =
  * with neither.
  */
 export function defaultBranchCommit(repoPath: string): { branch: string; commit: string } {
-  // a folder without git has neither
+  
   if (isFolder(repoPath)) return { branch: '', commit: '' };
   return gitStepsSync(repoPath, readingDefaultBranch(repoPath));
 }
@@ -50,7 +50,7 @@ export function refsSeal(repoPath: string): string | null {
   const seal: string[] = [];
   const sealed = ['refs/heads/', 'refs/remotes/origin/'];
   const cards = sealed.flatMap((r) => CARD_BRANCHES.map((p) => `${r}${p}`));
-  // a branch that names another ref (`ref: <name>`) moves with that one
+  
   const followsSealed = (text: string) => {
     const target = text.match(/^ref: (\S+)\s*$/)?.[1];
     return !!target && sealed.some((r) => target.startsWith(r)) && !cards.some((r) => target.startsWith(r));
@@ -59,7 +59,7 @@ export function refsSeal(repoPath: string): string | null {
     const at = (path: string, ref = true) => {
       const s = statSync(path, { bigint: true, throwIfNoEntry: false });
       if (!s) return;
-      // a branch holds a commit's hash, or names the ref it follows
+      
       if (ref) {
         const text = readFileSync(path, 'utf8');
         if (text.startsWith('ref:') && !followsSealed(text)) throw new Error(`${path} follows a ref Seismic does not seal`);
@@ -71,17 +71,17 @@ export function refsSeal(repoPath: string): string | null {
       for (const e of readdirSync(dir, { withFileTypes: true })) {
         const path = join(dir, e.name);
         if (e.isDirectory()) {
-          // the cards' branches, not a branch of the repository's own that has the word in its name
+          
           if (!CARD_REFS.some((c) => path === join(top, c))) refs(path, top);
         } else at(path);
       }
     };
     for (const r of sealed) refs(join(common, r), join(common, r));
     at(join(common, 'packed-refs'), false);
-    // where no other rule tells the main branch, the branch the checkout is on does (`detectingBranch`)
+    
     const head = readFileSync(join(dirs.own, 'HEAD'), 'utf8').trim();
     if (head.startsWith('ref: ') && !CARD_BRANCHES.some((p) => head.startsWith(`ref: refs/heads/${p}`))) seal.push(`HEAD ${head}`);
-    // the main branch the owner set takes the place of the one detected
+    
     seal.push(`branch ${branchSetting(repoPath) ?? ''}`);
   } catch {
     return null;
@@ -89,10 +89,10 @@ export function refsSeal(repoPath: string): string | null {
   return seal.sort().join('\n');
 }
 
-/** The directory the cards' branches are in, under a repository's branches and `origin`'s. */
+
 const CARD_REFS = CARD_BRANCHES.map((p) => p.slice(0, -1));
 
-/** By the repository's path: its own git directory and the one its worktrees share, as `gitDirs` found them. */
+
 const knownDirs = new Map<string, { own: string; common: string }>();
 
 /**
@@ -134,26 +134,26 @@ export function* branchCommit(branch: string, branches?: Branches | null): GitSt
 }
 
 export interface ReadTreeOptions {
-  /** The repository's configured checkout. */
+  
   repoPath: string;
-  /** Where the worktree goes; null where the checkout itself is on the default branch. */
+  
   dir: string | null;
-  /** Whether the checkout has an `origin` to fetch from. */
+  
   remote: boolean;
-  /** The read checkout moved to another commit; a move settles once what this returns does. */
+  
   onChange: () => void | Promise<void>;
 }
 
 export class ReadTree {
-  /** The directory to read from: the worktree, or the checkout where it could not be made. */
+  
   path: string;
-  /**
-   * Whether git is changing the worktree's files now (moving it to another commit, making it
-   * afresh): what is read there meanwhile may be half the one commit and half the other.
-   */
+  
+
+
+
   moving = false;
   private refreshing: Promise<void> | null = null;
-  /** The moves of the worktree, one after the other, and how many have not begun yet or run. */
+  
   private moves: Promise<unknown> = Promise.resolve();
   private queued = 0;
   private stopped = false;
@@ -202,7 +202,7 @@ export class ReadTree {
       read();
       return Promise.resolve();
     }
-    // after the moves under way, which would otherwise put it back into the worktree
+    
     const moved = this.moves.then(read);
     this.moves = moved.catch(() => {});
     return moved;
@@ -221,7 +221,7 @@ export class ReadTree {
   private async fetch() {
     if (!this.o.remote) return;
     const { branch } = await gitSteps(this.o.repoPath, readingDefaultBranch(this.o.repoPath));
-    // only the default branch, and no FETCH_HEAD: what a lease fetching in the same clone touches stays its own
+    
     const p = Bun.spawn([GIT, '-C', this.o.repoPath, 'fetch', '--quiet', '--no-write-fetch-head', 'origin', `+refs/heads/${branch}:refs/remotes/origin/${branch}`], {
       stdin: 'ignore',
       stdout: 'ignore',
@@ -338,10 +338,10 @@ function* checking(repoPath: string, dir: string): GitSteps<{ state: 'same' | 'm
       ['rev-parse', '--path-format=absolute', '--git-common-dir'],
       ['-C', dir, 'rev-parse', 'HEAD'],
     ];
-    // a worktree of the checkout's repository, at its top
+    
     if (top && common && own && real(top) === real(dir) && real(common) === real(own)) {
       if (head === target) return { state: 'same' };
-      // the hooks are the checkout's (a post-checkout installing dependencies, say), not the read checkout's
+      
       const [checkedOut] = yield [['-C', dir, '-c', 'core.hooksPath=/dev/null', 'checkout', '--quiet', '--detach', '--force', target]];
       if (checkedOut !== null) return { state: 'moved' };
     }

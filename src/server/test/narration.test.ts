@@ -1,5 +1,5 @@
-// The voice Seismic holds across renders, against a fake voice that speaks qwen3.py's protocol: one
-// queue for every render's clips, one start while clips keep coming, an end after the idle time.
+
+
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -9,12 +9,12 @@ import { type ClipRequest, NarrationHost, parseClipRequest } from '../narration'
 import { serve } from '../server';
 import { asOwner } from './helpers/testing';
 
-/**
- * Logs its start, each clip and its end; `dies` as the speaker makes it die at the second clip,
- * `stumm` at loading, `lahm` never gets loaded. A clip whose text says „hängt“ gets no answer, as
- * the Qwen3 voice gave none on 2026-10-21; a clip of several sentences reports each after a while.
- * Given the script as written, it says it heard the text as said.
- */
+
+
+
+
+
+
 const FAKE_VOICE = `
 import { appendFileSync, writeFileSync } from 'node:fs';
 const [log, who] = process.argv.slice(2);
@@ -61,7 +61,7 @@ const until = async (done: () => boolean) => {
 describe('the voice Seismic holds', () => {
   test('starts once for the clips of several renders, which take turns in the order they asked', async () => {
     hold();
-    // two renders, each asking for its next clip once the last is done
+    
     const render = async (name: string) => {
       const replies = [];
       for (const n of [1, 2, 3]) replies.push(await host.clip(clip(`${name}${n}`)));
@@ -96,7 +96,7 @@ describe('the voice Seismic holds', () => {
     await host.clip(clip('eins'));
     await host.clip(clip('zwei', 'vivian'));
     await until(() => log().includes('end ryan'));
-    // the first ends as the second loads: their lines interleave
+    
     expect(log().toSorted()).toEqual(['en:eins', 'en:zwei', 'end ryan', 'start ryan', 'start vivian']);
     expect(log().filter((l) => l.startsWith('start'))).toEqual(['start ryan', 'start vivian']);
   });
@@ -113,8 +113,8 @@ describe('the voice Seismic holds', () => {
 
 describe('a voice that stops answering', () => {
   test('fails its clip after a while, and the sample and the renders behind it get their turn', async () => {
-    // 2026-10-21: the English voice gave no answer to a clip; the configuration sheet's
-    // sample and every render waited behind it without end
+    
+    
     hold(60_000, { sentenceMs: 400 });
     const replies: string[] = [];
     const render = async (name: string, texts: string[]) => {
@@ -131,7 +131,7 @@ describe('a voice that stops answering', () => {
     expect(await sample).toEqual({ ok: true, seconds: 0.01 });
     expect(replies[0]).toMatch(/^a:a1 hängt the voice said nothing for 0.4 s while making a clip and was ended: .*generating a1 hängt/s);
     expect(replies.slice(1)).toEqual(['b:b1 ok', 'a:a2 ok', 'b:b2 ok']);
-    // the stuck voice is gone: a new one took the next clip, the sample and the renders went on with it
+    
     expect(log().filter((l) => !l.startsWith('end'))).toEqual(['start ryan', 'start ryan', 'en:b1', 'en:Probe', 'en:a2', 'en:b2']);
   });
 
@@ -144,7 +144,7 @@ describe('a voice that stops answering', () => {
 
   test('is not taken for stuck while it reports each sentence of a long clip', async () => {
     hold(60_000, { sentenceMs: 300 });
-    // four sentences at 150 ms each: longer than the limit, but never silent for it
+    
     expect(await host.clip(clip('Eins. Zwei. Drei. Vier.'))).toEqual({ ok: true, seconds: 0.01 });
     expect(log()).toEqual(['start ryan', 'en:Eins. Zwei. Drei. Vier.']);
   });
@@ -159,7 +159,7 @@ describe('a clip over HTTP', () => {
         asOwner(() => server).fetch(new URL('/api/narration/clip', server.url), { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': type } });
       const done = await post(clip('eins'));
       expect(await done.json()).toEqual({ ok: true, seconds: 0.01 });
-      // a page elsewhere can send text/plain without asking first
+      
       expect((await post(clip('zwei'), 'text/plain')).status).toBe(415);
       expect((await post({ ...clip('zwei'), out: 'relativ.wav' })).status).toBe(400);
       expect(log()).toEqual(['start ryan', 'en:eins']);
@@ -193,7 +193,7 @@ describe('a clip over HTTP', () => {
     expect(parseClipRequest({ ...ok, voice: { reference: 'ich.wav' } })).toContain('reference');
     expect(parseClipRequest({ ...ok, script: 'Hallo.' })).toEqual({ ...ok, script: 'Hallo.' });
     expect(parseClipRequest({ ...ok, script: 7 })).toContain('script');
-    // a style goes to the voice as one argument of its own, whatever it says
+    
     expect(parseClipRequest({ ...ok, voice: { speaker: 'ryan', style: '--serve calm' } })).toMatchObject({ voice: { speaker: 'ryan', style: '--serve calm' } });
     expect(parseClipRequest({ ...ok, voice: { speaker: 'ryan', style: 'x'.repeat(1001) } })).toContain('style');
   });

@@ -7,7 +7,7 @@ export function repoName(repo: RepoInfo): string {
   return fromRemote || basename(repo.path);
 }
 
-/** Seismic's defaults, for what a repository's settings leave out: plan docs under `docs/plan/`, English in git. */
+
 export const generic: RepoAdapter = {
   planDocs: { dir: 'docs/plan', exclude: ['TEMPLATE.md'] },
   language: 'en',

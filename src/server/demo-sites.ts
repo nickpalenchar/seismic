@@ -1,15 +1,15 @@
-// The demo sites this machine publishes to, kept in Seismic's home (`demo-sites.json`), not in any
-// repository: a site is a person's (its credentials are), and a project chooses one of them with a
-// path of its own (`ProjectDemoSite`), so several projects share one site, each under its path.
-//
-// A site Seismic set up at a host (Cloudflare Pages, GitHub Pages) names it and its project there; one
-// entered by hand names its deploy line. On Cloudflare Pages or from a private GitHub repository a
-// site is unlisted (site.ts): no overview, no feed, each page under a random part of its URL drawn
-// once per card, the manifest under a secret directory only the owner's machines know. Another
-// machine joins a site with a connection code, which carries the site and its credentials.
-//
-// The owner's personal site, kept in `personal-site.json` before, is read as the first of the list
-// and goes into the file with its next change.
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -21,25 +21,25 @@ import { GITHUB_FOLDER, isFolder } from './github-folder';
 import { parseEnv, SITES_DIR, siteKey } from './site';
 
 export const SITES_FILE = 'demo-sites.json';
-/** Where the owner's personal site was kept before the list. */
+
 const PERSONAL_FILE = 'personal-site.json';
 
-/** Where a site is hosted, where Seismic set it up. */
+
 export type SiteHost = 'cloudflare' | 'github';
 
-/** A site's address: an http(s) URL without a query, its path made of plain characters. */
+
 export const SITE_URL = /^https?:\/\/[A-Za-z0-9.-]+(:\d+)?(\/[A-Za-z0-9._~\/-]*)?$/;
 
 const entryShape = z
   .object({
     url: z.string().regex(SITE_URL),
-    // the deploy words from before the rename (`obeya:github-pages`, `obeya:github-folder`) are read as the current ones (migration shim)
+    
     deploy: z
       .string()
       .trim()
       .min(1)
       .transform((d) => d.replace(/^obeya:(github-(?:pages|folder))(?=\s|$)/, 'seismic:$1')),
-    // under Seismic's home: the file's values go to the site
+    
     env: z
       .string()
       .min(1)
@@ -48,7 +48,7 @@ const entryShape = z
     headers: z.record(z.string(), z.string()).optional(),
     maxFile: z.number().int().positive().optional(),
     host: z.enum(['cloudflare', 'github']).optional(),
-    /** The host's project: a Cloudflare Pages project's name, or the GitHub repository (`owner/name`). */
+    
     project: z.string().regex(/^[A-Za-z0-9-]+(\/[A-Za-z0-9._-]+)?$/).optional(),
     secret: z.string().regex(/^[a-z0-9]{16,64}$/).optional(),
     git: z
@@ -64,7 +64,7 @@ const entryShape = z
 
 const fileShape = z.object({ sites: z.array(entryShape) }).strict();
 
-/** The personal site as `personal-site.json` kept it. */
+
 const personalShape = z.object({
   host: z.enum(['cloudflare', 'github']),
   url: z.string().regex(SITE_URL),
@@ -85,7 +85,7 @@ export const folderDeploy = (repo: string) => `${GITHUB_FOLDER} ${repo}`;
 /** The deploy line of a Cloudflare Pages project, as Seismic's own site has it. */
 export const cloudflareDeploy = (project: string) => `bunx wrangler@4 pages deploy {dir} --project-name ${project} --branch main --commit-dirty=true`;
 
-/** The list as last read, by its file: read again once it changed (sharing asks for it often). */
+
 const cache = new Map<string, { stamp: string; sites: DemoSiteEntry[] }>();
 
 const stampOf = (file: string) => {
@@ -130,7 +130,7 @@ export function writeSites(home: string, sites: DemoSiteEntry[]) {
   cache.delete(file);
   mkdirSync(home, { recursive: true });
   writeFileSync(file, `${JSON.stringify(fileShape.parse({ sites }), null, 2)}\n`);
-  // the personal site is in the list now
+  
   rmSync(join(home, PERSONAL_FILE), { force: true });
 }
 
@@ -190,7 +190,7 @@ export function newToken(bits = 80): string {
   const n = Math.ceil(bits / Math.log2(36));
   const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
   let out = '';
-  // drawn without a bias: bytes past the last whole round of 36 are thrown away
+  
   while (out.length < n) for (const b of randomBytes(n * 2)) if (b < 252 && out.length < n) out += alphabet[b % 36];
   return out;
 }
@@ -212,7 +212,7 @@ export function writeEnv(home: string, rel: string, env: Record<string, string>)
 }
 
 const CODE_PREFIX = 'seismic-site:';
-/** The prefix of codes made before the rename; still accepted (migration shim). */
+
 const OLD_CODE_PREFIX = 'obeya-site:';
 
 /**
@@ -237,7 +237,7 @@ export function connect(home: string, code: string): { site: DemoSiteEntry; cred
     throw new Error('the connection code is incomplete; copy it again');
   }
   const { credentials, private: _, approved: __, ...rest } = raw as { credentials?: Record<string, unknown>; private?: unknown; approved?: unknown; deploy?: unknown };
-  // a personal site's code from before names its host and project, not its deploy line
+  
   const old = !rest.deploy && personalShape.omit({ env: true }).safeParse(rest);
   const parsed = entryShape.omit({ env: true }).safeParse(old && old.success ? { ...old.data, deploy: hostDeploy(old.data.host, old.data.project), ...(old.data.host === 'github' ? { maxFile: GITHUB_PAGES_MAX } : {}) } : rest);
   if (!parsed.success) throw new Error('the connection code is incomplete; copy it again');

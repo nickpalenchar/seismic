@@ -1,16 +1,16 @@
-// Signs that a card's change alters the data its project persists, read at its handover from the
-// branch's diff: a tripwire beside the worker's own declaration (`data_models`), so that a model
-// change does not reach the owner without its schema-change page. Generic signals only (DDL, the
-// usual migration and schema files, the usual migration calls of ORMs): Seismic cannot know how a
-// repository defines its models, and a false alarm costs the worker one more call.
 
-/** A file of the change that looks like it alters persisted models, with what gave it away. */
+
+
+
+
+
+
 export interface DataSignal {
   file: string;
   why: string;
 }
 
-/** Paths that hold persisted models or their migrations, whatever the change in them. */
+
 const PATHS: [RegExp, string][] = [
   [/\.sql$/i, 'an SQL file'],
   [/(^|\/)(migrations?|migrate|alembic)\//i, 'a migrations directory'],
@@ -20,7 +20,7 @@ const PATHS: [RegExp, string][] = [
   [/\.entity\.[cm]?[jt]s$/, 'an ORM entity'],
 ];
 
-/** Added lines that read like DDL or an ORM's migration calls. */
+
 const LINES: RegExp[] = [
   /\b(create|alter|drop)\s+(temporary\s+|temp\s+|virtual\s+)?(table|view|index)\b/i,
   /\bcreate\s+unique\s+index\b/i,
@@ -31,10 +31,10 @@ const LINES: RegExp[] = [
   /\bmigrations\.(CreateModel|DeleteModel|AddField|RemoveField|AlterField|RenameField|RenameModel)\b/,
 ];
 
-/** Prose about a migration is no migration. */
+
 const PROSE = /\.(md|mdx|markdown|txt|rst|adoc)$/i;
 
-/** How many files a refusal names. */
+
 export const SIGNALS_NAMED = 8;
 
 /** The files of `patch` (a `git diff`, new files against nothing) that look like they alter persisted models, each once. */

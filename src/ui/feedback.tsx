@@ -1,7 +1,7 @@
-// The owner's feedback on an agent's approved work: 1 to 5 stars and an optional comment, the same
-// on the project and on the phone. Right after an approval it asks above the microphone, where the
-// owner can skip it; the card itself keeps asking until it is answered, and shows the answer after.
-// Saving goes its own way: approval and landing never wait for it, nor fail with it.
+
+
+
+
 
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { FeedbackAnswer, Item } from '../core/types';
@@ -34,7 +34,7 @@ export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; 
   const rate = item.review!.rate!;
   const key = rateDraft(item.id);
   const draft = useDraft(key);
-  // what was saved, ahead of the snapshot that brings it
+  
   const [saved, setSaved] = useState<FeedbackAnswer | undefined>(rate.answer);
   const [hover, setHover] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -68,14 +68,14 @@ export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; 
       onClose?.();
     }
   };
-  // the comment field opens with the first star, or stands where a comment was given or begun
+  
   const commenting = rating > 0 || !!saved?.comment || !!draft.text;
   const shown = hover || rating;
   return (
     <div className={rateClass(prompt)}>
       <div className="rate-row flex items-center flex-wrap gap-x-3 gap-y-1.5">
         <span className={cn('rate-q font-semibold', prompt && 'basis-full')}>{prompt ? t.feedback.ask(plain(item.title)) : t.feedback.askCard}</span>
-        {/* a rating, not a choice: the group has no star "on" until one is given, and the stars up to the hovered one fill */}
+        { }
         <RadioGroup
           className="stars inline-flex"
           label={t.feedback.askCard}
@@ -90,7 +90,7 @@ export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; 
                 value={String(n + 1)}
                 aria-label={t.feedback.star(n + 1, name)}
                 className={starClass(n < shown)}
-                // a mouse's only: Safari on the iPhone takes a tap that changes what shows on hover for the hover alone, and the star stayed unsaved
+                
                 onPointerEnter={(e) => e.pointerType === 'mouse' && setHover(n + 1)}
               >
                 {n < shown ? '★' : '☆'}
@@ -155,17 +155,17 @@ export function Rate({ item, prompt, onClose }: { item: Item; prompt?: boolean; 
 export function useRatePrompt(items: Item[]) {
   const [queue, setQueue] = useState<string[]>([]);
   const card = queue[0] ?? null;
-  // the archive as read for the cards asked about, and which cards that read covers
+  
   const [archive, setArchive] = useState<{ covers: Set<string>; items: Item[] } | null>(null);
   const here = card ? items.find((i) => i.id === card) : undefined;
   const looked = !!card && !!archive?.covers.has(card);
   const away = looked ? archive!.items.find((i) => i.id === card) : undefined;
   const found = here?.review?.rate ? here : away?.review?.rate ? away : undefined;
-  // the card as last shown: it stays while the archive is read after it left the project
+  
   const shown = useRef<Item | undefined>(undefined);
   if (found) shown.current = found;
   const item = found ?? (!looked && shown.current?.id === card ? shown.current : undefined);
-  // answered elsewhere (the card, another device) or no longer asked for: nothing left to ask
+  
   const [answeredHere, setAnsweredHere] = useState(false);
   useEffect(() => setAnsweredHere(false), [card]);
   useEffect(() => {
@@ -175,7 +175,7 @@ export function useRatePrompt(items: Item[]) {
     return () => void (live = false);
   }, [card, !!here?.review?.rate, looked]);
   const open = !!item?.review?.rate && (!item.review.rate.answer || answeredHere);
-  // nothing to ask about this one: on to the next
+  
   useEffect(() => {
     if (card && !open && (here?.review?.rate || looked)) setQueue((q) => q.slice(1));
   }, [card, open, !!here?.review?.rate, looked]);

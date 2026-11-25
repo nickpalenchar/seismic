@@ -60,18 +60,18 @@ test('the voice check names what is missing, how to install it here, and what "I
     const setup = new VoiceSetup({ home, local: hearing(''), env: { PATH: join(home, 'none') } });
     const view = await setup.view();
     const by = Object.fromEntries(view.items.map((i) => [i.id, i]));
-    // uv first: it brings the recognition
+    
     expect(view.items.map((i) => i.id)).toEqual(['uv', 'recognition', 'ffmpeg']);
     expect(by.ffmpeg).toMatchObject({ state: 'missing' });
     expect(by.ffmpeg!.install?.commands.length || by.ffmpeg!.install?.url).toBeTruthy();
     expect(by.uv).toMatchObject({ state: 'missing' });
     expect(by.uv!.install?.url).toContain('astral');
-    // without uv the package is not in its cache: fetched by "Installieren" or the first command, once uv is there
+    
     expect(by.recognition).toMatchObject({ state: 'later', found: 'Parakeet', waits: 'uv' });
     await expect(setup.install()).rejects.toThrow('uv');
     expect(view.fetch.mb).toBe(by.recognition!.mb!);
 
-    // a Python of one's own without the package is missing
+    
     const own = new VoiceSetup({ home, local: { ...hearing(''), backend: 'mlx' }, env: { PATH: join(home, 'none'), SEISMIC_WHISPER_PYTHON: join(home, 'python') } });
     const mac = Object.fromEntries((await own.view()).items.map((i) => [i.id, i]));
     expect(mac.recognition).toMatchObject({ state: 'missing', need: 'mlx-whisper' });
@@ -85,7 +85,7 @@ test('"Installieren" loads the recognition and times it on a short sentence, and
   const home = mkdtempSync(join(tmpdir(), 'seismic-voice-setup-'));
   try {
     let loaded = 0;
-    // uv is there; the package is not in its cache
+    
     writeFileSync(join(home, 'uv'), '#!/bin/sh\ncase "$1" in --version) echo "uv 0.9.2";; *) exit 1;; esac\n');
     chmodSync(join(home, 'uv'), 0o755);
     const setup = new VoiceSetup({ home, local: hearing('Starte die Karte', 30, () => void loaded++), env: { PATH: home } });
@@ -98,7 +98,7 @@ test('"Installieren" loads the recognition and times it on a short sentence, and
     const speed = view.items.find((i) => i.id === 'recognition')!.speed;
     expect(speed).toMatchObject({ backend: 'parakeet', slow: false });
     expect(typeof speed === 'object' && speed.seconds).toBeGreaterThan(0.02);
-    // kept for the next start, for this backend only
+    
     expect(readVoiceFile(home).speed?.backend).toBe('parakeet');
     const whisper = new VoiceSetup({ home, local: { ...hearing(''), backend: 'faster' }, env: { PATH: home } });
     expect((await whisper.view()).items.find((i) => i.id === 'recognition')!.speed).toBeUndefined();
@@ -116,7 +116,7 @@ test('a recognition slower than the sentence lasts counts as too slow', async ()
   const home = mkdtempSync(join(tmpdir(), 'seismic-voice-setup-'));
   try {
     const setup = new VoiceSetup({ home, local: hearing('Starte', 60), clip: join(home, 'clip.ogg'), env: { PATH: home } });
-    // a sentence of 4.1 s heard in 60 ms is fast; as if it lasted 0.05 s, the same is slow
+    
     CHECK_CLIP.seconds = 0.05;
     try {
       await setup.measure();
@@ -152,13 +152,13 @@ test('a cloud service is tested with the sentence, then hears every recording; a
     expect(sent.at(-1)!.auth).toBe('Bearer gsk_right');
     expect(sent.at(-1)!.form.get('model')).toBe('whisper-large-v3-turbo');
     expect((sent.at(-1)!.form.get('file') as File).name).toBe('clip.ogg');
-    // nothing on this machine is needed any more; the page never sees the key
+    
     expect(view.items).toHaveLength(1);
     expect(view.items[0]).toMatchObject({ id: 'recognition', state: 'ok', found: 'Groq', cloud: { preset: 'groq', key: true, used: true, tested: { seconds: expect.any(Number) } } });
     expect(JSON.stringify(view)).not.toContain('gsk_right');
     if (process.platform !== 'win32') expect(statSync(join(home, VOICE_FILE)).mode & 0o777).toBe(0o600);
 
-    // a recording goes to the service, with the card titles as a prompt; the key stays when another test leaves it out
+    
     const voice = new VoiceIn(home, local, fetcher);
     writeFileSync(join(home, 'speech.webm'), 'webm');
     expect(await voice.transcribe(join(home, 'speech.webm'), 'Export für Vermieter')).toEqual({ text: 'Starte die Karte Export für Vermieter.', doubtful: false });
@@ -169,7 +169,7 @@ test('a cloud service is tested with the sentence, then hears every recording; a
     expect(failed).toBeInstanceOf(CloudError);
     expect(failed).toMatchObject({ service: 'Groq', message: '401: Invalid API Key' });
 
-    // Mistral takes no prompt; an endpoint of one's own is named by its host
+    
     refuse = false;
     await setup.useCloud({ preset: 'mistral', key: 'm-key' });
     await voice.transcribe(join(home, 'speech.webm'), 'Export');
@@ -178,11 +178,11 @@ test('a cloud service is tested with the sentence, then hears every recording; a
     await setup.useCloud({ preset: 'openai', key: 'k', baseUrl: 'http://gpu.local:8000/v1/', model: 'large-v3' });
     expect(sent.at(-1)!.url).toBe('http://gpu.local:8000/v1/audio/transcriptions');
     expect((await setup.view()).items[0]!.found).toBe('gpu.local:8000');
-    // the stored key goes to no other endpoint unless typed for it
+    
     await expect(setup.useCloud({ preset: 'openai', baseUrl: 'https://elsewhere.example/v1', model: 'large-v3' })).rejects.toThrow('an API key');
     expect(sent.at(-1)!.url).toBe('http://gpu.local:8000/v1/audio/transcriptions');
 
-    // back to this machine; the service stays set up
+    
     const back = await setup.useLocal();
     expect(back.items.map((i) => i.id)).toEqual(['uv', 'recognition', 'ffmpeg']);
     expect(back.items[1]!.cloud).toMatchObject({ preset: 'openai', used: false });
@@ -193,7 +193,7 @@ test('a cloud service is tested with the sentence, then hears every recording; a
 });
 
 test('the recognition sidecar ends quietly when Seismic is gone before it has written a recording down', async () => {
-  // a fake mlx-whisper that takes a moment for a recording longer than the warm-up's second
+  
   const dir = mkdtempSync(join(tmpdir(), 'seismic-sidecar-'));
   try {
     writeFileSync(join(dir, 'mlx_whisper.py'), 'import time\ndef transcribe(audio, **kw):\n    time.sleep(1 if len(audio) > 16000 else 0)\n    return {"text": "Hallo"}\n');
@@ -207,7 +207,7 @@ test('the recognition sidecar ends quietly when Seismic is gone before it has wr
     const out = (p.stdout as ReadableStream<Uint8Array>).getReader();
     expect(new TextDecoder().decode((await out.read()).value)).toContain('"ready": true');
     p.stdin.write(`${JSON.stringify({ id: 1, path: join(dir, 'speech.wav') })}\n`);
-    // Seismic ends the sidecar's stdin as it stops, and is gone before the words are written
+    
     p.stdin.end();
     await out.cancel();
     expect(await p.exited).toBe(0);

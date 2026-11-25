@@ -1,6 +1,6 @@
-// The note on a repository's plan directory, beside the plans on the project: the docs there
-// that are not plans, each with its reason and "Als Plan aufbereiten", or, while the
-// repository has no plan doc yet, where the first one goes (which the owner can hide).
+
+
+
 
 import { useCallback } from 'react';
 import { type Bounds, PLAN_DIR_NOTE_W, planDirNoteBox, planDirNoteHeight, unionBounds } from '../core/layout';
@@ -9,7 +9,7 @@ import { t } from './strings';
 import { useStoredState } from './stored';
 import { Button, CloseButton, LinkButton } from './components/button';
 
-/** Between the note and the plans below it. */
+
 const NOTE_GAP = 40;
 
 /**
@@ -39,7 +39,7 @@ export function useHiddenEmptyNotes(project: string): [(d: PlanDir) => boolean, 
 
 const noteId = (d: PlanDir) => `${d.repo}:${d.dir}`;
 
-/** Why a doc is not a plan: quiet under its name, or under the head when one reason holds for all. */
+
 const whyClass = 'pd-why block text-xs text-muted-foreground';
 
 export function PlanDirNote({
@@ -55,7 +55,7 @@ export function PlanDirNote({
   dir: PlanDir;
   b: Bounds;
   dragging: boolean;
-  /** The repository's name, when the project has several. */
+  
   repo?: string;
   onPrepare: (dir: PlanDir, file: string) => void;
   onOpen: (cardId: string) => void;
@@ -66,7 +66,7 @@ export function PlanDirNote({
   const reasons = new Set(dir.others.map((o) => o.reason));
   const one = reasons.size === 1 ? t.planDir.reason[dir.others[0]!.reason] : null;
   return (
-    // a press on the note moves it, like a card; one on a button there is no move
+    
     <div
       className={[
         'plan-dir absolute box-border select-none rounded-sm border-[1.5px] border-(--container-line) bg-(--container) px-3.5 py-3 text-sm leading-[1.4] [&_button]:cursor-pointer [&_p]:m-0',

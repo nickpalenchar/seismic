@@ -1,20 +1,20 @@
-// Where the project settings sheet is to open: its list, or a section, the repository it shows, and the field there
-// to mark, as from a card waiting for a free clone or slot or a proposal for a setting. Kept in the
-// tab until the sheet of that project takes it, so it survives switching to the project first.
+
+
+
 
 import type { SettingKey } from '../config';
 
-/** A sheet's sections, in the order its list shows them; Configuration and Allowed commands stand apart above the others. */
+
 export const SECTIONS = ['project', 'commands', 'agents', 'suggestions', 'environment', 'reviews', 'git', 'archiving', 'demos'] as const;
 export type Section = (typeof SECTIONS)[number];
 
 export interface SettingsFocus {
   project: string;
-  /** The repository's id; none for the project's list of sections. */
+  
   repo?: string;
-  /** The section to open; none for the list. */
+  
   section?: Section;
-  /** The field to focus and mark: the clone count or slots under Agents and models, or a repository setting. */
+  
   field?: 'clones' | 'slots' | SettingKey;
 }
 

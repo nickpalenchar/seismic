@@ -1,6 +1,6 @@
-// Tabs on Radix: arrow keys select a tab, or only focus it with activationMode="manual".
-// Lists opt into a look; an omitted variant leaves the canvas strip and view navigation to their containers.
-// forceMount + hidden keeps a panel's unsent input mounted when another tab is selected.
+
+
+
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from 'cn';
 import { Tabs as TabsPrimitive } from 'radix-ui';
@@ -10,7 +10,7 @@ export function Tabs({ className, orientation = 'horizontal', asChild, ...props 
   return <TabsPrimitive.Root data-slot="tabs" data-orientation={orientation} orientation={orientation} asChild={asChild} className={cn(!asChild && 'group/tabs flex gap-2 data-[orientation=horizontal]:flex-col', className)} {...props} />;
 }
 
-// A minimum keeps stock proportions while growing around larger touch targets or stacked tabs.
+
 const listVariants = cva('', {
   variants: {
     variant: {

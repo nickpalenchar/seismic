@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, expect, test } from 'bun:test';
 import { copyOrSelect } from './copy';
 
-// a page's clipboard, selection and copy command, as the browser offers them
+
 let clipboard: { writeText: (s: string) => Promise<void> } | undefined;
 let secure = true;
 let copies = false;
@@ -16,7 +16,7 @@ g.document = {
   execCommand: (c: string) => c === 'copy' && copies,
 };
 const el = { pre: true } as unknown as HTMLElement;
-// the other test files of a process that runs them one after the other see no page
+
 afterAll(() => {
   delete g.document;
   delete g.getSelection;

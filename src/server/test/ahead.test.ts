@@ -47,7 +47,7 @@ describe('asking on a card before its start', () => {
     await until(() => asker());
     expect(asker().inbox[0]).toContain('Is there a PDF library already?');
     expect(asker().inbox[0]).toContain('Add a PDF export.');
-    // at work on the card, which the owner can pause
+    
     expect(board().item(card.id)?.agent?.inTurn).toBe(true);
     await answers('No, none yet.');
     expect(talk(card.id)).toEqual([
@@ -75,7 +75,7 @@ describe('asking on a card before its start', () => {
     expect(asker().inbox[0]).toContain('And second?');
     expect(board().events(card.id).find((e) => e.text === 'And second?')?.unread).toBeUndefined();
     await answers('Two.');
-    // in the log in the order they came; the conversation shows the second words where the agent read them, after its first answer
+    
     const events = board().events(card.id);
     const one = events.find((e) => e.text === 'One.')!;
     expect(events.find((e) => e.text === 'And second?')?.readAfter).toBeGreaterThanOrEqual(one.id);

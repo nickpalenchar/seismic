@@ -1,5 +1,5 @@
-// Work that must not overlap with other work under the same key (a landing per repository, a turn
-// per thread) runs one after the other.
+
+
 
 /**
  * Runs `fn` once what runs under `key` in `running` has settled, whether it failed or not; at once

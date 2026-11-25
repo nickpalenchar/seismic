@@ -1,4 +1,4 @@
-// Agent sessions behind a small interface, so the orchestration can be tested without a model.
+
 
 import { LimitAttempts, limitWatch } from './limit-watch';
 import { type PermissionUpdate, type SpawnedProcess, type SpawnOptions } from '@anthropic-ai/claude-agent-sdk';
@@ -24,7 +24,7 @@ export interface AgentTool {
   name: string;
   description: string;
   schema: z.ZodRawShape;
-  /** Returns the text the agent sees as the tool result. */
+  
   run: (args: Record<string, unknown>) => Promise<string> | string;
 }
 
@@ -32,149 +32,149 @@ export type AgentEvent =
   | { type: 'session'; id: string; setting?: AgentSetting; model?: string }
   | { type: 'text'; text: string }
   | { type: 'tool'; name: string; input: Record<string, unknown> }
-  /** A tool call of the agent's own (not a subagent's) ended; `ok` false when it failed (a command's non-zero exit, say). */
+  
   | { type: 'toolDone'; name: string; ok: boolean }
-  /**
-   * A tool call was refused without anyone being asked: by a rule of the settings, auto mode's
-   * classifier, the permission mode, a hook (`seismic`: Seismic's own, `refuseForegroundWait`).
-   * `reason`: the deciding component's own words, when it gave any.
-   */
+  
+
+
+
+
   | { type: 'denied'; name: string; input: Record<string, unknown>; by: DeniedBy; reason?: string }
-  /**
-   * The turn ended; the session waits for the next message. `background` counts the agent's
-   * background tasks still running: when one ends, the session wakes itself for a new turn.
-   * `more`: a message sent during the turn came too late for it and starts a turn of its own,
-   * which follows without another message.
-   */
+  
+
+
+
+
+
   | { type: 'idle'; background?: number; more?: boolean }
-  /**
-   * The agent's background tasks still running changed, in a turn or between turns: a deploy
-   * watcher that ends, say, which then wakes the session. `tasks`: all that run now, by the SDK's id.
-   */
+  
+
+
+
   | { type: 'background'; tasks: { id: string; description: string }[] }
-  /**
-   * The session's machine is out of reach (a worker on an SSH host whose connection failed or
-   * dropped): the session has ended, and resumes by its id once the host answers again.
-   */
+  
+
+
+
   | { type: 'lost'; message: string }
-  /**
-   * The turn failed. `limit` when the account's usage limit stopped it (the five-hour session
-   * limit, say): it lifts again at `resetsAt` (milliseconds) when the API said when. `ended` when
-   * the session died with it and took the work it had started along (a Codex app-server's
-   * descendants), the app in the workstation included. `token` when the session signed in with a token
-   * rather than this machine's account (`CardEvent.token`).
-   */
+  
+
+
+
+
+
+
   | { type: 'error'; message: string; limit?: { resetsAt?: number }; ended?: true; token?: true };
 
-/** Who refused a tool call (`SDKPermissionDeniedMessage.decision_reason_type`, sorted). */
+
 export type DeniedBy = 'rule' | 'classifier' | 'mode' | 'hook' | 'seismic' | 'owner' | 'other';
 
-/** A tool call the settings want a person to confirm (an `ask` rule, a safety check). */
+
 export interface PermissionRequest {
   name: string;
   input: Record<string, unknown>;
-  /** Why it is asked, when Claude Code says. */
+  
   reason?: string;
-  /** Claude Code's suggestions of permission updates for the call (`canUseTool`'s `suggestions`), as it gives them. */
+  
   suggestions?: unknown;
 }
 
-/** The owner's answer; `permissions`: updates the asking Claude Code session takes with the allowed call (`updatedPermissions`). */
+
 export type PermissionAnswer = { allow: true; permissions?: PermissionUpdate[] } | { allow: false; message: string };
 
 export interface AgentSpec {
-  /** Where the agent works; a workstation on another machine (`ssh://<host>/…`) runs it there (`hosts.ts`). */
+  
   cwd: string;
-  /** Appended to the default system prompt. */
+  
   system: string;
-  /** Tools the agent reaches as `mcp__seismic__<name>`. */
+  
   tools: AgentTool[];
-  /** Resume this session instead of starting one. */
+  
   resume?: string;
-  /** Directories outside `cwd` the agent works in as in its own (a looked-up thread's output directory). */
+  
   dirs?: string[];
-  /**
-   * The repository's own Claude Code settings in `cwd` wait for the owner to confirm them
-   * (`withRepoTrust`): the session reads the user's settings alone, none of the repository's.
-   */
+  
+
+
+
   untrusted?: boolean;
-  /**
-   * The repository's own Claude Code settings in `cwd` wait for the owner to confirm them, for a
-   * Codex session (`withRepoTrust`), which reads none of them anyway: it just takes no command from
-   * their allow list without asking (`withTrustedAllow`).
-   */
+  
+
+
+
+
   claudeHeld?: boolean;
-  /**
-   * The repository's own Codex configuration in `cwd` (its `.codex/`) is to the byte what the owner
-   * trusted (`withCodexTrust`): a Codex session loads it. Without, it loads none of the repository's.
-   */
+  
+
+
+
   codexConfig?: boolean;
-  /** Directories of local Claude Code plugins loaded into the session (skills, mainly). */
+  
   plugins?: string[];
-  /** Seismic's skills for the session; each harness attaches them its own way (`skills/attachedSkills.ts`). */
+  
   skills?: SeismicSkill[];
-  /**
-   * What the agent may do without asking, as no harness names it (`agents/permission.ts`); without
-   * one it follows the owner's `--permission-mode`. Read-only agents get no tools that change files
-   * or run commands.
-   */
+  
+
+
+
+
   permission?: AgentPermission;
-  /**
-   * Asked by the harness once it has resolved the model the session runs on, before its first turn:
-   * what the agent that runs it asks of that model (`SeismicAgent.checkCapabilities`). A check that is
-   * not `ok` ends the session with its `problem`; the harness takes its messages through `apply`.
-   */
+  
+
+
+
+
   checkModel?: (model: SeismicModel) => CapabilityCheck;
-  /** Added to the agent's environment (Seismic's own, cleaned). */
+  
   env?: Record<string, string>;
-  /** How much the model thinks; low for quick, small jobs. */
+  
   effort?: AgentEffort;
-  /** The model, when not the default: a smaller one for small, frequent jobs. */
+  
   model?: string;
-  /** A model named by an earlier session, pinned when that run resumes or is retried. */
+  
   resolvedModel?: string;
-  /** The group the agent belongs to, whose model and effort the owner chooses (`withAgentSetting`). */
+  
   role?: AgentRole;
-  /** Where the agent shows at work: its harness and model show there while its session lives (`withAgentSetting`). */
+  
   at?: AgentAt;
-  /** Pinned to a card's run; changing defaults must not switch its harness or model on resume. */
+  
   setting?: AgentSetting;
-  /**
-   * Asked after every tool step of the agent's own (not a subagent's): what changed since the
-   * session's instructions were built, or what waited for its next step, for the agent to read with
-   * that step's result without being stopped; nothing when nothing did. Asking takes it: it is read.
-   */
+  
+
+
+
+
   contextUpdate?: () => string | undefined;
-  /**
-   * Told before and after each tool call of the agent and its subagents, and waited for: what a
-   * call changes in a folder without git becomes the card's (`FolderWorkstations.watch`).
-   */
+  
+
+
+
   watch?: ToolWatch;
-  /**
-   * Asked when a tool call needs a person's permission; settles with their answer. Without it such a
-   * call is refused, as in any session without someone to ask.
-   */
+  
+
+
+
   askOwner?: (request: PermissionRequest, signal: AbortSignal) => Promise<PermissionAnswer>;
-  /**
-   * The agent waits for the account's usage limit instead of failing on it (`withLimitWait`): a turn
-   * the limit stops is neither an error nor over, and this hears when the agent goes on by itself,
-   * and nothing once it does or its session ends. Without it, the turn fails with the error's `limit`.
-   */
+  
+
+
+
+
   onLimit?: (until: number | null | undefined, retry?: () => void) => void;
   onEvent: (e: AgentEvent) => void;
 }
 
 export interface AgentSession {
-  /** Sends a user message, with images (files) after the text; the session takes it at the next opportunity. */
+  
   send(text: string, images?: string[]): void;
-  /** Ends the session after the current step. */
+  
   close(): void;
-  /** Settles when the session has ended. */
+  
   done: Promise<void>;
 }
 
 export interface AgentRuntime {
-  /** Without a first message the agent starts up and waits, so a later `send` skips the start-up. */
+  
   start(spec: AgentSpec, firstMessage?: string, images?: string[]): AgentSession;
 }
 
@@ -302,7 +302,7 @@ export function withCodexTrust(runtime: AgentRuntime, trusted: (cwd: string) => 
 export function withRepoTrust(runtime: AgentRuntime, untrusted: (cwd: string) => boolean | Promise<boolean>): AgentRuntime {
   return {
     start(spec, firstMessage, images) {
-      // one already started without them (a review card's) brings its notes from elsewhere
+      
       if (spec.untrusted) return runtime.start(spec, firstMessage, images);
       const start = (held: boolean) => {
         if (!held) return runtime.start(spec, firstMessage, images);
@@ -314,7 +314,7 @@ export function withRepoTrust(runtime: AgentRuntime, untrusted: (cwd: string) =>
       };
       const held = untrusted(spec.cwd);
       if (typeof held === 'boolean') return start(held);
-      // where it cannot be told, the repository's settings are not read
+      
       return startingLater(
         held.catch(() => true).then((h) => () => start(h)),
         spec,
@@ -352,7 +352,7 @@ export function startingLater(starting: Promise<() => AgentSession>, spec: Agent
   };
 }
 
-/** What an agent the usage limit stopped is told once it lifts. */
+
 export const LIMIT_LIFTED = 'The usage limit that stopped your last turn has reset. Go on where you stopped.';
 
 /** For an agent that waits for the usage limit with nowhere to show it (`AgentSpec.onLimit`): nobody waits for its result. */
@@ -371,7 +371,7 @@ export function withLimitWait(runtime: AgentRuntime, margin = 10_000): AgentRunt
       const key = {};
       const attempts = new LimitAttempts();
       let waiting = false;
-      // the end of the turn the limit stopped is not the end of its work
+      
       let stopped = false;
       let closed = false;
       const session: AgentSession = runtime.start(
@@ -431,7 +431,7 @@ export function withLimitWait(runtime: AgentRuntime, margin = 10_000): AgentRunt
   };
 }
 
-/** Claude Code processes started on this machine that still run. */
+
 const here = new Set<ChildProcess>();
 
 /**
@@ -475,23 +475,23 @@ export function endAgentsHere(force = false) {
     try {
       if (OWN_GROUP && p.pid) process.kill(-p.pid, force ? 'SIGKILL' : 'SIGTERM');
       else if (force && p.pid) {
-        // taskkill handles the process tree; do not wait for the helper on an explicit force.
+        
         const killer = spawn('taskkill.exe', ['/PID', String(p.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore', detached: true });
-        killer.on('error', () => { try { p.kill('SIGKILL'); } catch { /* already gone */ } });
+        killer.on('error', () => { try { p.kill('SIGKILL'); } catch {  } });
         killer.unref();
       }
     } catch {
-      // gone already
+      
     }
   }
   return sessionsDone;
 }
 
-/**
- * Workers of a scratch Seismic for a demo (`--idle-workers`): a started card is in progress, but no
- * agent works on it, so it stays as staged and costs nothing. What a worker is told goes into the
- * server's log, for a demo to show what reaches the agent.
- */
+
+
+
+
+
 export const idleRuntime: AgentRuntime = {
   start(spec, firstMessage, images) {
     let end!: () => void;

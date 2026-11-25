@@ -1,4 +1,4 @@
-/** One repository's git operations, with the active operation at zero and waiters at 1, 2, … . */
+
 export interface LandingTurn {
   position?: (position: number | undefined) => void;
   signal?: AbortSignal;
@@ -25,7 +25,7 @@ export class LandingQueue<K> {
       const entry: Entry = {
         position: turn.position,
         cancel: () => {
-          // Once git starts it must finish; only a waiting approval can be withdrawn.
+          
           if (queue[0] === entry) return;
           remove();
           reject(turn.signal?.reason);

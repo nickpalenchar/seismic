@@ -1,6 +1,6 @@
-// What a card says on its face, worked out once for every size of it:
-// its kind, the line under its title, its state line with its marks, the pin while it
-// needs the owner, and the classes and colour of its state.
+
+
+
 
 import { agentFailed, answering, demoStage, finishingUp, handedOver, type Item, needsYou, openQuestions, type PullRequest, snoozeOf, isPaused, isPausing, inParkingLot, reviewLimited } from '../../core/types';
 import { excerpt, plain } from '../markdown';
@@ -82,7 +82,7 @@ const openPrs = (item: Item): PullRequest[] => [...(item.review?.pr ? [item.revi
 
 /** A pull request's line on the project: its checks, a conflict, whether it is ready, and else what it waits for first. */
 const prShort = (p: PullRequest) => {
-  // a red check and a conflict the line names already
+  
   const wait = p.ready ? undefined : p.waits?.find((w) => w !== 'conflict' && w !== 'checksFailed');
   return t.pr.short(`${p.repo ? `${p.repo.split('/').pop()} ` : ''}#${p.number}`, p.checks.filter((c) => c.state === 'failure').length, p.conflict, p.ready, p.held?.score, wait && t.pr.waitShort[wait]);
 };
@@ -98,40 +98,40 @@ const firstLine = (md: string) =>
 /** What the card's worker is doing in its turn, after its state line: a stage of its demo in green. */
 const doingNow = (item: Item) => (item.agent?.inTurn && !isPaused(item) ? item.agent.doing : undefined);
 
-/** A mark before the state: parked off the canvas, a usage limit waited out, a snooze, a restart due, a start waiting for a restart, a question for the owner. */
+
 export type StateMark = 'parked' | 'limit' | 'snooze' | 'restart' | 'restartQueue' | 'question' | 'merge' | 'mergeProposed';
 
 export interface CardSummary {
-  /** The kind line's word: a workstream's label, else the card's kind (`cardKind`). */
+  
   kind: string;
-  /** The line under the title: what holds the card, what it asks, its status, else the start of its text. */
+  
   meta?: string;
-  /** The state line. */
+  
   state: {
-    /** What the server does with the card after the owner's click, else its state. */
+    
     label: string;
-    /** The same in a word or two, as the smallest face says it. */
+    
     short: string;
-    /** A stopped card that remembers its state: "Stopped at" and that state, each in its own colour (`stoppedAtOf`). */
+    
     stopped?: { prefix: string; status: string; tone: string };
     marks: StateMark[];
-    /** The part of it that has landed already: its pull request or commit. */
-    /** What follows the state, each after a " · ". */
+    
+    
     notes: string[];
-    /** What its agent does in its turn: `demo` a stage of its demo, `conflict` resolving conflicts. */
+    
     doing?: { text: string; demo?: boolean; conflict?: boolean };
-    /** Its agent is in a turn: the thin moving line runs under the state. */
+    
     live: boolean;
   };
-  /** The pin while the card needs the owner, and whether its agent failed. */
+  
   pin?: { mark: string; failed: boolean; asking: boolean };
 }
 
 /** What the card's face says, the same at every size; `underway` takes the state's place. */
 export function cardSummary(item: Item, underway?: string): CardSummary {
   if (item.review?.landing) underway = stateLabel(item);
-  // a card whose agent finishes after the landing, opens its PR or takes in the owner's words on its handover shows its line like one at work: the usage limit it waits on, its reports
-  // a review card waiting for the contributor says so in its state; what its review found shows while it waits for the owner
+  
+  
   const contribution = item.review?.contribution;
   const results = contribution?.results && handedOver(item) && !answering(item) ? contribution.results : undefined;
   const findings = (contribution?.findings ?? []).filter((f) => f.status !== 'dropped');
@@ -146,7 +146,7 @@ export function cardSummary(item: Item, underway?: string): CardSummary {
   const proposal = item.idea?.proposal;
   const superseded = item.idea?.superseded;
   const idea = item.idea?.discussion;
-  // a proposal being reworked says that in place of its state: the kind line above already calls it a proposal
+  
   const revising = item.state === 'proposal' && proposal?.revising;
   const asked = openQuestions(item)[0]?.text;
   const meta =
@@ -176,7 +176,7 @@ export function cardSummary(item: Item, underway?: string): CardSummary {
         ...((proposal?.merge ? ['merge'] : []) as StateMark[]),
         ...((showsMergeProposed(item) ? ['mergeProposed'] : []) as StateMark[]),
       ];
-  // a card being merged says its own state, and then how the merge stands
+  
   const merge = proposal?.merge;
   const ownState = merge ? { ...item, possibleDuplicates: undefined, idea: { ...item.idea, proposal: { ...proposal, merge: undefined } } } : item;
   const notes = [

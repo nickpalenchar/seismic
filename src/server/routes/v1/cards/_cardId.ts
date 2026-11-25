@@ -23,7 +23,7 @@ export class Card extends HttpRoute {
   override DELETE = (request: RouteRequest): void => {
     const project = this.projectOfCard(request);
     project.remove(request.params.cardId!);
-    // a click of the owner's: it counts toward the retrospective that reads the history every so many
+    
     project.koordinator.noticed();
   };
 }

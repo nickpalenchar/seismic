@@ -6,9 +6,9 @@ test('a text splits at line feeds only, every invisible character written as a m
   expect(linesOf('a\u2028b\u2029c')).toEqual({ lines: ['a⟨LS⟩b⟨PS⟩c'], ends: false });
   expect(linesOf('x\u200by\u00a0z\tw v').lines).toEqual(['x⟨U+200B⟩y⟨NBSP⟩z\tw v']);
   expect(linesOf(undefined)).toEqual({ lines: [], ends: true });
-  // one break for another is a line that changed
+  
   expect(linesOf('a\rb').lines).not.toEqual(linesOf('a\u2028b').lines);
-  // a text holding a marker reads apart from the character the marker stands for
+  
   expect(linesOf('a⟨CR⟩').lines).not.toEqual(linesOf('a\r').lines);
   expect(visible('.claude/x\ny')).toBe('.claude/x⟨U+000A⟩y');
 });

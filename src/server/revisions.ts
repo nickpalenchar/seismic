@@ -1,8 +1,8 @@
-// A proposal reworked by what the owner said about it: an agent rewrites its text, reason and
-// questions in one read-only turn, and the proposal waits for it. What the owner did not touch stays.
-// It sees the screenshots the owner showed and picks those that go with the card's task.
-// The owner's words on an open proposal come straight to this agent, as to a card's worker, and it
-// passes on what asks Seismic for something (`to_seismic`).
+
+
+
+
+
 
 import { workerConfig } from './worker-config';
 import { basename } from 'node:path';
@@ -16,19 +16,19 @@ import { messageOf } from '../core/text';
 export interface RevisionOptions {
   board: Board;
   runtime: AgentRuntime;
-  /** The checkout the agent may read in: the card's repository. */
+  
   pathFor: (card: Item) => string;
-  /** The files of the owner's screenshots, by id; unknown ones are left out. */
+  
   imageFiles?: (ids: string[]) => string[];
   preferences?: () => string;
-  /** Passes on to Seismic what the owner's words ask of it (accept the proposal, a rule, another card), with the card in focus. */
+  
   toSeismic?: (cardId: string, request: string) => Promise<string>;
-  /** The revision is over: the new text stands (`revised`), or the agent ended without one and the old text stays. */
+  
   onRevised?: (cardId: string, revised: boolean) => void;
 }
 
 export class Revisions {
-  /** Proposals being reworked, so a resume does not start a second agent. */
+  
   private busy = new Set<string>();
 
   constructor(private o: RevisionOptions) {}
@@ -64,17 +64,17 @@ export class Revisions {
     this.ask(card, said, shots)
       .then(
         (r) => {
-          // the words only asked Seismic for something: the proposal stays as it was, and what Seismic did stands in its conversation
+          
           if (!r) return this.o.board.revised(cardId) || undefined;
           const questions = workerConfig.proposalQuestions(r.questions);
-          // of the screenshots it saw, those it names; naming none of them keeps what went with the task
+          
           const images = r.images && [...new Set(r.images.map((f) => basename(String(f))))].filter((id) => shots.all.includes(id)).slice(0, MAX_IMAGES);
           const p = { title: r.title, task: r.task, ...(r.reason?.trim() ? { reason: r.reason.trim() } : {}), idea: !!r.idea, questions, ...(images ? { images } : {}) };
           if (!this.o.board.revised(cardId, p)) return;
           const reply = r.reply?.trim();
           if (reply) this.o.board.log(cardId, 'talk', 'worker', reply.slice(0, 4000));
           if (changed(card, p)) this.o.board.log(cardId, 'state', 'koordinator', this.o.board.t.koordinator.revised);
-          // a question asked anew stands in the conversation from now on; one it kept stands where it was asked
+          
           const asked = new Set(card.idea!.proposal!.questions.map(key));
           for (const q of questions) if (!asked.has(key(q))) this.o.board.log(cardId, 'question', 'worker', formatQuestion(q, this.o.board.language()));
           return true;
@@ -89,7 +89,7 @@ export class Revisions {
       .catch((e) => console.error('revision:', e))
       .finally(() => {
         this.busy.delete(cardId);
-        // what the owner said meanwhile is reworked in by the next
+        
         this.run(cardId);
       });
   }
@@ -119,7 +119,7 @@ export class Revisions {
       preferences: this.o.preferences?.() ?? '',
       ...(toSeismic ? { toSeismic: (request: string) => toSeismic(card.id, request) } : {}),
       images: this.o.imageFiles?.(shots.all) ?? [],
-      // the proposal waits on, and shows until when
+      
       onLimit: (until, retry) => this.o.board.waitsForLimit({ card: card.id }, until, retry),
     });
   }

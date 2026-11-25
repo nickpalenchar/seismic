@@ -1,10 +1,10 @@
-// A recording of the microphone for a voice command. MediaRecorder where it records; in the app's
-// window on Linux (WebKitGTK) it delivers empty recordings (2.50 and 2.52, checked 2026-10-08 with
-// scripts/check-app.ts), so there the samples are taken from Web Audio and sent as a WAV, which the
-// server's transcription reads as well.
+
+
+
+
 
 export interface Recording {
-  /** Ends the recording; the audio, possibly empty. */
+  
   stop(): Promise<Blob>;
 }
 
@@ -28,12 +28,12 @@ function recorder(stream: MediaStream): Recording {
 
 function samples(stream: MediaStream, ctx: AudioContext): Recording {
   const source = ctx.createMediaStreamSource(stream);
-  // deprecated, but it runs everywhere without a module of its own (an AudioWorklet would need one)
+  
   const tap = ctx.createScriptProcessor(4096, 1, 1);
   const chunks: Float32Array[] = [];
   tap.onaudioprocess = (e) => chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
   source.connect(tap);
-  // a processor runs only while connected onwards; it writes silence
+  
   tap.connect(ctx.destination);
   return {
     stop: async () => {

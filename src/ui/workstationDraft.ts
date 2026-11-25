@@ -1,7 +1,7 @@
 import type { RepoConfig } from '../core/types';
 
-// UI-only draft data travels with the entry through immutable edits and view remounts.
-// A symbol is copied by object spread, but never goes into the JSON save payload.
+
+
 const parkedClones = Symbol('parkedClones');
 type CloneFields = Pick<RepoConfig, 'clones' | 'workstations' | 'hosts'>;
 type Draft = RepoConfig & { [parkedClones]?: CloneFields };

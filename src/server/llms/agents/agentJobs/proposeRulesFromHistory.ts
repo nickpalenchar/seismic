@@ -1,7 +1,7 @@
-/**
- * Proposes rules from the owner's recent history: one session reads what happened on the project
- * since the last retrospective and proposes rules for patterns that show across several cards.
- */
+
+
+
+
 import { z } from 'zod';
 import type { Board } from '../../../board';
 import type { AgentRuntime, AgentTool } from '../../../runtime';
@@ -10,17 +10,17 @@ import { reposParam } from '../../prompts/whereRulesGo';
 import { type JobRun, SeismicJob } from '../seismicJob';
 import { ownerFacing, proposalTargets, ruleLines } from './ruleProposals';
 
-/** At most how many rules one retrospective proposes. */
+
 export const RULE_RETRO_PROPOSALS = 3;
 
 export interface ProposeRulesFromHistoryRun {
   runtime: AgentRuntime;
   board: Board;
-  /** Where the session reads: the project's home repository. */
+  
   cwd: string;
-  /** The language the proposals are written in, with the clause that standing preferences may name another. */
+  
   language: string;
-  /** What happened since the last retrospective, oldest first. */
+  
   history: string[];
   onLimit?: JobRun['onLimit'];
 }
@@ -31,7 +31,7 @@ class ProposeRulesFromHistoryJob extends SeismicJob {
   readonly name = 'proposeRulesFromHistory';
   readonly description = "Proposes rules for the patterns in what the owner did since the last retrospective.";
   private proposed = 0;
-  /** The recorded rules as the session numbered them. */
+  
   private readonly rules;
 
   constructor(private o: Omit<ProposeRulesFromHistoryRun, 'runtime' | 'cwd' | 'onLimit'>) {

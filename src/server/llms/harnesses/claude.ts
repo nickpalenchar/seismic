@@ -1,7 +1,7 @@
-/**
- * The Claude harness: agents run through the Claude Agent SDK, on the Claude Code login of the
- * machine. The contract it fulfils and the wrappers around it are in `src/server/runtime.ts`.
- */
+
+
+
+
 
 import { seismicEnv } from '../../../core/env';
 import { createSdkMcpServer, type HookInput, type HookJSONOutput, type PermissionUpdate, query, type SDKRateLimitInfo, type SDKResultMessage, type SDKUserMessage, tool } from '@anthropic-ai/claude-agent-sdk';
@@ -36,7 +36,7 @@ export function claudeExecutable(env: Record<string, string | undefined> = proce
   if (!compiled) return undefined;
   const installed = join(localBin(), platform === 'win32' ? 'claude.exe' : 'claude');
   const onPath = which('claude', env);
-  // npm's `claude.cmd` on Windows is no program to start; the installer's binary is
+  
   return onPath && !/\.(cmd|bat|ps1)$/i.test(onPath) ? onPath : installed;
 }
 
@@ -67,15 +67,15 @@ export async function claudeConnected(env: Record<string, string | undefined> = 
   }
 }
 
-/** Runs agents through the Claude Agent SDK, on the Claude Code login of the machine. */
+
 export const sdkRuntime: AgentRuntime = {
   start(spec, firstMessage, images) {
     const inbox = new Inbox();
     const plugins = [...new Set([...(spec.plugins ?? []), ...skillPlugins(spec.skills)])];
     const there = remote(spec.cwd);
-    // a session on another machine: whether its connection was lost, rather than the session failing
+    
     let lost = false;
-    // not on this machine's account: on another machine, or here on CLAUDE_CODE_OAUTH_TOKEN
+    
     const token = there || ({ ...cleanEnv(), ...spec.env }).CLAUDE_CODE_OAUTH_TOKEN ? { token: true as const } : {};
     const files = there ? sessionFiles(there.host.o.home, plugins) : undefined;
     if (there && files) {
@@ -88,7 +88,7 @@ export const sdkRuntime: AgentRuntime = {
       createSdkMcpServer({
         name,
         version: '1.0.0',
-        // the agent needs these from the first step, not behind a tool search
+        
         alwaysLoad: true,
         tools: tools.map((t) =>
           tool(t.name, t.description, t.schema, async (args) => ({ content: [{ type: 'text' as const, text: await t.run(args as Record<string, unknown>) }] })),
@@ -97,9 +97,9 @@ export const sdkRuntime: AgentRuntime = {
     const legacy = spec.resume ? legacyTools(spec.tools) : [];
     const ownTools = [...spec.tools.map((t) => `mcp__seismic__${t.name}`), ...legacy.map((t) => `mcp__${LEGACY_SERVER}__${t.name}`)];
     const claude = there ? 'claude' : claudeExecutable();
-    // a watched call's end is waited for before the agent goes on
+    
     const watched = spec.watch ? [{ hooks: [async (input: HookInput) => (await spec.watch!.after(toolCall(input)), {})] }] : [];
-    // what Claude Code here last said on stderr, for a session that ends with an error
+    
     let stderr = '';
     const q = query({
       prompt: inbox,
@@ -120,15 +120,15 @@ export const sdkRuntime: AgentRuntime = {
         ...(plugins.length ? { plugins: plugins.map((path) => ({ type: 'local' as const, path })) } : {}),
         ...(readOnlyRun(spec)
           ? { tools: READ_ONLY_TOOLS, allowedTools: [...READ_ONLY_TOOLS, ...ownTools], permissionMode: 'dontAsk' as const }
-          : // a worker's own tools are allowed by the hook below: as allowedTools they would have the SDK warn that they pass by canUseTool
+          : 
             { ...(spec.askOwner ? {} : { allowedTools: ownTools }), permissionMode: claudeMode(spec), ...(claudeMode(spec) === 'bypassPermissions' ? { allowDangerouslySkipPermissions: true } : {}) }),
-        // without the repository's settings, which Claude Code reads with its CLAUDE.md
+        
         ...(spec.untrusted ? { settingSources: ['user' as const] } : {}),
         ...(spec.resume ? { resume: spec.resume } : {}),
         ...(spec.dirs?.length ? { additionalDirectories: spec.dirs } : {}),
         ...(spec.effort ? { effort: spec.effort } : {}),
         ...(spec.model ? { model: spec.model } : {}),
-        // on another machine only what the session itself needs: that machine has its own PATH and home
+        
         env: there ? { ...spec.env } : { ...cleanEnv(), ...spec.env },
         ...(spec.askOwner ? { canUseTool: (name: string, input: Record<string, unknown>, o: { signal: AbortSignal; decisionReason?: string; suggestions?: unknown }) => askOwner(spec.askOwner!, name, input, o) } : {}),
         hooks: {
@@ -147,7 +147,7 @@ export const sdkRuntime: AgentRuntime = {
               ],
             },
           ],
-          // a subagent's step would pass it to the subagent, which the agent may never hear of
+          
           PostToolUse: [
             ...watched,
             { hooks: [async (input) => withContext('PostToolUse', input.agent_id ? undefined : spec.contextUpdate?.())] },
@@ -160,11 +160,11 @@ export const sdkRuntime: AgentRuntime = {
       },
     });
     let background: { id: string; description: string }[] = [];
-    // what the agent's tool calls were called with, by id: a denial names only the call
+    
     const inputs = new Map<string, Record<string, unknown>>();
-    // and which tool each was, for when it ends
+    
     const names = new Map<string, string>();
-    // the account's usage limits as last reported, and whether the turn's request was refused for one
+    
     let limits: SDKRateLimitInfo | undefined;
     let limited = false;
     const done = (async () => {
@@ -180,7 +180,7 @@ export const sdkRuntime: AgentRuntime = {
           else if (m.type === 'system' && m.subtype === 'permission_denied') {
             if (!m.agent_id) spec.onEvent({ type: 'denied', name: m.tool_name, input: inputs.get(m.tool_use_id) ?? {}, by: deniedBy(m.decision_reason_type), ...(m.decision_reason?.trim() ? { reason: m.decision_reason.trim() } : {}) });
           }
-          // an API error the CLI words as the agent's reply; the turn's result reports it
+          
           else if (m.type === 'assistant' && m.error) limited ||= m.error === 'rate_limit';
           else if (m.type === 'assistant' && !m.parent_tool_use_id) {
             for (const block of m.message.content) {
@@ -215,7 +215,7 @@ export const sdkRuntime: AgentRuntime = {
   },
 };
 
-/** How much of what Claude Code said last on stderr a session that ended with an error reports. */
+
 const STDERR_TAIL = 2000;
 
 /**
@@ -235,7 +235,7 @@ export function resultFailure(m: SDKResultMessage): string | undefined {
 export function usageLimit(failure: string, refused: boolean, limits: SDKRateLimitInfo | undefined, now = Date.now()): { resetsAt?: number } | undefined {
   const rejected = limits?.status === 'rejected';
   if (!refused && !rejected && !/\bhit your .*limit\b/i.test(failure)) return undefined;
-  // the API gives seconds
+  
   if (rejected && limits.resetsAt) return { resetsAt: limits.resetsAt * 1000 };
   const said = resetIn(failure, now);
   return said ? { resetsAt: said } : {};
@@ -257,7 +257,7 @@ export function resetIn(message: string, now = Date.now()): number | undefined {
   } catch {
     zone = undefined;
   }
-  // the date there now, and that time on it or the next day
+  
   const day = wallClock(now, zone);
   for (const add of [0, 1]) {
     const at = fromWallClock(day.year, day.month, day.day + add, hour, minute, zone);
@@ -283,15 +283,15 @@ function fromWallClock(year: number, month: number, day: number, hour: number, m
     const w = wallClock(at, zone);
     return Date.UTC(w.year, w.month - 1, w.day, w.hour, w.minute, w.second) - Math.floor(at / 1000) * 1000;
   };
-  // once more with the offset at the result, across a change of summer time
+  
   const guess = wanted - offset(wanted);
   return wanted - offset(guess);
 }
 
-/** A usage limit that does not say when it lifts is tried again after this. */
+
 const LIMIT_RETRY = 15 * 60_000;
 
-/** A usage limit that should have lifted already is tried again after this. */
+
 const LIMIT_AGAIN = 60_000;
 
 /** When to go on after the usage limit stopped a turn: `margin` after it lifts, so that clocks a little apart do not matter. */
@@ -304,13 +304,13 @@ export function limitLifts(limit: { resetsAt?: number }, margin: number, now = D
 export function deniedBy(type: string | undefined): DeniedBy {
   switch (type) {
     case 'rule':
-    // a Bash command whose parts the rules decided one by one
+    
     case 'subcommandResults':
       return 'rule';
     case 'classifier':
       return 'classifier';
     case 'mode':
-    // a session with nobody to ask
+    
     case 'asyncAgent':
       return 'mode';
     case 'hook':
@@ -343,13 +343,13 @@ export function failureReason(message: string, t: Messages): string {
   return t.failure.session(message);
 }
 
-/** Background work that ended wakes the agent within this; a turn that waits longer without a sign counts as ended. */
+
 export const BACKGROUND_GRACE = 10 * 60_000;
 
-/**
- * Background work ends by its own limit well within this (a command run in the background after two
- * hours at most, a watcher after half an hour): it is only for a session that never says the work ended.
- */
+
+
+
+
 export const BACKGROUND_LIMIT = 3 * 60 * 60_000;
 
 /**
@@ -359,14 +359,14 @@ export const BACKGROUND_LIMIT = 3 * 60 * 60_000;
  * (BACKGROUND_LIMIT while the work runs, BACKGROUND_GRACE after it ended), `over` ends the turn.
  */
 export class BackgroundWait {
-  /** How many of the agent's background tasks run, as the session last said. */
+  
   running = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(
     private over: () => void,
     private limits: { grace?: number; limit?: number } = {},
-    /** The turn starts or stops waiting. */
+    
     private onChange?: (waiting: boolean) => void,
   ) {}
 
@@ -404,10 +404,10 @@ export class BackgroundWait {
   }
 }
 
-/** A foreground command may sleep this long; anything longer keeps the owner's notes from the agent. */
+
 export const FOREGROUND_SLEEP_LIMIT = 30;
 
-/** Short waits the refusal suggests; both pass it (tested), the first also where `timeout` is missing (macOS). */
+
 export const BOUNDED_WAITS = [
   'for i in $(seq 1 15); do curl -sf localhost:3000 && break; sleep 2; done',
   "timeout 30 bash -c 'until curl -sf localhost:3000; do sleep 2; done'",
@@ -430,13 +430,13 @@ export function refuseForegroundWait(input: HookInput): HookJSONOutput {
   };
 }
 
-/** Seismic's own tools run without asking anyone. */
-/** A tool call as the hooks of `AgentSpec.watch` hear of it. */
-/**
- * A resumed Claude session's history calls Seismic's tools by their names from before the rename to
- * Seismic (`mcp__obeya__report`, `mcp__obeya__to_obeya`): it gets them under those names as well,
- * and a call by an old name counts as a call of today's tool.
- */
+
+
+
+
+
+
+
 const LEGACY_SERVER = 'obeya';
 
 /** Today's tools under their old names, for a resumed session. */
@@ -473,9 +473,9 @@ function withContext(event: 'PostToolUse' | 'PostToolUseFailure', text: string |
  * scripts or programs they call are not seen.
  */
 export function foregroundSleep(command: string): number {
-  // redirections such as 2>&1 are words, not `&`
+  
   const tokens = boundTimeouts(withoutHeredocs(command)).replace(/['"`]/g, ' ').match(/\d*[<>]&\d*-?|&>>?|&&|\|\||[;&|(){}\n]|[^\s;&|(){}<>]+|[<>]+/g) ?? [];
-  // per open loop or group (and the command line itself): seconds of finished commands, and of the one in progress
+  
   type Frame = { done: number; current: number; iterations: number; closer: string };
   const stack: Frame[] = [{ done: 0, current: 0, iterations: 1, closer: '' }];
   const top = () => stack.at(-1)!;
@@ -488,7 +488,7 @@ export function foregroundSleep(command: string): number {
     } else if (t === 'while' || t === 'until') stack.push({ done: 0, current: 0, iterations: Infinity, closer: 'done' });
     else if (t === '(' || t === '{') stack.push({ done: 0, current: 0, iterations: 1, closer: t === '(' ? ')' : '}' });
     else if (t === 'for') {
-      // the words up to `do` say how often the body runs
+      
       const header: string[] = [];
       while (i + 1 < tokens.length && tokens[i + 1] !== 'do') header.push(tokens[++i]!);
       stack.push({ done: 0, current: 0, iterations: iterations(header), closer: 'done' });
@@ -502,7 +502,7 @@ export function foregroundSleep(command: string): number {
       top().current = 0;
     }
   }
-  // loops left open (a command line cut off) count as they stand
+  
   let total = 0;
   for (let k = stack.length - 1; k >= 0; k--) {
     const f = stack[k]!;
@@ -512,7 +512,7 @@ export function foregroundSleep(command: string): number {
   return total;
 }
 
-/** A command word that runs what it reads as shell code: a shell, or `ssh` running it elsewhere. */
+
 const SHELL = /^(?:\S*\/)?(?:(?:ba|z|da|k|mk)?sh|ssh)$/;
 
 /**
@@ -521,7 +521,7 @@ const SHELL = /^(?:\S*\/)?(?:(?:ba|z|da|k|mk)?sh|ssh)$/;
  * command pipes into, is a shell. Single quotes hide `<<`, double quotes too, except within `$(…)`.
  */
 function withoutHeredocs(command: string): string {
-  // what the scanner is in: code (the line itself or a `$(…)`/`(…)`, closed by `)`) or a double-quoted string
+  
   const modes: ('line' | 'paren' | 'dq')[] = ['line'];
   const pending: { delimiter: string; tabs: boolean; keep: boolean }[] = [];
   let out = '';
@@ -546,14 +546,14 @@ function withoutHeredocs(command: string): string {
       const delimiter = op?.[2]!.replace(/['"\\]/g, '');
       if (op && delimiter && /[A-Za-z_]/.test(delimiter)) {
         unit = op[0];
-        // the pipeline the heredoc belongs to: back to the last command separator, on to the next one in its line
+        
         const before = out.split(/[;&\n(]|\|\|/).at(-1)!;
         const after = command.slice(i + unit.length).split(/[;&\n)]|\|\|/)[0]!;
         const words = `${before} ${after}`.replace(/['"]/g, ' ').split(/[\s|]+/);
         pending.push({ delimiter, tabs: op[1] === '-', keep: words.some((w) => SHELL.test(w)) });
       }
     } else if (c === '\n' && pending.length > 0) {
-      // the bodies follow this line, one after another, each up to the line that is its delimiter
+      
       out += '\n';
       i++;
       for (const h of pending.splice(0)) {
@@ -578,10 +578,10 @@ function withoutHeredocs(command: string): string {
   return out;
 }
 
-/** `timeout` (or coreutils' `gtimeout` on macOS) where a command begins: variables set for it, options, then the duration. */
+
 const TIMEOUT = /^(?:\w+=\S*\s+)*g?timeout(?:\s+(?:-[ks]\s*\S+|--?[a-zA-Z][\w-]*(?:=\S+)?))*\s+(\d+(?:\.\d+)?[smhd]?)(?=\s)/;
 
-/** Words after which a command begins, as after `;`. */
+
 const COMMAND_BEFORE = new Set(['do', 'then', 'else', 'elif', '!', 'time']);
 
 /**
@@ -686,15 +686,15 @@ async function carryImages(host: SshHost, dir: Promise<string>, text: string, im
 /** The session's input: an async stream of user messages that stays open until ended. */
 export class Inbox implements AsyncIterable<SDKUserMessage> {
   private queue: { uuid: string; content: Promise<SDKUserMessage['message']['content']> }[] = [];
-  /** The messages sent that no turn has taken yet, by their uuid. */
+  
   private untaken = new Set<string>();
   private wake: (() => void) | null = null;
   private ended = false;
-  /** For a session on another machine: copies the images and the files the text names there and returns the text with their paths there. */
+  
   carry?: (text: string, images: string[]) => Promise<string>;
 
   push(text: string, images: string[] = []) {
-    // read now: the files may be gone by the time the session takes the message
+    
     const blocks = images.map((f) => ({ type: 'image' as const, source: { type: 'base64' as const, media_type: mediaType(f), data: readFileSync(f).toString('base64') } }));
     const carried = this.carry ? this.carry(text, images) : Promise.resolve(text);
     const uuid = randomUUID();
@@ -724,7 +724,7 @@ export class Inbox implements AsyncIterable<SDKUserMessage> {
     while (true) {
       while (this.queue.length) {
         const { uuid, content } = this.queue.shift()!;
-        // the CLI names the messages a turn took by their uuid (`taken`); the SDK's type leaves the field out
+        
         yield { type: 'user', message: { role: 'user', content: await content }, parent_tool_use_id: null, uuid } as SDKUserMessage;
       }
       if (this.ended) return;

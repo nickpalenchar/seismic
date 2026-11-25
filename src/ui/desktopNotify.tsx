@@ -1,7 +1,7 @@
-// Desktop notifications: the project page tells the owner when
-// a card starts to wait for them while they are not looking at the page. In the app (Tauri) the
-// system's notification comes from the shell, in a browser from the page's own permission. Whether
-// it does is the owner's choice (Konfiguration → Benachrichtigungen und Limits), asked once at the first start.
+
+
+
+
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MESSAGES } from '../core/messages';
@@ -82,7 +82,7 @@ export function useDesktopNotifications(snapshot: ProjectSnapshot, onOpen: (item
   useEffect(() => {
     const before = seen.current?.project === project.id ? seen.current.items : undefined;
     seen.current = { project: project.id, items: new Map(snapshot.items.map((i) => [i.id, i])) };
-    // what waits as the page opens, or as another project is shown, is not news
+    
     if (!before || onRef.current !== true || attended()) return;
     const started = startedWaiting(before, snapshot.items);
     if (!started.length) return;
@@ -98,7 +98,7 @@ export function useDesktopNotifications(snapshot: ProjectSnapshot, onOpen: (item
     ask: on === null && canNotify(),
     answer: (yes) => {
       void (async () => {
-        // refused or not granted: the setting says off, and the configuration says why
+        
         const granted = yes && ((await permission()) === 'granted' || (await requestPermission()) === 'granted');
         await save(granted);
       })().catch(console.error);
@@ -111,7 +111,7 @@ export function NotifyAsk({ ask, answer }: { ask: boolean; answer: (on: boolean)
   if (!ask) return null;
   const n = t.notifications;
   return (
-    // solid, as the rating's prompt it stacks with above the microphone
+    
     <div
       className="notify-ask pointer-events-auto w-[min(460px,calc(100vw_-_32px))] py-3.5 px-4 rounded-xl border border-glass-edge bg-surface shadow-[inset_0_1px_0_var(--glass-hi),var(--lift)] text-base flex flex-col gap-2"
       role="dialog"

@@ -1,17 +1,17 @@
-// Other devices reaching Seismic: the owner's phone over the owner's own private network. Seismic keeps
-// listening on 127.0.0.1; with the setting "Reachable from other devices" on, `tailscale serve`
-// proxies HTTPS at the machine's tailnet name to it (tailscale.ts), or Seismic also listens on an
-// address of this machine the owner picked (another VPN's interface), in plain HTTP, or the owner's own
-// reverse proxy on this machine forwards the hosts they list (`via: "hosts"`) and terminates HTTPS:
-// Seismic then touches no `tailscale serve` entry, and the proxy must pass `Host` through unchanged.
-//
-// A request is local when it comes from loopback under one of this machine's names and no proxy
-// forwarded it; through `tailscale serve` requests come from 127.0.0.1 too, but under the tailnet
-// name and with `X-Forwarded-For`, and count as remote. A remote request needs a paired device:
-// the page "Connect a phone" shows a one-time code (in a QR code with the address), the device
-// opens it, and gets a cookie that Seismic keeps only the hash of. Without one it gets a page that
-// says how to connect, and no API. Pairing, the devices and the setting are managed only on this
-// machine itself. A device stays paired until it is removed or goes unused for `UNUSED_MS`.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { networkInterfaces } from 'node:os';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -81,26 +81,26 @@ function schemeOf(req: Request): 'http' | 'https' {
   if (forwarded === 'http' || forwarded === 'https') return forwarded;
   return new URL(req.url).protocol === 'https:' ? 'https' : 'http';
 }
-/** The paired device's cookie before the rename: a device paired before it keeps working, and gets the new one when it pairs again. */
+
 const OLD_DEVICE_COOKIE = 'obeya-device';
-/** How long a pairing code holds. */
+
 export const PAIRING_MS = 5 * 60_000;
-/** Wrong codes after which a pairing code no longer pairs anything. */
+
 const PAIRING_TRIES = 5;
-/** How long the one-time link `POST /api/pair` answers with holds. */
+
 export const LINK_MS = 60_000;
-/** How long a used link is remembered, so that the browser it paired, opening it again, goes on to the project. */
+
 const USED_LINK_MS = 24 * 3600_000;
-/** A device unused this long is no longer paired: a phone given away or lost and forgotten. */
+
 export const UNUSED_MS = 90 * 24 * 3600_000;
-/** How often a device's "last seen" is written. */
+
 const SEEN_EVERY_MS = 60_000;
-/** The cookie's own lifetime, the longest browsers keep one (400 days); Seismic's `UNUSED_MS` decides. */
+
 const COOKIE_MAX_AGE = 400 * 24 * 3600;
-/** The `tailscale serve` entry Seismic made, in its home, so turning the setting off removes it after a restart too. */
+
 const SERVE_FILE = 'tailscale-serve.json';
 
-/** The icons of the web app's manifest and its service worker: the same for everyone, and nothing in them the owner's. */
+
 export const PUBLIC = new Set(['/sw.js', '/icons/180.png', '/icons/512.png']);
 
 const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
@@ -128,17 +128,17 @@ const inUrl = (address: string) => (address.includes(':') ? `[${address}]` : add
 
 export interface AccessOptions {
   store: Store;
-  /** Seismic's home, with the setting in `settings.json`; without one (a test) it is kept in memory. */
+  
   home?: string;
   tailscale?: Tailscale;
   language?: () => Language;
   now?: () => number;
   platform?: string;
-  /** Who is the owner on this machine; by default the key in `home` (made up for a test without one). */
+  
   owner?: Owner;
 }
 
-/** A browser paired: its credential (with its hash and place in the device's order) and its device. */
+
 interface Enrolled {
   token: string;
   hash: string;
@@ -146,7 +146,7 @@ interface Enrolled {
   device: DeviceView;
 }
 
-/** A link that paired a browser: the device, the credential it gave, until when it is remembered. */
+
 interface UsedLink {
   device: string;
   hash: string;
@@ -161,14 +161,14 @@ interface AddressCredential {
   seq: number;
 }
 
-/** What answers on another address: started and stopped by the server, which knows its routes. */
+
 export type Listen = (address: string | null) => void;
 
-/**
- * The one-time code "Connect a phone" shows; `spent`: until when the link `POST /api/pair` traded
- * it for holds (the code pairs nothing more, and goes from the dialog once that link has expired
- * unused); `paired` once a device paired with it.
- */
+
+
+
+
+
 interface PairingCode {
   code: string;
   expires: number;
@@ -178,7 +178,7 @@ interface PairingCode {
 }
 
 export class Access implements Gate {
-  /** The owner's key: what a request from this machine names. */
+  
   readonly owner: Owner;
   readonly store: Store;
   private readonly home?: string;
@@ -188,20 +188,20 @@ export class Access implements Gate {
   private readonly platform: string;
   private setting: RemoteSetting | null;
   private ts: TailscaleState = { state: 'missing' };
-  /** The `tailscale serve` entry Seismic keeps, and the tailnet name it serves at. */
+  
   private served: (ServeEntry & { name: string }) | null = null;
-  /** The other address Seismic listens on. */
+  
   private listening: string | null = null;
   private problem: RemoteProblem | undefined;
   private port = 0;
   private listen: Listen = () => {};
   private pairing: PairingCode | null = null;
-  /** The one-time links `POST /api/pair` gave out, by their token's hash, with the code each spent; once used, `used`: the device it paired, and until when it is remembered. */
+  
   private readonly links = new Map<string, { expires: number; pairing: PairingCode; used?: UsedLink }>();
-  /** The device each admitted remote request came from: its WebSocket closes when the device is removed. */
+  
   private readonly from = new WeakMap<Request, string>();
   private readonly removedFns = new Set<(id: string) => void>();
-  /** Changes to the network, one after the other. */
+  
   private applying: Promise<void> = Promise.resolve();
 
   constructor(o: AccessOptions) {
@@ -216,7 +216,7 @@ export class Access implements Gate {
     this.served = this.readServed();
   }
 
-  // ------------------------------------------------------------ the network
+  
 
   /** Seismic's server answers on `port`: the network is made as the setting says. */
   start(port: number, listen: Listen): Promise<void> {
@@ -238,7 +238,7 @@ export class Access implements Gate {
   release() {
     this.stop();
     if (!this.served) return;
-    // an entry recorded in a home copied from a running Seismic proxies to that one's port: it stays
+    
     if (this.served.target === this.target()) this.tailscale.unserveSync(this.served.name, this.served);
     this.keepServed(null);
   }
@@ -379,7 +379,7 @@ export class Access implements Gate {
     return this.view();
   }
 
-  // ------------------------------------------------------------ who comes in
+  
 
   /** From this machine: loopback, under one of its names, forwarded by no proxy. */
   isLocal(req: Request, server: Bun.Server<unknown>): boolean {
@@ -393,9 +393,9 @@ export class Access implements Gate {
    * another gets the page that says how to sign in or connect, or a 401 for the API.
    */
   admit(req: Request, server: Bun.Server<unknown>, route: string): Response | null {
-    // what a browser fetches to make the home-screen app, maybe without its cookies: nothing in them is the owner's
+    
     if (PUBLIC.has(route)) return null;
-    // `/api/pair` answers a request from this machine that it needs no pairing, with the key or without
+    
     if (this.isLocal(req, server)) return route === '/login' || route === '/api/pair' ? null : this.owner.refusal(req, server.port!, route);
     if (route === '/pair' || route === '/api/pair') return null;
     const device = this.device(req);
@@ -491,14 +491,14 @@ export class Access implements Gate {
     return () => this.removedFns.delete(fn);
   }
 
-  // ------------------------------------------------------------ pairing
+  
 
   private livePairing(): Pairing | null {
     const p = this.pairing;
     const address = this.address();
-    // a code traded for a link stays as long as the link holds, which may be past the code's own
-    // deadline: until it expires unused (then the dialog asks for a new one), or, once it paired a
-    // device, as long as the code or the link would have held (the dialog says it is connected)
+    
+    
+    
     const until = !p || p.spent === undefined ? p?.expires : p.paired ? Math.max(p.expires, p.spent) : p.spent;
     if (!p || !address || until! <= this.now()) return null;
     return { code: p.code, url: `${address}/pair?code=${p.code}`, expires: new Date(until!).toISOString(), ...(p.spent !== undefined && !p.paired ? { linked: true as const } : {}), ...(p.paired ? { paired: p.paired } : {}) };
@@ -524,7 +524,7 @@ export class Access implements Gate {
     return this.address() ? this.pair().url : null;
   }
 
-  /** Pairs the device that brings the current code; its cookie, or `null` for a wrong or expired code. */
+  
   /** `counts`: a wrong code spends one of the tries; one another site sent the browser here with spends none. */
   redeem(code: string, userAgent: string, counts = true, existing?: { device: DeviceView; token: string }): Enrolled | null {
     return this.check(code, counts) === 'ok' ? this.enroll(this.pairing!, userAgent, existing) : null;
@@ -535,7 +535,7 @@ export class Access implements Gate {
     const p = this.pairing;
     if (!p || p.spent !== undefined || p.paired || p.expires <= this.now()) return 'codeExpired';
     if (code.replace(/\D/g, '') !== p.code) {
-      // guessing gets five tries at a code, then it is spent
+      
       if (counts && ++p.tries >= PAIRING_TRIES) this.pairing = null;
       return 'wrongCode';
     }
@@ -573,24 +573,24 @@ export class Access implements Gate {
     if (this.isLocal(req, server)) return project();
     const params = new URL(req.url).searchParams;
     const userAgent = req.headers.get('user-agent') ?? '';
-    // Older names let a device in, but may belong to another origin on this host (another port, or
-    // the other scheme at this one): only the cookies named for this very address pair their device again.
+    
+    
     const existing = () => this.pairedBefore(req);
     if (req.method === 'GET' && params.has('token')) {
       this.pruneLinks();
       const link = this.links.get(sha256(params.get('token')!));
-      // a link opened again in the browser it paired, while it is remembered; any other browser, or a
-      // link that expired unused (a "Pair again" whose window came too late among them), is told it did not pair
+      
+      
       if (link?.used) return this.replay(req, link.used);
       if (!link || link.expires <= this.now()) return this.notPairedPage(true);
-      // used up only once the device is written: a failed write leaves the link for another try
+      
       const paired = this.enroll(link.pairing, userAgent, existing());
       link.used = { device: paired.device.id, until: this.now() + USED_LINK_MS, hash: paired.hash, seq: paired.seq };
       return this.paired(req, paired);
     }
     const code = req.method === 'POST' ? String((await req.formData().catch(() => null))?.get('code') ?? '') : (params.get('code') ?? '');
     if (req.method === 'GET' && !params.has('code') && this.device(req)) return project();
-    // another site may send a browser in the tailnet here as often as it likes, to spend the code's tries
+    
     const paired = this.redeem(code, userAgent, req.headers.get('sec-fetch-site') !== 'cross-site', existing());
     if (!paired) return this.notPairedPage(true);
     return this.paired(req, paired);
@@ -633,7 +633,7 @@ export class Access implements Gate {
     const mediaType = req.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
     const body = mediaType === 'application/json' ? ((await req.json().catch(() => null)) as { code?: unknown } | null) : null;
     if (typeof body?.code !== 'string') return refuse(400, 'invalid', 'send { "code": "123456" } as JSON');
-    // the link carries a credential: built only on an address that is one of Seismic's as a whole, before the code is spent
+    
     const authority = this.authorityOf(req);
     if (!authority) return refuse(400, 'invalidHost', 'the address this request was sent to is not one a link can be made for');
     const checked = this.check(body.code, true);
@@ -666,7 +666,7 @@ export class Access implements Gate {
   private authorityOf(req: Request): string | null {
     const raw = (req.headers.get('x-forwarded-host')?.split(',')[0]?.trim() || req.headers.get('host') || '').toLowerCase();
     const plain = /^(?:[a-z0-9-]+(?:\.[a-z0-9-]+)*|\[[0-9a-f:.]+\])(?::(\d{1,5}))?$/.exec(raw);
-    // port zero (`:0`, `:00000`) parses, but no browser can open a link on it
+    
     if (!plain || (plain[1] !== undefined && Number(plain[1]) === 0)) return null;
     try {
       const parsed = new URL(`${schemeOf(req)}://${raw}`);
@@ -681,7 +681,7 @@ export class Access implements Gate {
    * device cookies of this address it brought go, the one a pairing again replaces among them.
    */
   private paired(req: Request, paired: Pick<Enrolled, 'token' | 'hash'>): Response {
-    // over HTTPS the cookie goes with what a worker's HTML artifact loads in its sandboxed frame too, which counts as another site
+    
     const attributes = `Path=/; HttpOnly; ${schemeOf(req) === 'https' ? 'SameSite=None; Secure' : 'SameSite=Lax'}`;
     const name = `${deviceCookie(req)}.${paired.hash.slice(0, 24)}`;
     const headers = new Headers({ location: '/' });

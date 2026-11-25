@@ -1,12 +1,12 @@
-// Screenshots the owner adds to what they write on a card: stored once under Seismic's home,
-// shown in the card's log, and handed to the agent as images along with the text.
+
+
 
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { IMAGE_TYPES, MAX_IMAGE_BYTES } from '../core/types';
 import { BadRequest } from './board';
 
-/** Per message: enough to show a flow, few enough to keep the agent's context small. */
+
 export const MAX_IMAGES = 6;
 const NAME = /^[0-9a-f-]{36}\.(png|jpg|gif|webp)$/;
 

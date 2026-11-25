@@ -1,4 +1,4 @@
-// Test doubles, and git repositories for tests.
+
 
 import { appendFileSync, cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -10,16 +10,16 @@ import type { AgentEvent, AgentRuntime, AgentSession, AgentSpec, PermissionAnswe
 import { git } from '../../workstations';
 import { KEY_HEADER, keyOf } from '../../owner';
 
-/** The calls of a forge that only review cards make, for a fake forge of a test that has none. */
+
 export const noContributions: Pick<Forge, 'urlOf' | 'contribution' | 'comment' | 'requestChanges'> = { urlOf: async () => '', contribution: async () => ({}) as never, comment: async () => {}, requestChanges: async () => {} };
 
-/** A forge for tests that never reach a pull request. */
+
 export const noForge: Forge = { status: async () => ({}) as never, body: async () => '', setBody: async () => {}, merge: async () => {}, open: async () => '', ...noContributions };
 
 /** A session whose tools and events the test drives. */
 export class FakeSession implements AgentSession {
   inbox: string[] = [];
-  /** The images sent with each message of `inbox`, by index. */
+  
   images: string[][] = [];
   closed = false;
   done: Promise<void>;
@@ -94,10 +94,10 @@ export function gitRepo(path: string, files: Record<string, string> = { 'README.
     template = join(templateDir, String(templates.size));
     git(templateDir, 'init', '--quiet', '--template=', '-b', 'main', template);
     identify(template);
-    // a copy keeps mtime and size but not inode and ctime: git is to trust what the copy keeps
+    
     appendFileSync(join(template, '.git/config'), '[core]\n\tcheckStat = minimal\n\ttrustctime = false\n');
-    // git's automatic maintenance after a commit would run in the background and could add or
-    // remove files (objects/maintenance.lock) while another test copies the template
+    
+    
     appendFileSync(join(template, '.git/config'), '[maintenance]\n\tauto = false\n[gc]\n\tauto = 0\n');
     for (const [file, text] of Object.entries(files)) {
       mkdirSync(dirname(join(template, file)), { recursive: true });
@@ -123,11 +123,11 @@ export function identify(repo: string) {
   appendFileSync(join(repo, '.git/config'), '[user]\n\temail = t@example.com\n\tname = T\n');
 }
 
-/**
- * Waits until `done` holds. A request reaches the server only after a round trip, which on a
- * loaded machine (other workers' test runs) takes longer than any fixed pause; a test that went
- * on too early failed and left its request open, and stopping the server reset it in the next test.
- */
+
+
+
+
+
 /**
  * `fetch` and `WebSocket` with the owner's key of the server `of` gives (one of `serve`), as the
  * page, the app's shell and Seismic's scripts send it. A request without it goes through the global ones.
@@ -141,7 +141,7 @@ export function asOwner(of: () => object) {
   return {
     fetch: (input: string | URL | Request, init: RequestInit = {}) => globalThis.fetch(input, { ...init, headers: withKey(init.headers) }),
     WebSocket: class extends globalThis.WebSocket {
-      // `{ headers }` as Bun takes it (the DOM's type knows only protocols there)
+      
       constructor(url: string | URL, given: unknown = {}) {
         const o = given as { headers?: HeadersInit };
         super(url, { ...o, headers: Object.fromEntries(withKey(o.headers)) } as unknown as string[]);
@@ -219,7 +219,7 @@ kill $proxy 2>/dev/null
 export function artifact(): StoredDemo {
   const dir = mkdtempSync(join(tmpdir(), 'seismic-artifact-'));
   writeFileSync(join(dir, 'index.html'), '<p>Ergebnis</p>\n');
-  // as a worker's handover stores an artifact: without chapters
+  
   return { kind: 'html', dir } as StoredDemo;
 }
 
@@ -293,10 +293,10 @@ else if (args[0] === 'serve') {
   return program;
 }
 
-/**
- * What the fake `tailscale status --json` says: its backend's state, the machine's tailnet name,
- * whether HTTPS is on, the account it runs as and how many other devices the tailnet has (one).
- */
+
+
+
+
 export interface TailscaleStatus {
   state: 'Running' | 'NeedsLogin' | 'Stopped';
   name: string;

@@ -11,8 +11,8 @@ import { gitRepo } from '../../helpers/testing';
 import { processes } from '../../../llms/harnesses/processes';
 import { environment, SessionRegistry, type SessionRecord } from '../../../llms/harnesses/sessionRegistry';
 
-// Real processes and a real crash: the owner of a session is a separate process that is killed
-// without running any cleanup. Platforms that cannot compare process identities record nothing.
+
+
 const supported = environment() !== undefined && process.platform !== 'win32';
 const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
 const born = (pid: number) => processes().find((p) => p.pid === pid)?.born;
@@ -23,7 +23,7 @@ async function until(check: () => boolean, ms = 8000) {
 const idle = (extra = '') => ['-e', testProcessCode(`${extra};setInterval(()=>{},1000)`)];
 
 const cleanup: (() => void)[] = [];
-afterEach(() => { for (const f of cleanup.splice(0)) try { f(); } catch { /* best effort */ } });
+afterEach(() => { for (const f of cleanup.splice(0)) try { f(); } catch {  } });
 function scratch() {
   const dir = mkdtempSync(join(tmpdir(), 'seismic-sessions-'));
   cleanup.push(() => rmSync(dir, { recursive: true, force: true }));
@@ -31,7 +31,7 @@ function scratch() {
 }
 function start(extra = ''): ChildProcess {
   const child = spawn(process.execPath, idle(extra), { detached: true, stdio: 'ignore' });
-  cleanup.push(() => { try { process.kill(child.pid!, 'SIGKILL'); } catch { /* gone */ } });
+  cleanup.push(() => { try { process.kill(child.pid!, 'SIGKILL'); } catch {  } });
   return child;
 }
 /**
@@ -52,8 +52,8 @@ function owner(root: string, ready: string, jobs: number) {
     setInterval(() => {}, 1000);`);
   const child = spawn(process.execPath, ['-e', code], { detached: true, stdio: 'inherit' });
   cleanup.push(() => {
-    try { process.kill(child.pid!, 'SIGKILL'); } catch { /* gone */ }
-    try { for (const pid of JSON.parse(readFileSync(ready, 'utf8')) as number[]) process.kill(pid, 'SIGKILL'); } catch { /* gone */ }
+    try { process.kill(child.pid!, 'SIGKILL'); } catch {  }
+    try { for (const pid of JSON.parse(readFileSync(ready, 'utf8')) as number[]) process.kill(pid, 'SIGKILL'); } catch {  }
   });
   return child;
 }
@@ -71,14 +71,14 @@ test.skipIf(!supported)('after a crash, the recorded work ends; an unrelated can
   const dead = owner(root, ready, 2);
   await until(() => existsSync(ready));
   const [job, lookalike] = pidsOf(ready).map((pid) => ({ pid })) as [{ pid: number }, { pid: number }];
-  // the lookalike's pid is recorded, but with the creation time of another process: a reused pid
+  
   const file = readdirSync(root).find((n) => n.endsWith('.json'))!;
   const record: SessionRecord = JSON.parse(readFileSync(join(root, file), 'utf8'));
   expect(record.processes.map((p) => p.pid)).toEqual([job.pid!, lookalike.pid!]);
   writeFileSync(join(root, file), JSON.stringify({ ...record, processes: [record.processes[0]!, { pid: lookalike.pid!, born: 'Mon Jan  1 00:00:00 2001' }] }));
 
   const registry = new SessionRegistry(root);
-  // while the owner lives, its lease protects the record
+  
   expect(registry.recover().map((r) => r.outcome)).toEqual(['busy']);
   expect(alive(job.pid!)).toBe(true);
 
@@ -165,7 +165,7 @@ test.skipIf(!supported)('a record from a foreign host or an unreadable one never
 
   writeFileSync(join(root, file), JSON.stringify({ ...record, host: 'another-machine' }));
   expect(registry.recover()[0]).toMatchObject({ outcome: 'unknown' });
-  expect(registry.recover()[0]).toMatchObject({ outcome: 'unknown' }); // still there, untouched
+  expect(registry.recover()[0]).toMatchObject({ outcome: 'unknown' }); 
 
   writeFileSync(join(root, file), '{ not json');
   expect(registry.recover()[0]).toMatchObject({ outcome: 'quarantined' });
@@ -179,13 +179,13 @@ test.skipIf(!supported)('a workstation whose old session could not be ended is r
   const dead = owner(root, ready, 1);
   await until(() => existsSync(ready));
   const registry = new SessionRegistry(root);
-  expect(registry.unaccounted('/work/a').length).toBe(1); // its owner is alive, but this is another Seismic's registry object
+  expect(registry.unaccounted('/work/a').length).toBe(1); 
   await crash(dead);
   expect(registry.unaccounted('/work/a')).toEqual([{ generation: expect.any(String), label: 'test session' }]);
   expect(registry.unaccounted('/work/other')).toEqual([]);
   registry.recover();
   expect(registry.unaccounted('/work/a')).toEqual([]);
-  // this Seismic's own live session is not an old one
+  
   const g = (await registry.begin('mine', '/work/b'))!;
   expect(registry.unaccounted('/work/b')).toEqual([]);
   await g.finish();
@@ -240,17 +240,17 @@ require('node:fs').writeFileSync(${JSON.stringify(join(root, '..', 'leaf'))},Str
     await c.trackProcesses([leaf]);
     await Bun.write(${JSON.stringify(ready)}, JSON.stringify([c.pid, leaf]));
     setInterval(() => {}, 1000);`)], { detached: true, stdio: 'inherit' });
-  cleanup.push(() => { try { process.kill(host.pid!, 'SIGKILL'); } catch { /* gone */ } try { for (const pid of pidsOf(ready)) process.kill(pid, 'SIGKILL'); } catch { /* gone */ } });
+  cleanup.push(() => { try { process.kill(host.pid!, 'SIGKILL'); } catch {  } try { for (const pid of pidsOf(ready)) process.kill(pid, 'SIGKILL'); } catch {  } });
   const canary = start();
   await until(() => existsSync(ready));
   const [app, leaf] = pidsOf(ready) as [number, number];
-  // a process goes on record after it is tracked, not with it: the crash comes once the record names both
+  
   const recorded = () => readdirSync(root).filter((n) => n.endsWith('.json')).flatMap((n) => {
     try { return (JSON.parse(readFileSync(join(root, n), 'utf8')) as SessionRecord).processes.map((p) => p.pid); } catch { return []; }
   });
   await until(() => recorded().includes(app) && recorded().includes(leaf));
   await crash(host);
-  expect(alive(app) && alive(leaf)).toBe(true); // a crash runs no cleanup
+  expect(alive(app) && alive(leaf)).toBe(true); 
   const [result] = new SessionRegistry(root).recover();
   expect(result).toMatchObject({ outcome: 'recovered', label: 'Codex in /scratch' });
   expect(result!.killed).toEqual(expect.arrayContaining([app, leaf]));
@@ -282,7 +282,7 @@ require('node:fs').writeFileSync(${JSON.stringify(leafFile)},String(leaf.pid));s
     await Bun.sleep(1500); // the observation ticks pick the detached command up
     await Bun.write(${JSON.stringify(ready)}, JSON.stringify([pid, leaf]));
     setInterval(() => {}, 1000);`)], { detached: true, stdio: 'inherit' });
-  cleanup.push(() => { try { process.kill(host.pid!, 'SIGKILL'); } catch { /* gone */ } try { for (const pid of pidsOf(ready)) process.kill(pid, 'SIGKILL'); } catch { /* gone */ } });
+  cleanup.push(() => { try { process.kill(host.pid!, 'SIGKILL'); } catch {  } try { for (const pid of pidsOf(ready)) process.kill(pid, 'SIGKILL'); } catch {  } });
   const canary = start();
   await until(() => existsSync(ready), 15000);
   const [agy, leaf] = pidsOf(ready) as [number, number];
@@ -316,7 +316,7 @@ test.skipIf(!supported)('a Codex transport that ends in order removes its own re
   expect(JSON.parse(text.trim().split('\n').pop()!)).toEqual([true, 0]);
 }, 20_000);
 
-// Use a synthetic environment: these ordering tests need filesystem leases, not real processes.
+
 const testEnvironment = { host: 'test', boot: 'boot', namespace: 'test' };
 
 test('concurrent publications stay ordered and abandonment keeps the last durable record', async () => {
@@ -326,13 +326,13 @@ test('concurrent publications stay ordered and abandonment keeps the last durabl
   const first = g.publish([{ pid: 1, born: 'first' }]);
   const last = g.publish([{ pid: 1, born: 'first' }, { pid: 2, born: 'last' }]);
   const abandoned = g.abandon();
-  // Closing prevents new writes immediately, even while previous writes are in flight.
+  
   expect(() => g.publish([])).toThrow('closed');
   expect(registry.recover().map((r) => r.outcome)).toEqual(['busy']);
   await Promise.all([first, last, abandoned]);
   const record = JSON.parse(readFileSync(join(root, `${g.id}.json`), 'utf8'));
   expect(record.processes).toEqual([{ pid: 1, born: 'first' }, { pid: 2, born: 'last' }]);
-  // what it names still runs: the record stays, and nothing is ended
+  
   const running = () => new Map([[2, { pid: 2, born: 'last', parent: 0, group: 0 }]]);
   expect(registry.unaccounted('/work', { table: running })).toEqual([{ generation: g.id, label: 'ordered' }]);
   expect(existsSync(join(root, `${g.id}.json`))).toBe(true);
@@ -346,13 +346,13 @@ test('an abandoned record of which nothing runs any more blocks no new session i
   await g.abandon();
   const none = () => new Map();
   expect(registry.unaccounted('/elsewhere', { table: none })).toEqual([]);
-  expect(existsSync(join(root, `${g.id}.json`))).toBe(true); // another directory's start does not judge it
+  expect(existsSync(join(root, `${g.id}.json`))).toBe(true); 
   expect(registry.unaccounted('/home', { table: none })).toEqual([]);
   expect(readdirSync(root)).toEqual([]);
 });
 
 test('a record whose owner still holds its lease stays unaccounted without being judged', async () => {
-  // another Seismic on the same home holds the lease of a session it has running
+  
   const root = scratch();
   mkdirSync(root, { recursive: true });
   const id = crypto.randomUUID();
@@ -387,7 +387,7 @@ test('a failed publication rejects without poisoning later writes or cleanup', a
   const registry = new SessionRegistry(root, testEnvironment);
   const g = (await registry.begin('retry', '/work'))!;
   const file = join(root, `${g.id}.json`);
-  // A directory at the destination forces atomic rename to fail.
+  
   rmSync(file);
   mkdirSync(file);
   await expect(g.publish([{ pid: 1, born: 'birth' }])).rejects.toThrow();

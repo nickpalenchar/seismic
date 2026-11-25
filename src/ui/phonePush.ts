@@ -1,4 +1,4 @@
-// Push routing belongs to the phone controller; subscription and the prompt remain shared in notify.tsx.
+
 import { useEffect, useRef } from 'react';
 import { registerWorker } from './notify';
 import { readAddress } from './address';
@@ -6,7 +6,7 @@ import { readAddress } from './address';
 export function usePhonePush(openCard: (code: string) => void, home: () => void) {
   const actions = useRef({ openCard, home });
   actions.current = { openCard, home };
-  // a tapped push: its card (or "Needs you" for several) in the app that is open already
+  
   useEffect(() => {
     registerWorker();
     const sw = navigator.serviceWorker;

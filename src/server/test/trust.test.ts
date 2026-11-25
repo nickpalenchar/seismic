@@ -23,7 +23,7 @@ describe("a repository's commands", () => {
     expect(heldGroups(now, { ...now, app: { stop: 'other' } })).toEqual(['app']);
     expect(heldGroups(now, now)).toEqual([]);
     expect(heldGroups(now, null, { app: { stop: 'x', keep: 'y' } })).toEqual(['claude']);
-    // a stop of this machine's alone leaves the repository's keep held
+    
     expect(heldGroups(now, null, { app: { stop: 'x' } })).toEqual(['app', 'claude']);
   });
 
@@ -36,11 +36,11 @@ describe("a repository's commands", () => {
 
   test("taken over from this machine's values into the file, they are the owner's own", () => {
     expect(trustTakenOver(null, { app: { stop: 'make stop', run: 'bun dev' } }, { app: { stop: 'make stop' } })).toEqual({ app: { stop: 'make stop' } });
-    // a keep the owner trusted before, beside the stop of theirs
+    
     expect(trustTakenOver({ app: { keep: 'k' } }, { app: { stop: 's', keep: 'k' } }, { app: { stop: 's' } })).toEqual({ app: { stop: 's', keep: 'k' } });
-    // a trusted keep that went, beside a stop that stays, is not: the stop now stops what it kept
+    
     expect(trustTakenOver({ app: { stop: 's', keep: 'k' } }, { app: { stop: 's' } }, undefined)).toBeNull();
-    // someone else's stop that came with it is not
+    
     expect(trustTakenOver(null, { app: { stop: 'evil' }, checks: ['x'] }, { checks: ['x'] })).toBeNull();
   });
 });
@@ -62,7 +62,7 @@ describe("a workstation's Codex configuration", () => {
     const trusted = commandsOf(readShared(repo)).codex;
     expect(codexAsTrusted(repo, trusted)).toBe(true);
     expect(codexAsTrusted(repo, undefined)).toBe(false);
-    // a blank line git keeps apart, though the text read for the dialog is trimmed
+    
     writeFileSync(join(repo, '.codex/config.toml'), 'model = "x"\n\n');
     expect(codexAsTrusted(repo, trusted)).toBe(false);
     git(repo, 'checkout', '--quiet', '--', '.codex/config.toml');

@@ -4,7 +4,7 @@ import { cards } from './cards/cards';
 import { type Db, now } from './common';
 import { projects } from './projects';
 
-/** A question answered on a card, by the owner, its plan's agent or the Koordinator. */
+
 export const decisions = sqliteTable('decisions', {
   id: integer().primaryKey(),
   projectId: text('project_id').notNull().references(() => projects.id),

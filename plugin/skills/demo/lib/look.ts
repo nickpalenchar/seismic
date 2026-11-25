@@ -1,7 +1,7 @@
-// Seismic's look (frost) for the pages the demo skill writes, the report page and the schema-change page:
-// the tokens of the shared demo pages (src/server/demo-page.ts) and the project (the tokens at the top of src/ui/frost.css), kept
-// here since the skill runs without Seismic's sources. Light and dark follow the system, or a
-// `data-theme` on the root as a host may set it. Inter where the viewer has it, the system's font else.
+
+
+
+
 
 const LIGHT = `--bg:#e6edf5; --card:rgba(255,255,255,.82); --ink:#14202e; --muted:#5a6b80; --line:rgba(120,145,175,.28);
   --chip:rgba(120,150,190,.14); --accent:#0b8b93; --accent-glow:rgba(11,139,147,.3); --waiting:#e05f00;
@@ -23,7 +23,7 @@ const DARK = `--bg:#0d1420; --card:rgba(18,28,44,.78); --ink:#e6eef8; --muted:#8
     linear-gradient(135deg, #0d1420, #141d2b 55%, #0b111a);
   color-scheme:dark;`;
 
-/** The tokens and the board, the page's own rules go after it. */
+
 export const LOOK = `
 :root { ${LIGHT} }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { ${DARK} } }

@@ -65,7 +65,7 @@ describe('Web Push encryption', () => {
     expect(got!.headers['content-encoding']).toBe('aes128gcm');
     expect(JSON.parse(await decrypt(got!.body, d))).toEqual(message);
 
-    // the JWT: for the push service's origin, signed with the key the page subscribed with
+    
     const m = got!.headers.authorization!.match(/^vapid t=([^.]+)\.([^.]+)\.([^,]+), k=(.+)$/)!;
     expect(m[4]).toBe(vapid.publicKey);
     const claims = JSON.parse(Buffer.from(m[2]!, 'base64url').toString());

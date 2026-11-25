@@ -1,8 +1,8 @@
-// The page a demo is shared on, for people who have never seen Seismic, in the demo's language: title, text, the video with
-// its chapters and captions (or an HTML artifact in a frame), the pull request, or without one the
-// commit it landed as. A repository's demo site is built from it (site.ts), and a repository
-// without one exports it (share.ts): as a ZIP with the video or the artifact beside the page, or as
-// one HTML file with everything inside.
+
+
+
+
+
 
 import { type Dirent, existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -13,10 +13,10 @@ import interLicense from '../ui/fonts/LICENSE-Inter.txt' with { type: 'file' };
 import { demoFile } from './demo-file';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
 
-/** The languages a page speaks: those a demo is narrated in. */
+
 export type PageLanguage = 'en';
 
-/** The page's own words, in the demo's language. */
+
 export const PAGE_WORDS: Record<
   PageLanguage,
   {
@@ -24,25 +24,25 @@ export const PAGE_WORDS: Record<
     captions: string;
     play: string;
     pr: string;
-    /** The link to work that landed without a pull request: its commit, or the comparison over its commits. */
+    
     commit: string;
     commits: string;
     ownWindow: string;
     demoOf: (day: string) => string;
-    /** A page on a site (`site.ts`): when it was shared and by whom (git's name of the one whose Seismic shared it), the link to the overview; the overview's own words. */
+    
     sharedOn: (day: string, by?: string) => string;
     allDemos: string;
-    /** On the overview, after a page's date: who shared it. */
+    
     by: (name: string) => string;
     overview: string;
     noDemos: string;
-    /** A page with several demo versions: the first one's name in the list at the top, and the heading of each later one. */
+    
     first: string;
     addendum: (at: string, timeZone?: string) => string;
-    /** The line every page and the overview end in, before the link to Seismic's site; the overview's link to its feed. */
+    
     recordedWith: string;
     feed: string;
-    /** The overview's filter: its search field, how many of the pages it shows, copying their links, a page's link, none passing. */
+    
     search: string;
     shown: string;
     copyLinks: string;
@@ -94,44 +94,44 @@ function timeParts(at: string, locale: string, month: 'numeric' | 'short', timeZ
   return { day: parts.day ?? '', month: parts.month ?? '', hour: parts.hour ?? '', minute: parts.minute ?? '' };
 }
 
-/** Work that landed without a pull request, on its forge: its commit, or the comparison over its commits (`several`). */
+
 export interface PageCommit {
   url: string;
   several?: true;
 }
 
-/** What a page shows of every demo, a video or an HTML artifact. */
+
 interface PageParts {
   title: string;
-  /** Paragraphs separated by blank lines. */
+  
   text: string;
   pr: string | null;
-  /** Without a pull request: where the work landed on the default branch, once it has. */
+  
   commit?: PageCommit | null;
-  /** The line under the title (when it was shared, and by whom). */
+  
   when: string;
-  /** The browser tab's title. */
+  
   tabTitle: string;
-  /** The demo's language, which the page's own words and the captions' name are in; English without one. */
+  
   language?: PageLanguage;
-  /** A link above the title (say, to all demos). */
+  
   top?: { href: string; text: string };
-  /** The page's tags, by dimension, each a link (say, to the overview showing the pages with it). */
-  tags?: { dimension: string; value: string; href: string }[];  /** A page of an unlisted site: kept out of search engines, and its links send no referrer. */
+  
+  tags?: { dimension: string; value: string; href: string }[];  
   unlisted?: true;
-  /** The theme of the card's repository (theme.ts): its CSS, after Seismic's own style. */
+  
   theme?: string;
 }
 
 export interface DemoPageParts extends PageParts {
   chapters: [number, string][];
-  /** The video's URL, or its bytes in base64 for a page that holds everything. */
+  
   video: { src: string } | { base64: string };
   poster?: string;
-  /**
-   * The captions' URL, or their text in the page: a page opened from disk may not load a `<track>`
-   * (Chrome treats `file:` as another origin), so those come as cues from a script.
-   */
+  
+
+
+
   captions: { src: string } | { vtt: string };
 }
 
@@ -153,11 +153,11 @@ const inScript = (s: string) => s.replace(/<\//g, '<\\/');
 export const day = (at: Date | string, language: PageLanguage = 'en') =>
   new Date(at).toLocaleDateString(PAGE_WORDS[language].locale, { day: 'numeric', month: 'long', year: 'numeric' });
 
-/**
- * Inter (OFL) inlined as a `data:` URL, so a page shows it without the viewer having it installed, and
- * a page opened from disk or sealed by `pagePolicy` needs no file beside it. Its copyright notice and
- * licence travel with it as a comment in the same stylesheet, as the OFL asks of every copy.
- */
+
+
+
+
+
 const INTER_FACE = `/* Inter font, embedded below:\n${readFileSync(interLicense, 'utf8').replace(/\*\//g, '* /')}*/\n  @font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url(data:font/woff2;base64,${readFileSync(interFont).toString('base64')}) format("woff2"); }`;
 
 export const PAGE_STYLE = `
@@ -320,14 +320,14 @@ export const PAGE_STYLE = `
 /** A repository's theme (theme.ts) in a page's head, after Seismic's own style, so it wins; nothing in it may close its element. */
 export const themeStyle = (css?: string) => (css ? `<style>${css.replace(/<\/(style)/gi, '<\\/$1')}</style>` : '');
 
-/** Seismic's site, which every page and the overview link at their end. */
+
 export const SEISMIC_URL = 'https://seismic.im';
 
 /** The line every page and the overview end in: what made them, linking Seismic's site. */
 export const credit = (language: PageLanguage) => `<footer class="credit">${PAGE_WORDS[language].recordedWith} <a href="${SEISMIC_URL}">Seismic</a></footer>
 `;
 
-// the cues of captions held in the page, for a page opened from disk
+
 const CUES = (language: PageLanguage) => `
   const vtt = document.getElementById('captions').textContent;
   const track = v.addTextTrack('captions', ${JSON.stringify(PAGE_WORDS[language].captions)}, ${JSON.stringify(language)});
@@ -341,9 +341,9 @@ const CUES = (language: PageLanguage) => `
   }
 `;
 
-// A host that serves no byte ranges (Cloudflare Pages answers a range request with the whole file)
-// leaves a video a browser cannot seek in (it jumps back): then the page loads the video once and
-// plays it from memory. A page opened from disk cannot fetch it and needs not.
+
+
+
 const SEEKABLE = (src: string) => `
   const seekable = fetch(${JSON.stringify(src)}, { headers: { Range: 'bytes=0-' } }).then(async (r) => {
     if (r.status === 206) return r.body?.cancel();
@@ -353,7 +353,7 @@ const SEEKABLE = (src: string) => `
   }).catch(() => {});
 `;
 
-// the video's bytes held in the page, played from a blob so it can seek
+
 const BLOB = `
   const b64 = document.getElementById('video').textContent.trim();
   const bin = atob(b64), bytes = new Uint8Array(bin.length);
@@ -361,15 +361,15 @@ const BLOB = `
   v.src = URL.createObjectURL(new Blob([bytes], { type: 'video/mp4' }));
 `;
 
-/** The page of an HTML artifact: title and text above it, the artifact in a frame below. */
+
 export interface ArtifactPageParts extends PageParts {
-  /** The artifact's page beside this one, or its HTML for a page that holds everything. */
+  
   artifact: { src: string } | { html: string };
-  /** A page passed on as a file (the ZIP), opened from disk. */
+  
   disk?: boolean;
 }
 
-/** Where the files beside a page opened from disk (the ZIP) are: `'self'` need not match `file:`. */
+
 export const ON_DISK = 'file:';
 
 /**
@@ -441,7 +441,7 @@ const imageFrame = (f, open) => {
 addEventListener('keydown', (e) => { if (!imageClose) return; if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); closeImage(); } else if (e.key === 'Tab') { e.preventDefault(); imageClose.focus(); } }, true);
 addEventListener('message', (e) => { if (activeImageFrame && e.source === activeImageFrame.contentWindow && e.data && (e.data.seismicImageFocus || e.data.obeyaImageFocus)) imageClose.focus(); });`;
 
-/** What an unlisted page's head says: no index, no referrer (the meta tags hold where a host sends no headers of the site's own, GitHub Pages). */
+
 const UNLISTED_META = '<meta name="robots" content="noindex, nofollow"><meta name="referrer" content="no-referrer">';
 
 /**
@@ -492,17 +492,17 @@ ${'vtt' in p.captions ? `<script type="text/vtt" id="captions">${inScript(p.capt
 `;
 }
 
-/** A demo version on a page with several: its title and text, and where its files are, relative to the page. */
+
 export type StackedDemo = { title: string; text: string; base: string } & ({ kind: 'video'; chapters: [number, string][]; poster: boolean } | { kind: 'html' });
 
 export interface StackedPageParts extends Omit<PageParts, 'title' | 'text'> {
-  /** The first version, with the page's title and text, then each later one, with when it was handed over. */
+  
   demos: [StackedDemo, ...(StackedDemo & { at: string })[]];
-  /** The time zone the later ones' headings say the time in; this machine's without. */
+  
   timeZone?: string;
 }
 
-/** The style a page with several demo versions adds: the list at the top, and each later version as an addendum. */
+
 const STACK_STYLE = `
   .sections { font-size: 13.5px; color: var(--muted); margin: -8px 0 20px; display: flex; flex-wrap: wrap; gap: 6px 10px; }
   .sections a { display: inline-block; padding: 4px 12px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); color: var(--accent); text-decoration: underline; text-underline-offset: 0.18em; text-decoration-thickness: 1px; font-size: 13px; font-weight: 500; box-shadow: var(--shadow); transition: border-color 0.15s, box-shadow 0.15s, color 0.15s, text-shadow 0.15s; }
@@ -592,14 +592,14 @@ ${credit(language)}</main>
 `;
 }
 
-/** An HTML artifact's directory on a page, beside the page's `index.html`. */
+
 export const ARTIFACT_DIR = 'artifact';
 
 /** The files of an HTML artifact's directory, relative to it, without hidden ones; links only to a file inside it. */
 export function artifactFiles(dir: string): string[] {
   if (!existsSync(dir)) return [];
   const out: string[] = [];
-  // its own walk: one that follows a link to a directory may walk the whole disk
+  
   const walk = (sub: string) => {
     for (const e of readdirSync(join(dir, sub), { withFileTypes: true }) as Dirent[]) {
       if (e.name.startsWith('.')) continue;

@@ -1,7 +1,7 @@
-/**
- * Reads a plan doc for which workstream builds on which: one session names, for each workstream
- * of the plan, the workstreams it builds on, so the board can arrange them left to right.
- */
+
+
+
+
 import { z } from 'zod';
 import { finished, type Item } from '../../../../core/types';
 import type { AgentRuntime, AgentTool } from '../../../runtime';
@@ -11,16 +11,16 @@ import { CardTags } from './cardTags';
 
 export interface ReadPlanDependenciesRun {
   runtime: AgentRuntime;
-  /** Where the session reads: the plan's repository. */
+  
   cwd: string;
   plan: Item;
-  /** The plan's workstreams, in the plan's order. */
+  
   kids: Item[];
-  /** The keys the board calls the workstreams by, by card id (`Board.workstreamKeys`). */
+  
   keys: Map<string, string>;
 }
 
-/** The workstreams' keys that each builds on, by key. */
+
 type Dependencies = Record<string, string[]>;
 
 /** Reads the plan doc for which workstream builds on which; keeps what it reports in `on`. */
@@ -29,7 +29,7 @@ class ReadPlanDependenciesJob extends SeismicJob<Dependencies> {
   readonly name = 'readPlanDependencies';
   readonly description = 'Reads which workstream of a plan builds on which.';
   private on: Dependencies | undefined;
-  /** The tags the session calls the workstreams by. */
+  
   private readonly tags: CardTags;
 
   constructor(private o: Omit<ReadPlanDependenciesRun, 'runtime' | 'cwd'>) {

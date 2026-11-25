@@ -1,8 +1,8 @@
-/**
- * Names a card the owner left without a title: a read-only session reads the task and its
- * screenshots and gives a title, with the labels left to suggest in the same call. The screenshots
- * are a help: on a model that cannot read images the session goes on from the text.
- */
+
+
+
+
+
 import { z } from 'zod';
 import type { Label, Labels } from '../../../../core/labels';
 import type { AgentRuntime, AgentTool } from '../../../runtime';
@@ -12,15 +12,15 @@ import { type JobRun, SeismicJob } from '../seismicJob';
 
 export interface NameCardRun {
   runtime: AgentRuntime;
-  /** Where the session reads. */
+  
   cwd: string;
-  /** The language of the title, and any labels. */
+  
   language: string;
-  /** The labels to judge in the same call. */
+  
   asked: Label[];
-  /** The card's text; empty where the task is in the screenshots alone. */
+  
   task: string;
-  /** The owner's standing preferences, added to the instructions. */
+  
   preferences?: string;
   images?: string[];
   onLimit?: JobRun['onLimit'];

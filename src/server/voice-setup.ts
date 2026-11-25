@@ -1,12 +1,12 @@
-// What Seismic's voice in needs on this machine, checked for the settings sheet like a demo's setup
-// (`plugin/skills/demo/lib/setup.ts`): the speech recognition (the package in uv's cache or in
-// `SEISMIC_WHISPER_PYTHON`, the model in the Hugging Face cache), ffmpeg (it decodes the recordings)
-// and uv (it brings the recognition, so it comes first, and "Installieren" waits for it).
-// "Installieren" loads the recognition, which fetches it the first time, so the first command does
-// not wait minutes for it, and then measures it: the recognition hears a short sentence Seismic ships
-// with (`voice/check.ogg`, spoken by Piper), and where it takes longer than the sentence lasts,
-// the sheet offers a cloud service instead (voice-cloud.ts), tested with the same sentence. With a
-// cloud service in use nothing of the above is needed.
+
+
+
+
+
+
+
+
+
 
 import { seismicEnv } from '../core/env';
 import type { CloudVoiceView, ListenBackend, VoiceSetupItem, VoiceSetupView, VoiceSpeed } from '../core/types';
@@ -18,15 +18,15 @@ import { resource } from './resources';
 import { listenKit, type Transcript } from './voice';
 import { CloudError, cloudFrom, cloudInUse, cloudView, readVoiceFile, serviceName, transcribeInCloud, writeVoiceFile } from './voice-cloud';
 
-/** The sentence the check transcribes ("Start the card Export for landlords and tell me when it is done."), and how long it lasts. */
+
 export const CHECK_CLIP = { file: 'check.ogg', seconds: 3.5 };
 
 export interface VoiceSetupOptions {
   home: string;
-  /** The recognition on this machine: its backend, loading it (which the first time fetches it), and hearing. */
+  
   local: { backend: ListenBackend; prepare(): Promise<void>; transcribe(audioPath: string, vocabulary: string): Promise<Transcript> };
   env?: Record<string, string | undefined>;
-  /** The check's sentence; Seismic's own by default. */
+  
   clip?: string;
   fetcher?: typeof fetch;
 }
@@ -47,7 +47,7 @@ export class VoiceSetup {
     const listen = this.o.local.backend;
     const cloud = cloudView(this.o.home);
     const job = this.job ? { job: { ...this.job } } : {};
-    // through the cloud nothing on this machine is needed
+    
     if (cloud?.used && cloud.key)
       return { platform, arch, listen, items: [{ id: 'recognition', state: 'ok', found: serviceName(cloud), cloud }], fetch: { mb: 0 }, ...job };
     await freshPath(env, platform);
@@ -59,16 +59,16 @@ export class VoiceSetup {
     const [ffmpegOut, uvOut, packageOut] = await Promise.all([
       output('ffmpeg', ['-hide_banner', '-version'], env),
       output('uv', ['--version'], env),
-      // offline: only what uv has in its cache counts as there
+      
       python ? output(python, ['-c', has], env) : output('uv', ['run', '--offline', '--quiet', '--no-project', ...kit.uvArgs, 'python', '-c', has], env),
     ]);
     const items: VoiceSetupItem[] = [];
-    // uv fetches the recognition unless its Python is given
+    
     const uv = python ? undefined : uvOut?.match(/uv (\S+)/)?.[1];
     if (!python) items.push(uv ? { id: 'uv', state: 'ok', found: uv } : { id: 'uv', state: 'missing', install: hint('uv') });
     const found = kit.name;
     const model = (listen !== 'parakeet' ? seismicEnv('WHISPER_MODEL', env) : undefined) || kit.model;
-    // a model named without its repository (faster-whisper's own names) is not looked up
+    
     const modelMb = model.includes('/') && !hfModelPresent(model) ? kit.mb.model : 0;
     let mb = 0;
     const measured = this.speed();
@@ -111,8 +111,8 @@ export class VoiceSetup {
       console.log(`Seismic: loading the speech recognition (${listenKit(listen).name}, fetched the first time)`);
       await this.o.local.prepare();
       job.step = 'measure';
-      // twice, the faster one counts: the first recording after loading takes longer than those after it
-      // (0.6 s against 0.1 s for a short command on an M4 Pro)
+      
+      
       let seconds = Infinity;
       let text = '';
       for (let i = 0; i < 2; i++) {
@@ -134,7 +134,7 @@ export class VoiceSetup {
         throw e;
       },
     );
-    // the view says how it ended; whoever waits for it hears of a failure
+    
     this.done.catch(() => {});
     return this.view();
   }

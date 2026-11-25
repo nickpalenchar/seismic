@@ -1,7 +1,7 @@
-/**
- * Chooses the tags a demo page lacks for the site's vocabulary: a short session reads the title and
- * text of the page's demos and picks, for each dimension, the values that fit.
- */
+
+
+
+
 import { dimensions } from '../../../../core/page-tags';
 import type { PageTags } from '../../../../core/types';
 import type { AgentRuntime, AgentTool } from '../../../runtime';
@@ -11,11 +11,11 @@ import { picked, TAGS_FIELD, tagsSchema } from './pageTagging';
 
 export interface ChooseDemoPageTagsRun {
   runtime: AgentRuntime;
-  /** Where the session reads: the card's repository. */
+  
   cwd: string;
-  /** The title and text of the page's demos, the page's first. */
+  
   demos: { title: string; text: string }[];
-  /** The dimensions to choose for, each with its values. */
+  
   lacking: PageTags;
 }
 

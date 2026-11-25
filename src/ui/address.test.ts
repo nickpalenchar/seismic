@@ -91,7 +91,7 @@ test('a project is addressed by its name, its id where the name does not tell it
   expect(projectPath('blog')).toBe('/p/my-blog');
   expect(cardPath('blog', { id: 'a1b2c3d4', short: 'a1b2c3' })).toBe('/p/my-blog/c/a1b2c3');
   expect(feedbackLogPath('blog')).toBe('/p/my-blog/feedback');
-  // another project's id is not taken over; equal names fall back to ids
+  
   expect(projectPath('shop')).toBe('/p/shop');
   expect(projectPath('store')).toBe('/p/other');
   expect(projectPath('a')).toBe('/p/a');
@@ -115,7 +115,7 @@ test('a renamed project’s old names lead to it, after its name and id', () => 
   ];
   expect(projectNamed(list, 'store')?.id).toBe('shop');
   expect(projectNamed(list, 'Store')?.id).toBe('shop');
-  // a name another project has now is that project's, not the old name's
+  
   expect(projectNamed(list, 'old-shop')?.id).toBe('blog');
   expect(projectNamed(list, 'market')?.id).toBe('shop');
   knowProjects([]);
@@ -123,16 +123,16 @@ test('a renamed project’s old names lead to it, after its name and id', () => 
 
 test('renaming the open project moves the address, its card and all, to the new name', () => {
   const before = [{ id: 'shop', name: 'Store' }];
-  // the page opened /p/store/c/a1b2c3: it is the project's address, nothing moves
+  
   expect(followedPath('/p/store/c/a1b2c3', before, 'shop', null)).toBeNull();
   const was = { id: 'shop', path: '/p/store' };
-  // renamed, with the old name kept: the address follows
+  
   expect(followedPath('/p/store/c/a1b2c3', [{ id: 'shop', name: 'Market', oldNames: ['Store'] }], 'shop', was)).toBe('/p/market/c/a1b2c3');
-  // renamed, the old name not kept (deleted, or a list from before old names): the address follows all the same
+  
   expect(followedPath('/p/store/c/a1b2c3', [{ id: 'shop', name: 'Market' }], 'shop', was)).toBe('/p/market/c/a1b2c3');
-  // a reload of the old address opens the project by its old name, then moves to the new one
+  
   expect(followedPath('/p/store/feedback', [{ id: 'shop', name: 'Market', oldNames: ['Store'] }], 'shop', null)).toBe('/p/market/feedback');
-  // another project's address, before its project has arrived, stays
+  
   expect(followedPath('/p/blog', [{ id: 'shop', name: 'Market' }, { id: 'blog', name: 'Blog' }], 'shop', was)).toBeNull();
   expect(followedPath('/p/store', [{ id: 'shop', name: 'Market' }], 'shop', { id: 'other', path: '/p/store' })).toBeNull();
   knowProjects([]);
@@ -153,7 +153,7 @@ test('a name without letters or digits has no slug, so the id addresses the proj
     expect(projectNamed(list, project)?.id).toBe(id);
   }
   expect(projectNamed(list, 'v1.2')?.id).toBe('p-ok');
-  // typed by hand, the dots name nothing
+  
   expect(projectNamed(list, '.')).toBeUndefined();
   expect(projectNamed(list, '..')).toBeUndefined();
   knowProjects([]);

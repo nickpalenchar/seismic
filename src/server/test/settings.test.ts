@@ -63,11 +63,11 @@ test("the model and effort per group of agents: preset, chosen one group at a ti
   expect(agentSetting(home, 'chores')).toEqual({ model: 'opus', effort: 'medium' });
   saveAgents(home, { worker: { model: 'opus' } });
   expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ language: 'en', agents: { koordinator: { model: 'haiku' }, worker: { effort: 'xhigh' } } });
-  // back to the presets: the file keeps no list
+  
   saveAgents(home, { koordinator: { model: 'opus' }, worker: { effort: 'high' }, chores: { model: 'opus' } });
   expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ language: 'en' });
   for (const bad of [{ boss: {} }, { worker: { model: 'gpt' } }, { worker: { effort: null } }, { worker: { effort: 'huge' } }, { worker: { model: 'opus', fast: true } }]) expect(() => saveAgents(home, bad)).toThrow();
-  // what the file holds beyond the known choices is left out
+  
   writeFileSync(join(home, SETTINGS_FILE), JSON.stringify({ agents: { worker: { model: 'gpt', effort: 'low' }, boss: { model: 'opus' } } }));
   expect(agentSetting(home, 'worker')).toEqual({ model: 'opus', effort: 'low' });
 });
@@ -85,7 +85,7 @@ test("an agent of a group starts with the group's model and effort, asked at eve
   expect('model' in fake.last.spec).toBe(false);
   runtime.start({ ...spec, role: 'chores' });
   expect(fake.last.spec).toMatchObject({ model: 'opus', effort: 'medium' });
-  // an agent of no group starts as its job says
+  
   runtime.start({ ...spec, effort: 'low' });
   expect(fake.last.spec.effort).toBe('low');
   expect(fake.last.spec.model).toBeUndefined();
@@ -165,7 +165,7 @@ test('light or dark: as the system until chosen, beside the other settings, and 
   expect(saveTheme(home, { theme: null }).chosen).toBeNull();
   expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ language: 'en' });
   for (const bad of [{ theme: 'sepia' }, {}, null]) expect(() => saveTheme(home, bad)).toThrow();
-  // an unknown look in the file follows the system
+  
   writeFileSync(join(home, SETTINGS_FILE), JSON.stringify({ theme: 'sepia' }));
   expect(themeView(home).chosen).toBeNull();
 });
@@ -193,7 +193,7 @@ test('the usage limits in the bar: shown until turned off, which alone stands in
   expect(saveUsageMeter(home, { on: true }).on).toBe(true);
   expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ language: 'en' });
   for (const bad of [{ on: 'no' }, {}, null]) expect(() => saveUsageMeter(home, bad)).toThrow();
-  // anything else in the file shows them
+  
   writeFileSync(join(home, SETTINGS_FILE), JSON.stringify({ usageMeter: 'off' }));
   expect(usageMeterView(home).on).toBe(true);
 });

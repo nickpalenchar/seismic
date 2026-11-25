@@ -86,11 +86,11 @@ test("starting, taking out of the queue, stopping and approving go out as POSTs 
   expect(sent).toEqual([
     { url: '/api/v1/cards/c8/start', body: {}, timed: true },
     { url: '/api/v1/cards/c8/start', body: { agent }, timed: true },
-    // "Start anyway"
+    
     { url: '/api/v1/cards/c8/start', body: { agent, skipWaitForCards: true }, timed: true },
     { url: '/api/v1/cards/c8/dequeue', body: {}, timed: true },
     { url: '/api/v1/cards/c8/stop', body: {}, timed: true },
-    // an approval waits for the landing, however long it takes
+    
     { url: '/api/v1/cards/c8/approve', body: {}, timed: false },
     { url: '/api/v1/cards/c8/approve', body: { direct: true }, timed: false },
   ]);

@@ -1,13 +1,13 @@
-// A card's labels and the pickers that set them (Tailwind on frost's tokens), for the parts several
-// files build: the priority's flag (`card/labels.tsx`, and the card-link pills `cardMenu.tsx` builds
-// as raw DOM), the picker's button and menu (the labels on the unfolded card, the "⋯" of a card and a
-// plan in `canvases.tsx`). The class names before the utilities (`prio prio-high sugg bare`,
-// `prio-btn set`, `prio-menu`, `lopt`) stay as hooks: other families' rules size and space them where
-// they sit (the card faces, the card-link pill, the "⋯").
+
+
+
+
+
+
 
 import type { Priority } from '../core/labels';
 
-/** A priority's colour, rising from pencil grey to red; critical is white on red. */
+
 const level: Record<Priority, string> = {
   trivial: 'text-planned-strong font-medium',
   low: 'text-question font-semibold',
@@ -30,7 +30,7 @@ export const prioClass = (priority: Priority, { suggested, bare }: { suggested?:
     'inline-flex items-center gap-1 flex-none normal-case tracking-[.01em] [&_svg]:block [&_svg]:flex-none',
     level[priority],
     suggested && 'border border-dashed border-proposal rounded-xs',
-    // the padding of a filled or framed mark; the flag alone is tighter
+    
     framed && (bare ? 'py-px px-1 leading-none' : 'pt-0 pb-0 pr-1 pl-1'),
     suggested && !bare && 'leading-[15px]',
     bare && !framed && 'px-px',
@@ -39,7 +39,7 @@ export const prioClass = (priority: Priority, { suggested, bare }: { suggested?:
     .join(' ');
 };
 
-/** Where a picker stands: its button, the menu anchored to it. */
+
 export const prioPickClass = 'prio-pick relative inline-flex text-xs';
 
 /**
@@ -53,8 +53,8 @@ export const prioBtnClass = (set?: boolean) =>
     '[&_.lchip]:text-xs [&_.lchip]:leading-4 [&_.prio.sugg]:leading-4',
   ].join(' ');
 
-/** A picker's menu. */
+
 export const prioMenuClass = 'prio-menu min-w-[140px] p-1 flex flex-col border border-glass-edge rounded-lg';
 
-/** An option with an icon before its words (a complexity's bars, a canvas's icon). */
+
 export const loptClass = 'lopt flex items-center gap-1.5 text-foreground [&_svg]:flex-none [&_svg]:text-foreground [&_b]:font-semibold';

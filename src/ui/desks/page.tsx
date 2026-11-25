@@ -1,8 +1,8 @@
-// The workspaces page, on this machine's Seismic in the desktop app (`/workspaces`): the list, each
-// workspace with "Open" and its cog (the dialog with name, address, "Pair again" and "Delete
-// workspace"), and "New workspace" with the form that pairs one. `?new` opens with the form,
-// `?edit=<id>` with that workspace's dialog: the menu's "New Workspace…" and a remote page's
-// switcher lead here so. A remote Seismic's page cannot change the list: it leads here instead.
+
+
+
+
+
 
 import { ArrowLeft, Cloud, Cog, Monitor, Plus } from 'lucide-react';
 import { useState } from 'react';
@@ -16,7 +16,7 @@ import { ConnectForm, errorClass } from './connect';
 import { EditDesk } from './edit';
 import { backFromWorkspaces, currentDesk, type Desk, deskError, desks, LOCAL, onThisMachine, openWorkspaces, readDesks, useDesks, useDesksFailed, usePairing } from './shell';
 
-/** The page's pane, as the setup's first start has it. */
+
 export const deskPageClass = 'fixed inset-0 overflow-y-auto bg-background';
 export const deskPaneClass = 'frost-pane mx-auto mt-14 mb-12 grid max-w-[720px] gap-5 px-7 pt-6 pb-7';
 
@@ -90,7 +90,7 @@ function DeskRow({ desk, shown, pairing, onEdit }: { desk: Desk; shown: boolean;
   const open = () => {
     setOpening(true);
     setProblem('');
-    // once it opens, the window shows that workspace and this page goes
+    
     desks.open(desk.id).then(
       () => setOpening(false),
       (e) => (setOpening(false), setProblem(deskError(e, desk.origin ?? ''))),
@@ -104,7 +104,7 @@ function DeskRow({ desk, shown, pairing, onEdit }: { desk: Desk; shown: boolean;
           <b className="[overflow-wrap:anywhere]">{desk.name}</b>
           <span className="text-xs text-muted-foreground">{desk.local ? t.desks.thisMachine : t.desks.remote}</span>
         </div>
-        {/* a long address wraps, never scrolls sideways */}
+        { }
         {desk.origin && <div className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{desk.origin}</div>}
       </div>
       <div className="flex items-center gap-1.5">

@@ -1,4 +1,4 @@
-// A button that copies a text says so for a moment after.
+
 
 import { useState } from 'react';
 

@@ -66,7 +66,7 @@ describe('serveDemoFile', () => {
 
   test('a file cut after its size was read answers with only what is left of it', async () => {
     const cut = mkdtempSync(join(tmpdir(), 'seismic-demo-cut-'));
-    // its size as it was before a retake cut it
+    
     const sized = (size: number) => (() => ({ size })) as unknown as typeof fs.fstatSync;
     const stat = spyOn(fs, 'fstatSync').mockImplementationOnce(sized(20 << 20));
     try {
@@ -99,7 +99,7 @@ describe('serveDemoFile for an HTML artifact', () => {
   const base = 'http://127.0.0.1:4417/api/c/c1/cards/12/demo/';
   const ask = (url: string, headers: Record<string, string> = {}) =>
     serveDemoFile({ dir: html, kind: 'html' }, decodeURIComponent(url.slice(base.length)), new Request(url, { headers }));
-  // as the browser does: on to the address with the directory's key
+  
   const get = (name: string, headers: Record<string, string> = {}) => {
     const first = ask(base + name, headers);
     return first.status === 302 ? ask(new URL(first.headers.get('location')!, base).href, headers) : first;
@@ -111,10 +111,10 @@ describe('serveDemoFile for an HTML artifact', () => {
     expect(page.headers.get('content-security-policy')).toBe(`sandbox allow-scripts; ${pagePolicy('http://127.0.0.1:4417')}`);
     expect(page.headers.get('connection-allowlist')).toBe('(response-origin)');
     expect(page.headers.get('x-dns-prefetch-control')).toBe('off');
-    // behind `tailscale serve` the files are named by the address the browser sent the request to
+    
     const proxied = get('index.html', { 'x-forwarded-proto': 'https', 'x-forwarded-host': 'mac.tail1.ts.net' });
     expect(proxied.headers.get('content-security-policy')).toContain("default-src 'self' https://mac.tail1.ts.net data: blob:;");
-    // an address no policy can name gives no files beside the page
+    
     expect(get('index.html', { 'x-forwarded-proto': 'https; default-src *' }).headers.get('content-security-policy')).toBe(`sandbox allow-scripts; ${pagePolicy()}`);
     expect(await page.text()).toMatch(/^<img src="img\/a.svg"><script>[\s\S]*seismicHeight[\s\S]*seismicMarked/);
     const second = await get('second.html', { 'sec-fetch-dest': 'iframe' }).text();
@@ -130,7 +130,7 @@ describe('serveDemoFile for an HTML artifact', () => {
     const top = { 'sec-fetch-dest': 'document' };
     const page = get('index.html', top);
     expect(page.headers.get('content-security-policy')).toMatch(/^default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-[A-Za-z0-9+\/=]+'; frame-src 'self'$/);
-    // the frame gets the page's own address, the part after # too, which never reaches the server
+    
     expect(await page.text()).toContain(`<iframe sandbox="allow-scripts"></iframe><script>document.querySelector('iframe').src = location.pathname + location.search + location.hash;</script>`);
     expect(await get('img/a.svg', top).text()).toContain('<iframe sandbox="allow-scripts"');
     writeFileSync(join(html, 'a.png'), 'png');
@@ -153,7 +153,7 @@ describe('serveDemoFile for an HTML artifact', () => {
     symlinkSync(join(html, 'img', 'a.svg'), join(html, 'logo.svg'));
     expect(get('k').status).toBe(404);
     expect(get('up/secret.txt').status).toBe(404);
-    // a link within the directory is one of its files
+    
     expect(await get('logo.svg').text()).toContain('<svg');
     expect(artifactFiles(html)).toEqual(['img/a.svg', 'index.html', 'logo.svg', 'second.html']);
     const video = join(dir, 'linked');
@@ -163,7 +163,7 @@ describe('serveDemoFile for an HTML artifact', () => {
   });
 
   test('its page and what that loads relative to itself may be read in CORS mode; without the key, nothing is', () => {
-    // the frame's requests carry `Origin: null`, and any sandboxed page on any site sends the same
+    
     const first = ask(`${base}index.html`, { origin: 'null' });
     expect(first.status).toBe(302);
     expect(first.headers.get('access-control-allow-origin')).toBeNull();
@@ -171,7 +171,7 @@ describe('serveDemoFile for an HTML artifact', () => {
     expect(page).toMatch(/^\/api\/c\/c1\/cards\/12\/demo\/~[0-9a-f]{32}\/index\.html$/);
     const module = new URL('img/a.svg', new URL(page, base)).href;
     expect(ask(module, { origin: 'null' }).headers.get('access-control-allow-origin')).toBe('null');
-    // another directory has another key; a wrong or old key is sent on to the right one
+    
     const other = 'http://127.0.0.1:4417/api/c/c1/cards/13/demo/';
     expect(ask(module.replace(base, other)).status).toBe(302);
     expect(ask(`${base}~${'0'.repeat(32)}/img/a.svg`).headers.get('location')).toBe(new URL(module).pathname);

@@ -4,7 +4,7 @@ import { stored } from './schemas/common';
 import * as t from './schemas/schema';
 import type { Store } from './store';
 
-/** The tables that hold a project's records, under their names in the database, by its id or its cards'. */
+
 const BY_PROJECT: [string, SQLiteTable & { projectId: SQLiteColumn }][] = [
   ['canvases', t.canvases],
   ['groups', t.groups],

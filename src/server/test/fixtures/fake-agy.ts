@@ -1,12 +1,12 @@
-// A stand-in for Antigravity (`agy`) in stream-json mode, for tests and scratch runs of Seismic
-// (SEISMIC_AGY pointing at a wrapper that runs it). Each user frame is a script, one directive per line:
-//   CALL <tool> <json>  calls a Seismic tool over its session’s MCP endpoint
-//   RUN <command>       shows a native shell step
-//   FAIL                ends the turn with a usage-limit error
-// Anything else is answered with a line of text. Its argv is echoed on the first text, as `ARGV <json>`.
-// `models` lists the catalog of agy-models.txt (real `agy models` output), and a session refuses a
-// `--model`/`--effort` pair as agy does: an effort the model lacks, one that conflicts with the
-// effort in a full id, any effort for a model without efforts.
+
+
+
+
+
+
+
+
+
 import { readFileSync } from 'node:fs';
 
 const args = process.argv.slice(2);

@@ -32,7 +32,7 @@ test('a stall names where its samples were, by share, and the processes it waite
 
 test('a pause the thread did not run in is no stall: the machine slept', () => {
   expect(describeStall(30_000, times(5, trace(native('spawnSync'))), [], 2)).toBeNull();
-  // without a profiler to ask, the length is all there is
+  
   expect(describeStall(800, null, [])).toEqual(['Seismic: the server stalled for 0.8 s; meanwhile it answered no page and heard no agent']);
 });
 
@@ -41,7 +41,7 @@ test('a page’s stall is logged with where its time went and what it took in be
   expect(pageStall({ ms: 'long' })).toBeNull();
   const s = pageStall({ type: 'stall', ms: 1300, scripts: [{ what: 'x'.repeat(500), ms: 900 }, { what: 3, ms: 1 }], before: ['snapshot (412 KB) 0.2 s before', 7], extra: true })!;
   expect(s).toEqual({ ms: 1300, scripts: [{ what: 'x'.repeat(200), ms: 900 }], before: ['snapshot (412 KB) 0.2 s before'] });
-  // a line of its own, and nothing a terminal takes for a command, are not the page's to write
+  
   expect(pageStall({ ms: 900, scripts: [{ what: 'a\nSeismic: forged\u001b[2J', ms: -5 }, { what: 'b', ms: 1e309 }, { what: 'c\u2028d', ms: 600 }], before: ['x\ry'] })).toEqual({ ms: 900, scripts: [{ what: 'c d', ms: 600 }], before: ['x y'] });
   expect(pageStall({ ms: 1e309, scripts: [], before: [] })).toBeNull();
   expect(describePageStall({ ms: 1300, scripts: [{ what: 'WebSocket.onmessage: (anonymous) (index.js@1204)', ms: 1100 }], before: ['snapshot (412 KB) 0.2 s before'] }, 'this machine, project main')).toEqual([
@@ -63,7 +63,7 @@ test('a stall the ticks see short is as long as its samples span', () => {
   home = mkdtempSync(join(tmpdir(), 'seismic-stalls-'));
   const stalls = new Stalls({ home, log: (l) => lines.push(l) });
   const samples = (spanS: number) => ({ traces: Array.from({ length: 280 }, (_, i) => ({ timestamp: (i * spanS) / 279, frames: [at('render', 'board.ts', 9)] })), intervalMs: 2 });
-  // late by 560 ms: up to 100 ms of it may have come before the stall began
+  
   stalls.tick(0, 560, samples(0.45));
   expect(lines).toEqual([]);
   stalls.tick(0, 560, samples(0.54));
@@ -76,11 +76,11 @@ test('a page that stalls again and again the same way gets one entry, and the st
   stalls = new Stalls({ home, log: (l) => lines.push(l) });
   const t = 1_000_000;
   const where = 'this machine, project main';
-  // one a second, as a page whose length is all the browser tells
+  
   for (let i = 0; i < 120; i++) stalls.page({ ms: 700 + (i % 5) * 100, scripts: [], before: [] }, where, 'p1', t + i * 1000);
-  // another page, and a stall of this one that went elsewhere, are logged on their own
+  
   stalls.page({ ms: 900, scripts: [], before: [] }, 'Pixel, project main', 'p2', t + 30_000);
-  // as another window on the same project
+  
   stalls.page({ ms: 900, scripts: [], before: [] }, where, 'p3', t + 35_000);
   stalls.page({ ms: 1300, scripts: [{ what: 'WebSocket.onmessage: (anonymous) (index.js@1204)', ms: 1100 }], before: [] }, where, 'p1', t + 40_000);
   expect(lines).toEqual([
@@ -90,12 +90,12 @@ test('a page that stalls again and again the same way gets one entry, and the st
     'Seismic: a page (this machine, project main) stalled for 1.3 s; meanwhile it took no click or key',
     '  1.1 s WebSocket.onmessage: (anonymous) (index.js@1204)',
   ]);
-  // a minute without one like them ends the run
+  
   stalls.flush(t + 178_000);
   expect(lines.length).toBe(5);
   stalls.flush(t + 179_000);
   expect(lines.slice(5)).toEqual([expect.stringMatching(/^Seismic: a page \(this machine, project main\) stalled 119 more times in 119 s like the one logged at \d{4}-\d\d-\d\dT[\d:.]+Z, for 0\.7–1\.1 s each$/)]);
-  // the next one starts a run of its own
+  
   stalls.page({ ms: 800, scripts: [], before: [] }, where, 'p1', t + 200_000);
   expect(lines.length).toBe(7);
   const file = readFileSync(join(home, STALLS_FILE), 'utf8');
@@ -112,7 +112,7 @@ test('a run that goes on all night is logged once an hour', () => {
   const first = readFileSync(join(home, STALLS_FILE), 'utf8').split('\n')[0];
   const run = (n: number) => `Seismic: a page (this machine, project main) stalled ${n} more times in 60 min like the one logged at ${first}, for 0.9 s each`;
   expect(lines.slice(1)).toEqual([run(3599), run(3600)]);
-  // stopped, the server logs what it counted so far
+  
   stalls.stop();
   expect(lines.at(-1)).toBe(run(3600));
 });
@@ -133,10 +133,10 @@ test('a synchronous process that holds the server up goes into the log and stall
   const file = readFileSync(join(home, STALLS_FILE), 'utf8');
   expect(file).toMatch(/^\d{4}-\d\d-\d\dT[\d:.]+Z\nSeismic: the server stalled/);
   expect(file).toContain('for: sleep 0.7');
-  // stopped, it leaves Bun's own spawnSync behind
+  
   stalls.stop();
   expect(Bun.spawnSync.name).toBe('spawnSync');
-  // the profiler runs on, and a watcher started anew gets the samples of its own stalls
+  
   lines.length = 0;
   stalls = new Stalls({ home, log: (line) => lines.push(line) }).start();
   await Bun.sleep(150);

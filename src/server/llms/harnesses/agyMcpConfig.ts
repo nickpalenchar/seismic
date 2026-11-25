@@ -65,12 +65,12 @@ export function installMcpConfig(cwd: string): () => void {
   return () => {
     try {
       reader.close();
-      // Give another process releasing its last reader a moment to leave the lock.
+      
       gate.exec('PRAGMA busy_timeout = 25; BEGIN EXCLUSIVE');
-      // Remove the config before the launcher it points to.
+      
       for (const { file } of files.filter((file) => file.exists()).reverse()) rmSync(file);
     } catch {
-      // Another session holds a lease, the checkout is gone, or it now has its own config.
+      
     } finally {
       gate.close();
     }

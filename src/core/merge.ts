@@ -14,7 +14,7 @@ export function mergeQuestionTexts(merge: Pick<Merge, 'followUp' | 'compared'>):
     if (!Array.isArray(questions)) return undefined;
     const texts = followUp.questions.map((n) => questions[n]?.text);
     if (texts.every((text) => typeof text === 'string')) return texts;
-  } catch { /* No usable snapshot in older saved comparisons. */ }
+  } catch {  }
   return undefined;
 }
 

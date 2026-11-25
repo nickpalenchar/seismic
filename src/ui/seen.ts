@@ -1,10 +1,10 @@
-// What of each card's conversation the owner has had in view, in this browser: its messages after
-// that are new to them (counted on the phone's button, marked in the conversation).
+
+
 import { useEffect, useRef, useState } from 'react';
 
-/** The last event of each card's conversation the owner had in view, by card. */
+
 const SEEN = 'seismic-seen';
-// until 2026-10-17 only the phone kept it, under its own name
+
 const BEFORE = 'seismic-phone-seen';
 
 function all(): Record<string, number> {
@@ -37,7 +37,7 @@ export function usePageVisible(): boolean {
   return visible;
 }
 
-/** Event ids of a conversation that came while it was in view: each span after its first up to its second. */
+
 export type Spans = [number, number][];
 
 /** Whether the event came while the conversation was in view. */

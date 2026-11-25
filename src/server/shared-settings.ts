@@ -1,8 +1,8 @@
-// "For everyone, into the repository": a repository's settings for this machine go into its
-// `.seismic/settings.json`, which a fresh clone brings with it. Where work lands on the main branch
-// they are committed there; where it goes through pull requests, the commit goes out as one, or,
-// where work may go straight to main as well, is pushed there. None of them touches what the
-// checkout has beside the file, nor a card's workstation.
+
+
+
+
+
 
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -100,7 +100,7 @@ export async function commitShared(repoPath: string, mine: SharedSettings): Prom
   const { text, before, after } = await sharedText(repoPath, parent, mine);
   const commit = await commitBeside(repoPath, parent, text, subjectOf(mine));
   await must(repoPath, ['update-ref', '-m', 'seismic: settings for everyone', `refs/heads/${branch}`, commit, parent]);
-  // the checkout on the branch gets the file as committed, in its index and among its files
+  
   if (onIt) await must(repoPath, ['checkout', commit, '--', file]);
   return { committed: commit, branch, file, ...(before ? { before } : {}), after };
 }

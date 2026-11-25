@@ -1,13 +1,13 @@
-/**
- * What the worker hears with a tool step's result while it works: the owner's words that waited for
- * it, news of the demo's page, new preferences, decisions taken in its plan, and that Seismic or the
- * owner still waits for it to pause. Each is told once.
- */
+
+
+
+
+
 import type { Live, WorkerSupervisor } from '../../../workerSupervisor/workerSupervisor';
 import { decisionLog } from '../../../advisor';
 import { PAUSE_STILL, pauseOf, stillDue } from './restartNotices';
 
-/** What these need of the `WorkerSupervisor` that runs the card. */
+
 export type ContextHost = Pick<WorkerSupervisor, 'live' | 'o' | 'restart' | 'takeUnheard' | 'pageNews'>;
 
 /**

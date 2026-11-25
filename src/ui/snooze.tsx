@@ -1,6 +1,6 @@
-// Snoozing a card until a point in time: the owner's "Later" with its presets and a date and time
-// of their own, on a card's action row and as "Change" on the snooze line of its conversation, and
-// that line with "Wake now". One component for every kind of card.
+
+
+
 
 import { noteClass } from './components/ai/message';
 import { Clock } from 'lucide-react';
@@ -66,12 +66,12 @@ export function SnoozeMenu({
   inline?: boolean;
   heading?: string;
   hint?: string;
-  /** The button that takes the date and time picked. */
+  
   set?: string;
-  /** The time set now, which the field to pick one starts from. */
+  
   at?: Date;
   clear?: { label: string; hint: string; onClear: () => void };
-  /** The clock mark on the button; none where the line beside it has one. */
+  
   mark?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -92,7 +92,7 @@ export function SnoozeMenu({
   const more = 'mt-0.5 border-t border-border';
   return (
     <Popover open={open} onOpenChange={show}>
-      {/* above the button in a card's action row; on the snooze line over the conversation, placed by script */}
+      { }
       <div className="snooze-box inline-flex flex-col items-center">
         <PopoverTrigger asChild>
           <Button variant={variant} size={size} title={hint}>

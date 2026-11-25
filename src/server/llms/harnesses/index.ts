@@ -1,6 +1,6 @@
-/**
- * Roles belong to Seismic; a harness supplies the coding loop.
- */
+
+
+
 import { spawnSync } from 'node:child_process';
 import { GIT } from '../../workstations';
 import { messageOf } from '../../../core/text';
@@ -42,9 +42,9 @@ export async function connectedHarnesses(connected: Record<Harness, () => Promis
  */
 export class HarnessCheck {
   private found: Harness[] = [];
-  /** When the check behind each harness's finding started, for its age. */
+  
   private at: Record<Harness, number> = { claude: -Infinity, codex: -Infinity, agy: -Infinity };
-  /** The checks in the order they started (`begin`), and the one behind each harness's finding: ties in time cannot reorder them. */
+  
   private begun = 0;
   private behind: Record<Harness, number> = { claude: 0, codex: 0, agy: 0 };
   private running: Promise<Harness[]> | null = null;
@@ -108,9 +108,9 @@ export function harnessRuntime(claude: AgentRuntime, codex: AgentRuntime = creat
         const backend = harness === 'agy' ? agy : codex;
         return backend.start(portable(spec, HARNESS_NAMES[harness]), firstMessage, images);
       } catch (error) {
-        // Orchestration attaches the returned session before observing startup errors, just as it
-        // does for SDK login/configuration failures. A failed startup must not leave a busy ghost:
-        // the session ended with its error, so the card goes to the owner rather than staying at work.
+        
+        
+        
         let closed = false;
         const done = Promise.resolve().then(() => {
           if (closed) return;

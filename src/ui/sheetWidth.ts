@@ -1,16 +1,16 @@
-// How wide the sheets on the right are: the owner drags their left edge, and this browser remembers it.
 
-/** The sheets' own width: Koordinator, archive, configuration and a plan's workstreams share it. */
+
+
 export const SHEET_W = 380;
-/** Room the canvas keeps beside a sheet, however wide it is dragged. */
+
 const CANVAS_MIN = 240;
 const MIN = { sheet: 320, read: 380 };
 const KEY = 'seismic-sheet-width';
 
-/**
- * The widths the owner chose; `read` (a plan doc read in the sheet) follows the window until chosen,
- * never narrower than the sheet it widens.
- */
+
+
+
+
 export type SheetWidths = { sheet: number; read: number | null };
 
 /** How wide the sheet gets for reading a plan doc unless the owner chose: what the window spares beside the plan. */

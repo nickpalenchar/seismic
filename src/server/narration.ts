@@ -1,15 +1,15 @@
-// The narration voice held across renders. A voice that loads a large model and can stay loaded
-// (Qwen3-TTS, `qwen3.py --serve`) runs as a child of the Seismic server, which outlives every render
-// and runs on every platform: `tts.py` sends each clip to `POST /api/narration/clip` when
-// `SEISMIC_URL` says where Seismic's narration server is (`serveNarration`; Seismic sets it for its
-// workers and for the settings sheet's sample). The clips of all renders wait in one queue, served one at a time: each render asks
-// for one clip at a time, so parallel renders take turns clip by clip. Once the queue is empty
-// the voice stays loaded for a while (`idleMs`), then ends; a request for another voice (another
-// reference, speaker or language) ends it at once. Between this server and the voice runs the
-// line protocol of `qwen3.py`, unchanged. A voice that stops answering (on 2026-10-21 one sat at
-// 0 % CPU with a clip in hand for 40 minutes, and every render and sample waited behind it) fails
-// its clip once it has said nothing for a while (`NARRATION_LOAD_MS`, `NARRATION_SENTENCE_MS`):
-// it is ended, and the next clip starts a new one.
+
+
+
+
+
+
+
+
+
+
+
+
 
 import type { Subprocess } from 'bun';
 import { tmpdir } from 'node:os';
@@ -21,36 +21,36 @@ import { messageOf } from '../core/text';
 export interface ClipRequest {
   voice: HeldVoice;
   text: string;
-  /** The text as written, where `text` has words respelt for the voice: what the voice hears its clip against. */
+  
   script?: string;
-  /** The WAV the voice writes. */
+  
   out: string;
   language: 'en';
-  /**
-   * The render runs on another machine (a worker on an SSH host): the WAV comes
-   * back in the reply (`wav`, base64) instead of being written to `out`, which is a path there.
-   */
+  
+
+
+
   inline?: boolean;
 }
 
-/**
- * What the voice heard of its clip (`qwen3.py`), passed on as it says it: a line per sentence, or
- * why it heard none.
- */
+
+
+
+
 export type Hearing = { heard?: unknown[]; unheard?: string };
 
 export type ClipReply = ({ ok: true; seconds: number; wav?: string } & Hearing) | { error: string };
 
-/** How long the voice stays loaded after the last clip: the next render within it skips loading the model. */
+
 export const NARRATION_IDLE_MS = 5 * 60_000;
 
-/** How long the voice may take to load its model before it counts as stuck: a cold load took 17 s. */
+
 export const NARRATION_LOAD_MS = 10 * 60_000;
 
-/**
- * How long the voice may take for one sentence of a clip (it reports each, `qwen3.py`) before it
- * counts as stuck: a few seconds on a GPU, a minute or two on a slow CPU.
- */
+
+
+
+
 export const NARRATION_SENTENCE_MS = 5 * 60_000;
 
 interface Job {
@@ -63,7 +63,7 @@ interface Running {
   key: string;
   child: Subprocess<'pipe', 'pipe', 'pipe'>;
   lines: AsyncIterator<string>;
-  /** The tail of its stderr: why, when it dies. */
+  
   stderr: string[];
 }
 
@@ -75,7 +75,7 @@ export class NarrationHost {
 
   constructor(
     private o: {
-      /** The command that serves this voice (`voices.ts`: `qwen3Serve`). */
+      
       argv: (voice: HeldVoice, language: ClipRequest['language']) => string[];
       idleMs?: number;
       loadMs?: number;
@@ -109,7 +109,7 @@ export class NarrationHost {
     this.serving = true;
     clearTimeout(this.idle);
     for (let job = this.queue.shift(); job; job = this.queue.shift()) {
-      // a clip that throws must not hold up the queue: the clips behind it would wait for good
+      
       job.resolve(await this.synthesize(job).catch((e: unknown) => ({ error: `the clip failed: ${messageOf(e)}` })));
     }
     this.serving = false;
@@ -148,7 +148,7 @@ export class NarrationHost {
       return { error: `the voice did not start: ${messageOf(e)}` };
     }
     const voice: Running = { key, child, lines: lines(child.stdout)[Symbol.asyncIterator](), stderr: [] };
-    // read all along, so a chatty voice never blocks on a full pipe
+    
     void (async () => {
       for await (const line of lines(child.stderr)) {
         voice.stderr.push(line);
@@ -195,7 +195,7 @@ export class NarrationHost {
     if (this.voice === voice) this.voice = undefined;
     const gone = (wait: number) => Promise.race([voice.child.exited.then(() => true), Bun.sleep(wait).then(() => false)]);
     voice.child.kill();
-    // one too stuck for SIGTERM
+    
     if (!(await gone(5000))) {
       voice.child.kill('SIGKILL');
       await gone(5000);
@@ -210,7 +210,7 @@ export class NarrationHost {
   private async died(voice: Running): Promise<{ error: string }> {
     if (this.voice === voice) this.voice = undefined;
     const code = await voice.child.exited;
-    // the stderr reader may still hold the last lines
+    
     await Bun.sleep(50);
     const error = `the voice stopped (${code}): ${voice.stderr.join('\n').trim().slice(-1500)}`;
     this.o.log?.(`Seismic: ${error}`);

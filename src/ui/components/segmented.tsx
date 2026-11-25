@@ -1,8 +1,8 @@
-// Segmented control and toggle groups (shadcn/ui's ToggleGroup, on Radix ToggleGroup).
-// `SegmentedControl` is the pick-one row (theme, landing, Unread | All): the group is one tab stop
-// and the arrow keys move between its options. `ToggleGroup` and `ToggleGroupItem` are the parts
-// under it: with `variant="segmented"` they wear its look, without one the caller's (a multi-select); `type="multiple"` makes each item its own on/off. Where a control sits is up to
-// the container, which reaches it as `[data-slot=toggle-group]`.
+
+
+
+
+
 
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from 'cn';
@@ -22,7 +22,7 @@ const itemVariants = cva('', {
   variants: {
     variant: {
       none: '',
-      // a filter chip: outlined while off, tinted in its colour (`--c`, from a `c-*` class the caller sets) while on
+      
       chips:
         'inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 py-1 text-sm text-muted-foreground outline-none data-[state=on]:border-[color:--alpha(var(--c)/55%)] data-[state=on]:bg-[color:--alpha(var(--c)/16%)] data-[state=on]:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50',
       segmented:
@@ -72,7 +72,7 @@ export function SegmentedControl<V extends string>({
   value: V;
   onValueChange: (v: V) => void;
   options: readonly SegmentOption<V>[];
-  /** Names the group for screen readers. */
+  
   label: string;
   size?: 'default' | 'small';
   disabled?: boolean;
@@ -88,7 +88,7 @@ export function SegmentedControl<V extends string>({
       aria-label={label}
       value={value}
       disabled={disabled}
-      // Radix reports '' when the pressed one is pressed again
+      
       onValueChange={(v) => v && onValueChange(v as V)}
     >
       {options.map((o) => (

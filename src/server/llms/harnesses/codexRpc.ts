@@ -1,6 +1,6 @@
-/**
- * Experimental Codex app-server stdio transport. No credentials or HTTP API calls of our own.
- */
+
+
+
 import { spawn } from 'node:child_process';
 import { StringDecoder } from 'node:string_decoder';
 import { z } from 'zod';
@@ -9,7 +9,7 @@ import { OWN_GROUP } from '../../spawn';
 import { AgentProcesses, onceClosed, tolerateTimeouts, untilIdentified } from './processes';
 import { sessionRegistry } from './sessionRegistry';
 
-/** The Codex and agy sessions of this Seismic, by their `close`, for the server's shutdown to end. */
+
 const running = new Map<() => void, { done: Promise<void>; force: () => Promise<void> }>();
 /** Has `endSessionsHere` end a session as Seismic stops; returns what takes it off again. */
 export function endAtShutdown(close: () => void, entry: { done: Promise<void>; force: () => Promise<void> }) {
@@ -26,7 +26,7 @@ export async function endSessionsHere(force = false) {
   }
 }
 
-/** One tick for every session, so their observations share one process snapshot. */
+
 const observers = new Set<() => void>();
 let ticker: ReturnType<typeof setInterval> | undefined;
 export function observeEveryTick(observe: () => void) {
@@ -47,14 +47,14 @@ export interface CodexHandlers {
 }
 
 export interface CodexConnection {
-  /** Local app-server process, for session-scoped browser lifetime. */
+  
   readonly pid?: number;
   request<T = unknown>(method: string, params: Record<string, unknown>): Promise<T>;
   notify(method: string, params: Record<string, unknown>): void;
   close(): void;
-  /** Native PTY process ids, while still attributable to this app-server. */
+  
   trackProcesses?(pids: number[]): Promise<void>;
-  /** Rejects on transport failure; resolves after an intentional close and subprocess exit. */
+  
   done: Promise<void>;
 }
 
@@ -75,26 +75,26 @@ const envelope = z.object({
 
 /** An argv override is for contract tests; the runtime uses the installed CLI (or SEISMIC_CODEX). */
 export function codexConnection(
-  options: { command: string; args: string[]; cwd: string; env: NodeJS.ProcessEnv; timeoutMs?: number; /** What the session is, for the crash record. */ label?: string },
+  options: { command: string; args: string[]; cwd: string; env: NodeJS.ProcessEnv; timeoutMs?: number;  label?: string },
   handlers: CodexHandlers,
 ): CodexConnection {
   const child = spawn(options.command, options.args, { cwd: options.cwd, env: options.env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, detached: OWN_GROUP });
   const terminals = child.pid ? new AgentProcesses(child.pid) : undefined;
-  // What a crash of Seismic would leave behind is recorded as it is observed (sessionRegistry.ts).
+  
   const record = terminals ? sessionRegistry()?.begin(options.label ?? 'Codex session', options.cwd) : undefined;
   const publish = () => {
     const identities = terminals!.observed();
-    // A process the record does not name would outlive a crash: the session does not go on without it.
+    
     void record?.then((generation) => generation?.publish(identities)).catch((error: unknown) => {
       fail(new Error(`Session processes could not be put on record: ${messageOf(error)}`));
     });
   };
   if (terminals && record) { terminals.onChange = publish; publish(); }
-  // A busy machine's snapshot can time out: that observation is skipped, not the session ended.
+  
   const observed = tolerateTimeouts();
-  // An observation that failed for good once the app-server is identified (and may run turns) may
-  // have missed a process: ending what was seen does not account for it, so the record stays for a
-  // sweep. Before that no request went out, so nothing is owed.
+  
+  
+  
   let unobserved = false;
   const watch = (operation: Promise<void>) => observed(operation).catch((error: unknown) => { if (terminals?.observed().length) unobserved = true; throw error; });
   /** The session's processes have ended, or the attempt failed and the record stays for a sweep. */
@@ -105,8 +105,8 @@ export function codexConnection(
   const pending = new Map<number, { resolve(value: unknown): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout> }>();
   let nextId = 0;
   let closing = false;
-  // Once the app-server has exited, its process group id is no longer held by it: a later signal
-  // could reach a process that was given the number since. The exit handler signals the group once.
+  
+  
   let exited = false;
   let failure: Error | undefined;
   let stderr = '';
@@ -116,7 +116,7 @@ export function codexConnection(
   let resolveDone!: () => void;
   let rejectDone!: (error: Error) => void;
   const done = new Promise<void>((resolve, reject) => { resolveDone = resolve; rejectDone = reject; });
-  // Consumers still observe rejection through `done`, but startup failure cannot go unhandled.
+  
   void done.catch(() => {});
   const decoder = new StringDecoder('utf8');
 
@@ -125,7 +125,7 @@ export function codexConnection(
     try {
       if (OWN_GROUP && child.pid) process.kill(-child.pid, which);
       else child.kill(which);
-    } catch { /* already gone */ }
+    } catch {  }
   }
   function rejectPending(error: Error) {
     for (const p of pending.values()) clearTimeout(p.timer), p.reject(error);
@@ -133,12 +133,12 @@ export function codexConnection(
   }
   function close() {
     if (closing) return;
-    // Queued before any kill, so the terminals seen now are ended with the rest.
-    // Before the app-server is identified no request went out: a failed look then is owed nothing.
+    
+    
     if (terminals) void watch(terminals.track()).catch((error: unknown) => { if (terminals.observed().length) failure ??= new Error(messageOf(error)); });
     closing = true;
     rejectPending(new Error('Codex app-server connection closed'));
-    // EOF lets Codex shut down its own terminals, including on Windows. Bound a stuck shutdown.
+    
     child.stdin.end();
     terminate = setTimeout(() => signal('SIGTERM'), 1000);
     kill = setTimeout(() => signal('SIGKILL'), 2000);
@@ -159,7 +159,7 @@ export function codexConnection(
       if (m.id === undefined) handlers.notification(m.method, m.params ?? {});
       else {
         const id = m.id;
-        // Do not block the input stream on an owner question or tool: responses must keep flowing.
+        
         void handlers.request(m.method, m.params ?? {}, id).then(
           (result) => { if (!closing) write({ id, result }); },
           (error: unknown) => { if (!closing) write({ id, error: { code: error instanceof CodexRpcError ? error.code : -32603, message: messageOf(error) } }); },
@@ -167,7 +167,7 @@ export function codexConnection(
       }
     } else if (typeof m.id === 'number') {
       const p = pending.get(m.id);
-      if (!p) return; // a timed-out request's late reply
+      if (!p) return; 
       pending.delete(m.id);
       clearTimeout(p.timer);
       if (m.error) p.reject(new CodexRpcError(m.error.code, m.error.message));
@@ -194,9 +194,9 @@ export function codexConnection(
   child.stderr.on('error', (error) => fail(error));
   child.stdin.on('error', (error) => fail(error));
   child.on('error', (error) => fail(error));
-  // Observe while turns are active too: a foreground/native PTY can detach before the first
-  // background-list response. Creation identities keep snapshots from targeting reused PIDs.
-  // A track still running when the next tick is due is not joined by another.
+  
+  
+  
   let observing = false;
   const stopObserving = observeEveryTick(() => {
     if (observing || !terminals) return;
@@ -206,13 +206,13 @@ export function codexConnection(
   child.on('exit', (code, exitSignal) => {
     stopObserving();
     if (!closing) fail(new Error(`Codex app-server exited (${exitSignal ?? code})${stderr.trim() ? `: ${stderr.trim()}` : ''}`));
-    // Do not wait for `close`: a child command may still hold the dead parent's pipes open.
+    
     void terminals?.kill().catch((error: unknown) => { failure ??= new Error(messageOf(error)); });
-    // The leader is gone, so any member still in its group keeps the number reserved: this is the
-    // last point where signalling the group cannot reach a reused one.
-    if (OWN_GROUP && child.pid) try { process.kill(-child.pid, 'SIGKILL'); } catch { /* none left */ }
+    
+    
+    if (OWN_GROUP && child.pid) try { process.kill(-child.pid, 'SIGKILL'); } catch {  }
     exited = true;
-    // `fail` above may have just armed the escalation of a process that is already gone
+    
     clearTimeout(terminate);
     clearTimeout(kill);
   });
@@ -228,7 +228,7 @@ export function codexConnection(
     if (!closing) failure = new Error(`Codex app-server exited (${exitSignal ?? code})${stderr.trim() ? `: ${stderr.trim()}` : ''}`);
     closing = true;
     rejectPending(failure ?? new Error('Codex app-server connection closed'));
-    // Identities a refused signal left owed at `exit` are tried once more before the transport is gone.
+    
     void (async () => {
       let ended = true;
       try { await terminals?.kill(); } catch (error) { ended = false; failure ??= new Error(messageOf(error)); }
@@ -238,8 +238,8 @@ export function codexConnection(
       else resolveDone();
     })();
   });
-  // Session requests wait for their initial identity to be durable, without blocking other
-  // sessions or the server's event loop while the filesystem completes the publication.
+  
+  
   const ready = terminals ? untilIdentified(terminals, watch).then(async () => {
     const generation = await record;
     await generation?.publish(terminals.observed());
@@ -255,7 +255,7 @@ export function codexConnection(
         const id = ++nextId;
         const timer = setTimeout(() => {
           pending.delete(id);
-          // A timed-out mutating RPC has an unknown outcome. Never retry it on a live connection.
+          
           const error = new Error(`Codex app-server ${method} timed out`);
           reject(error);
           fail(error);

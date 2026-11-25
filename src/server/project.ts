@@ -1,5 +1,5 @@
-// One project and everything that works on it: its repositories (each with adapter, workstations,
-// workers, plan agents and PR watcher), the board, the Koordinator and the voice commands.
+
+
 
 import { idSlug as slug } from '../core/project-slug';
 import { existsSync, mkdirSync, realpathSync, statSync } from 'node:fs';
@@ -45,7 +45,7 @@ import { commandsOf, heldGroups, withoutHeld } from './trust';
 import { seismicSkills } from './llms/skills/registry';
 import { Skills } from './skills';
 
-/** The skill lists of all projects: several share a repository, and the user's skills are the same on each. */
+
 const sharedSkills = new Skills();
 import { SEISMIC_PLUGIN } from './demo';
 import { changesCode, RESTART_PATIENCE_MS, whenIdle } from './self-update';
@@ -66,77 +66,77 @@ export type { ProjectConfig, RepoConfig };
 
 export interface ProjectDeps {
   store: Store;
-  /** Seismic's data directory (workstations live under it). */
+  
   home: string;
   runtime: AgentRuntime;
-  /** The skills the cards' agents know (`skillsOf`); Claude Code on this machine tells, when left out. */
+  
   skills?: Skills;
-  /** Runs the cards' workers; `runtime` when left out. */
+  
   workerRuntime?: AgentRuntime;
-  /**
-   * No agent works on a started card (`idleRuntime`, for a scratch Seismic): a script stands in for a
-   * card's agent instead (`standIn`).
-   */
+  
+
+
+
   idleWorkers?: boolean;
   forge: Forge;
-  /** Watch plan docs and pull requests; off in tests. */
+  
   watch?: boolean;
-  /** Propose the card that fills in a repository's settings where it has none (`proposeSetup`); off in tests not about it. */
+  
   setupProposals?: boolean;
-  /** How long a voice command waits for undo. */
+  
   commandDelayMs?: number;
-  /** How long after a change to a merging card its comparison waits before it is made again. */
+  
   mergeSettleMs?: number;
-  /** How long building or starting a card in a new repository waits for undo; NEW_REPO_HOLD_MS when left out. */
+  
   newRepoHoldMs?: number;
-  /** The checkout this Seismic runs from, when it starts again for new code there (self-update.ts). */
+  
   ownCheckout?: string | null;
-  /** Seismic's configuration, which the Koordinator reads and changes on the owner's word. */
+  
   config?: Config;
-  /** How long the owner stops typing in a card before what they wrote counts as written. */
+  
   writingPauseMs?: number;
-  /** Added to every worker's environment (`SEISMIC_URL`). */
+  
   workerEnv?: Record<string, string>;
-  /** How long a waiting card's app runs on before it is stopped (Parking); five minutes when left out. */
+  
   parkGrace?: number;
-  /** How often the watcher looks at open pull requests; two minutes when left out. */
+  
   prPollMs?: number;
-  /** The language of Seismic's interface now (`ownerLanguage`): its own words; English when left out (the tests). */
+  
   language?: () => Language;
-  /** The owner's conversation language now (`conversationLanguage`): the agents', English when left out. */
+  
   conversation?: () => Language;
-  /** Whether approving work asks the owner for feedback on it now; on when left out (the tests). */
+  
   asksFeedback?: () => boolean;
-  /** How long after the usage limit lifts the agents that wait for it go on; ten seconds when left out. */
+  
   limitMargin?: number;
-  /** The model and effort of a group of agents (`agentSetting`), asked whenever one starts; the defaults when left out. */
+  
   agents?: (role: AgentRole) => AgentSetting;
-  /** Whether Codex workers' approvals go to Codex's own automatic review now, not the owner; to the owner when left out (the tests). */
+  
   codexAutoReview?: () => boolean;
-  /** The harnesses a worker could start in on this machine now (`connectedHarnesses`), for the allow list a setup card drafts; the workers' own when left out (the tests). */
+  
   harnesses?: () => Harness[];
-  /** The explicitly connected harnesses, when management has been set up. */
+  
   configuredHarnesses?: () => Harness[] | undefined;
-  /** How long a restart of a repository's agents waits for them to pause at most; Seismic's patience for a restart when left out. */
+  
   restartPatienceMs?: number;
-  /** How often that restart looks whether they paused; every two seconds when left out. */
+  
   restartIntervalMs?: number;
-  /**
-   * The settings the owner set for a repository on this machine, by its path, read whenever one is
-   * used (`Config.repoSettings`); those the project started with when left out.
-   */
+  
+
+
+
   settings?: (repoPath: string) => RepoSettings | undefined;
-  /** The project stopped while it ran: its home repository no longer starts (`Projects` leaves it out). */
+  
   stopped?: (c: ProjectRuntime, why: string) => void;
-  /** The projects that run now, this one among them (`Projects`): a card goes to another one, or Seismic makes one there. */
+  
   projects?: () => ProjectRuntime[];
 }
 
-/**
- * A project or one of its repositories that does not run as the configuration has it, by their ids,
- * with why: a repository left out of its project (`repo`), or one that runs on as it was set up
- * before (`before`); without `repo`, the project is left out (its home repository did not start).
- */
+
+
+
+
+
 export interface StartFailure {
   project: string;
   repo?: string;
@@ -158,59 +158,59 @@ export interface RepoRuntime {
   ref: RepoRef;
   info: RepoInfo;
   adapter: RepoAdapter;
-  /** Its read checkout: the default branch, where plan docs are read and the agents that only read work. */
+  
   read: ReadTree;
   workstations: CardWorkstations;
   workers: WorkerSupervisor;
   planAgents: PlanAgents;
 }
 
-/** A repository as the project runs it, with what it was set up by and what stops what it set up. */
+
 interface Repo extends RepoRuntime {
-  /** Its entry in the configuration. */
+  
   config: RepoConfig;
-  /** Stops its read checkout and the retries for clones on other machines. */
+  
   stops: (() => void)[];
-  /** Stops watching its plan docs. */
+  
   docs?: () => void;
-  /** Where its plan docs are watched (`planDirOf`): they are watched afresh only once that moved. */
+  
   docsAt?: string;
-  /** Its plan docs as last read from its read checkout: what the project shows while git moves the read checkout. */
+  
   planDocs?: ReturnType<typeof readPlanDocs>;
-  /** Watches its pull requests, once its work went out as one; it stays for those still open. */
+  
   prs?: PrWatcher;
-  /** What the configuration's problems of the repository are read from on its default branch, as last seen (`problemSources`). */
+  
   problemSources?: string;
-  /** The resolved configuration it was set up by, and its place there: what it starts again with where a new one fails. */
+  
   from: { resolved: Resolved; index: number };
-  /** Its settings read again (`moved`), the last of those under way. */
+  
   moving?: Promise<unknown>;
 }
 
-/**
- * A restart of some repositories' agents that waits for them to pause (their configuration
- * changed where they work, or they leave the project): the repositories by path, why, and until when
- * at most.
- */
+
+
+
+
+
 interface RepoRestart {
   paths: Set<string>;
   reason: 'config' | 'repository';
   deadline: number;
-  /** The cards it waits for, as the page was last told. */
+  
   waiting: string[];
   stop: () => void;
 }
 
-/** How long a host that could not be reached at start (or failed to clone) waits before Seismic tries again. */
+
 const HOST_RETRY_MS = 2 * 60_000;
-/** How often Seismic looks for snoozed cards whose time has come. */
+
 const WAKE_EVERY_MS = 15_000;
 
-/** The owner's actions on a card that change only the board: they go also while its repository does not run on the project. */
-/** What waits while a card's new repository is about to be made (`NewRepo.due`): every other way on. */
+
+
 const DUE_REFUSES: CardAction['action'][] = ['start', 'force', 'build', 'planDoc', 'splitOff', 'prototype', 'snooze', 'startAt', 'accept'];
 
-/** What the owner may do on a card while it is merged with a proposal: nothing that changes what it is. */
+
 const MERGE_LEAVES: CardAction['action'][] = ['name'];
 
 const BOARD_ONLY: CardAction['action'][] = ['name', 'dequeue', 'reorder', 'startAt', 'dismiss', 'keep', 'park', 'unpark', 'drop', 'approveMerge', 'separate'];
@@ -218,95 +218,95 @@ const BOARD_ONLY: CardAction['action'][] = ['name', 'dequeue', 'reorder', 'start
 /** The card's repository does not run on the project: nothing goes to its agents (`Item.repoDown`). */
 const repoDown = (card: Item) => new BadRequest('repoDown', `the repository ${card.repo} of the card does not run on this project`);
 
-/** New repositories being made, one after the other (`makeNewRepo`). */
+
 let making: Promise<unknown> = Promise.resolve();
 
 export class ProjectRuntime {
   readonly board: Board;
   readonly koordinator: Koordinator;
-  /** The work retrospective: friction in the workers' runs, made into proposals. */
+  
   readonly workRetro: WorkRetro;
   readonly commander: Commander;
   readonly explorers: Explorers;
   private ahead!: Ahead;
-  /** Screenshots the owner attaches to what they write. */
+  
   readonly images: Images;
-  /** The other files the owner dropped into what they write, whose paths the agents get. */
+  
   readonly files: Files;
   readonly answers: Answers;
   readonly revisions: Revisions;
   readonly merges: Merges;
-  /** The skills of the cards' agents, by repository. */
+  
   private readonly skills: Skills;
-  /** Demos shared with colleagues, on the project's demo site. */
+  
   readonly sharing: Sharing;
-  /** Its repositories, the home one first. */
+  
   readonly repos: Repo[] = [];
-  /** Its configuration as it runs now (the home repository first). */
+  
   private config: ProjectConfig;
-  /** The model and effort a group of the project's agents starts with now. */
+  
   private agentFor: (role: AgentRole) => AgentSetting;
-  /** By repository's path: what takes back where the main branch the owner set is read. */
+  
   private branchSettings = new Map<string, () => void>();
-  /** By repository's path: its `.seismic/settings.json` as the read checkout last had it. */
+  
   private shared = new Map<string, SharedRead>();
-  /** By repository's path: its commands that do not count until the owner confirms them, as last worked out (`heldOf`). */
+  
   private held = new Map<string, TrustGroup[]>();
-  /** By repository's path: whether its main branch had an adapter module as the configuration was last resolved, which a repository starting takes. */
+  
   private adapterModules = new Map<string, boolean>();
-  /** The restart of some repositories' agents that waits, if one does. */
+  
   private pending: RepoRestart | null = null;
-  /** Set once the project stopped because its home repository did not start again. */
+  
   private stopped = false;
-  /** Set once the project shut down: what git reads for it after that changes nothing. */
+  
   private shutDown = false;
-  /** The configurations `apply` took so far: one that is not the latest when its repositories are read is dropped. */
+  
   private applying = 0;
-  /** `restartRepos` is reading the repositories. */
+  
   private restartReading = false;
-  /** By repository's id: why it does not run as the configuration has it (`StartFailure`). */
+  
   private failed = new Map<string, { detail: string; before?: true }>();
-  /** The configuration last applied (as JSON), or being applied: one saved again unchanged leaves the project as it is. */
+  
   private appliedConfig?: string;
-  /** The restart of all of Seismic that waits, if one does: it covers the repositories' too. */
+  
   private seismicDue: DueRestart | null = null;
-  /** The owner paused the project's agents (kept across restarts, `paused` of its stored settings): cards the Koordinator lets start wait until they resume them. */
+  
   private paused = false;
   private pendingListeners = new Set<() => void>();
-  /** Set while the project leaves the configuration: called once its agents paused and it stopped. */
+  
   private retiring: (() => void) | null = null;
-  /** What the owner last said or typed to each card's agent, for the Koordinator to read beside a request the agent passes on. */
+  
   private said = new Map<string, { text: string; spoken: boolean }>();
-  /** Cards the owner is writing in, with their text before; a pause in typing hands it to the learner. */
+  
   private writing = new Map<string, { before: string; timer: ReturnType<typeof setTimeout> }>();
-  /**
-   * The part of the project the owner last had in view in a page (its middle and its bounds): a new
-   * card that comes without a place of its own (passed on by an agent, say) goes there.
-   */
+  
+
+
+
   inView: Place | undefined;
 
   get dataStore(): Store { return this.deps.store; }
 
-  /** What the code reviews' agents run on (`WorkerOptions.reviewRuntime`). */
+  
   private reviewRuntime!: AgentRuntime;
 
   /** The project's own settings as they apply. */
   settings(): ProjectDefaults { return appliedProjectSettings(this.config); }
 
   constructor(config: ProjectConfig, private deps: ProjectDeps) {
-    // Configuration's model and effort of each group, with the project's own over it
+    
     const agents = (role: AgentRole) => projectAgentSetting(role, deps.agents?.(role) ?? AGENT_DEFAULTS[role], this.config?.agents, deps.configuredHarnesses?.());
     this.agentFor = agents;
-    // the agents other than workers and Seismic's chat wait for the usage limit through it, each where it shows;
-    // each names its harness and model where it shows at work
+    
+    
     const runtime = (r: AgentRuntime) => withLimitWait(withAgentSetting(withRepoTrust(withCodexTrust(withTrustedAllow(r, this.allowRules), this.codexTrusted), this.claudeHeld), agents, (at, agent, session) => this.board?.showAtWork(at, agent, session)), deps.limitMargin);
     const workerRuntime = deps.workerRuntime ?? (deps.idleWorkers ? idleRuntime : undefined);
-    // Code reviews still run in scratch instances whose task workers are idle.
+    
     this.reviewRuntime = runtime(deps.workerRuntime ?? deps.runtime);
     deps = { ...deps, runtime: runtime(deps.runtime), ...(workerRuntime ? { workerRuntime: runtime(workerRuntime) } : {}) };
     this.deps = deps;
     this.skills = deps.skills ?? sharedSkills;
-    // the main branch the owner set counts from the start: the repository's id, its settings and its read checkout go by it
+    
     for (const r of config.repos) this.useBranch(r);
     this.config = config;
     this.appliedConfig = JSON.stringify(config);
@@ -344,17 +344,17 @@ export class ProjectRuntime {
     board.readPlanHistory((ref) => {
       const repo = this.repos.find((r) => r.ref.id === repoOfRef(ref, board.home));
       const path = pathOfRef(ref);
-      // a plan folder outside the repository has no history in git
+      
       return repo && !outsidePlanDir(path) ? planHistory(repo.read.path, path) : [];
     });
-    // the Koordinator needs the workers, and the workers ask it: it is set right after them
-    // a canvas without cards is new: its repositories' working changes are worth a card
+    
+    
     const fresh = !deps.store.cards.hasCards(id);
     repos.forEach((x, i) => {
       try {
         this.addRepo(this.startRepo(resolved, i), fresh);
       } catch (e) {
-        // without its home repository the project does not start; another one is left out, its cards kept
+        
         if (i === 0) throw new HomeDown(id, e);
         console.error(`Seismic: ${x.read.info.path} does not start, left out of the project ${id}: ${messageOf(e)}`);
         this.fail(x.ref.id, e);
@@ -364,13 +364,13 @@ export class ProjectRuntime {
       this.repos
         .map((r) => {
           const exploring = exploringIn(r.ref.id, board.items());
-          // a folder without git has no pool: only its working ideas show
+          
           const pool = r.workstations.mode === 'folder' ? [] : r.workstations.pool(r.workers.inTurn(), (c) => r.workers.turnAt(c));
           const hosts: PoolHost[] = pool.map((h) => ({
             ...h,
             ...reviewingOn(h, r.workers.reviews.busy()),
             ...(h.here ? exploring : {}),
-            // what the owner may take from its card for a card waiting for one, and what goes once the undo window is through
+            
             workstations: h.workstations.map((w) =>
               !w.card ? w : this.koordinator?.evicting(w.card) ? { ...w, leaving: true as const } : r.workers.evictable(w.card) ? { ...w, takeable: true as const } : w,
             ),
@@ -391,12 +391,12 @@ export class ProjectRuntime {
         return { workers: r.workers, workstations: r.workstations, adapter: r.adapter, path: r.read.path, folder: !!r.info.folder };
       },
       imageFiles: this.imageFiles,
-      // the toggles as the configuration has them now: a saved change applies to the next suggestion
+      
       suggests: () => (this.config.suggestLabels === false ? { category: false, complexity: false, priority: false } : this.config.suggest ?? {}),
       suggestsMerges: () => this.config.suggestMerges !== false,
     }));
     koordinator.resume();
-    // a card whose page closed before Seismic named it
+    
     for (const i of board.items()) if (i.state === 'planned' && !i.queue && nameless(i)) void koordinator.name(i.id);
     this.explorers = new Explorers({
       board,
@@ -426,7 +426,7 @@ export class ProjectRuntime {
       board,
       runtime: deps.runtime,
       preferences: this.preferences,
-      // a question about a card whose repository does not run is looked up in the home repository
+      
       pathFor: (card) => (card && this.runs(card) ? this.repoOf(card) : this.repos[0]!).read.path,
       startBrief: (card) => (this.runs(card) ? this.repoOf(card).workers.startBrief(card) : undefined),
       planAgent: (plan) => this.repoOf(plan).planAgents,
@@ -434,9 +434,9 @@ export class ProjectRuntime {
       imageFiles: this.imageFiles,
       toSeismic: this.toSeismic,
       onAnswer: (talk, question, answer) => {
-        // looked up for an action: the Koordinator takes it now, hearing the answer with it
+        
         if (this.commander.answerIn(talk)) return;
-        // asked in a plan's sheet, the question went to its plan agent without Seismic reading it
+        
         const sheet = board.exchange(talk)?.askedIn;
         const plan = sheet ? board.item(sheet)?.title : undefined;
         this.commander.tell(
@@ -460,7 +460,7 @@ export class ProjectRuntime {
       ...(deps.commandDelayMs !== undefined ? { delayMs: deps.commandDelayMs } : {}),
     });
     board.interruptTalk();
-    // the undo window of a new repository is not kept across a restart: the card stays as it was
+    
     for (const i of board.items()) if (i.idea?.newRepo?.due) board.setNewRepo(i.id, { ...i.idea.newRepo, due: undefined });
     this.commander.resume();
     this.answers.resumeAll();
@@ -481,7 +481,7 @@ export class ProjectRuntime {
       runtime: deps.runtime,
       home: deps.home,
       forge: deps.forge,
-      // a repository not running has no checkout to publish from meanwhile
+      
       sourceFor: (card) => {
         const r = this.runs(card) ? this.repoOf(card) : undefined;
         if (!r) return null;
@@ -496,23 +496,23 @@ export class ProjectRuntime {
       },
     });
     this.sharing.resume();
-    // the project's demo site, as the page shows it
+    
     const site = this.siteState();
     if (site) board.project.demoSite = site;
-    // the pages without tags the Koordinator's sheet offers to tag, by the project's site
+    
     board.showVocabulary(() => this.vocabulary());
-    // the pages a repository's new theme leaves outdated
+    
     board.showThemes((repo) => {
       const r = this.repos.find((x) => x.ref.id === repo);
       if (!r) return undefined;
       const theme = this.themeKnown(r.info.path);
       return theme === undefined ? undefined : (theme?.hash ?? null);
     });
-    // snoozed cards wake at their time: one that passed while Seismic was not running, or the machine slept, at once
+    
     this.wakeDue();
     this.waker = setInterval(() => this.wakeDue(), WAKE_EVERY_MS);
     this.waker.unref?.();
-    // a card another waits on may pass through the state it waits for between two ticks (asked, and answered at once)
+    
     const unwake = board.onChange(() => {
       if (this.wakeSoon) return;
       this.wakeSoon = setTimeout(() => {
@@ -528,22 +528,22 @@ export class ProjectRuntime {
     this.countAgents();
   }
 
-  /** Looks for snoozed cards whose time has come. */
+  
   private waker: ReturnType<typeof setInterval>;
-  /** A look for snoozed cards to wake after the board changed, and the subscription to its changes. */
+  
   private wakeSoon: ReturnType<typeof setTimeout> | undefined;
   private unwatch: () => void;
 
   /** Wakes the snoozed cards whose time has come by `now`, and those whose card they wait on got there (or no longer can); so too the steps the Koordinator waits on cards for. */
   wakeDue(now = Date.now()) {
     const items = this.board.items();
-    // and the Koordinator takes up the steps it waited on cards for
+    
     this.commander.due(items);
     for (const i of items) {
       if (i.hold?.reason === 'limit' && i.hold.since && !i.repoDown && !this.board.project.paused) {
         this.repoOf(i.id).workers.wakeLimit(i.id, now);
       }
-      // one whose repository does not run wakes once it is back
+      
       const s = snoozeOf(i);
       if (!s || i.repoDown) continue;
       const on = s.on;
@@ -591,7 +591,7 @@ export class ProjectRuntime {
     if (s.waiting) return void this.board.unsnooze(cardId, timeUp ? 'time' : 'owner');
     if (s.start) {
       this.repoOf(cardId).workers.startsNow(cardId, timeUp);
-      // one to be started in a new repository makes it first
+      
       if (card.idea?.newRepo) return this.intoNewRepo(cardId);
       return this.koordinator.request(cardId);
     }
@@ -660,7 +660,7 @@ export class ProjectRuntime {
     if (!this.shutDown && (before === undefined || before?.hash !== theme?.hash)) this.board.changed();
   }
 
-  /** By repository's path: its theme (`themeOf`), and a read of it under way. */
+  
   private themes = new Map<string, Theme | null>();
   private themeReads = new Map<string, Promise<void>>();
 
@@ -672,7 +672,7 @@ export class ProjectRuntime {
   private heldOf(path: string): TrustGroup[] {
     let held = this.held.get(path);
     if (!held) {
-      // the configuration as it runs may not have a repository new on the project yet; the file has it
+      
       const mine = this.deps.settings ? this.deps.settings(path) : this.config?.repos.find((r) => resolve(r.path) === path)?.settings;
       held = heldGroups(commandsOf(this.shared.get(path)), this.deps.store.trustedCommands.get(path), mine);
       this.held.set(path, held);
@@ -747,7 +747,7 @@ export class ProjectRuntime {
     const mine = this.deps.settings ? this.deps.settings(path) : best.config.settings;
     const trusted = this.deps.store.trustedCommands.get(path);
     const held = (read: SharedRead) => heldGroups(commandsOf(read), trusted, mine).includes('claude');
-    // a folder without git is read as it is
+    
     if (best.info.folder) return held(readSharedFiles(path));
     const seal = refsSeal(path);
     const known = this.defaultRead.get(path);
@@ -755,10 +755,10 @@ export class ProjectRuntime {
     return read instanceof Promise ? read.then((r) => held(r.shared)) : held(read.shared);
   };
 
-  /**
-   * By repository's path: what its default branch had when last read (`claudeHeld`, `moved`), or as
-   * it is being read, under the seal its refs had before (`refsSeal`).
-   */
+  
+
+
+
   private defaultRead = new Map<string, { seal: string; read: DefaultRead | Promise<DefaultRead> }>();
 
   /** Keeps `read`, read from the default branch after its refs had `seal`; a read since (another seal) is not undone. */
@@ -774,7 +774,7 @@ export class ProjectRuntime {
    */
   private resolve(config: ProjectConfig, reads?: Map<string, PreRead>) {
     return resolveProject(config, this.deps.store, this.settingsOf, this.sharedOf, (path, folder) => {
-      // a read made beforehand (`readRepos`) comes with the seal it was started at; one the server waits for is read here
+      
       const before = reads?.get(path);
       const seal = before ? before.seal : folder ? null : refsSeal(path);
       const read = before ? before.read : readRepo(path, folder);
@@ -795,7 +795,7 @@ export class ProjectRuntime {
     const reads = new Map<string, PreRead>();
     await Promise.all(
       config.repos.map(async (r) => {
-        // an empty path names nothing: `resolveProject` says so
+        
         if (!r.path.trim()) return;
         const path = resolve(r.path);
         const folder = r.git === false;
@@ -803,7 +803,7 @@ export class ProjectRuntime {
         try {
           reads.set(path, { read: await readRepoAsync(path, folder), seal });
         } catch {
-          // read again by `resolve`
+          
         }
       }),
     );
@@ -820,7 +820,7 @@ export class ProjectRuntime {
   private planDocs() {
     const home = this.repos[0]?.ref.id;
     const read = this.repos.map((r) => {
-      // while git moves the read checkout its files are half the one commit and half the other: the docs read before stand
+      
       if (!r.read.moving || !r.planDocs) r.planDocs = readPlanDocs(r.read.path, r.adapter);
       return { r, ...r.planDocs };
     });
@@ -845,17 +845,17 @@ export class ProjectRuntime {
     } = resolved.repos[index]!;
     const isHome = index === 0;
     for (const p of this.shared.get(info.path)?.problems ?? []) console.warn(`Seismic: ${info.path}: ${p} (ignored)`);
-    // whether the project shares here, which the UI shows
+    
     Object.assign(ref, this.shareRef());
     const stops: (() => void)[] = [];
-    // filled in below; what is set up here reaches it once it is
+    
     const repo = { config: rc, stops, from: { resolved, index } } as Repo;
     repo.problemSources = this.problemSources(info.path, this.adapterModules.get(info.path));
-    // where work lands on the local main, the checkout is the read checkout; otherwise it is a pool clone on a card's branch
+    
     const folder = !!info.folder;
     const read = new ReadTree({
       repoPath: info.path,
-      // a folder without git is read as it is
+      
       dir: folder || adapter.land === 'main' ? null : join(deps.home, 'read', resolved.id, ref.id),
       remote: !folder && !!info.remote,
       onChange: () => {
@@ -865,18 +865,18 @@ export class ProjectRuntime {
     });
     stops.push(() => read.stop());
     const remoteHosts = !folder && info.remote && adapter.workstations === 'clones' && adapter.land !== 'main' ? (rc.hosts ?? []) : [];
-    // the workers set up below say how many are busy where
+    
     let workers!: WorkerSupervisor;
     let workstations: CardWorkstations;
     if (folder)
-      // every card works in the folder itself; what each changed, and its undo, under Seismic's home
+      
       workstations = new FolderWorkstations(deps.store, { path: info.path, dir: join(deps.home, 'undo', resolved.id, ref.id) });
     else {
       const git = new Workstations(deps.store, resolved.id, {
         mode: adapter.workstations,
         repoPath: info.path,
-        // `workspaces/` keeps the name the directory had before workstations were called so: moving it would
-        // move the checkouts agents work and resume their sessions in
+        
+        
         dir: isHome ? join(deps.home, 'workspaces', resolved.id) : join(deps.home, 'workspaces', resolved.id, ref.id),
         repo: isHome ? null : ref.id,
         machines: [{ host: null, ...(rc.slots !== undefined ? { slots: rc.slots } : {}) }, ...remoteHosts.map((h) => ({ host: h.name, ...(h.slots !== undefined ? { slots: h.slots } : {}) }))],
@@ -889,34 +889,34 @@ export class ProjectRuntime {
       });
       const named: string[] = [];
       if (adapter.workstations === 'clones') {
-        // a clone registered for this repository must be one of it
+        
         for (const w of listedClones(rc, info, { land: adapter.land })) {
           git.register(w, [info.remote, info.path].filter((x): x is string => !!x));
           named.push(w);
         }
-        // landing on main needs clones that see the local main; otherwise they track the remote
+        
         if (rc.clones) named.push(...git.ensureClones(adapter.land === 'main' || !info.remote ? info.path : info.remote, rc.clones));
       }
-      // the pool is what the configuration names now (in worktrees, no clone): clones here it no longer names leave it,
-      // and those on hosts no longer in use (on a host still in use, once its clones are in place); worktrees are the cards' own
-      // a folder moved or deleted by hand leaves at once, and its card takes another at its next start
+      
+      
+      
       for (const { card, path } of git.keepOnly(null, named)) board.workstationGone(card, path);
       const hosts = new Set(remoteHosts.map((h) => h.name));
       for (const host of new Set(git.list().map((w) => hostName(w.path)))) if (host !== null && !hosts.has(host)) git.keepOnly(host, []);
-      // the folders of Seismic's clones that left the pool earlier go once nothing in them would be lost
+      
       git.sweep();
       workstations = git;
     }
-    // clones on other machines, made in the background: a host that is off now gets them once it answers
+    
     if (remoteHosts.length) {
       const token = githubToken(info.path, info.remote!);
       let stopped = false;
       stops.push(() => (stopped = true));
       for (const h of remoteHosts) {
         const host = registerHost({ name: h.name, ssh: h.ssh, home: deps.home, claudeToken: () => claudeToken(deps.home) });
-        // cards that wait for a clone look again once the host answers after it did not
+        
         stops.push(host.onBack(() => board.changed()));
-        // the log tells what goes wrong once, not at every try while the host stays off
+        
         let told: string | null = null;
         const ensure = async () => {
           const wrong = await (workstations as Workstations).ensureHostClones(host, h.root, info.remote!, h.clones, token);
@@ -956,7 +956,7 @@ export class ProjectRuntime {
       takeAsked: (cardId) => this.ahead.takeAsked(cardId),
       onOwnerInput: (card, kind, text, context) => this.koordinator.learn(card, kind, text, context),
       onPrOpened: (cardId) => {
-        // a card whose own branch has its work go out as a pull request, where the repository's does not yet
+        
         this.watchPrs(repo);
         this.sharing.prOpened(cardId);
       },
@@ -966,8 +966,8 @@ export class ProjectRuntime {
       onFollowUpTask: (taskId, reviewId) => this.koordinator.followUp(taskId, reviewId),
       onPrototype: (prototype, summary, demo) => this.prototypeReady(prototype, summary, demo),
       onPrototypeAnswer: (prototype, question, answer) => this.prototypeAnswered(prototype, question, answer),
-      // where work lands on the local main, the read checkout is the checkout and moves with the landing;
-      // a push leaves the checkout as it is: what it changes applies once the read checkout fetches it
+      
+      
       restartsFor: async (l: Landed, pushedFrom?: string) => {
         if (pushedFrom) return false;
         if (deps.ownCheckout && sameDir(deps.ownCheckout, info.path) && (await changesCode(info.path, l.from, l.to))) return 'seismic';
@@ -1028,8 +1028,8 @@ export class ProjectRuntime {
    */
   private watch(r: Repo) {
     if (!this.deps.watch) return;
-    // setting up a watch holds the server up (on macOS 0.1 s and more each): where the plan directory
-    // stayed, the watch there goes on, as when the owner saves settings that do not move it
+    
+    
     const { dir, root } = planDirOf(r.read.path, r.adapter);
     const at = `${dir}\0${root}`;
     if (!r.docs || r.docsAt !== at) {
@@ -1037,7 +1037,7 @@ export class ProjectRuntime {
       r.docs = watchPlanDocs(r.read.path, r.adapter, () => this.board.docsChanged());
       r.docsAt = at;
     }
-    // a review card's pull request is watched in any repository, also one that lands on main
+    
     if (r.adapter.land === 'pr' || this.board.items().some((i) => (i.state === 'inPr' || (i.review?.contribution && !finished(i.state))) && i.repo === r.ref.id)) this.watchPrs(r);
   }
 
@@ -1057,19 +1057,19 @@ export class ProjectRuntime {
    * work on, and their settings apply as they are read.
    */
   apply(next: ProjectConfig): Promise<void> | undefined {
-    // a configuration the project runs on already (the owner saved another project's settings) leaves it
-    // as it is: reading its repositories again would hold up the save. With a repository that did not
-    // start, or a restart to come, it is applied all the same: that is what "Try again" asks for.
+    
+    
+    
     const shape = JSON.stringify(next);
     if (shape === this.appliedConfig && !this.retiring && !this.failed.size && !this.pending) return;
     this.appliedConfig = shape;
-    // back in the configuration before it left: it stays, and so do its repositories
+    
     if (this.retiring) {
       this.retiring = null;
       this.cancelPending();
     }
     for (const r of next.repos) this.useBranch(r);
-    // git reads the repositories without holding the server up; a configuration that came since, or the project leaving the configuration, counts instead of this one
+    
     const attempt = ++this.applying;
     return this.readRepos(next).then((reads) => (attempt === this.applying && !this.shutDown ? this.applied(next, reads) : undefined));
   }
@@ -1080,7 +1080,7 @@ export class ProjectRuntime {
     try {
       resolved = this.resolve(next, reads);
     } catch (e) {
-      // the same configuration saved again is tried again
+      
       this.appliedConfig = undefined;
       console.error(`Seismic: the new configuration of the project ${this.id} does not resolve; it runs on as it was: ${messageOf(e)}`);
       return;
@@ -1095,9 +1095,9 @@ export class ProjectRuntime {
       console.log(`Seismic: the project ${this.id} is called ${resolved.name} now`);
     }
     this.showOldNames();
-    // the pages' switchers and addresses follow the names and the icon
+    
     if (JSON.stringify([this.board.project.name, this.board.project.oldNames, this.board.project.icon]) !== namesBefore) this.board.changed();
-    // its demo site may be another, or under another path
+    
     this.siteCredentials();
     const changed = this.repos.filter((r) => {
       const now = resolved.repos.find((x) => x.read.info.path === r.info.path);
@@ -1106,11 +1106,11 @@ export class ProjectRuntime {
       return false;
     });
     if (changed.length) this.due(changed.map((r) => r.info.path), 'config');
-    // the restart went at once, and its home repository did not start: the project stopped
+    
     if (this.stopped) return;
-    // a repository that did not start and left the configuration is no longer wrong
+    
     for (const repo of this.failed.keys()) if (!resolved.repos.some((x) => x.ref.id === repo)) this.ran(repo);
-    // a repository new on the project starts at once; one whose restart waits starts with it
+    
     resolved.repos.forEach(({ read: { info } }, i) => {
       if (this.repos.some((r) => r.info.path === info.path) || this.pending?.paths.has(info.path)) return;
       let r: Repo;
@@ -1126,16 +1126,16 @@ export class ProjectRuntime {
       if (this.seismicDue) r.workers.restartDue(this.seismicDue);
       r.workers.resumeAll(true);
     });
-    // whose approved cards ask for feedback depends on it
+    
     if (this.settings().archive !== archiveBefore) this.board.changed();
-    // work already waiting for approval takes the project's new code review setting
+    
     if (JSON.stringify(this.settings().codeReviews) !== reviewsBefore) for (const r of this.repos) (r.workers.holdAutoReviews(), void r.workers.codeReviewsChanged());
     return this.settingsChanged();
   }
 
   /** The configuration no longer has the project: it stops once its agents paused, and then `done`. */
   retire(done: () => void) {
-    // a configuration still being read (`apply`) is not the project's any more
+    
     this.applying++;
     this.retiring = done;
     this.due(
@@ -1206,7 +1206,7 @@ export class ProjectRuntime {
   private async restartRepos(): Promise<void> {
     const p = this.pending;
     if (!p || this.restartReading) return;
-    // git reads the repositories without holding the server up, the restart still waiting; what happened meanwhile (the project left the configuration, another restart took over) counts
+    
     this.restartReading = true;
     let reads: Map<string, PreRead> | undefined;
     try {
@@ -1256,7 +1256,7 @@ export class ProjectRuntime {
         this.ran(repo);
         console.log(`Seismic: restarted the agents of ${path}`);
       } catch (e) {
-        // it starts again as it was set up before; where that fails too, it leaves the project, its cards kept
+        
         console.error(`Seismic: the agents of ${path} do not start as the configuration has it now: ${messageOf(e)}`);
         try {
           if (was) {
@@ -1279,7 +1279,7 @@ export class ProjectRuntime {
       started.push(r);
     }
     if (homeDown) {
-      // without its home repository the project does not run: it stops, its cards kept
+      
       this.stopped = true;
       this.shutdown();
       console.error(`Seismic: the home repository of the project ${this.id} does not start; the project stopped, its cards are kept`);
@@ -1333,7 +1333,7 @@ export class ProjectRuntime {
         console.error(`Seismic: the agent of ${i.id} did not pause: ${messageOf(e)}`);
       }
     }
-    // set once they paused: until then the project would count none paused, which ends its pause
+    
     if (!paused) return;
     this.showPaused(true);
     this.board.changed();
@@ -1425,7 +1425,7 @@ export class ProjectRuntime {
    */
   settingsChanged(): Promise<void> {
     const moved = [...this.repos].map((r) => this.moved(r));
-    // where no repository's refs moved, at once
+    
     if (moved.every((m) => typeof m === 'string')) return this.follow();
     return Promise.all(moved).then(() => (this.shutDown ? undefined : this.follow()));
   }
@@ -1480,7 +1480,7 @@ export class ProjectRuntime {
     if (this.shutDown || !this.repos.includes(r)) return 'same';
     if (this.pending?.paths.has(path)) return 'due';
     const shared = this.reread(r, read.shared);
-    // a new theme leaves pages outdated; one read with the settings the server waited for is read now without waiting
+    
     if (read.theme !== undefined) this.setTheme(path, read.theme);
     else this.readThemeOf(path, read.shared.seismicTree);
     const was = this.held.get(path);
@@ -1489,10 +1489,10 @@ export class ProjectRuntime {
     const sources = this.problemSources(path, read.adapterModule);
     const problems = sources !== r.problemSources;
     if (problems) {
-      // the page reads the configuration's problems again
+      
       r.problemSources = sources;
       r.ref.configRev = (r.ref.configRev ?? 0) + 1;
-      // the settings may be there now, or gone
+      
       this.proposeSetup(r);
     }
     const layered = layerSettings<RepoSettings>(this.sharedOf(path)(), this.settingsOf(r.config)());
@@ -1525,7 +1525,7 @@ export class ProjectRuntime {
     const path = r.info.path;
     const before = this.shared.get(path);
     if (JSON.stringify([now.settings, now.claude, now.codex]) === JSON.stringify([before?.settings, before?.claude, before?.codex])) {
-      // a field that does not count changed alone: the problems change, the settings do not
+      
       this.shared.set(path, now);
       return false;
     }
@@ -1541,14 +1541,14 @@ export class ProjectRuntime {
    * each repository.
    */
   private async follow(): Promise<void> {
-    // git tells the branches without holding the server up; what follows is one step, as it was
+    
     const branches = new Map(await Promise.all(this.repos.map(async (r): Promise<[string, string]> => [r.info.path, await defaultBranchAsync(r.info.path)])));
     if (this.shutDown) return;
     for (const r of this.repos) {
       r.info.branch = branches.get(r.info.path) ?? r.info.branch;
       for (const k of ['pullRequests', 'direct', 'forge'] as const) delete r.ref[k];
       Object.assign(r.ref, settled(r.info, r.adapter));
-      // where work lands on the local main, the checkout is the read checkout; otherwise a worktree on the default branch
+      
       r.read.retarget(r.info.folder || r.adapter.land === 'main' ? null : join(this.deps.home, 'read', this.id, r.ref.id));
       this.watch(r);
     }
@@ -1612,11 +1612,11 @@ export class ProjectRuntime {
     const card = this.board.item(cardId);
     if (!card || card.kind === 'question' || !this.runs(card)) return [];
     const cwd = this.repoOf(card).read.path;
-    // an idea's agent loads no plugins; a review card's reads none of the repository's settings
+    
     const idea = card.state === 'idea';
     if (!idea) {
       const row = this.board.row(cardId);
-      // Legacy unqualified sessions belong to Claude even after the default changes.
+      
       const setting = row.agent_setting ? JSON.parse(row.agent_setting) : row.session_id ? undefined : this.agentFor('worker');
       if (setting?.harness === 'codex' || setting?.harness === 'agy') return seismicSkills().map((s) => s.toListing());
     }
@@ -1636,7 +1636,7 @@ export class ProjectRuntime {
   /** The owner edits a card; what they write in it is offered for learning once they have written it. */
   patch(cardId: string, p: CardPatch) {
     const { body: before, state } = this.board.row(cardId);
-    // an idea's agent reads in its repository
+    
     if (p.state === 'idea' && state !== 'idea' && !this.runs(cardId)) throw repoDown(this.board.item(cardId)!);
     this.board.patch(cardId, p);
     if (p.body !== undefined) {
@@ -1644,11 +1644,11 @@ export class ProjectRuntime {
       clearTimeout(w?.timer);
       this.writing.set(cardId, { before: w?.before ?? before ?? '', timer: setTimeout(() => this.written(cardId), this.deps.writingPauseMs ?? 60_000) });
     }
-    // an idea's agent starts from the card's text and the notes left on it for a worker, and opens the discussion with them
+    
     if (p.state === 'idea' && state !== 'idea') {
       this.written(cardId);
       void this.koordinator.name(cardId);
-      // what the owner talked over with the answering agent before goes along with the notes
+      
       const asked = this.ahead.takeAsked(cardId);
       const notes = this.repoOf(cardId).workers.takeNotes(cardId);
       this.explorers.open(cardId, undefined, { text: [asked, notes.text].filter(Boolean).join('\n\n'), images: notes.images });
@@ -1678,7 +1678,7 @@ export class ProjectRuntime {
    * "Add to CLAUDE.md". `replaces`: the active rule it changes; `card`: the card open when it was said.
    */
   remember(text: string, o: { repos?: string[]; replaces?: number; card?: string } = {}) {
-    // the rule it changes may have been deleted in the meantime: then it is a new one
+    
     const replaces = o.replaces !== undefined && this.board.preferences('active').some((p) => p.id === o.replaces) ? o.replaces : undefined;
     if (o.repos?.length) {
       this.board.fileRule(text, o.repos, o.card ?? null, replaces);
@@ -1739,10 +1739,10 @@ export class ProjectRuntime {
   tell(cardId: string, text: string, images: string[], spoken: boolean, replyTo?: number, spot?: SpotInput) {
     const card = this.board.item(cardId);
     if (!card) throw new BadRequest('unknownCard', 'unknown card');
-    // a planned card holds the words for the agent that takes it on
+    
     if (!agentListens(card) && !holdsNotes(card)) throw new BadRequest('noAgent', 'no agent works on this card');
     const said = { text, spoken, ...(images.length ? { images } : {}), ...(replyTo ? { replyTo } : {}) };
-    // the agent passes a request on in its words; the Koordinator reads the owner's own beside them
+    
     this.said.set(cardId, { text, spoken });
     if (card.kind === 'question') return this.act(cardId, { action: 'ask', ...said });
     if (card.state === 'idea') return this.act(cardId, { action: 'discuss', ...said });
@@ -1761,14 +1761,14 @@ export class ProjectRuntime {
    * sees the confirmation above the microphone and in the card's conversation.
    */
   async forward(cardId: string, request: string): Promise<string> {
-    // the owner's words go beside the request, also those before a restart; an agent that passes on
-    // what nobody said (words in a file it read, say) has nothing to pass on
+    
+    
     const before = this.said.has(cardId) ? undefined : this.board.events(cardId).findLast((e) => e.author === 'owner' && e.kind !== 'state' && e.text.trim());
-    // a step Seismic waits to take on this card itself, which its agent read in its task
+    
     const steps = this.commander.waitsOn(cardId);
-    // without them, the card's task once the owner gave it (typed it, the Koordinator wrote it from
-    // their words, or they accepted an agent's proposal), not while it is a proposal; a step of the
-    // task Seismic waits to take is Seismic's
+    
+    
+    
     const card = this.board.item(cardId);
     const task = !steps.length && card && card.state !== 'proposal' && (card.body.trim() || card.title.trim());
     const said = this.said.get(cardId) ?? (before ? { text: before.text, spoken: false } : task ? { text: task, spoken: false, task: true } : undefined);
@@ -1777,7 +1777,7 @@ export class ProjectRuntime {
     const h = await this.commander.forward(cardId, request, said);
     if (h.token) this.commander.arm(h.token);
     this.board.notify({ cardId, text: h.confirm, ...(h.token ? { token: h.token, undoMs: this.commander.delayMs } : {}), ...(h.wish ? { wish: h.wish } : {}) });
-    // the agent learns what the owner finds under the answer
+    
     if (h.wish) return `${h.confirm} (A draft for Seismic's makers opened for the owner to check and send on GitHub.)`;
     if (h.cannot) return `${h.confirm} (Seismic lacks this; under this answer the owner finds a link to send it to Seismic's makers as a wish.)`;
     return h.confirm;
@@ -1788,7 +1788,7 @@ export class ProjectRuntime {
     return writeWish(this.deps.runtime, w, footer, this.imageFiles(images));
   }
 
-  /** The owner clicks in the card's panel: a click without words the learner reads counts towards the retrospective. */
+  
   /** A script acts as the card's agent, in a scratch Seismic whose workers are idle (`WorkerSupervisor.standIn`). */
   standIn(cardId: string, act: Parameters<WorkerSupervisor['standIn']>[1]) {
     if (!this.deps.idleWorkers) throw new BadRequest('invalid', 'only an Seismic with idle workers (--idle-workers) lets a script stand in for an agent');
@@ -1796,9 +1796,9 @@ export class ProjectRuntime {
   }
 
   press(cardId: string, a: CardAction) {
-    // the options picked on a proposal go to its reviser without the Koordinator, which would have logged them
+    
     const r = this.act(cardId, a, true);
-    // the end of watching a demo is no click of the owner's
+    
     if (a.action !== 'release' && a.action !== 'unsay' && a.action !== 'name' && !(['message', 'answer', 'discuss'].includes(a.action) && 'text' in a && a.text?.trim())) this.koordinator.noticed();
     return r;
   }
@@ -1822,7 +1822,7 @@ export class ProjectRuntime {
     const out: Record<number, string> = {};
     for (const [id, text] of Object.entries(notes as Record<string, unknown>)) {
       if (!/^\d+$/.test(id) || typeof text !== 'string') throw new BadRequest('invalid', 'findingNotes must map finding numbers to text');
-      // empty: the owner cleared the context an item kept from an earlier choice
+      
       out[Number(id)] = text;
     }
     return Object.keys(out).length ? out : undefined;
@@ -1843,12 +1843,12 @@ export class ProjectRuntime {
   private refuseAction(cardId: string, action: string): Item | undefined {
     this.written(cardId);
     const is = (list: readonly string[]) => list.includes(action);
-    // the card's agents work in its repository: while that does not run, only the board changes
+    
     const card = this.board.item(cardId);
     if (card?.repoDown && !is(BOARD_ONLY)) throw repoDown(card);
-    // while its new repository is about to be made, the card is not decided otherwise
+    
     if (card?.idea?.newRepo?.due && is(DUE_REFUSES)) throw new BadRequest('newRepoDue', 'the card is about to be built in its new repository; take that back first');
-    // a card merged with a proposal, and the proposal while the two are one, wait for the owner's call on the merge
+    
     if (card?.idea?.mergingInto && mergeRank(card) <= 1 && !is(MERGE_LEAVES)) throw new BadRequest('merging', 'the card is merged with a proposal; approve or separate that first');
     if (card?.idea?.proposal?.merge && !is(['merge', 'approveMerge', 'separate', 'dismiss', ...MERGE_LEAVES]))
       throw new BadRequest('merging', 'the proposal is merged with another card; approve or separate that first');
@@ -1873,9 +1873,9 @@ export class ProjectRuntime {
     const card = this.refuseAction(cardId, a.action);
     const text = 'text' in a ? (a.text ?? '') : '';
     const images = this.images.resolve('images' in a ? a.images : undefined);
-    // a reply to anything but a message of this card's conversation is the words alone
+    
     const replyTo = 'replyTo' in a ? this.board.quoted(cardId, a.replyTo)?.id : undefined;
-    // a prototype may leave it to the idea's brief what it shows; a screenshot or an option picked may speak for itself
+    
     const picks = a.action === 'answer' && Array.isArray(a.picks) ? a.picks.filter((o): o is string => typeof o === 'string') : [];
     const decided = a.action === 'message' && !!a.findings && typeof a.findings === 'object' && Object.keys(a.findings).length > 0;
     if ('text' in a && (typeof text !== 'string' || (!text.trim() && a.action !== 'prototype' && !images.length && !picks.length && !decided) || text.length > 20000))
@@ -1884,9 +1884,9 @@ export class ProjectRuntime {
       case 'start':
         if (a.agent && (card?.idea?.newRepo || (card && snoozeOf(card)?.start))) throw new BadRequest('invalid', 'this start does not support an agent choice');
         if (card?.idea?.newRepo) return this.intoNewRepo(cardId);
-        // starting a parked card takes it out of the parking lot
+        
         if (card && inParkingLot(card)) this.unparkFromLot(cardId);
-        // one snoozed to start later starts now
+        
         if (this.board.snoozedOf(cardId)?.start) return this.wake(cardId, false);
         return this.koordinator.request(cardId, a.agent === undefined ? undefined : startAgentSetting(a.agent));
       case 'stayHere':
@@ -1922,9 +1922,9 @@ export class ProjectRuntime {
       case 'startAt':
         return this.board.startAt(cardId, a.at === null ? null : this.until(a.at));
       case 'message':
-        // a note to a Question card is a question to its agent
+        
         if (this.board.item(cardId)?.kind === 'question') return this.answers.ask(cardId, text.trim(), images, !!a.spoken, replyTo);
-        // words on a card nobody has started are asked of an agent that answers at once
+        
         const asking = this.board.item(cardId);
         if (asking && asksAhead(asking)) return this.ahead.ask(cardId, text.trim(), images, !!a.spoken, replyTo);
         if (a.newAgent) return this.repoOf(cardId).workers.reviewWithNewAgent(cardId, this.decisions(a.findings), startAgentSetting(a.newAgent), this.findingNotes(a.findingNotes));
@@ -1932,7 +1932,7 @@ export class ProjectRuntime {
       case 'release':
         return this.repoOf(cardId).workers.released(cardId, !!a.now);
       case 'unsay': {
-        // words the card's agent has not read yet, whichever agent it is
+        
         const card = this.board.item(cardId);
         if (card?.kind === 'question') return this.answers.unsay(cardId, a.id);
         if (card?.state === 'idea') return this.explorers.unsay(cardId, a.id);
@@ -1980,14 +1980,14 @@ export class ProjectRuntime {
       case 'separate':
         return this.board.separate(cardId);
       case 'dismiss':
-        // a card its agent withdrew or replaced goes like a deleted one, its worker stopped
+        
         if (this.board.item(cardId)?.idea?.superseded) return this.remove(cardId);
         if (this.board.row(cardId).state !== 'proposal') throw new BadRequest('notProposal', 'not a proposal');
         return this.board.remove(cardId);
       case 'keep':
         return this.board.keep(cardId);
       case 'revise': {
-        // said while it is reworked, they wait for the next rework, unread until then
+        
         const later = !!this.board.item(cardId)?.idea?.proposal?.revising;
         const said = log ? this.board.log(cardId, 'say', 'owner', text.trim(), { images, replyTo, unread: later }).id : undefined;
         return this.revisions.revise(cardId, `${replyNote(this.board.quoted(cardId, replyTo), 'koordinator')}${text.trim()}`, !!a.spoken, said, images);
@@ -2021,7 +2021,7 @@ export class ProjectRuntime {
       case 'ask':
         return this.answers.ask(cardId, text.trim(), images, !!a.spoken, replyTo);
       case 'consult': {
-        // the agent passes a request on in its words; the Koordinator reads the owner's own beside them
+        
         this.said.set(cardId, { text: text.trim(), spoken: !!a.spoken });
         const ids = Array.isArray(a.images) ? a.images.filter((i): i is string => typeof i === 'string') : [];
         return void this.answers.askPlan(cardId, text.trim(), ids, a.replyTo);
@@ -2050,7 +2050,7 @@ export class ProjectRuntime {
   async openAnswerFile(thread: number, file?: string) {
     const dir = this.answerDir(thread);
     mkdirSync(dir, { recursive: true });
-    // a file by its real path: a link out of the directory is no file of the answer's
+    
     const path = file === undefined ? dir : demoFile(dir, String(file));
     if (!path) throw new BadRequest('noFile', 'no such file in the answer’s directory');
     if (!(await openWithSystem(path, path !== dir))) throw new BadRequest('invalid', 'the system has no app to open it with');
@@ -2082,7 +2082,7 @@ export class ProjectRuntime {
     if (card?.kind !== 'question') throw new BadRequest('notQuestion', 'the card is no Question card');
     if (card.thread?.thinking) throw new BadRequest('ideaThinking', 'its agent is still reading; discuss it further once the answer is there');
     if (!this.runs(card)) throw repoDown(card);
-    // a paused agent's question goes into the discussion with the rest of the thread
+    
     this.board.work(cardId, { kind: 'task', state: 'idea', session_id: null, agent_setting: null, ...this.board.unheld(cardId, ['paused', 'pausing', 'limit']), idea: { discussion: { status: 'open', brief: '' } } });
     this.board.log(cardId, 'state', 'owner', this.board.t.answer.asIdea);
     this.explorers.tell(cardId, this.answers.opening(cardId));
@@ -2097,7 +2097,7 @@ export class ProjectRuntime {
     if (idea?.prototypeOf) return this.repoOf(cardId).workers.endPrototype(cardId, 'discarded');
     if ((state === 'working' || state === 'waiting' || (landed && workstation)) && this.runs(cardId)) void this.repoOf(cardId).workers.stop(cardId);
     if (state === 'idea') this.explorers.close(cardId);
-    // work thrown away ended too (finished work counted when it landed); the retrospective reads in its repository
+    
     else if ((!state || !finished(state)) && this.runs(cardId)) this.workRetro.ended(cardId, workstation);
     this.board.remove(cardId);
   }
@@ -2153,7 +2153,7 @@ export class ProjectRuntime {
     return this.board.card(card.id)!;
   }
 
-  // ---------------------------------------------------------------- proposals
+  
 
   /**
    * Accepting a proposal is the owner's go unless they keep it to edit first (`start` false): the
@@ -2164,11 +2164,11 @@ export class ProjectRuntime {
   private accept(cardId: string, picks: string[][] | undefined, start: boolean, asIdea?: boolean, setting?: AgentSetting) {
     const card = this.board.item(cardId);
     if (card?.state !== 'proposal') throw new BadRequest('notProposal', 'not a proposal');
-    // one the work retrospective made before it stored proposal data has none
+    
     const proposal = card.idea?.proposal ?? { questions: [] };
     if (setting && (!start || asIdea || proposal.idea || proposal.revising || (proposal.startAt && Date.parse(proposal.startAt) > Date.now()))) throw new BadRequest('invalid', 'this acceptance does not support an agent choice');
     if ((start || asIdea) && proposal.revising) {
-      // the owner knows what comes; the new text still may ask what must be settled first
+      
       if (this.board.acceptAfterRevision(cardId, asIdea ? 'idea' : true))
         this.board.log(cardId, 'state', 'owner', this.board.t.proposal.acceptAfterRevision(asIdea ? 'asIdea' : proposal.idea ? 'discuss' : 'start'));
       return;
@@ -2176,7 +2176,7 @@ export class ProjectRuntime {
     const idea = !!asIdea || (start && !!proposal.idea);
     this.board.accept(cardId, picks, idea);
     if (idea) this.explorers.open(cardId, proposal.idea ? 'idea' : 'task');
-    // one its agent proposed to start later waits until then, unless that time has passed
+    
     else if (start && proposal.startAt && Date.parse(proposal.startAt) > Date.now())
       this.board.snooze(cardId, { until: proposal.startAt, by: 'agent', start: true, ...(proposal.reason ? { why: clip(oneLine(proposal.reason), 200) } : {}) });
     else if (start) {
@@ -2193,7 +2193,7 @@ export class ProjectRuntime {
   /** The revision is over (`revised`, or the agent ended without a text): a proposal accepted meanwhile is accepted now, unless it asks questions. */
   private revised(cardId: string, revised: boolean) {
     const card = this.board.item(cardId);
-    // words the owner said meanwhile are reworked in first
+    
     const armed = card?.idea?.proposal?.acceptAfterRevision;
     if (card?.state !== 'proposal' || !armed || card.idea!.proposal!.revising) return;
     this.board.acceptAfterRevision(cardId, false);
@@ -2203,7 +2203,7 @@ export class ProjectRuntime {
     this.board.log(cardId, 'state', 'seismic', !revised ? t.notAcceptedNoRevision : asks > 1 ? t.notAcceptedQuestions : t.notAcceptedQuestion);
   }
 
-  // ---------------------------------------------------------------- ideas
+  
 
   /**
    * The idea is built as it stands: its brief becomes the card's task, and the card goes to the
@@ -2212,7 +2212,7 @@ export class ProjectRuntime {
   private build(cardId: string, agent?: AgentSetting) {
     const card = this.ideaCard(cardId);
     if (card.idea?.discussion?.thinking) {
-      // the owner knows what comes; the reply still may ask what must be settled first
+      
       if (card.idea.discussion.buildAfterReply) return;
       if (agent) this.buildAgents.set(cardId, agent);
       this.board.setIdea(cardId, { buildAfterReply: true });
@@ -2226,12 +2226,12 @@ export class ProjectRuntime {
     this.koordinator.request(cardId, chosen);
   }
 
-  /** The agent chosen with "Build it like this" while the idea's reply was still coming: used when it builds after the reply. */
+  
   private buildAgents = new Map<string, AgentSetting>();
 
-  // ---------------------------------------------------------------- a new repository
+  
 
-  /** Cards whose new repository Seismic makes once the undo window is through (`NewRepo.due`). */
+  
   private newRepos = new Map<string, ReturnType<typeof setTimeout>>();
 
   /**
@@ -2254,7 +2254,7 @@ export class ProjectRuntime {
       cardId,
       setTimeout(() => {
         this.newRepos.delete(cardId);
-        // one after the other, on any project: each adds to the configuration as the one before left it
+        
         making = making.then(() => this.makeNewRepo(cardId));
       }, due - Date.now()),
     );
@@ -2309,7 +2309,7 @@ export class ProjectRuntime {
       const { resolved } = await config.check(config.current());
       const here = resolved.findIndex((r) => r?.id === this.id);
       if (here < 0) throw new Error(`the project ${this.id} is not in the configuration`);
-      // on the configuration as it is now, and taken back from it as it is then: changes meanwhile stay
+      
       const added = { path: target.path.trim() };
       const now = config.current();
       const after = target.project ? [...now, { repos: [added] }] : now.map((c, i) => (i === here ? { ...c, repos: [...c.repos, added] } : c));
@@ -2363,7 +2363,7 @@ export class ProjectRuntime {
     const card = this.board.item(cardId)!;
     const target = this.board.newRepo(cardId)!;
     const shown = target.path.trim();
-    // the screenshots of the task and of its conversation, which the new project keeps under its own name
+    
     const row = this.board.row(cardId);
     const shots = [...(row.images ? (JSON.parse(row.images) as string[]) : []), ...this.board.events(cardId).flatMap((e) => e.images ?? [])];
     this.images.copyTo(there.images, shots);
@@ -2484,7 +2484,7 @@ export class ProjectRuntime {
     this.explorers.close(idea.id);
     this.discardPrototypes(idea.id);
     this.board.work(idea.id, { state: 'planned', session_id: null, agent_setting: null, ...(brief.trim() ? { body: withQuestions(brief, questions ?? [], [], this.board.t) } : {}) });
-    // the screenshots the owner showed in the discussion belong to what is built
+    
     const shown = this.board.events(idea.id).flatMap((e) => (e.kind === 'talk' && e.author === 'owner' ? (e.images ?? []) : []));
     if (shown.length) this.addTaskImages(idea.id, shown);
     this.board.decide({ plan_id: null, card_id: idea.id, question: this.board.t.idea.howOn(idea.title), answer: how.answer, by: 'owner' });
@@ -2559,12 +2559,12 @@ export class ProjectRuntime {
   private outsidePlanDoc(card: Item): { file: string; row: { plan: { planDocs: string[] } } } | undefined {
     const r = this.repoOf(card);
     const outside = outsidePlanDir(r.adapter.planDocs.dir);
-    // in a folder without git nothing lands either: the doc is there as soon as it is written
+    
     const dir = outside ?? (r.info.folder ? r.adapter.planDocs.dir.replace(/[/\\]+$/, '') : null);
     if (!dir) return;
     const at = (file: string) => (outside ? file : join(r.info.path, file));
     const name = slug(card.title).slice(0, 60).replace(/^[.-]+|[.-]+$/g, '') || 'plan';
-    // nor one another card was given and has not written yet
+    
     const given = new Set(this.deps.store.cards.withPlanDocs(this.id).flatMap((row) => row.plan!.planDocs!.map(pathOfRef)));
     let file = `${dir}/${name}.md`;
     for (let n = 2; existsSync(at(file)) || given.has(file); n++) file = `${dir}/${name}-${n}.md`;
@@ -2576,7 +2576,7 @@ export class ProjectRuntime {
   private parkInLot(cardId: string) {
     const card = this.board.item(cardId);
     if (!card || !(parkable(card) || parkableStopping(card))) throw new BadRequest('notParkable', 'only a task that is planned, stopped or waits for you, and is not queued, can be parked');
-    // waiting for the owner, its agent stops first
+    
     const stopped = card.state === 'waiting' ? this.repoOf(cardId).workers.stop(cardId) : undefined;
     if (stopped) this.board.record(cardId, 'stopped', 'owner');
     this.board.work(cardId, { hold: { reason: 'parkingLot', since: new Date().toISOString() } satisfies Hold });
@@ -2594,7 +2594,7 @@ export class ProjectRuntime {
   /** Parked or dropped, the idea stays on the project with its brief; what its agent has not answered yet waits for the conversation to go on. */
   private shelve(cardId: string, how: 'park' | 'drop') {
     const card = this.ideaCard(cardId);
-    // parked or dropped in the undo window of its new repository: it is not built there
+    
     this.keepHere(cardId);
     this.explorers.interrupt(cardId, how === 'park' ? 'parked' : 'dropped');
     this.board.setIdea(cardId, { status: how === 'park' ? 'parked' : 'dropped', buildAfterReply: false });
@@ -2611,7 +2611,7 @@ export class ProjectRuntime {
    */
   private prototype(cardId: string, what: string, chosen?: string[]) {
     const card = this.ideaCard(cardId);
-    // a prototype is a branch thrown away or built on: a folder without git has none
+    
     if (this.repoOf(card).info.folder) throw new BadRequest('inFolder', 'a folder without git has no prototypes: its cards change the folder itself');
     const { variants = [] } = this.board.idea(cardId);
     const t = this.board.t.idea;
@@ -2643,7 +2643,7 @@ export class ProjectRuntime {
       }
     } finally {
       if (started.length) {
-        // the owner now waits for the prototypes, not the other way round; the agent's reply to a result gives the turn back
+        
         this.board.setIdea(cardId, { yourTurn: false });
         this.board.log(
           cardId,
@@ -2749,9 +2749,9 @@ export class ProjectRuntime {
           ...at,
         }, undefined, 'owner');
         this.board.log(card.id, 'state', 'owner', this.board.t.voice.created);
-        // the card it follows up on shows it in its conversation
+        
         if (c.from) this.board.log(c.from, 'state', 'seismic', this.board.t.voice.madeFollowUp(card.title), { made: { card: card.id, title: card.title } });
-        // one for later waits until then; a time that passed in the undo window starts it now
+        
         if (c.until && Date.parse(c.until) > Date.now()) this.snooze(card.id, c.until);
         else if (c.start || c.until) this.koordinator.request(card.id);
         return card.id;
@@ -2761,7 +2761,7 @@ export class ProjectRuntime {
       case 'newIdea': {
         const card = this.board.create({ idea: true, title: c.title, body: c.body, ...(c.repo ? { repo: c.repo } : {}), ...this.board.freeSpot(c.place ?? this.inView) }, undefined, 'owner');
         this.board.log(card.id, 'state', 'owner', this.board.t.voice.created);
-        // the agent opens the discussion with what the owner said
+        
         this.explorers.discuss(card.id, c.body.trim() || c.title, true, this.images.resolve(c.images));
         return card.id;
       }
@@ -2781,7 +2781,7 @@ export class ProjectRuntime {
         return this.act(c.card, { action: c.do });
       case 'start':
       case 'force':
-        // screenshots said with the start belong to the task, so the worker gets them with it
+        
         if (c.images?.length) this.addTaskImages(c.card, c.images);
         return this.act(c.card, { action: c.do });
       case 'note':
@@ -2823,7 +2823,7 @@ export class ProjectRuntime {
       case 'deleteCanvas':
         return this.board.deleteCanvas(c.canvas);
       case 'moveToCanvas':
-        // onto a canvas a new canvas action of the same command made
+        
         return this.board.moveToCanvas(c.cards, 'canvas' in c ? c.canvas : (this.board.canvases().find((x) => x.name.toLowerCase() === c.newCanvas.toLowerCase())?.id ?? ''));
       case 'merge':
         return this.merge(c.card, c.others, c.title);
@@ -2865,17 +2865,17 @@ export class ProjectRuntime {
     } catch (e) {
       return fail(messageOf(e));
     }
-    // gh's logins read once for this URL and those of the cards it is compared with
+    
     const hosts = ghHosts();
     const github = (u: string) => onGitHub(u, () => hosts);
     const ref = parsePrUrl(url, github);
     if (!ref) return fail(url);
     url = ref.url;
-    // a pull request of another repository would be merged there, from a workstation of this one
+    
     const origin = originUrl(repo.info);
     if (origin && !sameRepo(origin, ref.owner, ref.repo)) return fail(t.review.otherRepo(repo.ref.id));
-    // a card of the PR's own (one of Seismic's workers opened it) is the card for it too, also where
-    // its URL was recorded in another form (a slash at the end, the host in capitals, `/pull/` on Forgejo)
+    
+    
     const same = (other?: string) => !!other && (parsePrUrl(other, github)?.url ?? other) === url;
     const had = this.board.items().find((i) => (same(i.review?.contribution?.url) || same(i.review?.pr?.url)) && !i.archivedAt);
     if (had) {
@@ -2904,7 +2904,7 @@ export class ProjectRuntime {
     this.board.log(card.id, 'state', 'owner', t.voice.created);
     this.watchPrs(repo);
     this.koordinator.request(card.id);
-    // the card opens, so the owner sees its review begin
+    
     this.board.notify({ text: t.review.started(ref.number, info.author), cardId: card.id, open: true });
     return card.id;
   }
@@ -2927,7 +2927,7 @@ export class ProjectRuntime {
     this.siteCredentials();
   }
 
-  /** This machine's demo sites changed (one added, connected or removed): the cards share on the project's, or export. */
+  
   /** Its old names on the project the pages list, so that their addresses lead here, and its icon for the switchers. */
   private showOldNames() {
     const old = this.config.oldNames;
@@ -2941,7 +2941,7 @@ export class ProjectRuntime {
     this.siteCredentials();
   }
 
-  /** "Initialize" under way or failed, by the site's address and path. */
+  
   private siteInit: { url: string; path: string; running: boolean; error?: string } | null = null;
 
   /**
@@ -3094,13 +3094,13 @@ export function startProjects(configs: ProjectConfig[], deps: ProjectDeps, faile
 export class Projects {
   private list: ProjectRuntime[];
   private listeners = new Set<() => void>();
-  /** By project's id: why one in the configuration does not run (its home repository did not start). */
+  
   private down = new Map<string, string>();
 
   constructor(
     configs: ProjectConfig[],
     private deps: ProjectDeps,
-    /** A project started while Seismic runs. */
+    
     private started: (c: ProjectRuntime) => void = () => {},
   ) {
     this.deps = {
@@ -3158,11 +3158,11 @@ export class Projects {
       console.log(`Seismic: the project ${c.board.project.name} (/p/${c.id}) runs now`);
       this.started(c);
     });
-    // the configuration's order is the order projects are listed in (the switcher, the phone); one leaving goes last
+    
     const at = (c: ProjectRuntime) => (ids.includes(c.id) ? ids.indexOf(c.id) : ids.length);
     this.list.sort((a, b) => at(a) - at(b));
     if (!ids.includes(null)) {
-      // a project that did not start and left the configuration is no longer wrong
+      
       for (const id of [...this.down.keys()]) if (!ids.includes(id)) this.down.delete(id);
       for (const c of [...this.list])
         if (!ids.includes(c.id))
@@ -3172,7 +3172,7 @@ export class Projects {
           });
     }
     this.emit();
-    // the running projects have taken it over once their repositories are read
+    
     return Promise.all(applied).then(() => {});
   }
 
@@ -3197,12 +3197,12 @@ export class ConfigError extends Error {
   }
 }
 
-/**
- * What resolving a repository reads of it with git (`readingRepo`): where it is and its main
- * branch (`info`), that branch as git tells it whatever the owner set (`detected`), whether its
- * main branch still has an adapter module (`hasAdapterModule`), and its `.seismic/settings.json`
- * there (`readShared`).
- */
+
+
+
+
+
+
 export interface RepoRead {
   info: RepoInfo;
   detected: string;
@@ -3210,7 +3210,7 @@ export interface RepoRead {
   shared: SharedRead;
 }
 
-/** A repository read beforehand (`readRepos`), with the seal its refs had when the read started. */
+
 interface PreRead {
   read: RepoRead | null;
   seal: string | null;
@@ -3232,17 +3232,17 @@ export function* readingRepo(path: string, folder = false): GitSteps<RepoRead | 
   return { info: { path, remote: remote ?? null, origin: remote ? (configured ?? remote) : null, branch }, detected, adapterModule, shared };
 }
 
-/** How often `readSettings` reads a repository whose refs move while git reads it. */
+
 const READ_TRIES = 5;
 
-/** What `moved` came to (`moved`). */
+
 type Moved = 'same' | 'follow' | 'due';
 
-/** What a repository's default branch has of its settings: its `.seismic/settings.json` and Claude Code configuration (`readShared`), and whether an adapter module is still there (`hasAdapterModule`). */
+
 interface DefaultRead {
   shared: SharedRead;
   adapterModule: boolean;
-  /** The repository's theme (theme.ts), where it was read with the rest; a read the server waited for leaves it to `readTheme`. */
+  
   theme?: Theme | null;
 }
 
@@ -3284,19 +3284,19 @@ export function resolveProject(
   settings: (r: RepoConfig) => () => RepoSettings | undefined = (r) => () => r.settings,
   shared?: (path: string) => () => SharedSettings | undefined,
   read: (path: string, folder: boolean) => RepoRead | null = readRepo,
-  /** What a handover may bring where a repository names nothing: the demo settings' list. */
+  
   artifacts?: () => HandoverArtifact[] | undefined,
 ) {
   if (!config.repos.length) throw new ConfigError('noRepo', 'a project needs at least one repository');
   const reads = config.repos.map((r, i) => {
-    // an empty path names nothing: resolved, it would be the server's own working directory
+    
     if (!r.path.trim()) throw new ConfigError('noPath', 'a repository needs a path', i);
     const folder = r.git === false;
     const got = read(resolve(r.path), folder);
     if (!got) throw folder ? new ConfigError('noFolder', `${r.path} is no folder`, i) : new ConfigError('notRepo', `${r.path} is not a git repository`, i);
     return got;
   });
-  // a repository runs once on a project: twice, it would have two of everything, its plan docs' note too
+  
   reads.forEach(({ info }, i) => {
     if (reads.findIndex((x) => x.info.path === info.path) < i) throw new ConfigError('sameRepo', `${config.repos[i]!.path} is on the project already`, i);
   });
@@ -3310,8 +3310,8 @@ export function resolveProject(
   const refsOf = () => uniqueRefs(repos.map((x) => x.read.info), repos.map((x) => x.adapter));
   let refs = refsOf();
   const id = config.id ? slug(config.id) : config.name ? slug(config.name) : slug(repoName(reads[0]!.info));
-  // the home repository is fixed when the project is first served: bare plan references, cards
-  // without a repository and the home workstation directory are its, whatever the order later
+  
+  
   const stored = store.settings.get(id, 'home_repo');
   if (stored && stored !== refs[0]!.id) {
     const at = refs.findIndex((r) => r.id === stored);
@@ -3329,7 +3329,7 @@ export function resolveProject(
   };
 }
 
-/** What `resolveProject` resolved. */
+
 type Resolved = ReturnType<typeof resolveProject>;
 
 /**
@@ -3384,13 +3384,13 @@ function settled(info: RepoInfo, adapter: RepoAdapter): Pick<RepoRef, 'branch' |
   if (info.folder) return { branch: '', folder: true };
   return {
     branch: info.branch,
-    // an origin on a server (not a directory on this machine) may get pull requests of others
+    
     ...(onServer(info) ? { forge: true } : {}),
     ...(adapter.land === 'pr' ? { pullRequests: true, ...(adapter.direct ? { direct: true } : {}) } : {}),
   };
 }
 
-/** What the UI is told about sharing a repository's demos. */
+
 const SHARE_FIELDS = ['share', 'shareNeeds', 'shareOnApproval', 'shareTags', 'shareUnlisted', 'shareSite'] as const;
 type ShareRef = Pick<RepoRef, (typeof SHARE_FIELDS)[number]>;
 

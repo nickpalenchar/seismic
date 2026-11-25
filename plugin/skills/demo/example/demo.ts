@@ -1,6 +1,6 @@
-// A model demo script. A real one lives in its own directory in the demo directory (`~/demos` unless the
-// demo settings name another) and imports the director by its absolute path in the skill directory; this
-// one sits inside the skill, so it imports it relatively. Typecheck only: it is not run.
+
+
+
 import { runDemo, type Director } from '../lib/director.ts';
 
 const URL = 'http://127.0.0.1:3000/';
@@ -10,13 +10,13 @@ await runDemo(
   {
     title: 'Orders can be filtered by status',
     baseUrl: URL,
-    // Unrecorded; cookies and storage carry into the recording. Reset or stage the app here, so
-    // every take starts from the same state.
+    
+    
     login: async (page) => {
       await page.goto(`${URL}login`);
       await page.getByRole('button', { name: 'Sign in as admin' }).click();
     },
-    // The opening shot, also unrecorded.
+    
     open: async (d) => {
       await d.goto('/orders');
       await list(d).waitFor();

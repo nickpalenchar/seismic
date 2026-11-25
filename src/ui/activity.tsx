@@ -1,8 +1,8 @@
-// The Agents sheet's "Activity" tab: what happened lately on the cards and who did it, newest first,
-// under "Today", "Yesterday" and then dates. Each line says it in small text above the card's face
-// (compact, as in the queue) and the time at the right; a click opens a live card. Older lines load
-// as the list is scrolled to its end. The lines come from the server's Activity log, which the page
-// reads again whenever the project changes.
+
+
+
+
+
 
 import { cn } from 'cn';
 import { GitBranch } from 'lucide-react';
@@ -21,12 +21,12 @@ import { agentsEmptyClass, inboxBarClass } from './inboxClasses';
 export function ActivityTab({ project, changed, open, onGo, allProjects }: { project: string; changed: unknown; open?: string; onGo: (project: string, i: Item) => void; allProjects?: boolean }) {
   const [everywhere, setEverywhere] = useStoredState<boolean>('seismic-activity-all-projects', false);
   const all = allProjects || everywhere;
-  // the lines shown, newest first; `paged` once older pages were added under the first
+  
   const [list, setList] = useState<{ entries: ActivityEntry[]; more: boolean; paged: boolean }>({ entries: [], more: false, paged: false });
   const [loaded, setLoaded] = useState(false);
   const scope = `${project}/${all}`;
   const was = useRef(scope);
-  // the first page, read again with every change; the lines loaded under it stay as long as the new page reaches them
+  
   useEffect(() => {
     let current = true;
     if (was.current !== scope) {
@@ -39,7 +39,7 @@ export function ActivityTab({ project, changed, open, onGo, allProjects }: { pro
       setLoaded(true);
       setList((l) => {
         const fresh = new Set(p.entries.map((e) => e.id));
-        // more new lines than a page leave a gap to those loaded before: the list starts over from the newest
+        
         if (!l.paged || (p.more && !l.entries.some((e) => fresh.has(e.id)))) return { entries: p.entries, more: p.more, paged: false };
         return { ...l, entries: [...p.entries, ...l.entries.filter((e) => !fresh.has(e.id))] };
       });
@@ -56,7 +56,7 @@ export function ActivityTab({ project, changed, open, onGo, allProjects }: { pro
     const at = scope;
     api.activity(project, all, last.id).then((p) => {
       if (was.current !== at) return;
-      // a list that started over meanwhile ends elsewhere: this page does not join it
+      
       setList((l) => l.entries.at(-1)?.id !== last.id ? l : ({ entries: [...l.entries, ...p.entries.filter((e) => !l.entries.some((o) => o.id === e.id))], more: p.more, paged: true }));
     }, console.error).finally(() => void (loading.current = false));
   };
@@ -88,7 +88,7 @@ export function ActivityTab({ project, changed, open, onGo, allProjects }: { pro
             const d = t.archive.day(new Date(e.at));
             const heading = d !== day && (day = d);
             return (
-              // the card's compact face under the line, fitted into the row (`actCard`)
+              
               <li key={e.id} className="activity-row">
                 {heading && <h3 className="activity-day mt-2 mx-0.5 mb-0 text-2xs font-semibold tracking-[.04em] uppercase text-muted-foreground">{heading}</h3>}
                 <div className="activity-what flex items-center gap-2 mt-0 mx-0.5 mb-1.5 text-xs text-muted-foreground">

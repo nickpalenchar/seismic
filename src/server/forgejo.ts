@@ -1,23 +1,23 @@
-// Pull requests on Forgejo and Gitea (Codeberg, a server of one's own), through their REST API with
-// the login git has for the host. Tests use canned answers.
+
+
 
 import { messageOf } from '../core/text';
 import { type Forge, type PrStatus, parsePrUrl, verdictOf, withBodyFile } from './forge';
 import { spawnOutput } from './spawn';
 import { GIT } from './workstations';
 
-/**
- * One call of the API below `<base>/api/v1/`; returns the parsed answer (undefined for an empty one)
- * and throws a `ForgeError` with the server's reason.
- */
+
+
+
+
 export type Api = (cwd: string, base: string, method: 'GET' | 'POST' | 'PATCH', path: string, body?: unknown) => Promise<unknown>;
 
 export class ForgeError extends Error {
   constructor(
-    /** The server's reason as it gave it. */
+    
     readonly reason: string,
     readonly where: string,
-    /** The HTTP status it answered with, where it answered. */
+    
     readonly code?: number,
   ) {
     super(`${reason} (${where})`);
@@ -50,7 +50,7 @@ interface FjReview {
   user: FjUser | null;
   body: string;
   state: string;
-  /** A request for changes dismissed since keeps its state. */
+  
   dismissed?: boolean;
   submitted_at?: string;
   comments_count: number;
@@ -116,7 +116,7 @@ export const makeForgejoForge = (forgejo: Api, origin: (cwd: string) => Promise<
     forgejo(cwd, base, method, path, body).catch((e: unknown) => {
       throw e instanceof ForgeError && e.code === 404 ? new ForgeError(`${e.reason}; ${gheHint(new URL(base).host)}`, e.where, e.code) : e;
     });
-  /** By PR: the head Forgejo could not merge at the last look. */
+  
   const unmergeable = new Map<string, string>();
   /** Every page of a list (the server's page size may be smaller than asked). */
   const all = async <T>(cwd: string, base: string, path: string): Promise<T[]> => {
@@ -131,41 +131,41 @@ export const makeForgejoForge = (forgejo: Api, origin: (cwd: string) => Promise<
   return {
     async status(cwd, url) {
       const { base, repo, pull, number } = where(url);
-      // side by side where one call does not need another's answer: each is a round trip to the server
+      
       const [pr, allReviews, conversation, commits, viewer] = await Promise.all([
         api(cwd, base, 'GET', pull) as Promise<FjPr>,
         all<FjReview>(cwd, base, `${pull}/reviews`),
-        // every page: a request on a later one must not let the PR pass for ready
+        
         all<FjComment>(cwd, base, `${repo}/issues/${number}/comments`),
         all<{ commit: { committer: { date: string } }; parents?: unknown[] }>(cwd, base, `${pull}/commits?verification=false&files=false`),
-        // the account the login is for: on a review card, its comments are the owner's own
+        
         (api(cwd, base, 'GET', 'user') as Promise<FjUser | undefined>).then((u) => u?.login, () => undefined),
       ]);
       const reviews = allReviews.filter((r) => r.state !== 'PENDING');
       const inline = (
         await Promise.all(reviews.filter((r) => r.comments_count > 0).map((r) => api(cwd, base, 'GET', `${pull}/reviews/${r.id}/comments`) as Promise<FjInline[]>))
       ).flat();
-      // every page: a check on a later one that failed must not let the PR pass for ready
+      
       const statuses: { context: string; status: string; target_url?: string }[] = [];
       for (let page = 1; page <= 20; page++) {
         const got = ((await api(cwd, base, 'GET', `${repo}/commits/${pr.head.sha}/status?limit=50&page=${page}`)) as { statuses?: typeof statuses } | undefined)?.statuses;
         if (!got?.length) break;
         statuses.push(...got);
       }
-      // merging the base in brings changes reviewed there: the PR's own changes are its other commits
+      
       const changedAt = commits
         .filter((c) => (c.parents?.length ?? 1) < 2)
         .map((c) => utc(c.commit.committer.date))
         .reduce<string | undefined>((a, d) => (!a || d > a ? d : a), undefined);
-      // Forgejo keeps no threads: a thread is the comments on one line of one file, the first of them opens it
+      
       const threads = new Map<string, FjInline[]>();
       for (const c of [...inline].sort((a, b) => utc(a.created_at).localeCompare(utc(b.created_at)) || a.id - b.id)) {
         const key = `${c.path}:${c.position ?? 0}:${c.original_position ?? 0}`;
         threads.set(key, [...(threads.get(key) ?? []), c]);
       }
       const login = (u: FjUser | null) => u?.login ?? 'ghost';
-      // Forgejo says only whether it can merge now: not while it still checks a new head (seconds to
-      // minutes), nor on a conflict; a head it still cannot merge at the next look has a conflict
+      
+      
       const conflict = !pr.mergeable && !pr.draft && unmergeable.get(url) === pr.head.sha;
       if (pr.mergeable || pr.draft) unmergeable.delete(url);
       else unmergeable.set(url, pr.head.sha);
@@ -189,7 +189,7 @@ export const makeForgejoForge = (forgejo: Api, origin: (cwd: string) => Promise<
             author: login(c.user),
             body: c.body,
             ...(c.created_at ? { at: utc(c.created_at) } : {}),
-            // an edit within a minute of writing is part of writing it
+            
             ...(c.created_at && c.updated_at && Date.parse(c.updated_at) - Date.parse(c.created_at) > 60_000 ? { edited: utc(c.updated_at) } : {}),
             url: c.html_url,
           })),
@@ -222,7 +222,7 @@ export const makeForgejoForge = (forgejo: Api, origin: (cwd: string) => Promise<
     },
     async merge(cwd, url, head) {
       const { base, repo, pull } = where(url);
-      // the repository's own merge styles; squash first where it allows several
+      
       const allows = (await api(cwd, base, 'GET', repo)) as Record<string, boolean | undefined>;
       const styles = [
         ['squash', 'allow_squash_merge'],
@@ -240,7 +240,7 @@ export const makeForgejoForge = (forgejo: Api, origin: (cwd: string) => Promise<
       try {
         return ((await api(cwd, base, 'GET', pull)) as FjPr).merge_commit_sha || undefined;
       } catch {
-        // merged all the same: the first fetch after it stands in for the commit (WorkerSupervisor.merged)
+        
         return undefined;
       }
     },
@@ -287,10 +287,10 @@ export const makeForgejoForge = (forgejo: Api, origin: (cwd: string) => Promise<
   };
 };
 
-/**
- * Logins by workstation and repository, read from git for a while: each round of the watcher makes
- * several calls, some side by side, which wait for the one reading.
- */
+
+
+
+
 const logins = new Map<string, { auth: Promise<string>; at: number }>();
 
 /**
@@ -318,9 +318,9 @@ async function loginFor(cwd: string, base: string, path: string): Promise<{ auth
   const fresh = !known || Date.now() - known.at >= 10 * 60_000;
   if (fresh) logins.set(key, (known = { auth: credential(cwd, base, url), at: Date.now() }));
   const entry = known!;
-  // only this login goes: one read since in its place stays
+  
   const forget = () => void (logins.get(key) === entry && logins.delete(key));
-  // a failure is not kept: the next call asks git again
+  
   if (fresh) entry.auth.catch(forget);
   return { auth: await entry.auth, forget };
 }
@@ -330,8 +330,8 @@ async function credential(cwd: string, base: string, url: string): Promise<strin
   const r = await spawnOutput([GIT, 'credential', 'fill'], {
     cwd,
     stdin: Buffer.from(`url=${url}\n\n`),
-    // asks nobody: no terminal, no askpass program (an empty one ends git's search for one), no dialog
-    // of Git Credential Manager; a keyring that opens one anyway is cut off
+    
+    
     env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: '', GCM_INTERACTIVE: 'never' },
     timeout: 15_000,
   });

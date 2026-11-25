@@ -1,29 +1,29 @@
-// Reads a living plan doc (markdown) into a plan and its workstreams.
-//
-// The shape follows the common template: a `# Title`, a `## Goal` section and a `## Workstreams`
-// checklist whose top-level items are the workstreams (`- [x] **W3:** Title. Details …`).
-// A doc without a workstream checklist is not a plan (design notes, templates); the parse says
-// why, for the owner to see.
+
+
+
+
+
+
 
 export interface PlanDoc {
   file: string;
   title: string;
-  /** First paragraph of the goal section, inline markdown. */
+  
   goal: string;
   workstreams: Workstream[];
-  /** The doc as written, for the owner to read. */
+  
   markdown: string;
 }
 
 export interface Workstream {
-  /**
-   * Who the workstream is, whatever its place in the doc: the label, else its title as a slug (a
-   * pull request's number before it aside); `#n` only for an item whose title has no letter or digit.
-   */
+  
+
+
+
   key: string;
   label?: string;
   title: string;
-  /** Everything after the title, inline markdown; sub-items on their own lines. */
+  
   body: string;
   done: boolean;
   inReview: boolean;
@@ -32,18 +32,18 @@ export interface Workstream {
 const GOAL_HEADING = /^goals?\b/i;
 const WORKSTREAMS_HEADING = /^workstreams?\b/i;
 const ITEM = /^- \[([ xX])\]\s+(.*)$/;
-// `W3`, `W3a`, `W1.2`, `WP`, and the short codes other docs use (`S1:`, `A1 —`, `1G.`)
+
 const CODE = String.raw`(?:[A-Z]{1,3}\d+[a-z]?(?:\.\d+)?|\d+[A-Z])`;
 const AFTER_LABEL = String.raw`\s*(?:\(([^)]*)\))?\s*[:.—–-]?\s*(.*)$`;
 const LABEL = new RegExp(String.raw`^((?:W\d+[a-z]?(?:\.\d+)?|W[A-Z]{1,3})\b|${CODE}(?=$|\s*[:—–(]|\.(?:\s|$)))${AFTER_LABEL}`);
-// a code before a space alone (`4A Title`) is a label where the doc's items use codes, not in a title of its own (`K8s Cluster`)
+
 const SPACED_LABEL = new RegExp(String.raw`^(${CODE})(?=\s)${AFTER_LABEL}`);
 const SPACED_CODE = new RegExp(String.raw`^\*\*${CODE}\s`);
 
-/** Why a doc in the plan directory is not a plan: no `## Workstreams` section, or one without a checklist. */
+
 export type NotAPlan = 'noWorkstreams' | 'noChecklist';
 
-/** A doc in the plan directory that is not a plan, with the reason. */
+
 export interface OtherDoc {
   file: string;
   reason: NotAPlan;
@@ -93,7 +93,7 @@ function firstParagraph(lines: string[]): string {
 }
 
 function parseWorkstreams(lines: string[]): Workstream[] {
-  // group each top-level checklist item with its indented continuation lines
+  
   const raw: { done: boolean; lines: string[] }[] = [];
   let cur: { done: boolean; lines: string[] } | null = null;
   for (const line of lines) {
@@ -107,10 +107,10 @@ function parseWorkstreams(lines: string[]): Workstream[] {
 
   const spaced = raw.filter((r) => SPACED_CODE.test(r.lines[0]!)).length >= 2;
   const items = raw.map((r) => {
-    // the first paragraph is the item's own text; indented sub-items follow on their own lines
+    
     const firstSub = r.lines.findIndex((l, j) => j > 0 && /^\s+([-*+]|\d+\.)\s/.test(l));
     const own = (firstSub < 0 ? r.lines : r.lines.slice(0, firstSub)).map((l) => l.trim()).join(' ');
-    // sub-items one per line; a wrapped line joins the item it continues
+    
     const subs: string[] = [];
     for (const l of firstSub < 0 ? [] : r.lines.slice(firstSub)) {
       const line = l.replace(/^ {2}/, '').trimEnd();
@@ -120,7 +120,7 @@ function parseWorkstreams(lines: string[]): Workstream[] {
     const { label, note, title, rest } = splitItem(own, spaced);
     return { r, label, note, title, rest, subs };
   });
-  // a label the doc gives twice tells its items apart by their titles, not by their order
+  
   const twice = new Set(items.flatMap((x, i) => (x.label && items.findIndex((y) => y.label === x.label) !== i ? [x.label] : [])));
   const seen = new Set<string>();
   return items.map(({ r, label, note, title, rest, subs }, i) => {
@@ -153,7 +153,7 @@ function splitItem(text: string, spaced: boolean): { label?: string; note?: stri
     const m = LABEL.exec(bold) ?? (spaced ? SPACED_LABEL.exec(bold) : null);
     const label = m?.[1];
     const inBold = trimPunct(m ? m[3]! : bold);
-    // a pull request's number alone is no title: the text after it goes with it
+    
     if (inBold && isReference(inBold)) return { label, note: m?.[2], ...cutTitle(`${(m ? m[3]! : bold).trim()} ${after}`) };
     if (inBold) return { label, note: m?.[2], title: inBold, rest: stripLead(after) };
     return { label, note: m?.[2], ...cutTitle(after) };
@@ -229,7 +229,7 @@ export function workstreamAliases(w: Pick<Workstream, 'label' | 'title'>, titled
   const spaced = w.label ? null : SPACED_TITLE.exec(w.title);
   const label = w.label ?? spaced?.[1];
   const title = w.label ? w.title : spaced?.[2];
-  // `titled`: only the keys that name the title too, which a label alone does not
+  
   const keys = [titleKey(w.label ? `${w.label} ${w.title}` : w.title), ...(label ? [...(titled ? [] : [label]), `${label}~${titleKey(title!)}`] : [])];
   return [...new Set(keys.filter((k) => k && !k.endsWith('~')))];
 }

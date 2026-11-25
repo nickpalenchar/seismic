@@ -1,5 +1,5 @@
-// Spoken (or typed) commands: the Koordinator reads what the owner said as one or more actions,
-// confirms them in one sentence, and runs them after a short delay unless the owner takes them back.
+
+
 
 import { z } from 'zod';
 import { currentAgent } from './llms/harnesses/identity';
@@ -22,78 +22,78 @@ import { clip, oneLine, messageOf } from '../core/text';
 import type { Wish } from '../core/wish';
 
 export type Command = (
-  /**
-   * `from`: the card it follows up on; `place`: where the owner was on the project, for one without;
-   * `until` (ISO): it is planned and starts by itself then, as a planned card the owner snoozed.
-   */
-  /** `project`: another project of this Seismic, where the card goes instead (into its home repository). */
+  
+
+
+
+  
   | { do: 'newCard'; title: string; body: string; start: boolean; until?: string; repo?: string; from?: string; place?: Place; project?: string }
   | { do: 'newIdea'; title: string; body: string; repo?: string; place?: Place; project?: string }
-  /**
-   * An idea is built, or a planned task started, in a repository that does not exist yet, at `path`:
-   * with a project of its own (`project`), or on this one.
-   */
+  
+
+
+
   | { do: 'newRepo'; card: string; path: string; project: boolean }
-  /**
-   * A review card for someone outside's pull request (`pr`: its number in the repository, or its
-   * URL), started; `text`: what the owner added for the review. Where the PR has a card, that one
-   * opens instead and its worker gets the text.
-   */
+  
+
+
+
+
   | { do: 'reviewPr'; pr: string; text: string; repo?: string; spoken?: boolean; place?: Place }
-  /** `force` starts a card that waits behind others now, despite the likely merge conflict. */
+  
   | { do: 'start' | 'force' | 'approve' | 'dequeue' | 'dismiss' | 'keep' | 'stop' | 'pause' | 'resume' | 'wake' | 'build' | 'splitOff' | 'planDoc' | 'park' | 'drop'; card: string }
-  /** Set aside until `until` (ISO), or a snoozed card's time changed. */
+  
   | { do: 'snooze'; card: string; until: string }
-  /** `idea`: a proposed task is taken as an idea to discuss first. */
+  
   | { do: 'accept'; card: string; idea?: boolean }
-  /** On a prototype: build its idea on it (or `workstream`, of the plan the idea became), or throw it away. */
+  
   | { do: 'buildPrototype'; card: string; workstream?: string }
   | { do: 'discard'; card: string }
-  /** `spoken`: the words came through speech recognition (the default), not typed. */
-  /** `revise`: the owner's words on a proposal, which an agent reworks it by. */
+  
+  
   | { do: 'note' | 'answer' | 'feedback' | 'discuss' | 'prototype' | 'revise'; card: string; text: string; spoken?: boolean }
-  /** Saves Seismic's configuration, which then starts again with it. */
+  
   | { do: 'configure'; projects: ProjectConfig[] }
-  /**
-   * Records a rule every agent follows, active at once, or with `repos` files it for those
-   * repositories' CLAUDE.md; `replaces`: the rule (id) it changes, `card`: the card open when the owner said it.
-   */
+  
+
+
+
   | { do: 'remember'; text: string; replaces?: number; card?: string; repos?: string[] }
-  /** Runs the work retrospective of a repository now. */
+  
   | { do: 'workRetro'; repo: string }
-  /** Puts the cards into the group of that name, a new one when the project has none of that name. */
+  
   | { do: 'group'; cards: string[]; name: string }
   | { do: 'ungroup'; cards: string[] }
   | { do: 'renameGroup'; group: string; name: string }
-  /** Canvases of the project: a new one, one renamed, its icon changed (`null`: none) or moved in the order (`position`, from 1), an empty one deleted, cards moved onto one. */
+  
   | { do: 'newCanvas'; name: string; icon?: string }
   | { do: 'changeCanvas'; canvas: string; name?: string; icon?: string | null; position?: number }
   | { do: 'deleteCanvas'; canvas: string }
-  /** `newCanvas`: instead of `canvas`, the canvas of that name a new canvas action of the same command creates. */
+  
   | ({ do: 'moveToCanvas'; cards: string[] } & ({ canvas: string } | { newCanvas: string }))
-  /**
-   * The Koordinator waits until the card is done or waits for the owner, and then takes the step
-   * `then`; `newCard`: instead of `card`, the card of that title a new card action of the same command creates.
-   */
+  
+
+
+
   | { do: 'waitFor'; card?: string; newCard?: string; state: AwaitedState; then: string }
-  /** It no longer waits on the card. */
+  
   | { do: 'stopWaiting'; card: string }
-  /** Planned tasks nobody has worked on (`others`) merged into `card`, which stays, titled `title`; the others go. */
+  
   | { do: 'merge'; card: string; others: string[]; title: string }
-  /** A planned task nobody has worked on, deleted. */
+  
   | { do: 'delete'; card: string }
 ) & {
-  /** Screenshots that came with the command (image ids), on the actions that take them (`TAKES_IMAGES`). */
+  
   images?: string[];
 };
 
-/**
- * Actions whose words reach the learner on their own way (a note, an idea's discussion) or are a
- * rule already: a command with one of them is not offered for learning again.
- */
+
+
+
+
 const LEARNED: Command['do'][] = ['note', 'answer', 'feedback', 'discuss', 'newIdea', 'remember'];
 
-/** An idea's suggested next step, as the Koordinator reads it: the action it would take, or answering the questions. */
+
 const NEXT_ACTION: Record<NextStep['step'], string> = {
   answer: 'have the owner answer its open questions (discuss)',
   build: 'build',
@@ -111,35 +111,35 @@ const asks = (i: Item) => {
   return open.length ? ` — open question${open.length > 1 ? 's' : ''}${i.state === 'waiting' && i.need === 'demo' ? ' in its demo report' : ''}: ${each.join(' | ')}` : '';
 };
 
-/** The actions a command's screenshots go with: those that create a card, start one or say something to its agent. */
+
 const TAKES_IMAGES: Command['do'][] = ['newCard', 'newIdea', 'start', 'force', 'note', 'answer', 'feedback', 'discuss', 'revise'];
 
-/** Actions whose text goes to an agent: a card's, or the one that reworks a proposal. */
+
 const TO_AGENT: Command['do'][] = ['note', 'answer', 'feedback', 'discuss', 'revise'];
 
 export interface Heard {
-  /** What the owner reads back. */
+  
   confirm: string;
-  /** Takes the actions back while they wait; absent when there was nothing to do. */
+  
   token?: string;
-  /** Said to the agent of the card the owner has open: it went straight there and stands in the card's conversation, which is confirmation enough. */
+  
   quiet?: boolean;
-  /** The owner asked to tell Seismic's makers something: the page opens the draft for them with it. */
+  
   wish?: Wish;
-  /** The reply says Seismic cannot do what the owner asked: a link under it offers to report that as a wish. */
+  
   cannot?: true;
-  /** The exchange of Seismic's sheet the reply stands in (none with a card open): a page that shows the sheet needs no line above the microphone. */
+  
   talk?: number;
 }
 
 export interface Focus {
   card?: string;
   plan?: string;
-  /** Where on the project the owner was: a new card goes there. */
+  
   place?: Place;
 }
 
-/** The field on the open card a typed command came from. */
+
 export type Field = 'note' | 'answer' | 'feedback' | 'demo' | 'discuss' | 'revise';
 const FIELDS: Record<Field, string> = {
   note: "the field for a note to the card's agent",
@@ -151,48 +151,48 @@ const FIELDS: Record<Field, string> = {
 };
 export const isField = (f: unknown): f is Field => typeof f === 'string' && f in FIELDS;
 
-/**
- * How the owner gave a command: spoken (the default) or typed, and then in which field of the open
- * card; `forwarded`: the request the open card's agent passed on from the owner's words to it.
- */
+
+
+
+
 export interface Input {
-  /** The chat captured when the owner sent the words. */
+  
   chat?: number;
   requestId?: string;
   typed?: boolean;
   field?: Field;
   forwarded?: string;
-  /** The owner's words beside a forwarded request are the card's task, which the owner gave: they said nothing on the card since. */
+  
   task?: boolean;
-  /** The message of the open card's conversation the words reply to, or with no card open the message of the sheet (`TalkRef`). */
+  
   replyTo?: number | TalkRef;
-  /** The place in the open card's demo video the words are about; only its agent hears of it. */
+  
   spot?: SpotInput;
-  /** When the owner said the words, read only now since the usage limit held them (ISO time). */
+  
   heldSince?: string;
-  /** No words: a card the Koordinator waited on got there (or no longer can), and it takes up the step it said it would take then. */
+  
   after?: AfterWait;
-  /** No words: the answer the Koordinator looked up for an action is in, and it takes up the step it said it would take with it. */
+  
   answered?: AfterAnswer;
 }
 
-/** The step the Koordinator takes up once the answer it looked up is in: the exchange that asked, its answer, and the step. */
+
 export interface AfterAnswer {
   from: number;
   question: string;
   answer: string;
   then: string;
-  /** The owner's words and the Koordinator's reply that said it would look it up, and when. */
+  
   said: string;
   promised: string;
   at: string;
 }
 
-/** The step the Koordinator takes up once the card it waited on got there: what it was, and the exchange it said so in. */
+
 export interface AfterWait extends TalkAfter {
   card: string;
   then: string;
-  /** The owner's words and the Koordinator's reply that said it would wait, and when. */
+  
   said: string;
   promised: string;
   at: string;
@@ -202,74 +202,74 @@ export interface CommanderOptions {
   board: Board;
   runtime: AgentRuntime;
   cwd: string;
-  /** Runs a command; what it throws is logged on the card. */
+  
   execute: (c: Command) => unknown | Promise<unknown>;
-  /** How long a command waits for "Undo". */
+  
   delayMs?: number;
-  /** Commands one session reads; the next one starts from the stored memory. */
+  
   sessionCommands?: number;
-  /** A question the Koordinator could not answer at once: looked up, and answered later. */
+  
   lookUp?: (talk: number) => void;
-  /** The files of the owner's screenshots, by id; unknown ones are left out. */
+  
   imageFiles?: (ids?: string[]) => string[];
-  /** Seismic's configuration: the Koordinator reads it, and changes it on the owner's word. */
+  
   config?: Pick<Config, 'view' | 'check' | 'checkSaved'>;
-  /** The other projects that run now: a new card or idea may go there. */
+  
   projects?: () => { id: string; name: string }[];
-  /** How long after the usage limit lifts the Koordinator reads the words it held, so that clocks a little apart do not matter. */
+  
   limitMargin?: number;
-  /** The Koordinator's model and effort; another one chosen since takes a new session. */
+  
   agentSetting?: () => AgentSetting;
-  /**
-   * Called with what the owner said, so lasting preferences can be learned: a question or remark
-   * the Koordinator replied to (`talk`), or a command once it runs; `card` is the one open.
-   */
+  
+
+
+
   onOwnerInput?: (card: string | undefined, kind: 'command' | 'talk', text: string, reply: string) => void;
 }
 
-/** The Koordinator's conversation with the owner: one agent session that reads command after command. */
+
 interface Session {
   agent: AgentSession;
   ended: boolean;
-  /** The interface and conversation languages it started with (`ui/conversation`); others chosen since take a new session. */
+  
   languages: string;
-  /** The model and effort it started with, as JSON. */
+  
   choice: string;
-  /** The owner's chat it remembers; another one opened since takes a new session. */
+  
   chat: number;
-  /** Tags of the cards it has seen; they stay the same for the session, so earlier messages stay right. */
+  
   tags: Map<string, string>;
   tagOf: Map<string, string>;
-  /** Commands it has read so far; the first one brings the memory. */
+  
   read: number;
-  /** Up to where it knows the project's history; none before the first command. */
+  
   since?: Mark;
-  /** The rules as numbered in the latest message (their ids), for `remember` to name the one it changes. */
+  
   rules: number[];
-  /** The command being read; `from`: the card whose agent passed it on. */
+  
   reading?: {
     from?: string;
-    /** What the owner looked at when they spoke. */
+    
     focus?: Focus;
     finish: (commands: Command[], confirm: string, lookUp?: LookUp, more?: More) => string;
-    /** The turn ended, with the error that ended it. */
+    
     end: (error?: Error) => void;
   };
 }
 
-/**
- * A question to look up: what the owner asked, the card it is about, the answer it follows up on (an
- * exchange), and the step to take once the answer is in, when the owner asked for an action that needs it.
- */
+
+
+
+
 type LookUp = { question: string; about?: string; follows?: number; then?: string };
-/** `wish`: what the owner wants Seismic's makers told; `cannot`: the reply says Seismic cannot do what they asked. */
+
 type More = { wish?: string; cannot?: boolean };
 type Decision = { commands: Command[]; confirm: string; lookUp?: LookUp; agent?: import('../core/types').AgentIdentity } & More;
 
-/** The actions `act` takes, as the Koordinator names them. */
+
 const ACTIONS = ['new_card', 'new_idea', 'review_pr', 'start', 'dequeue', 'note', 'answer', 'feedback', 'approve', 'accept', 'dismiss', 'keep', 'revise', 'stop', 'pause', 'resume', 'snooze', 'wake', 'discuss', 'build', 'split_off', 'plan_doc', 'prototype', 'park', 'drop', 'remember', 'work_retro', 'group', 'ungroup', 'rename_group', 'new_canvas', 'change_canvas', 'delete_canvas', 'move_to_canvas', 'merge', 'delete', 'wait_for', 'stop_waiting', 'wish'] as const;
 
-/** What `act` gets for one action. */
+
 const ACTION = z.object({
   do: z.enum(ACTIONS),
   card: z.string().optional(),
@@ -297,22 +297,22 @@ const ACTION = z.object({
 });
 type ActionArgs = z.infer<typeof ACTION>;
 
-/** Actions in one command, at most: "start all queued cards" may name many. */
+
 const MAX_ACTIONS = 20;
 
-/** How far back a fresh session's memory reaches. */
+
 const REMEMBERED_EXCHANGES = 20;
-/** Looked-up answers a fresh session gets in full, the newest; older ones are clipped. */
+
 const FULL_ANSWERS = 5;
 const HISTORY_DAYS = 14;
 const HISTORY_STEPS = 60;
-/** What happened between two commands, at most. */
+
 const NEWS_STEPS = 40;
 
-/**
- * Commands understood from the owner's words, as they wait for "Undo". `said`: the owner's
- * words, to learn from once they run, unless they reach the learner another way.
- */
+
+
+
+
 interface Waiting {
   commands: Command[];
   said?: string;
@@ -321,16 +321,16 @@ interface Waiting {
   card?: string;
 }
 
-/** A command whose undo window ends sooner than this is not offered for undo again. */
+
 const UNDO_SHOWN_MS = 1000;
 
-/** Words the usage limit kept the Koordinator from reading, and how it reads them once the limit lifts. */
+
 interface Held {
   transcript: string;
   images: string[];
   focus: Focus;
   input: Input;
-  /** When the owner said them (ISO time). */
+  
   at: string;
 }
 
@@ -345,20 +345,20 @@ class LimitError extends Error {
 }
 
 export class Commander {
-  /**
-   * Commands between being understood and having run; the timer is set once the owner has the
-   * confirmation, and from then on they are kept in the database too, so a restart in the undo
-   * window does not lose them.
-   */
+  
+
+
+
+
   private waiting = new Map<string, Waiting & { due?: number; timer?: ReturnType<typeof setTimeout>; running?: boolean }>();
   private session: Session | null = null;
-  /** Commands are read one after the other, each once the previous turn has ended. */
+  
   private turns: Promise<unknown> = Promise.resolve();
-  /** What the Koordinator hears with the next command: actions the owner took back. */
+  
   private news: string[] = [];
-  /** Words the usage limit holds, by their exchange, in the order the owner said them; read once it lifts. */
+  
   private held = new Map<number, Held>();
-  /** When the Koordinator tries again to read what the usage limit holds. */
+  
   private heldUntil = 0;
   private heldTimer?: ReturnType<typeof setTimeout>;
   private draining?: Promise<void>;
@@ -372,15 +372,15 @@ export class Commander {
    */
   async hear(transcript: string, focus: Focus, images: string[] = [], input: Input = {}): Promise<Heard> {
     const card = focus.card && this.o.board.item(focus.card) ? focus.card : undefined;
-    // passed on by the card's agent: the owner's words stand in the card's conversation already
+    
     const said = input.forwarded ? undefined : transcript;
     const replyTo = card ? this.o.board.quoted(card, input.replyTo)?.id : undefined;
     const quoted = card ? undefined : this.o.board.quotedTalk(input.replyTo);
-    // the owner's words stand in the conversation at once, the Koordinator's reply follows once it has read them
+    
     const talk = this.o.board.addTalk(transcript, '', card ?? null, undefined, images, quoted, undefined, undefined, undefined, input.chat, input.requestId);
     if (card && said) this.o.board.log(card, 'say', 'owner', said, { images, replyTo });
     const held: Held = { transcript, images, focus, input: { ...input, chat: input.chat ?? this.o.board.chat() }, at: new Date().toISOString() };
-    // what the usage limit held is read first, in the order it was said; while the limit holds, these words wait with it
+    
     await this.drain();
     const h = this.held.size ? this.hold(talk, held) : ((await this.answer(talk, held)) ?? this.hold(talk, held));
     return card ? h : { ...h, talk };
@@ -391,9 +391,9 @@ export class Commander {
     const card = focus.card && this.o.board.item(focus.card) ? focus.card : undefined;
     const said = input.forwarded ? undefined : transcript;
     const replyTo = card ? this.o.board.quoted(card, input.replyTo)?.id : undefined;
-    // a reply that only answers (no actions to take back, no answer to look up) waits in the sheet
-    // until the owner sees it, as a looked-up answer does: it may come once the sheet is closed; on a
-    // card it stands in the conversation, where a confirmation folds away
+    
+    
+    
     const reply = (confirm: string, lookUp?: { question: string; about: string | null }, wish?: Wish, waits = false) => {
       this.o.board.replyTalk(talk, confirm, lookUp, wish, waits, decision?.agent);
       if (card) this.o.board.log(card, 'say', 'koordinator', confirm, { agent: decision?.agent, ...(wish ? { wish } : {}), ...(waits ? { reply: true as const } : {}), ...(input.forwarded ? { forwarded: true as const } : {}) });
@@ -406,22 +406,22 @@ export class Commander {
         this.heldUntil = limitLifts(e.limit, this.o.limitMargin ?? 10_000);
         return undefined;
       }
-      // the Koordinator's session failed (not logged in, say): the owner hears why, not that they went unheard
+      
       const t = this.o.board.t;
       const confirm = t.voice.couldNotRead(failureReason(messageOf(e), t));
       reply(confirm, undefined, undefined, true);
       return { confirm };
     }
     const { confirm, lookUp } = decision;
-    // a draft for Seismic's makers: what the owner wants them told, or what they asked and Seismic could not do
+    
     const wish: Wish | undefined = decision.wish ? { said: decision.wish } : decision.cannot && !lookUp ? { said: transcript, answer: confirm } : undefined;
     const drafted = { ...(decision.wish ? { wish: wish! } : {}), ...(wish && !decision.wish ? { cannot: true as const } : {}) };
-    // a proposal is reworked by what the owner said of it in their own words, however the Koordinator put them
+    
     const verbatim = !input.forwarded && !input.after && !input.answered && decision.commands.length === 1 && decision.commands[0]!.do === 'revise';
     const commands = decision.commands.map((c): Command => {
-      // a rule said with a card open has that card as its occasion
+      
       if (c.do === 'remember') return card ? { ...c, card } : c;
-      // a new card lands where the owner was on the project; a follow-up goes beside the card it follows
+      
       if (focus.place && ((c.do === 'newCard' && !c.from) || c.do === 'newIdea' || c.do === 'reviewPr')) c = { ...c, place: focus.place };
       if (c.do === 'reviewPr') return { ...c, spoken: !input.typed };
       const told =
@@ -431,7 +431,7 @@ export class Commander {
       return images.length && TAKES_IMAGES.includes(c.do) ? { ...told, images } : told;
     });
     if (lookUp) {
-      // nothing to take back: the answer follows once it is looked up
+      
       const about = lookUp.about ?? card ?? (focus.plan && this.o.board.item(focus.plan) ? focus.plan : undefined);
       reply(confirm, { question: lookUp.question, about: about ?? null });
       if (lookUp.follows) this.o.board.followTalk(talk, lookUp.follows);
@@ -440,7 +440,7 @@ export class Commander {
       if (said) this.o.onOwnerInput?.(card, 'talk', said, confirm);
       return { confirm };
     }
-    // talking about an idea changes nothing that would need taking back: it goes on at once
+    
     const talking = commands.filter((c) => c.do === 'discuss');
     const rest = commands.filter((c) => !talking.includes(c));
     reply(confirm, undefined, wish, !commands.length);
@@ -448,7 +448,7 @@ export class Commander {
     if (!commands.length && said && !decision.wish) this.o.onOwnerInput?.(card, 'talk', said, confirm);
     if (!rest.length) return { confirm, ...drafted };
     const token = crypto.randomUUID();
-    // the words reach the learner as the agent's note when an agent passed them on
+    
     const learn = said && !commands.some((c) => LEARNED.includes(c.do)) ? { said } : {};
     this.waiting.set(token, { commands: rest, ...learn, talk, confirm, ...(card ? { card } : {}) });
     return { confirm, token, ...drafted };
@@ -473,7 +473,7 @@ export class Commander {
 
   private waitForLimit() {
     clearTimeout(this.heldTimer);
-    // a timer runs at most about 24 days
+    
     this.heldTimer = setTimeout(() => void this.drain(), Math.min(Math.max(0, this.heldUntil - Date.now()), 2 ** 31 - 1));
   }
 
@@ -486,7 +486,7 @@ export class Commander {
     return (this.draining ??= (async () => {
       clearTimeout(this.heldTimer);
       for (const [talk, h] of [...this.held]) {
-        // read now: "liest …" under the words
+        
         this.o.board.holdTalk(talk, null);
         const heard = await this.answer(talk, { ...h, input: { ...h.input, heldSince: h.at } });
         if (!heard) {
@@ -506,7 +506,7 @@ export class Commander {
    * command, with the card in focus and the owner's own words beside the agent's, as they were said or typed.
    */
   forward(card: string, request: string, said?: { text: string; spoken: boolean; task?: boolean }): Promise<Heard> {
-    // a plan's agent passes on what was written in its sheet: Seismic reads it with the plan open
+    
     const focus = this.o.board.item(card)?.kind === 'plan' ? { plan: card } : { card };
     return this.hear(said?.text ?? request, focus, [], { typed: !said?.spoken, forwarded: request, ...(said?.task ? { task: true } : {}) });
   }
@@ -536,14 +536,14 @@ export class Commander {
       this.waiting.set(token, w);
       this.schedule(token, w, due);
     }
-    // and the words the usage limit held are read once it lifts
+    
     for (const x of this.o.board.heldTalk()) {
       const { focus, input } = x.held.reading as Pick<Held, 'focus' | 'input'>;
       this.held.set(x.id, { transcript: x.said, images: x.images ?? [], focus, input, at: x.at });
       this.heldUntil = Math.max(this.heldUntil, Date.parse(x.held.until));
     }
     if (this.held.size) this.waitForLimit();
-    // and the steps whose answer came in before the stop, but were not decided yet
+    
     for (const x of this.o.board.answeredSteps()) this.answerIn(x.id);
   }
 
@@ -551,11 +551,11 @@ export class Commander {
     w.due = due;
     w.timer = setTimeout(async () => {
       w.running = true;
-      // a restart while they run cuts them off rather than running them twice
+      
       this.o.board.dropCommand(token);
-      // what the owner takes back is not learned from either
+      
       if (w.said) this.o.onOwnerInput?.(w.card, 'command', w.said, w.confirm);
-      // in the order the owner said them; one that fails does not hold up the others
+      
       const made = new Map<string, string>();
       const cards: NonNullable<Notice['made']> = [];
       for (const command of w.commands) {
@@ -566,9 +566,9 @@ export class Commander {
         }
       }
       this.waiting.delete(token);
-      // the conversation shows each card they made, apart from Seismic's words
+      
       if (cards.length) this.o.board.madeTalk(w.talk, cards.map(({ id, ...c }) => ({ card: id, ...c })));
-      // the confirmation's line offers to go to the cards it made, now that they are there
+      
       if (cards.length) this.o.board.notify({ text: w.confirm, token, made: cards, ...(w.card ? { cardId: w.card } : {}) });
     }, Math.max(0, due - Date.now()));
   }
@@ -638,7 +638,7 @@ export class Commander {
     const card = id ? this.o.board.item(id) : undefined;
     if (talk === undefined || !card) throw new Error(`the card to wait on is not there: ${c.then}`);
     const before = this.o.board.waitingTalk().find((x) => x.id === talk)?.waiting ?? [];
-    // several steps on one card each stand
+    
     this.o.board.waitTalk(talk, [...before, { card: card.id, title: card.title, state: c.state, then: c.then }]);
   }
 
@@ -657,7 +657,7 @@ export class Commander {
     return true;
   }
 
-  /** The waits being taken up, by exchange, card and step. */
+  
   private following = new Set<string>();
 
   /**
@@ -685,7 +685,7 @@ export class Commander {
    */
   private async follow(x: Talk, w: TalkWaitRow, met: Awaited) {
     const card = x.cardId && this.o.board.item(x.cardId) ? x.cardId : undefined;
-    // a card that got done also counts for a wait until it needs the owner: it is done, not waiting
+    
     const reached = met === 'reached' && finished(this.o.board.item(w.card)?.state ?? 'planned') ? 'done' : w.state;
     const after: TalkAfter = { title: w.title, state: reached, met, from: x.id };
     /** Takes the wait off its exchange; false when the owner dropped it meanwhile. */
@@ -706,7 +706,7 @@ export class Commander {
     await this.drain();
     const heard = this.held.size ? undefined : await this.answer(talk, h);
     if (!consume()) {
-      // dropped while it was read: what it decided does not happen
+      
       if (heard?.token) this.undo(heard.token);
       else if (!heard) {
         this.o.board.replyTalk(talk, this.o.board.t.voice.undone);
@@ -719,7 +719,7 @@ export class Commander {
     this.o.board.notify({ text: heard.confirm, ...(card ? { cardId: card } : { talk }), ...(heard.token ? { token: heard.token, undoMs: this.delayMs } : {}), ...(heard.wish ? { wish: heard.wish } : {}) });
   }
 
-  /** Looked-up answers whose step is being taken up, by exchange. */
+  
   private takingUp = new Set<number>();
 
   /**
@@ -744,9 +744,9 @@ export class Commander {
     const talk = this.o.board.addTalk('', '', card ?? null, undefined, x.images ?? [], undefined, undefined, undefined, x.id);
     const h: Held = {
       transcript: '',
-      // the screenshots of the owner's words go with the cards the step creates
+      
       images: x.images ?? [],
-      // the cards it creates land where the owner was when they asked for them, not where they look now
+      
       focus: { ...(card ? { card } : {}), ...(x.thenPlace ? { place: x.thenPlace } : {}) },
       input: { answered: { from: x.id, question: x.question, answer: x.answer, then: x.then, said: x.said, promised: x.reply ?? '', at: x.at } },
       at: new Date().toISOString(),
@@ -800,7 +800,7 @@ export class Commander {
 
   /** A session whose tools act on whatever command it is reading. */
   private open(chat = this.o.board.chat()): Session {
-    // the examples in the owner's conversation language, the names of Seismic's own cards in the interface's
+    
     const language = this.o.board.conversation();
     const ui = this.o.board.language();
     const t = MESSAGES[ui];
@@ -852,7 +852,7 @@ export class Commander {
           run: ({ actions, confirm }) => {
             const commands: Command[] = [];
             const problems: string[] = [];
-            // what the owner wants Seismic's makers told goes into a draft on their page, not into the actions that run
+            
             const wishes = (actions as ActionArgs[]).filter((a) => a.do === 'wish').map((a) => a.text?.trim() ?? '');
             if (wishes.some((w) => !w)) problems.push("wish: the text is missing (what the owner wants Seismic's makers told)");
             const given = (actions as ActionArgs[]).filter((a) => a.do !== 'wish');
@@ -1002,13 +1002,13 @@ export class Commander {
 
   /** One action as a command, or why it cannot be done. */
   private command(a: ActionArgs, s: Session, all: ActionArgs[] = [a]): Command | string {
-    // taken out before: it opens a draft, it does not run
+    
     if (a.do === 'wish') return 'a wish is no action that runs';
     if (a.do === 'wait_for') {
-      // cards by their titles: the tags of this session may name others by then
+      
       const then = a.text
         ?.trim()
-        // a tag beside the title it names goes; a bare one becomes that title
+        
         .replace(/\s*\(K\d+\)/g, '')
         .replace(/\bK\d+\s+(?=["„“])/g, '')
         .replace(/\bK\d+\b/g, (tag) => {
@@ -1017,7 +1017,7 @@ export class Commander {
         });
       if (!then) return 'the step you take then is missing (text)';
       const state: AwaitedState = a.state === 'waits_for_owner' ? 'waitsForOwner' : 'done';
-      // the card the step acts on, given beside the one waited on, leaves unclear which of them is which
+      
       if (a.on && a.card && a.on.trim() !== a.card.trim())
         return `on (${a.on}) and card (${a.card}) name two cards: give with on only the card to wait on, and name the card the step acts on in text`;
       const on = (a.on ?? a.card ?? a.title)?.trim();
@@ -1069,7 +1069,7 @@ export class Commander {
         cards.push(id);
       }
       if (a.do === 'ungroup') return { do: 'ungroup', cards };
-      // the name may come where rename_group takes the group
+      
       const name = (a.text || a.group)?.replace(/\s+/g, ' ').trim();
       if (!name) return "the group's name is missing (text)";
       if (name.length > 60) return "a group's name has at most 60 characters";
@@ -1077,7 +1077,7 @@ export class Commander {
     }
     if (a.do === 'rename_group') {
       const groups = this.o.board.snapshot().groups;
-      // group names are unique per canvas: the group is the one on the canvas the owner is looking at
+      
       const focus = s.reading?.focus ?? {};
       const open = this.o.board.item(focus.card ?? focus.plan ?? '');
       const canvas = open?.canvas ?? this.o.board.canvasFor(focus.place);
@@ -1146,7 +1146,7 @@ export class Commander {
     if (!card) return `unknown tag ${a.card ?? '(none)'}`;
     const reviewable = handedOver(card);
     const is = `it is ${card.need ? `${card.state}: ${card.need}` : card.state}`;
-    // an accepted proposal its agent withdrew or replaced goes or stays, whatever it is now
+    
     if (card.idea?.superseded && (a.do === 'dismiss' || a.do === 'keep')) return { do: a.do, card: card.id };
     if (a.do === 'keep') return `its agent has not withdrawn or replaced the card (${is})`;
     if (card.idea?.prototypeOf && a.do === 'drop') return { do: 'discard', card: card.id };
@@ -1159,15 +1159,15 @@ export class Commander {
         return `the prototype's idea is the plan "${plan.title}" now, and its plan doc does not say which workstream builds on the prototype: name the one with cards (its tag)`;
       return { do: 'buildPrototype', card: card.id, workstream: ws };
     }
-    // the agent that passed the request on has the owner's words already
+    
     if (card.id === s.reading?.from && (TO_AGENT as string[]).includes(a.do))
       return "the owner's words reached this card's agent already, which passed on what it asks of Seismic: do that, or reply";
-    // a planned task of the owner's can be planned as a plan too
+    
     if (a.do === 'plan_doc' && card.state !== 'idea') {
       if (!plannableAsPlan(card)) return `only an idea, or a planned task of the owner's that nobody has worked on yet, can be planned as a plan (${is})`;
     } else if (['discuss', 'build', 'split_off', 'plan_doc', 'prototype', 'park', 'drop'].includes(a.do) !== (card.state === 'idea'))
       return card.state === 'idea' ? `the card is an idea: discuss it, or build, split_off, plan_doc, prototype, park or drop it` : `only an idea can be discussed, built, prototyped, parked or dropped (${is})`;
-    // built or started in a repository that does not exist yet
+    
     if ((a.do === 'build' || a.do === 'start') && a.path?.trim()) {
       const path = a.path.trim();
       if (!folderPath(path)) return `${path} is no folder: give it absolute or from ~`;
@@ -1190,7 +1190,7 @@ export class Commander {
       case 'answer':
       case 'feedback': {
         if (!a.text?.trim()) return 'the text is missing';
-        // a card waiting to start holds the note for the worker that takes it on
+        
         if (a.do === 'note' && !['working', 'inPr', 'waiting'].includes(card.state) && !card.agent?.finishing && !askable(card) && !holdsNotes(card)) return `no agent works on this card (${is}), a note cannot reach it`;
         if (a.do === 'answer' && !card.question) return `the card has no open question (${is})`;
         if (a.do === 'feedback' && !reviewable) return `the card does not wait for review (${is})`;
@@ -1215,19 +1215,19 @@ export class Commander {
       case 'approve': {
         if (!reviewable) return `the card does not wait for review (${is})`;
         const repo = this.o.board.project.repos.find((r) => r.id === card.repo);
-        // where work lands on main anyway, approving it directly is approving it
+        
         if (!a.direct || !repo?.pullRequests) break;
         if (card.idea?.prototypeOf) return 'a prototype never lands; approving it throws it away';
-        // the owner hears why rather than getting a pull request they did not want
+        
         if (!repo.direct) return `the repository ${card.repo} lands approved work only through a pull request; it does not allow pushing it directly onto main. Tell the owner so with reply, and approve without direct only once they want the pull request`;
-        // past the pull request goes only by the card's button, never by word
+        
         const button = MESSAGES[this.o.board.language()].quote(MESSAGES[this.o.board.language()].approveDirect);
         return `nothing was approved: approval by word never pushes past the pull request. Tell the owner so with reply: straight onto main goes by the button ${button} on the card; approved without direct, the work goes out as a pull request`;
       }
       case 'accept':
       case 'dismiss':
         if (card.state !== 'proposal') return `the card is no proposal (${is})`;
-        // passed on by its reviser, accepting waits for the reworked text, as the button does
+        
         if (a.do === 'accept' && card.idea?.proposal?.revising && card.id !== s.reading?.from)
           return 'the proposal is being reworked by what the owner said; accepting it goes by a click, which waits for the new text: drop this action and say so in confirm';
         if (a.do === 'accept' && a.idea) return { do: 'accept', card: card.id, idea: true };
@@ -1290,13 +1290,13 @@ export class Commander {
     const error = await ended;
     s.reading = undefined;
     if (error && !decided) {
-      // a session that waited or talked before may have gone stale: read the command once more in a fresh one
+      
       if (warmed && retry && !(error instanceof LimitError)) return this.read(transcript, focus, images, input, decide, false);
       throw error;
     }
     if (!decided) decide({ commands: [], confirm: this.o.board.t.voice.notUnderstood });
     if (s.read >= (this.o.sessionCommands ?? 30)) {
-      // long enough: the next session starts from the stored memory, so the context stays short
+      
       s.ended = true;
       s.agent.close();
       this.session = null;
@@ -1322,7 +1322,7 @@ export class Commander {
     const names = canvases.map((c) => `"${c.name}"`).join(', ');
     const named = (n: string | undefined) => {
       const key = n?.trim().toLowerCase();
-      // by its name, or by its place in the order (`2`)
+      
       return canvases.find((c) => c.name.toLowerCase() === key) ?? (key && /^\d+$/.test(key) ? canvases[Number(key) - 1] : undefined);
     };
     const name = a.text?.replace(/\s+/g, ' ').trim();
@@ -1340,7 +1340,7 @@ export class Commander {
       return why ?? { do: 'newCanvas', name: name!, ...(a.icon?.trim() ? { icon: a.icon.trim() } : {}) };
     }
     const c = named(a.canvas);
-    // a canvas the same act creates first
+    
     const made = !c && a.do === 'move_to_canvas' ? all.find((x) => x.do === 'new_canvas' && x.text?.replace(/\s+/g, ' ').trim().toLowerCase() === a.canvas?.trim().toLowerCase()) : undefined;
     if (!c && !made) return `there is no canvas ${a.canvas ?? '(none named)'}; the project has ${names}, or name one a new_canvas of this act creates`;
     if (a.do === 'move_to_canvas') {
@@ -1357,14 +1357,14 @@ export class Commander {
     if (!c) return `there is no canvas ${a.canvas ?? '(none named)'}; the project has ${names}`;
     if (a.do === 'delete_canvas') {
       if (c.name === MAIN_CANVAS) return `the canvas ${MAIN_CANVAS} cannot be deleted`;
-      // the moves before it in this act, in order: each card stands where the last one takes it, out of its group
+      
       const snap = this.o.board.snapshot();
       const where = new Map<string, string>();
       for (const x of all.slice(0, all.indexOf(a))) {
         if (x.do !== 'move_to_canvas') continue;
         const to = named(x.canvas)?.id ?? `new:${x.canvas?.trim().toLowerCase()}`;
         for (const id of [...(x.cards ?? []), ...(x.card ? [x.card] : [])].flatMap((t) => s.tags.get(t) ?? [])) {
-          // a workstream takes its plan and the plan's workstreams along
+          
           const root = snap.items.find((i) => i.id === id)?.parent ?? id;
           for (const i of snap.items) if (i.id === root || i.parent === root) where.set(i.id, to);
         }
@@ -1443,7 +1443,7 @@ export class Commander {
     };
     const step = (m: Moment) => {
       const card = items.find((i) => i.id === m.cardId);
-      // a card no longer shown (its plan doc is gone) is no longer talked about
+      
       if (!card) return [];
       const what =
         m.kind === 'created'
@@ -1456,12 +1456,12 @@ export class Commander {
       return [`- ${when(m.at)} ${tag(m.cardId)} "${card.title}": ${what}`];
     };
     const now = new Date().toISOString();
-    // what is written from here on comes with the next command
+    
     const mark = this.o.board.mark();
     const first = s.read === 0;
     let history: string[];
     if (first) {
-      // without the words being read now
+      
       const talk = this.o.board.chatTalk(REMEMBERED_EXCHANGES, s.chat).filter((t) => t.reply !== undefined);
       const full = new Set(talk.filter((t) => t.answer !== undefined).slice(-FULL_ANSWERS));
       const steps = this.o.board.timeline(new Date(Date.now() - HISTORY_DAYS * 86_400_000).toISOString(), HISTORY_STEPS);
@@ -1500,7 +1500,7 @@ export class Commander {
     s.rules = rules.map((r) => r.id);
     const focused = focus.card ? relevant.find((i) => i.id === focus.card) : undefined;
     const plan = focus.plan ? items.find((i) => i.id === focus.plan) : undefined;
-    // plans with workstreams to start: start on one hands them all to the Koordinator
+    
     const plans = items.flatMap((p) => {
       if (p.kind !== 'plan') return [];
       const open = items.filter((i) => i.parent === p.id && i.state === 'planned' && !i.queue);
@@ -1537,7 +1537,7 @@ export class Commander {
             input.typed
               ? `The owner typed${focused && input.field ? ` into ${FIELDS[input.field]}` : ''} (as written, no recognition errors): "${transcript}"`
               : `The owner said (speech recognition, may contain errors): "${transcript}"`,
-            // in reply to a message of the open card's conversation, or of the sheet
+            
             (focused ? replyNote(this.o.board.quoted(focused.id, input.replyTo), 'koordinator') : focus.card ? '' : talkReplyNote(this.o.board.quotedTalk(input.replyTo))).trim(),
           ].filter(Boolean)),
       ...(input.heldSince
@@ -1565,7 +1565,7 @@ export class Commander {
   }
 }
 
-/** How a step of a card's history reads. */
+
 const STEP: Partial<Record<Moment['kind'], string>> = {
   question: 'the agent asked: ',
   answer: 'answer: ',
@@ -1626,7 +1626,7 @@ function when(iso: string): string {
   return `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]} ${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-/** Examples of the confirmations the Koordinator speaks, and the owner's words for its cards, per language. */
+
 const CONFIRM: Record<Language, { act: string; words: string; remember: string; retro: string; reviewPr: string; group: string; merge: string; configure: string; lookUp: string; lookUpThen: string; idea: string; wish: string }> = {
   en: {
     act: '"New task “Meter readings as CSV”, the agent starts." / "“Discount” approved, and the follow-up “Archive” is created." / "Passed on to the agent of “Export”."',

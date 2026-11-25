@@ -54,7 +54,7 @@ describe('the agent snoozes itself', () => {
     expect(s.call('snooze', { until, why: 'Check the test result' })).toContain('End your turn now');
     expect(item(id).hold).toEqual({ reason: 'snoozed', since: expect.any(String), until: new Date(until).toISOString(), by: 'agent', why: 'Check the test result' });
     expect(last(id)).toMatchObject({ kind: 'state', author: 'worker', text: expect.stringMatching(/^Snoozed until .* · Check the test result$/) });
-    // its closing words repeat the snooze
+    
     s.emit({ type: 'text', text: 'I will get back to you tomorrow morning.' });
     s.emit({ type: 'idle' });
     expect(s.closed).toBe(true);
@@ -64,7 +64,7 @@ describe('the agent snoozes itself', () => {
     expect(needsYou(item(id))).toBe(false);
     expect(item(id).question).toBeUndefined();
 
-    // a restart starts no session for it, and the time comes all the same
+    
     const n = runtime.sessions.length;
     project.shutdown();
     project = open();
@@ -107,7 +107,7 @@ describe('the agent snoozes itself', () => {
     expect(item(id)?.hold).toMatchObject({ by: 'agent', why: 'Check', moved: true });
     project.wakeDue(Date.parse(soon) + 1);
     expect(runtime.last.inbox[0]).toContain('you snoozed, to: Check, and the owner moved the time to now.');
-    // woken early after the owner moved it, it hears both
+    
     runtime.last.call('snooze', { until: later(10 * HOUR), why: 'Check' });
     runtime.last.emit({ type: 'idle' });
     project.act(id, { action: 'snooze', until: later(20 * HOUR) });
@@ -127,7 +127,7 @@ describe('the agent snoozes itself', () => {
     expect(item(id)?.hold?.reason).not.toBe('snoozed');
     expect(item(id)).toMatchObject({ state: 'waiting', need: 'question' });
     expect(s.closed).toBe(false);
-    // the card waits for the owner: nothing to snooze until they answered
+    
     expect(s.call('snooze', { until: later(HOUR * 5), why: 'x' })).toContain('Not snoozed');
   });
 
@@ -148,7 +148,7 @@ describe('the agent snoozes itself', () => {
     project.wakeDue(Date.parse(until) + 1000);
     expect(runtime.last.spec.resume).toBe('sess-1');
     expect(runtime.last.inbox[0]).toContain('the time you snoozed until, to: Check the log again');
-    // at work towards what it told them, the card still waits for approval
+    
     expect(item(id)).toMatchObject({ state: 'waiting', need: 'review', review: { answering: true } });
     expect(item(id)?.hold?.reason).not.toBe('snoozed');
     expect(needsYou(item(id))).toBe(false);
@@ -192,7 +192,7 @@ describe('the agent snoozes until another card gets somewhere', () => {
     s.emit({ type: 'idle' });
     expect(s.closed).toBe(true);
     const n = runtime.sessions.length;
-    // it waits for the owner's approval: not done yet
+    
     board().work(fix, { state: 'waiting', need: 'demo' });
     project.wakeDue(Date.now() + 400 * 24 * HOUR);
     expect(runtime.sessions.length).toBe(n);
@@ -233,8 +233,8 @@ describe('the agent snoozes until another card gets somewhere', () => {
     s.call('snooze', { card: 'Export demo', state: 'waits_for_owner', why: 'Compare' });
     s.emit({ type: 'idle' });
     board().work(demo, { state: 'waiting', need: 'question' });
-    // the change reaches the waker after the event loop's turn and a timer of its own, long before the next tick
-    // (WAKE_EVERY_MS): a fixed few milliseconds were not always enough on a loaded runner
+    
+    
     await until(() => runtime.last !== s);
     board().work(demo, { state: 'working', need: null });
     expect(runtime.last.inbox[0]).toContain('waits for the owner now');
@@ -276,7 +276,7 @@ describe('the agent snoozes until another card gets somewhere', () => {
     const { id, s } = await atWork();
     expect(s.call('snooze', { card: 'Windows', why: 'x' })).toContain('no card on the project is called “Windows”');
     expect(s.call('snooze', { card: 'Linux', why: 'x' })).toContain('several cards have “Linux” in their title');
-    // a finished card makes no part of a title ambiguous
+    
     expect(s.call('snooze', { card: 'ertig', why: 'x' })).toContain('no card on the project is called “ertig”');
     expect(s.call('snooze', { card: 'Fertig', why: 'x' })).toContain('is done already');
     expect(s.call('snooze', { why: 'x' })).toContain('give until, card, or both');
@@ -320,7 +320,7 @@ describe('the owner snoozes a card', () => {
     project.act(id, { action: 'snooze', until });
     expect(item(id)).toMatchObject({ state: 'waiting', need: 'question', hold: { reason: 'snoozed', by: 'owner', waiting: true } });
     expect(needsYou(item(id))).toBe(false);
-    // the owner changes the time
+    
     const changed = later(5 * HOUR);
     project.act(id, { action: 'snooze', until: changed });
     expect(snoozeOf(item(id))!.until).toBe(new Date(changed).toISOString());
@@ -437,9 +437,9 @@ describe('the Koordinator waits on a card', () => {
     const repo = board().snapshot().items.find((i) => i.title === 'Create repository')!;
     expect(board().snapshot().talk[0]!.waits).toEqual([{ card: repo.id, title: 'Create repository', state: 'done' }]);
 
-    // its agent, asking Seismic for the step itself, hears that Seismic takes it
+    
     expect(await project.forward(repo.id, 'Create the canvas.')).toContain('Seismic itself takes these steps once your card is done: New card “Create canvas”, not started. If you asked for one of them, it is not missing');
-    // done: the board's change wakes the Koordinator, without the owner saying anything
+    
     board().work(repo.id, { state: 'done' });
     await until(() => k.inbox.length === 2);
     expect(k.inbox[1]).toContain('the card "Create repository" is done');
@@ -454,7 +454,7 @@ describe('the Koordinator waits on a card', () => {
 });
 
 describe('a card that starts later', () => {
-  // the timers' work done, and the workers it started at work in their workstations
+  
   const settle = async () => {
     await new Promise((r) => setTimeout(r, 5));
     await Promise.all(project.repos.map((r) => r.workers.prepared()));
@@ -468,7 +468,7 @@ describe('a card that starts later', () => {
     expect(s.call('propose_card', { title: 'Check the filing', task: 'Check whether the bank has registered the filing.', reason: 'Only visible in two weeks.', start_at: at })).toContain('Proposed');
     const p = board().snapshot().items.find((i) => i.state === 'proposal')!;
     expect(p.idea?.proposal).toMatchObject({ startAt: new Date(at).toISOString() });
-    // the reviser rewrites the text, not when it starts
+    
     board().revised(p.id, { title: 'Check the filing', task: 'Check whether the bank has registered both filings.', reason: 'Only visible in two weeks.', questions: [] });
     expect(item(p.id).idea!.proposal!.startAt).toBe(new Date(at).toISOString());
 
@@ -478,7 +478,7 @@ describe('a card that starts later', () => {
     expect(needsYou(item(p.id))).toBe(false);
     expect(last(p.id)).toMatchObject({ kind: 'state', text: expect.stringMatching(/^Snoozed until .* · Only visible in two weeks\.$/) });
 
-    // its source card's work is done by then, and the one clone free
+    
     await project.act(src, { action: 'stop' });
     project.shutdown();
     project = open();
@@ -490,7 +490,7 @@ describe('a card that starts later', () => {
     expect(board().events(p.id).some((e) => e.text === 'Woke up: the time has come')).toBe(true);
     await settle();
     expect(item(p.id).state).toBe('working');
-    // its worker reads the task as due now, not as two weeks off
+    
     expect(worker().inbox[0]).toContain('The agent that proposed this card set it to start at');
     expect(worker().inbox[0]).toContain('that time has come');
   });
@@ -512,10 +512,10 @@ describe('a card that starts later', () => {
     project.act(q.id, { action: 'accept' });
     expect(item(q.id)?.hold?.reason).not.toBe('snoozed');
     expect(item(q.id).queue).toMatchObject({ checking: true });
-    // its worker hears all the same that the time has come
+    
     expect(board().row(q.id).unheard).toContain('that time has come');
 
-    // kept as planned only, or taken on as an idea, it waits for no time
+    
     const r = board().propose(b.id, { title: 'Nur geplant', task: 'T', reason: 'R', startAt: later(DAY) });
     project.act(r.id, { action: 'accept', start: false });
     expect(item(r.id)).toMatchObject({ state: 'planned' });
@@ -535,13 +535,13 @@ describe('a card that starts later', () => {
     project.act(c.id, { action: 'snooze', until });
     expect(item(c.id)).toMatchObject({ state: 'planned', hold: { reason: 'snoozed', by: 'owner', start: true, until: new Date(until).toISOString() } });
     expect(last(c.id)).toMatchObject({ kind: 'state', author: 'owner', text: expect.stringMatching(/^Snoozed until /) });
-    // the owner changes the time
+    
     const changed = later(3 * DAY);
     project.act(c.id, { action: 'snooze', until: changed });
     expect(item(c.id)?.hold).toMatchObject({ by: 'owner', start: true, until: new Date(changed).toISOString() });
     project.wakeDue(Date.parse(until) + 1);
     expect(item(c.id).queue).toBeUndefined();
-    // “Start” on the card starts it now, as “Wake it now” does
+    
     project.act(c.id, { action: 'start' });
     expect(item(c.id)?.hold?.reason).not.toBe('snoozed');
     expect(item(c.id).queue).toMatchObject({ checking: true });
@@ -578,7 +578,7 @@ describe('a card that starts later', () => {
     board().work(c.id, { state: 'idea' });
     expect(item(c.id)?.hold?.reason).not.toBe('snoozed');
 
-    // a stopped card, snoozed, archived, and back after its time: nothing starts it
+    
     const d = board().create({ title: 'Gestoppt', x: 0, y: 0 });
     board().work(d.id, { branch: 'seismic/gestoppt' });
     const until = later(HOUR);

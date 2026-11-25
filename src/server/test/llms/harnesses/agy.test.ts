@@ -57,10 +57,10 @@ test('a session runs a turn, calls a Seismic tool over the MCP endpoint and ends
   expect(events).toContainEqual({ type: 'tool', name: 'mcp__seismic__ask', input: { question: 'why' } });
   expect(events).toContainEqual({ type: 'tool', name: 'Bash', input: { command: 'ls -la' } });
   expect(events).toContainEqual({ type: 'toolDone', name: 'Bash', ok: true });
-  // the endpoint's result carries what changed since, and Seismic's own tool is no native step
+  
   expect(events.filter((e) => e.type === 'text').map((e) => (e as { text: string }).text).join('')).toContain('ask -> the answer\n\nNEWS');
   expect(events.filter((e) => e.type === 'tool')).toHaveLength(2);
-  // the system prompt goes with the first turn only
+  
   session.send('hello');
   await until(() => events.filter((e) => e.type === 'idle').length === 2);
 });
@@ -267,7 +267,7 @@ test('the real model list: each model once, with only the efforts agy has for it
     'gpt-oss-120b': 'medium',
   });
   expect(models.filter((m) => m.isDefault).map((m) => [m.model, m.defaultReasoningEffort])).toEqual([['gemini-4-neon', 'high']]);
-  // a suffix the display name does not confirm stays part of the id
+  
   expect(parseAgyModels('gemini-ultra-high\tGemini Ultra High\n').map((m) => [m.model, m.supportedReasoningEfforts.length])).toEqual([['gemini-ultra-high', 0]]);
 });
 
@@ -281,7 +281,7 @@ test('a session passes a pair agy accepts: base model and effort, none for a mod
   const account = parseAgyModels('gemini-ultra-medium\tGemini Ultra (Medium)\ngemini-ultra-high\tGemini Ultra High\n');
   expect(agyRun({}, account)).toEqual({ effort: 'medium' });
   expect(agyRun({ model: 'gemini-ultra-high', effort: 'high' }, account)).toEqual({ model: 'gemini-ultra-high' });
-  // the stand-in refuses what agy refuses, so the flags above are checked against it
+  
   const refused = (...args: string[]) => spawnSync('bun', [fake, ...args], { encoding: 'utf8' });
   expect(refused('--model', 'gemini-3.8-flash-medium', '--effort', 'high').stderr).toContain('conflicts with --effort=high');
   expect(refused('--model', 'gemini-4-argon', '--effort', 'xhigh').stderr).toContain('available: low, medium, high');
@@ -372,7 +372,7 @@ test.skipIf(process.platform === 'win32')('closing the agy usage source ends a /
   const dir = mkdtempSync(join(tmpdir(), 'agy-usage-'));
   try {
     const script = join(dir, 'agy');
-    // an agy that hangs, with a helper of its own, as a slow answer would
+    
     writeFileSync(script, `#!/bin/sh\nsleep 60 &\necho $! > "${dir}/helper"\necho $$ > "${dir}/agy.pid"\nwait\n`);
     chmodSync(script, 0o755);
     const source = agyUsage(undefined, () => script);
@@ -389,7 +389,7 @@ test.skipIf(process.platform === 'win32')('closing the agy usage source ends a /
         return false;
       }
     };
-    // a killed process lingers until it is reaped, which a loaded machine takes its time over
+    
     await until(() => pids.every((pid) => !alive(pid)), 15_000);
     expect(await source.fetch()).toBeNull();
   } finally {
@@ -406,7 +406,7 @@ test('ending a /usage run ends its job on Windows, and if the job refuses closes
   endProcessTree(child, job(true), false);
   expect([terminated, closed]).toEqual([1, 0]);
   expect(killed).toEqual([]);
-  // closing the handle ends the members (kill on close), not only the launcher the child is
+  
   endProcessTree(child, job(false), false);
   expect([terminated, closed]).toEqual([2, 1]);
   expect(killed).toEqual(['SIGKILL']);
@@ -466,7 +466,7 @@ test.skipIf(!recording)('the first turn goes to agy only once its identity is on
   sessions.push(session);
   await until(() => events.some((e) => e.type === 'idle'));
   expect(recordedAtFirstText).toContain(pid);
-  // an orderly end takes the record away, and the server's shutdown waits for it
+  
   let settled = false;
   void session.done.then(() => { settled = true; });
   await endSessionsHere();
@@ -476,9 +476,9 @@ test.skipIf(!recording)('the first turn goes to agy only once its identity is on
 
 test.skipIf(!recording)('an agy whose processes cannot be watched ends before any turn', async () => {
   const { records } = registry();
-  // agy as Seismic would see a process it did not start: its ownership cannot be established
+  
   const orphan = `const c=require('node:child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{detached:true,stdio:'ignore'});console.log(c.pid);c.unref();`;
-  const stranger = { pid: Number(spawnSync(process.execPath, ['-e', orphan], { encoding: 'utf8' }).stdout.trim()), kill: (s: NodeJS.Signals) => { try { process.kill(stranger.pid, s); } catch { /* gone */ } } };
+  const stranger = { pid: Number(spawnSync(process.execPath, ['-e', orphan], { encoding: 'utf8' }).stdout.trim()), kill: (s: NodeJS.Signals) => { try { process.kill(stranger.pid, s); } catch {  } } };
   const events: AgentEvent[] = [];
   const session = createAgyRuntime((c, a, o) => {
     const child = launch(c, a, o);
@@ -491,7 +491,7 @@ test.skipIf(!recording)('an agy whose processes cannot be watched ends before an
   await session.done;
   expect(events.find((e) => e.type === 'error')).toMatchObject({ message: expect.stringContaining('could not be put on record'), ended: true });
   expect(events.some((e) => e.type === 'text')).toBe(false);
-  // no turn went out, so nothing it could have started is owed to a sweep
+  
   expect(records()).toEqual([]);
 });
 
@@ -509,7 +509,7 @@ test.skipIf(!recording)('a command that can no longer be put on record ends the 
   const { root, records } = registry();
   const leafFile = join(root, '..', `leaf-${process.pid}`);
   const events: AgentEvent[] = [];
-  // the second turn starts a command once the registry has stopped taking writes
+  
   const session = createAgyRuntime(scripted(`const turn = (n) => { if (n === 2) { const c = spawn(process.execPath, ['-e', ${JSON.stringify(testProcessCode())}], { stdio: 'ignore' }); require('node:fs').writeFileSync(${JSON.stringify(leafFile)}, String(c.pid)); } };`), () => '/fake/agy').start(spec(workstation(), events), 'one');
   sessions.push(session);
   await until(() => events.some((e) => e.type === 'idle'));
@@ -528,14 +528,14 @@ test.skipIf(!recording)('a command agy left holding its pipes does not hold up t
   const leafFile = join(mkdtempSync(join(tmpdir(), 'agy-leaf-')), 'leaf');
   dirs.push(join(leafFile, '..'));
   const events: AgentEvent[] = [];
-  // detached into a group of its own and holding agy's output, it is gone from agy's tree once agy exits
+  
   const session = createAgyRuntime(scripted(`const turn = () => { const c = spawn(process.execPath, ['-e', ${JSON.stringify(testProcessCode())}], { detached: true, stdio: ['ignore', 'inherit', 'inherit'] }); require('node:fs').writeFileSync(${JSON.stringify(leafFile)}, String(c.pid)); process.exit(0); };`), () => '/fake/agy').start(spec(workstation(), events), 'one');
   sessions.push(session);
   try {
     const started = Date.now();
     await session.done;
     expect(Date.now() - started).toBeLessThan(4500);
-  } finally { try { process.kill(Number(readFileSync(leafFile, 'utf8')), 'SIGKILL'); } catch { /* gone */ } }
+  } finally { try { process.kill(Number(readFileSync(leafFile, 'utf8')), 'SIGKILL'); } catch {  } }
 });
 
 test('background tasks in agy\'s transcript show on the card, and one ending between turns wakes the session', async () => {
@@ -564,7 +564,7 @@ test.each([true, false])('resume captures history before launching agy (existing
   mkdirSync(dirname(log), { recursive: true });
   if (history) appendFileSync(log, `${started('old-conv/task-1', 'old task')}\n`);
   const events: AgentEvent[] = [];
-  // The resumed process may write before init is received or the first watcher tick runs.
+  
   const resumeLaunch: typeof launch = (command, args, options) => {
     appendFileSync(log, `${started('old-conv/task-2', 'new task')}\n`);
     return launch(command, args, options);

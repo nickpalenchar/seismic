@@ -1,6 +1,6 @@
-// The icon picker a canvas's dialog and a project's settings share: the curated Lucide icons first,
-// searched by name and drawn in a colour of the palette or the text's, then any emoji of the system's
-// font, by category; and "No icon". What it shows (tab, colour, searches) is the caller's to keep.
+
+
+
 
 import { cn } from 'cn';
 import type { ReactNode } from 'react';
@@ -14,7 +14,7 @@ import { Radio, RadioGroup } from './components/radio';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 import { Tooltip } from './components/tooltip';
 
-/** How far the owner got picking: the tab, the colour the Lucide icons are drawn in (null: the text's), what is typed into each search. */
+
 export interface IconPickerView {
   tab?: 'emoji' | 'icons';
   color?: CanvasIconColor | null;
@@ -22,7 +22,7 @@ export interface IconPickerView {
   iconSearch?: string;
 }
 
-/** A change from the picker: of what it shows, and of the icon picked (null: none). */
+
 export type IconPickerChange = Partial<IconPickerView> & { icon?: string | null };
 
 export const pickerLabel = 'text-xs font-semibold text-muted-foreground';
@@ -30,7 +30,7 @@ const colorChoice = 'grid size-7 cursor-pointer place-items-center rounded-full 
 const swatch = 'block size-[18px] rounded-full';
 const iconChoice = 'grid h-10 cursor-pointer place-items-center rounded-md border border-transparent bg-transparent p-0 text-foreground hover:bg-muted data-[state=checked]:border-foreground data-[state=checked]:bg-muted';
 
-/** The radio value of the text's colour: a radio has no null. */
+
 const TEXT_COLOR = '\0text';
 
 /** The curated Lucide icons whose name holds every word of `search`. */

@@ -1,13 +1,13 @@
-// Bun's runtime HTML server flattens dynamic imports. Build the checkout's production UI with
-// splitting explicitly; compiled builds carry Bun's HTML manifest and use its embedded assets.
+
+
 import { basename, resolve } from 'node:path';
 import index from '../ui/index.html';
 
 const BASE = '/_ui/';
 let bundled: Promise<Map<string, Response>> | undefined;
 
-// Tailwind (src/ui/tailwind.css) for this build; a compiled binary carries its UI built already, so the plugin and its
-// native scanner stay out of it: the name is not a literal the bundler would follow.
+
+
 const TAILWIND = 'bun-plugin-tailwind';
 const tailwind = (): Promise<Bun.BunPlugin> => import(TAILWIND).then((m) => m.default);
 
@@ -50,7 +50,7 @@ async function serve(req: Request, page = false) {
 }
 
 export function uiRoutes(development: boolean) {
-  // Keep Bun's native HMR in hot mode. A compiled HTML manifest is already split at build time.
+  
   const page = development || index.files ? index : (req: Request) => serve(req, true);
   return { '/': page, '/p/*': page, '/c/*': page, '/workspaces': page, [`${BASE}*`]: (req: Request) => index.files ? new Response('not found', { status: 404 }) : serve(req) };
 }

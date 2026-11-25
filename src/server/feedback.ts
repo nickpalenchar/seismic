@@ -1,7 +1,7 @@
-// Whom the owner's response on a card's work credits: the sessions that actually ran on it, never today's defaults.
+
 import { harnessChoice, type AgentEffort, type AgentSetting, type Attribution, type FeedbackAnswer, type WorkConfig } from '../core/types';
 
-/** The longest comment kept, and how many facets of how long a response may carry. */
+
 export const MAX_COMMENT = 4000;
 const MAX_FACETS = 20;
 const MAX_FACET = 200;
@@ -15,7 +15,7 @@ export function workConfig(setting: AgentSetting, resolved: string | undefined, 
   const harness = setting.harness ?? 'claude';
   const chosen = harness === 'claude' ? setting : harnessChoice(setting);
   const named = resolved && resolved !== 'default' ? resolved : undefined;
-  // a Codex model chosen by name is the one it runs; a Claude alias is resolved by the session only
+  
   const model = named ?? (harness !== 'claude' && chosen?.model && chosen.model !== 'default' ? chosen.model : undefined);
   return {
     harness,

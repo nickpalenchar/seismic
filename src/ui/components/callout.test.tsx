@@ -18,7 +18,7 @@ test('each other kind tints the alert in its own hue, light and dark', () => {
     const html = render(kind as CalloutKind);
     expect(html).toContain(`data-kind="${kind}"`);
     for (const cls of [`bg-${hue}-50`, `border-${hue}-200`, `text-${hue}-900`, `dark:bg-${hue}-950`]) expect(html).toContain(cls);
-    // the tint replaces the plain card fill rather than sitting beside it
+    
     expect(html).not.toContain('bg-card ');
   }
 });

@@ -7,7 +7,7 @@ test('a stall’s time goes to the scripts and the style and layout of the long 
   const frames: LongFrame[] = [
     { startTime: 1000, duration: 900, styleAndLayoutStart: 1700, scripts: [script('WebSocket.onmessage', '', 600), script('MessagePort.onmessage', 'performWorkUntilDeadline', 100)] },
     { startTime: 1900, duration: 300, styleAndLayoutStart: 0, scripts: [script('MessagePort.onmessage', 'performWorkUntilDeadline', 250)] },
-    // before the stall
+    
     { startTime: 100, duration: 80, styleAndLayoutStart: 0, scripts: [script('DOMWindow.onclick', 'approve', 80)] },
   ];
   expect(scriptsOf(framesWithin(frames, 950, 2300))).toEqual([
@@ -15,7 +15,7 @@ test('a stall’s time goes to the scripts and the style and layout of the long 
     { what: 'MessagePort.onmessage: performWorkUntilDeadline (index-a1b2.js@1204)', ms: 350 },
     { what: 'style and layout', ms: 200 },
   ]);
-  // a part too short to matter is left out
+  
   expect(scriptsOf([{ startTime: 0, duration: 600, styleAndLayoutStart: 590, scripts: [script('WebSocket.onmessage', 'x', 580)] }])).toEqual([{ what: 'WebSocket.onmessage: x (index-a1b2.js@1204)', ms: 580 }]);
   expect(framesWithin(frames, 5000, 6000)).toEqual([]);
 });
@@ -31,15 +31,15 @@ test('what the page took in within the three seconds before a stall goes with it
 });
 
 test('a heartbeat the page takes in half a second late tells of a stall, and the beats queued behind it of none', () => {
-  // taken in on time, as the beats of a page whose own timers the browser holds back
+  
   expect(stallOf(20, 1020, 900)).toBeNull();
   expect(stallOf(490, 1490, 900)).toBeNull();
-  // the thread was busy from the beat on
+  
   expect(stallOf(800, 1800, 900)).toEqual({ from: 1000, to: 1800 });
-  // the next beat waited behind the same stall
+  
   expect(stallOf(700, 1800.1, 1800)).toBeNull();
-  // and one that waited behind it and another after it tells of the other
+  
   expect(stallOf(1500, 2600, 1800)).toEqual({ from: 1800, to: 2600 });
-  // where the long frames tell the length, a beat a tick short of a stall may tell of one
+  
   expect(stallOf(451, 1551, 1000, 400)).toEqual({ from: 1100, to: 1551 });
 });

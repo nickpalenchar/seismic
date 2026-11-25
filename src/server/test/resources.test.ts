@@ -22,7 +22,7 @@ test('the resources: the checkout, beside the binary, or in a macOS app bundle',
   try {
     mkdirSync(join(dir, 'Contents', 'MacOS'), { recursive: true });
     const binary = join(dir, 'Contents', 'MacOS', 'seismic');
-    // neither there yet: beside the binary is where they belong
+    
     expect(resourcesDir({}, true, binary)).toBe(join(dir, 'Contents', 'MacOS', 'resources'));
     mkdirSync(join(dir, 'Contents', 'Resources'));
     expect(resourcesDir({}, true, binary)).toBe(join(dir, 'Contents', 'Resources'));
@@ -36,7 +36,7 @@ test('the resources: the checkout, beside the binary, or in a macOS app bundle',
 test("the demo skill's scripts run their own main only when started, never inside the binary", () => {
   expect(isMain('/$bunfs/root/seismic')).toBe(false);
   expect(isMain('B:\\~BUN\\root\\seismic.exe')).toBe(false);
-  // a module imported, not the one Bun runs (the test file)
+  
   expect(isMain(join(serverDir, 'resources.ts'))).toBe(false);
   expect(isMain(process.argv[1]!)).toBe(true);
 });

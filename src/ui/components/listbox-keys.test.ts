@@ -1,6 +1,6 @@
-// The keyboard behaviour of useListbox, driven without a DOM: `react` is replaced by a tiny hook runtime
-// (state slots that survive between renders, effects that run when their deps change) so the real hook
-// code runs and the test calls the returned onKeyDown with fake events. Its own file: the mock is per process.
+
+
+
 import { beforeEach, expect, mock, test } from 'bun:test';
 import type { KeyboardEvent } from 'react';
 

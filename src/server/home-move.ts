@@ -1,17 +1,17 @@
-// The home moves from `~/.obeya` to `~/.seismic` (and `~/.obeya-dev` to `~/.seismic-dev`), once, at
-// startup before anything resumes. One rename on one disk, so the
-// gigabytes of worker checkouts are not copied; what pointed at the old path follows:
-//   1. the folder and its database files (`obeya.db` and `-wal`/`-shm`) are renamed, the database closed;
-//   2. `~/.obeya` becomes a symlink to the new home (a junction on Windows), for whatever still names it;
-//   3. `git worktree repair` in every checkout of `workspaces/` and `read/`, so the project
-//      repositories' worktree links follow;
-//   4. the absolute home paths the database, `sessions/` and the JSON files hold are rewritten;
-//   5. Claude Code files a session under `~/.claude/projects/<cwd, encoded>`: those folders of the
-//      moved checkouts get their new name too (a paused Claude agent resumes there). A Codex thread
-//      resumes by its id (`thread/resume` with the cwd it is given), so nothing moves for it.
-// A marker file in the new home records that the steps after the rename are not done; each is
-// idempotent, so a start after a crash finishes them. Migration shim: it goes with the code that
-// still reads `.obeya` names (docs/design.md).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { Database } from 'bun:sqlite';
 import { spawnSync } from 'node:child_process';
@@ -22,7 +22,7 @@ import { running } from './instance';
 
 export const HOME_MOVE_MARKER = '.home-move-pending';
 export const DATABASE = 'seismic.db';
-/** The database's name before the rename. */
+
 export const OLD_DATABASE = 'obeya.db';
 
 /** The database of a home: `seismic.db`, else `obeya.db` where a home (a custom one, say) still has only that. */
@@ -48,10 +48,10 @@ export function rewritePaths(text: string, from: string, to: string): string {
 export const claudeFolderName = (cwd: string) => cwd.replace(/[^a-zA-Z0-9]/g, '-');
 
 export interface HomeMoveResult {
-  /** The home to use. */
+  
   home: string;
   moved: boolean;
-  /** Why nothing moved, where the old home stays in use. */
+  
   skipped?: string;
   repaired: string[];
   rewrittenFiles: string[];
@@ -61,11 +61,11 @@ export interface HomeMoveResult {
 }
 
 export interface HomeMoveOptions {
-  /** The user's home directory (the machine's by default). */
+  
   user?: string;
-  /** `~/.obeya-dev` to `~/.seismic-dev`. */
+  
   dev?: boolean;
-  /** Claude Code's configuration directory (`CLAUDE_CONFIG_DIR`, else `~/.claude`). */
+  
   claudeDir?: string;
 }
 
@@ -100,7 +100,7 @@ export async function moveDefaultHome(options: HomeMoveOptions = {}): Promise<Ho
   const claudeDir = options.claudeDir ?? process.env.CLAUDE_CONFIG_DIR ?? join(user, '.claude');
   try {
     if (exists(to)) {
-      // a move that ended before its last steps
+      
       if (existsSync(join(to, HOME_MOVE_MARKER))) finish(from, to, claudeDir, result);
       return result;
     }
@@ -122,7 +122,7 @@ export async function moveDefaultHome(options: HomeMoveOptions = {}): Promise<Ho
     }
     finish(from, to, claudeDir, result);
   } catch (e) {
-    // the rename did not happen (or not whole): the old home stays what it was
+    
     if (!exists(to)) result.home = exists(from) ? from : to;
     result.skipped = (e as Error).message;
   }
@@ -161,7 +161,7 @@ export function checkouts(home: string): string[] {
 function repairCheckouts(home: string): string[] {
   const done: string[] = [];
   for (const dir of checkouts(home)) {
-    // a clone (its .git is a folder) has nothing to repair
+    
     if (!lstatSync(join(dir, '.git')).isFile()) continue;
     const r = spawnSync('git', ['-C', dir, 'worktree', 'repair'], { encoding: 'utf8', windowsHide: true });
     if (r.status === 0) done.push(dir);
@@ -203,7 +203,7 @@ function rewriteJsonFiles(home: string, from: string, to: string): string[] {
   for (const f of files) {
     const text = readFileSync(f, 'utf8');
     let out = rewritePaths(text, from, to);
-    // `~/.obeya` in a configuration written by hand
+    
     if (from.endsWith('.obeya') || from.endsWith('.obeya-dev')) out = out.replace(/~\/\.obeya(-dev)?(?![\w.-])/g, (_, dev) => `~/.seismic${dev ?? ''}`);
     if (out === text) continue;
     writeFileSync(f, out);
@@ -223,7 +223,7 @@ function renameClaudeFolders(claudeDir: string, from: string, to: string): strin
     for (const name of readdirSync(root)) {
       if (!name.startsWith(oldPrefix)) continue;
       const target = newPrefix + name.slice(oldPrefix.length);
-      // a folder already there stays: a session that began after the move is not overwritten
+      
       if (existsSync(join(root, target))) continue;
       renameSync(join(root, name), join(root, target));
       renamed.push(target);

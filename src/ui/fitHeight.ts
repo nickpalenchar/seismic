@@ -35,13 +35,13 @@ export function useFitHeight(
       if (el.clientWidth) fitting.current(el);
     };
     refit();
-    // the panel unfolds from the card's width, and a narrower box needs more lines
+    
     let width = el.clientWidth;
     let frame = 0;
     const ro = new ResizeObserver(() => {
       if (el.clientWidth === width) return;
       width = el.clientWidth;
-      // in the next frame: changing the height inside the callback makes it a resize loop
+      
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(refit);
     });

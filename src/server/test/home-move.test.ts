@@ -15,7 +15,7 @@ import { git, Workstations } from '../workstations';
 let user: string;
 let claudeDir: string;
 beforeEach(() => {
-  // a real path: macOS's /var is a link to /private/var, which git writes out in full
+  
   user = realpathSync(mkdtempSync(join(tmpdir(), 'seismic-home-move-')));
   claudeDir = join(user, '.claude');
 });
@@ -54,7 +54,7 @@ test('the home moves in one rename: its database files, the link back, the paths
   const db = new Database(join(h, 'obeya.db'));
   db.run('UPDATE cards SET body = ? WHERE id = ?', ['later', 'b']);
   db.close();
-  // Claude Code's folders of two checkouts, the one of an older folder of the same name, and a project of its own
+  
   const folders = join(claudeDir, 'projects');
   const old = claudeFolderName(join(h, 'workspaces', 'shop', 'a1'));
   mkdirSync(join(folders, old), { recursive: true });
@@ -74,7 +74,7 @@ test('the home moves in one rename: its database files, the link back, the paths
 
   const after = new Database(join(moved(), 'seismic.db'), { readonly: true });
   expect(after.query('SELECT path FROM workstations ORDER BY card_id').all()).toEqual([{ path: `${moved()}/workspaces/shop/a1` }, { path: '/elsewhere/workspaces/shop/a2' }]);
-  // a card of the dev home, and prose that mentions the path, stay as they are
+  
   expect(after.query('SELECT id, workstation, body FROM cards ORDER BY id').all()).toEqual([
     { id: 'a', workstation: `${moved()}/workspaces/shop/a1`, body: `see ${home()}/x` },
     { id: 'b', workstation: `${home()}-dev/workspaces/shop/a1`, body: 'later' },
@@ -88,7 +88,7 @@ test('the home moves in one rename: its database files, the link back, the paths
   expect(existsSync(join(folders, old))).toBe(false);
   expect(existsSync(join(folders, claudeFolderName(join(moved(), 'workspaces', 'shop', 'a1')), 's.jsonl'))).toBe(true);
   expect(existsSync(join(folders, '-Users-me-code-app'))).toBe(true);
-  // the dev home's folder is not the home's
+  
   expect(existsSync(join(folders, claudeFolderName(join(h, 'workspaces', 'shop', 'a1')).replace('obeya', 'obeya-dev')))).toBe(true);
 });
 
@@ -138,7 +138,7 @@ test('steps that did not finish are done by the next start, which reads the mark
   const h = oldHome();
   const r = await moveDefaultHome({ user, claudeDir });
   expect(r.moved).toBe(true);
-  // as if the process had ended after the rename: the paths are the old ones again, the marker is there
+  
   const db = new Database(join(moved(), 'seismic.db'));
   db.run('UPDATE cards SET workstation = ? WHERE id = ?', [`${h}/workspaces/shop/a1`, 'a']);
   db.close();
@@ -152,7 +152,7 @@ test("a worktree of a project's repository follows the move, and a paused worker
   const repo = join(user, 'shop');
   gitRepo(repo);
   mkdirSync(h, { recursive: true });
-  // before the move: a worker at work in a worktree under the old home, paused for a restart
+  
   const build = (path: string, dir: string) => {
     const store = new Store(path);
     const board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: repo, branch: 'main' }] }, () => ({ docs: [], dirs: [] }), undefined, () => true, () => 'en', () => 'en');
@@ -176,7 +176,7 @@ test("a worktree of a project's repository follows the move, and a paused worker
       before.workers.shutdown();
       await before.workers.freed();
     }
-    // the home as Seismic left it: one database file, and Claude Code's folder of the checkout
+    
     db.run('VACUUM INTO ?', [join(h, 'obeya.db')]);
   }
   mkdirSync(join(claudeDir, 'projects', claudeFolderName(was)), { recursive: true });
@@ -185,14 +185,14 @@ test("a worktree of a project's repository follows the move, and a paused worker
   expect(r).toMatchObject({ home: moved(), moved: true, problems: [] });
   const now = was.replace(h, moved());
   expect(r.repaired).toContain(now);
-  // the repository's own record of the worktree names the new place, and the worktree finds its repository
+  
   expect(readFileSync(join(repo, '.git', 'worktrees', now.split('/').at(-1)!, 'gitdir'), 'utf8').trim()).toBe(`${now}/.git`);
   expect(git(now, 'rev-parse', '--show-toplevel')).toBe(now);
   expect(git(repo, 'worktree', 'list', '--porcelain')).toContain(`worktree ${now}`);
   expect(git(repo, 'worktree', 'list', '--porcelain')).not.toContain(`worktree ${was}\n`);
   expect(existsSync(join(claudeDir, 'projects', claudeFolderName(now)))).toBe(true);
 
-  // Seismic starts on the moved home: the card's worker resumes its session, in the checkout's new path
+  
   const after = build(databaseFile(moved()), join(moved(), 'workspaces', 'shop'));
   using _db = after.store.db;
   try {
@@ -201,7 +201,7 @@ test("a worktree of a project's repository follows the move, and a paused worker
     expect(after.runtime.last.spec.cwd).toBe(now);
     expect(after.runtime.last.spec.resume).toBe('sess-1');
   } finally {
-    // Shut down the session with its lease intact. Stopping the card starts a separate Git release.
+    
     after.workers.shutdown();
     await after.workers.freed();
   }

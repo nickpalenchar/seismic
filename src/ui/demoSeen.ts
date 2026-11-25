@@ -1,4 +1,4 @@
-// Whether this browser has already played a card's demo on its own: only the first opening plays it.
+
 import type { Demo } from '../core/types';
 
 const key = (cardId: string) => `seismic-demo-seen-${cardId}`;

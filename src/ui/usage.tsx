@@ -1,6 +1,6 @@
-// The status bar shows one pill per connected harness that reports usage. Desktop pills have
-// a bar under each percentage. The popover and Configuration → Harnesses share the limit
-// details, including progress, reset times and the source.
+
+
+
 
 import { cn } from 'cn';
 import { ClaudeCode, CodexIcon, GoogleAntigravityIcon } from '@dev.icons/react';
@@ -47,7 +47,7 @@ function UsageProgress({ limit, className }: { limit: UsageLimit; className?: st
   );
 }
 
-// the harnesses' own logos, from devicons.io
+
 const MARKS = { claude: ClaudeCode, codex: CodexIcon, agy: GoogleAntigravityIcon };
 
 export function HarnessMark({ harness, size = 14 }: { harness: Usage['harness']; size?: number }) {
@@ -79,7 +79,7 @@ export function UsageDetails({ usage }: { usage: Usage }) {
  * harness's pill beside it).
  */
 export function UsagePill({ usage, phone, compact }: { usage: Usage; phone?: boolean; compact?: boolean }) {
-  // open by a click (a tap) until one elsewhere or Escape
+  
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState('');
   if (!usage.limits.length) return null;

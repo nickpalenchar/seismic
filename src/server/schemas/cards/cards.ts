@@ -14,7 +14,7 @@ import { asLabels, type CardLabels, cardLabels, type LabelsUpdate } from './labe
 import { type CardPlan, cardPlans, type PlanUpdate } from './plans';
 import { asReview, type CardReview, cardReviewItemEvents, cardReviewItems, cardReviews, type ReviewUpdate } from './reviews';
 
-/** Every card, whatever its kind; what each column holds is described on `CardRow`. */
+
 export const cards = sqliteTable(
   'cards',
   {
@@ -54,9 +54,9 @@ export const cards = sqliteTable(
     app: text(),
     keptIn: text('kept_in'),
     agentSetting: text('agent_setting', { mode: 'json' }).$type<AgentSetting>(),
-    /** Set on every card (`SHORT` in db.ts); nullable only because it was added to a table that had rows. */
+    
     short: text(),
-    /** No foreign key, which would keep a canvas from ever being dropped: the store keeps it valid. */
+    
     canvasId: text('canvas_id'),
     stoppedAt: text('stopped_at', { mode: 'json' }),
   },
@@ -64,7 +64,7 @@ export const cards = sqliteTable(
     unique().on(t.projectId, t.planRef),
     uniqueIndex('cards_short').on(t.short),
     index('cards_canvas').on(t.canvasId),
-    // the cards each change of a project reads, without going through its archive
+    
     index('cards_open').on(t.projectId).where(sql`deleted_at IS NULL AND archived_at IS NULL`),
   ],
 );
@@ -72,10 +72,10 @@ export const cards = sqliteTable(
 export interface CardRow {
   id: string;
   project_id: string;
-  /** The canvas of the project it is on; a workstream's is its plan's. */
+  
   canvas_id: string;
   kind: CardKind;
-  /** Null on plan cards: the state comes from the plan doc. */
+  
   state: CardState | null;
   need: Need | null;
   title: string | null;
@@ -83,88 +83,88 @@ export interface CardRow {
   x: number;
   y: number;
   parent_id: string | null;
-  /** `docs/plan/x.md` for a plan, `docs/plan/x.md#W3` for a workstream; null for manual cards. */
+  
   plan_ref: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
-  /** Agent session of the card's worker, or of a plan's plan agent. */
+  
   session_id: string | null;
-  /** JSON AgentSetting pinned before a worker starts; null on legacy Claude sessions. */
+  
   agent_setting: string | null;
-  /** Leased clone and branch while a worker has the card. */
+  
   workstation: string | null;
   branch: string | null;
-  /** The worker's latest `report`. */
+  
   status_line: string | null;
-  /** JSON: the open question (`{ text, options }`) or the review summary (`{ summary }`). */
+  
   detail: string | null;
-  /** A proposal's source card. */
+  
   from_id: string | null;
-  /** JSON: the Koordinator's estimate of the files the card changes (`{ files, reason }`). */
+  
   scope: string | null;
-  /** JSON: set while the Koordinator decides (`{ checking: true }`) or the card waits (`{ behind, reason }`), with `since`. */
+  
   queue: string | null;
-  /** The owner's card's repository on a project with several; null is the home repository. */
+  
   repo: string | null;
-  /** When the owner took the finished card off the project into the archive. */
+  
   archived_at: string | null;
-  /** Its idea part (`cardIdeas`): set once the card is an idea, a prototype or a worker's proposal, or was decided to become a plan or built in a new repository. */
+  
   idea: CardIdea | null;
-  /** Its review part (`cardReviews`): its pull request, a contributor's it reviews, the code review of its work. */
+  
   review: CardReview | null;
-  /** Its demo part (`cardDemos`, `cardEarlierDemos`): the latest demo and the earlier ones, its page for colleagues, the files named as the result. */
+  
   demo: CardDemo | null;
-  /** Its plan part (`cardPlans`): a plan's doc, deps and fold; the plan docs a card's landed work added. */
+  
   plan: CardPlan | null;
-  /** Its labels (`cardLabels`), those it has. */
+  
   labels: CardLabels;
-  /** While the card's agent does not run or the card is off the canvas, why (`cardHolds`): paused, about to pause, paused by the usage limit, snoozed, in the parking lot. */
+  
   hold: Hold | null;
-  /** When the owner approved work that could not land yet; its next handover lands without asking again. */
+  
   approved_at: string | null;
-  /**
-   * JSON, while the card's work is on main and its worker finishes what remains (its workstation and
-   * session are kept until then): `{ commit?, restart? }`, `restart` when it waits for Seismic to run the change.
-   */
+  
+
+
+
   landed: string | null;
-  /** JSON: ids of the screenshots the owner attached to the card's task. */
+  
   images: string | null;
-  /** A card the work retrospective proposed: what it rests on. */
+  
   retro: string | null;
-  /** The group the card belongs to; a plan's covers its workstreams, whose own stays null. */
+  
   group_id: string | null;
-  /**
-   * JSON, once the card's work landed (`Shipped` in board.ts): the commit it landed with and its
-   * pull request. Kept after its worker is done: a workstream whose plan doc keeps it open is
-   * planned again once the read checkout holds that commit.
-   */
+  
+
+
+
+
   shipped: string | null;
-  /** When Seismic stopped the app in the card's workstation while the card waited (Parking); gone once its worker heard so. */
+  
   parked: string | null;
-  /** JSON, a Question card (and an idea that was one): the thread of looked-up answers it holds (`StoredThread` in board.ts). */
+  
   thread: string | null;
-  /** JSON: the owner's words Seismic holds for the card's worker until it takes them in, at its next tool step or turn (`Unheard` in workers.ts). */
+  
   unheard: string | null;
-  /** The address its worker opens the app in the card's workstation at, while it runs (`app_running`); gone once Seismic stops the app or the workstation goes. */
+  
   app: string | null;
-  /**
-   * The clone (`ssh://<host>/…` on a host) that holds the newest state of the card's branch since
-   * the owner took its workstation from it, its uncommitted work in a commit of Seismic's on top; gone
-   * once the card works in a clone again, which takes the branch from there.
-   */
+  
+
+
+
+
   kept_in: string | null;
-  /** JSON, on a card the owner stopped (planned again with its branch): the state it was at (`StoppedAt` in types.ts), until it starts again. */
+  
   stopped_at: string | null;
-  /** The card's code in addresses (`/p/<project>/c/<code>`): the start of its id's hex digits, unique among all cards (`SHORT`). */
+  
   short: string;
 }
 
-/** The card's parts in tables of their own, each under its name on `CardRow`. */
+
 export const PARTS = ['idea', 'review', 'demo', 'plan', 'labels', 'hold'] as const;
 export type Part = (typeof PARTS)[number];
 
-/** Changes to a card's parts in tables of their own: the fields of each to set (`hold` replaced or, `null`, let go). */
+
 export interface PartsUpdate {
   idea?: IdeaUpdate;
   review?: ReviewUpdate;
@@ -174,32 +174,32 @@ export interface PartsUpdate {
   hold?: Hold | null;
 }
 
-/**
- * A card to store, with its parts where it has any; without `canvas_id` it goes on its plan's
- * canvas (a workstream), else on the project's `main` (`Store.addCards`).
- */
+
+
+
+
 export type NewRow = Pick<CardRow, 'project_id' | 'kind' | 'x' | 'y'> &
   Partial<Pick<CardRow, 'canvas_id' | 'state' | 'title' | 'body' | 'parent_id' | 'plan_ref' | 'from_id' | 'repo' | 'images' | 'retro' | 'group_id'>> &
   PartsUpdate;
 
-/** What `Cards.update` may change on a card: all but what is set once at its creation, its times and its parts in tables of their own. */
+
 export type RowUpdate = Partial<Omit<CardRow, 'id' | 'project_id' | 'canvas_id' | 'parent_id' | 'plan_ref' | 'retro' | 'created_at' | 'updated_at' | Part>>;
 
-/** What `Store.updateCard` may change on a card: its own fields and its parts. */
+
 export type CardUpdate = RowUpdate & PartsUpdate;
 
-/** What a new card is stored with: the fields of `NewRow`, its own and its times. */
+
 const NEW_FIELDS = ['id', 'short', 'project_id', 'canvas_id', 'kind', 'state', 'title', 'body', 'x', 'y', 'parent_id', 'plan_ref', 'from_id', 'repo', 'images', 'retro', 'group_id', 'created_at', 'updated_at'] as const;
 
-/** The card's own columns as stored (JSON as its text), as `CardRow` has them. */
+
 const own = Object.fromEntries(Object.values(getTableColumns(cards)).map((c) => [c.name, sql`${c}`.as(c.name)]));
-/**
- * How a card is read: its own columns as stored, with its one-row parts joined (none where it has
- * no row: Drizzle reads a left-joined table as null where its first column, the key, is); its earlier demos and
- * labels come after, for all the cards read at once (`Cards.rows`). Joins rather than relational
- * queries: those read each part in a subquery of its own, which made reading a project's cards
- * take about twice as long.
- */
+
+
+
+
+
+
+
 const READ = {
   ...own,
   idea: getTableColumns(cardIdeas),
@@ -208,13 +208,13 @@ const READ = {
   plan: getTableColumns(cardPlans),
   hold: getTableColumns(cardHolds),
 };
-/**
- * READ's columns in the order the query selects them (READ's own, as Drizzle goes through it), each
- * with the part it goes into (none: the card's own, read as stored) and, for a part's, its column
- * to decode it. `fromValues` puts a row together as Drizzle's own mapping does, with these found
- * once: Drizzle looks up every value's kind and place anew, which made reading a project's cards
- * cost three times what SQLite takes (the size test, board-size.test.ts).
- */
+
+
+
+
+
+
+
 type ReadField = { part: string | null; key: string; column: Column | null };
 const READ_FIELDS = Object.entries(READ).flatMap<ReadField>(([key, field]) =>
   is(field, SQL.Aliased) ? [{ part: null, key, column: null }] : Object.entries(field as Record<string, Column>).map(([k, column]) => ({ part: key, key: k, column })),
@@ -234,7 +234,7 @@ function fromValues(values: unknown[]): Omit<Read, 'earlierDemos' | 'labels' | '
   return row as Omit<Read, 'earlierDemos' | 'labels' | 'reviewItems' | 'reviewEvents'>;
 }
 
-/** Each column's key in `cards` by its name in the database. */
+
 const keyOf = new Map(Object.entries(getTableColumns(cards)).map(([key, c]) => [c.name, key]));
 
 /** Fields of a `CardRow` as values to write: under their keys in `cards`, as stored already (JSON as its text). */
@@ -258,7 +258,7 @@ export const cardsRelations = relations(cards, ({ one, many }) => ({
   hold: one(cardHolds, { fields: [cards.id], references: [cardHolds.cardId] }),
 }));
 
-/** A card as its query reads it (`READ`), with its rows of the parts that have several. */
+
 type Read = Omit<CardRow, 'demo' | 'labels' | 'hold' | 'review'> & {
   review: Parameters<typeof asReview>[0];
   reviewItems: Parameters<typeof asReview>[1];
@@ -289,13 +289,13 @@ function byCard<R extends { cardId: string }>(rows: R[]): Map<string, Omit<R, 'c
 }
 
 const open = (projectId: string) => and(eq(cards.projectId, projectId), isNull(cards.deletedAt));
-/** A card with a worker's proposal, waiting or accepted. */
+
 const proposed = sql`EXISTS (SELECT 1 FROM card_ideas i WHERE i.card_id = ${cards.id} AND i.proposal IS NOT NULL)`;
 
 /** The cards' queries (`Store.cards`): rows as `CardRow` has them, the card's own columns as stored. */
 export class Cards {
   private readonly taken;
-  // the reads every change of a project makes, prepared once: building a query costs more than running it
+  
   private readonly byId;
   private readonly open;
   private readonly earlier;
@@ -393,7 +393,7 @@ export class Cards {
 
   /** The cards whose landed work added plan docs, on the project or archived. */
   withPlanDocs(projectId: string): CardRow[] {
-    // from the few plan rows with docs (card_plans_plan_docs), not from every card of the project: each change of it asks
+    
     return this.rows(and(open(projectId), inArray(cards.id, sql`(SELECT card_id FROM card_plans WHERE plan_docs IS NOT NULL)`)));
   }
 
@@ -446,7 +446,7 @@ export class Cards {
    * worker's proposal the owner dismissed, say. Plan cards go with their plan doc, not by a click.
    */
   removed(projectId: string, since: string): { at: string; title: string; state: CardState }[] {
-    // a proposal its agent withdrew went without the owner
+    
     return this.db
       .select({ at: sql<string>`${cards.deletedAt}`, title: sql<string>`${cards.title}`, state: sql<CardState>`COALESCE(${cards.state}, 'planned')` })
       .from(cards)
@@ -467,7 +467,7 @@ export class Cards {
     return atomic(this.db, () =>
       rows.map((r) => {
         const id = crypto.randomUUID();
-        // the shortest start of its hex digits no other card has as its code; the whole of them is its own
+        
         const hex = id.replaceAll('-', '');
         let n = SHORT;
         while (n < hex.length && this.taken.get({ short: hex.slice(0, n) })) n++;

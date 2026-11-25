@@ -1,8 +1,8 @@
-// The queue: the list in the Agents sheet's "Queue" tab (src/ui/agents.tsx), where a row is dragged to its
-// place by its grip (or, with a mouse, by itself), as far as its waits let it; pulled farther, it says
-// why it stops. A row's × takes its card out. On the card, two buttons move it one place earlier or
-// later; one whose way is blocked by a wait says why when clicked (and on hover), and at the head or
-// the end of the queue it is greyed out. The card also unfolds the queue, where it alone is dragged.
+
+
+
+
+
 
 import { GripVertical } from 'lucide-react';
 import { type ReactNode, type RefObject, useState } from 'react';
@@ -25,7 +25,7 @@ import { cn } from 'cn';
  * drop shown ahead of the server keeps the next drag from starting from the old order.
  */
 export function useQueueSort(items: Item[], scroller: RefObject<HTMLElement | null>, own?: string) {
-  // why a row's last move or × did not go
+  
   const [failed, setFailed] = useState<{ id: string; text: string }>();
   const queued = queueOrder(items);
   const fixed = (id: string) => (own ? id !== own : !movable(queued.find((i) => i.id === id)!));
@@ -136,11 +136,11 @@ const rowClass = (onCard: boolean, own: boolean) =>
     own && 'own bg-card! [box-shadow:inset_0_0_0_1px_var(--border)] cursor-grab! data-[sorting=dragged]:[box-shadow:var(--lift)]!',
   );
 
-/** A row's grip: dragged to put the row elsewhere; a finger on it does not scroll the list, and is given more room. */
+
 const gripClass =
   'grip flex-none flex justify-center w-3 mt-0.5 mb-0 -mr-1 -ml-0.5 text-muted-foreground touch-none opacity-70 group-hover/qrow:opacity-100 pointer-coarse:w-7 pointer-coarse:-my-1 pointer-coarse:-mx-2 pointer-coarse:pt-1.5';
 
-/** The buttons that move a card one place earlier or later (Configuration's project order has them too). */
+
 export const qmovesClass = 'qmoves inline-flex gap-1 flex-none';
 
 /** A card in the queue, with its grip and what it waits for. */
@@ -148,7 +148,7 @@ function QueueRow(p: {
   item: Item;
   items: Item[];
   own: boolean;
-  /** On a waiting card: the other rows only show where it stands. */
+  
   onCard: boolean;
   row: ReturnType<Sort['row']>;
   grip?: ReturnType<Sort['grip']>;
@@ -158,7 +158,7 @@ function QueueRow(p: {
   onOpen?: (i: Item) => void;
 }) {
   const { item, items, onOpen } = p;
-  // pulled beyond where its waits let it go: the card that stops it, and why
+  
   const stop = p.drag?.held && reach(item.id, p.drag.held === 'earlier', items);
   const held = stop && stop.stop && stop.why ? t.queue.stuck[stop.why](plain(stop.stop.title)) : '';
   return (
@@ -195,7 +195,7 @@ export function scrollerOf(el: RefObject<HTMLElement | null>): RefObject<HTMLEle
 
 /** The buttons, the card's place, and why the last move did not go; none for a card that cannot move. */
 export function useQueueMove(item: Item, items: Item[]): { buttons: ReactNode; place: string; why: string } | undefined {
-  // a refusal shows until the next click; a blocked way while it is still blocked
+  
   const [why, setWhy] = useState<{ id: string; text: string; error?: true }>();
   if (!movable(item)) return undefined;
   const order = queueOrder(items);

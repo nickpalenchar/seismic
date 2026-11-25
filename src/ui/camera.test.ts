@@ -3,7 +3,7 @@ import { besideSheet, camKey, type Cam, lastCanvas, lastCanvasKey, NO_SIDES, CHA
 
 const view = { left: 0, top: 70, right: 1000, bottom: 800 };
 const cam: Cam = { x: 0, y: 0, s: 1 };
-// the world shown is x 0..1000, y 70..800; the content reaches beyond it on every side
+
 const wide = { x: -2000, y: -2000, w: 5000, h: 5000 };
 
 test('a card dragged to an edge scrolls the view that way, faster the nearer the edge', () => {
@@ -16,7 +16,7 @@ test('a card dragged to an edge scrolls the view that way, faster the nearer the
   const shallow = edgeScroll(cam, { x: 1000 - EDGE_ZONE / 2, y: 400 }, from, view, wide, 100).x;
   expect(deep).toBeLessThan(shallow);
   expect(shallow).toBeLessThan(0);
-  // away from the edges nothing moves
+  
   expect(edgeScroll(cam, { x: 1000 - EDGE_ZONE - 1, y: 400 }, from, view, wide, 100)).toEqual(cam);
 });
 
@@ -31,7 +31,7 @@ test('the view scrolls no further than the content plus room for the card', () =
   expect(limit).toEqual({ x: -300 - DROP_ROOM, y: -136 - DROP_ROOM, w: 1500 + 600 + 2 * DROP_ROOM, h: 600 + 272 + 2 * DROP_ROOM });
   let c = cam;
   for (let i = 0; i < 100; i++) c = edgeScroll(c, { x: 1000, y: 400 }, { x: 500, y: 400 }, view, limit, 16);
-  // the right edge of the view stops at the content's right edge plus the card and its room
+  
   expect((view.right - c.x) / c.s).toBeCloseTo(1500 + 300 + DROP_ROOM);
   for (let i = 0; i < 300; i++) c = edgeScroll(c, { x: 0, y: 400 }, { x: 500, y: 400 }, view, limit, 16);
   expect((view.left - c.x) / c.s).toBeCloseTo(-300 - DROP_ROOM);
@@ -51,11 +51,11 @@ test('a view already beyond the limit stays put rather than jump back', () => {
   const far: Cam = { x: -5000, y: 0, s: 1 };
   const limit = { x: 0, y: 0, w: 1200, h: 1000 };
   expect(edgeScroll(far, { x: 1000, y: 400 }, { x: 500, y: 400 }, view, limit, 16)).toEqual(far);
-  // towards the content it scrolls as usual
+  
   expect(edgeScroll(far, { x: 0, y: 400 }, { x: 500, y: 400 }, view, limit, 16).x).toBeGreaterThan(far.x);
 });
 
-// two cards far apart: x 0..300 and x 3000..3300, both at y 100..236
+
 const cards = [
   { x: 0, y: 100, w: 300, h: 136 },
   { x: 3000, y: 100, w: 300, h: 136 },
@@ -63,20 +63,20 @@ const cards = [
 
 test('a view that shows some content stays where it is', () => {
   expect(keepInView(cam, cards, view)).toEqual(cam);
-  // a corner of a card is enough
+  
   const corner: Cam = { x: 1000 - KEEP, y: 70 - 236 + KEEP, s: 1 };
   expect(keepInView(corner, cards, view)).toEqual(corner);
 });
 
 test('a view panned off the content stops with a strip of the nearest card in sight', () => {
-  // far to the left of everything: the first card's left strip stays at the right edge
+  
   const left = keepInView({ x: 5000, y: 0, s: 1 }, cards, view);
   expect(left.x).toBe(1000 - KEEP);
-  // far above: the cards' top strip stays at the bottom edge
+  
   const above = keepInView({ x: 0, y: 3000, s: 1 }, cards, view);
   expect(above.x).toBe(0);
   expect(above.y + 100).toBe(800 - KEEP);
-  // between the two cards, nearer the second one
+  
   const between = keepInView({ x: -2100, y: 0, s: 1 }, cards, view);
   expect(between.x + 3000).toBe(1000 - KEEP);
 });
@@ -85,7 +85,7 @@ test('in a corner off the content the view moves both ways, at any zoom', () => 
   const c = keepInView({ x: 4000, y: 4000, s: 0.5 }, cards, view);
   expect(c.s).toBe(0.5);
   expect(c.x).toBe(1000 - KEEP);
-  // the card is 68 pixels tall at this zoom, less than the strip: all of it shows
+  
   expect(c.y + 100 * 0.5).toBe(800 - 68);
 });
 
@@ -106,7 +106,7 @@ test('a chased camera closes most of the way each frame and arrives without over
   const one = chaseStep(cam, to, 16);
   expect(one.x).toBeLessThan(0);
   expect(one.x).toBeGreaterThan(to.x);
-  // after CHASE_MS nearly two thirds of the way are done
+  
   expect(chaseStep(cam, to, CHASE_MS).x).toBeCloseTo(to.x * (1 - Math.exp(-1)));
   let c = cam;
   for (let i = 0; i < 100 && c !== to; i++) c = chaseStep(c, to, 16);
@@ -116,9 +116,9 @@ test('a chased camera closes most of the way each frame and arrives without over
 test('a sheet docked on the right moves the view by half its width, so the middle stays the middle', () => {
   const c: Cam = { x: 100, y: 50, s: 1.5 };
   const right = (w: number) => ({ left: 0, right: w });
-  // opening a sheet 380 wide: the content moves left by 190
+  
   expect(besideSheet(c, NO_SIDES, right(380))).toEqual({ x: -90, y: 50, s: 1.5 });
-  // closing it, or dragging it wider, moves it back by as much
+  
   expect(besideSheet(besideSheet(c, NO_SIDES, right(380)), right(380), NO_SIDES)).toEqual(c);
   expect(besideSheet(c, right(380), right(500))).toEqual({ x: 40, y: 50, s: 1.5 });
   expect(besideSheet(c, right(380), right(380))).toBe(c);
@@ -134,7 +134,7 @@ test('a new card goes under the pointer over the canvas, else to the middle of t
   const zoomed: Cam = { x: -100, y: 30, s: 2 };
   const shown = { x: 50, y: 20, w: 500, h: 365 };
   expect(placeIn(zoomed, view, { x: 300, y: 430 })).toEqual({ x: 200, y: 200, view: shown });
-  // off the page, or over the top bar: the middle of what is in view
+  
   expect(placeIn(zoomed, view, null)).toEqual({ x: 300, y: 202.5, view: shown });
   expect(placeIn(zoomed, view, { x: 300, y: 20 })).toEqual({ x: 300, y: 202.5, view: shown });
 });
@@ -159,7 +159,7 @@ test('a return to a project finds the canvas shown last on it, while the project
   expect(lastCanvas(canvases, 'gone')).toBeUndefined();
   expect(lastCanvas(canvases, null)).toBeUndefined();
   expect(lastCanvasKey('p1')).not.toBe(lastCanvasKey('p2'));
-  // no project id makes it the key of something else, such as another project's draft of a new canvas
+  
   expect(lastCanvasKey('draft-shop-new')).not.toBe('seismic-canvas-draft-shop-new');
   expect(lastCanvasKey('x').startsWith('seismic-last-canvas-')).toBe(true);
 });

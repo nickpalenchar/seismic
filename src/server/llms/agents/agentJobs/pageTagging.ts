@@ -1,4 +1,4 @@
-/** What the sessions that choose a demo page's tags share: the tool's field text and schema, and what is kept of the answer. */
+
 import { z } from 'zod';
 import { dimensions } from '../../../../core/page-tags';
 import type { PageTags } from '../../../../core/types';

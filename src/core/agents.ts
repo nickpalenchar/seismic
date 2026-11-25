@@ -1,10 +1,10 @@
-// The stage of its lifecycle a card is at, as the phone's "All" groups the project's cards and the
-// desktop's Agent work sorts them into "Working" and "Todo". Finished, archived and parked cards (the
-// "Parked" tab lists those), and ideas the owner has nothing to answer on, are at none.
+
+
+
 
 import { type Item, needsYou, offCanvas } from './types';
 
-/** The stages "All" groups its cards by, in the order the tab shows them. */
+
 export const AGENT_STAGES = ['needsYou', 'working', 'reviewing', 'fixing', 'landing', 'planned'] as const;
 export type AgentStage = (typeof AGENT_STAGES)[number];
 
@@ -27,7 +27,7 @@ export function agentStage(i: Item, underway = false): AgentStage | undefined {
   return 'working';
 }
 
-/** The stages Agent work's "Working" holds; "Todo" holds the queue and then the planned cards. */
+
 const WORKING: readonly AgentStage[] = ['working', 'reviewing', 'fixing', 'landing'];
 
 /**

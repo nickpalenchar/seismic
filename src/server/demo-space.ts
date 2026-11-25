@@ -1,7 +1,7 @@
-// The disk space demos take in the demo directory, and the frames of old renders that Seismic
-// deletes: a render keeps the frames it was cut from in its work directory (`.work/frames`, about
-// half a gigabyte a demo), which only re-voicing needs once the video is made.
-//
+
+
+
+
 
 import { existsSync, readFileSync } from 'node:fs';
 import { lstat, readdir, readFile, rm, stat } from 'node:fs/promises';
@@ -10,17 +10,17 @@ import { join, resolve } from 'node:path';
 import type { DemoSpaceView } from '../core/types';
 import { type DemoSettings, demoDirectory } from '../../plugin/skills/demo/lib/settings.ts';
 
-/** Days after a demo's last render that its frames are kept, where the demo settings name nothing. */
+
 export const DEFAULT_KEEP_DAYS = 14;
 
 const DAY_MS = 24 * 3600_000;
-/** How often Seismic looks for frames to delete. */
+
 const SWEEP_EVERY_MS = 6 * 3600_000;
-/** The first look after Seismic starts: not in the middle of its start. */
+
 const FIRST_SWEEP_MS = 60_000;
-/** Demos whose work directories are looked for at the same time. */
+
 const DEMOS_AT_ONCE = 16;
-/** Counts older than this are counted again when the owner looks. */
+
 const STALE_MS = 10 * 60_000;
 
 /**
@@ -58,7 +58,7 @@ export async function workDirs(dir: string): Promise<string[]> {
   };
   const demos = await subdirs(dir);
   const found: string[] = [];
-  // a few demos at a time, so the answers for all of them do not come back in one turn of the event loop
+  
   for (let i = 0; i < demos.length; i += DEMOS_AT_ONCE) {
     for (const works of await Promise.all(demos.slice(i, i + DEMOS_AT_ONCE).map(ofDemo))) found.push(...works);
   }
@@ -71,7 +71,7 @@ const realDir = (p: string): Promise<boolean> => lstat(p).then((s) => s.isDirect
 /** When a render last wrote into its work directory: the newest of it and what lies directly in it. */
 export async function lastRender(work: string): Promise<number> {
   const names = await readdir(work);
-  // what is gone meanwhile counts for nothing
+  
   const paths = [work, ...names.map((n) => join(work, n))];
   let last = 0;
   for (let i = 0; i < paths.length; i += DEMOS_AT_ONCE) {
@@ -89,7 +89,7 @@ async function rendering(work: string): Promise<boolean> {
     process.kill(pid, 0);
     return true;
   } catch (e) {
-    // a process of another user still runs
+    
     return (e as NodeJS.ErrnoException).code === 'EPERM';
   }
 }
@@ -186,7 +186,7 @@ export async function sweep(dir: string, days: number, now = Date.now()): Promis
     const due = async () => now - (await lastRender(work)) >= days * DAY_MS && !(await rendering(work));
     if (!(await due())) continue;
     const { bytes } = await usage(frames);
-    // a render may have started while they were counted
+    
     if (!(await due())) continue;
     if (await realDir(frames)) await rm(frames, { recursive: true, force: true });
     await rm(list, { force: true });
@@ -203,13 +203,13 @@ export async function sweep(dir: string, days: number, now = Date.now()): Promis
  * opened counts again when the last count is old.
  */
 export class DemoSpace {
-  /** The last count and the last deletion, each of the demo directory it was of. */
+  
   private used?: DemoSpaceView['used'] & { dir: string };
   private freed?: DemoSpaceView['freed'] & { dir: string };
-  /** The jobs queued or running, one after the other. */
+  
   private tail: Promise<void> = Promise.resolve();
   private pending = 0;
-  /** A job queued and not started yet, which a request for the same (a count: or a sweep, which counts too) joins. */
+  
   private ahead: { sweep?: Promise<void>; count?: Promise<void> } = {};
   private timers: ReturnType<typeof setTimeout>[] = [];
 
@@ -233,7 +233,7 @@ export class DemoSpace {
   view(): DemoSpaceView {
     const s = this.o.settings();
     const dir = demoDirectory(s);
-    // what was counted and deleted in another directory than the settings name now is not shown
+    
     const used = this.used?.dir === dir ? this.used : undefined;
     const freed = this.freed?.dir === dir ? this.freed : undefined;
     if (!this.pending && (!used || Date.now() - Date.parse(used.at) > STALE_MS)) void this.queue(false);
@@ -269,8 +269,8 @@ export class DemoSpace {
     const dir = demoDirectory(s);
     try {
       const days = this.unreadable() ? null : keepDays(s, this.o.home);
-      // an Seismic that keeps every frame has nothing to delete, and counts only for the owner looking
-      // (or for a directory it has no count of)
+      
+      
       if (sweeping && days === null && this.used?.dir === dir) return;
       if (sweeping && days !== null) {
         const freed = await sweep(dir, days);

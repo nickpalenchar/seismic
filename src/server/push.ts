@@ -1,10 +1,10 @@
-// Pushes to the owner's phone when something starts to wait for them: a card whose
-// `needsYou` turns true (a demo, a question, a proposal, a card its agent withdrew, a PR to merge, an idea's turn), a landing
-// that failed, a worker that is stuck. Each paired device that turned notifications on holds one
-// subscription; Seismic signs with a VAPID key of its own in its home and needs no account.
-//
-// Each device is independent: a visible phone holds off only its own pushes. The first push goes
-// out at once; what starts waiting in the next minute is sent together at its end.
+
+
+
+
+
+
+
 
 import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -16,11 +16,11 @@ import type { Store } from './store';
 import { UNUSED_MS } from './remote';
 import { newVapidJwk, type Post, type PushMessage, send, subscriptionOf, type Vapid, vapidOf } from './webpush';
 
-/** How long a page on a paired device counts as in view after it last said so (every 30 s). */
+
 export const DEVICE_MS = 45_000;
-/** What starts waiting within this after a push goes out together at its end. */
+
 export const WINDOW_MS = 60_000;
-/** Seismic's VAPID key, in its home: subscriptions hold its public half, so it stays. */
+
 const KEY_FILE = 'vapid.json';
 
 export { kindOf, plainTitle, type PushKind, startedWaiting } from '../core/waits';
@@ -28,26 +28,26 @@ export { kindOf, plainTitle, type PushKind, startedWaiting } from '../core/waits
 /** At most `n` characters: a push carries at most about 4 KB, and a phone shows a few lines anyway. */
 const clipped = (text: string, n: number) => (text.length > n ? `${text.slice(0, n - 1)}…` : text);
 
-/** A card that started to wait for the owner. */
+
 export interface Waits {
   card: string;
   title: string;
   kind: PushKind;
-  /** Its project's name, where Seismic has several. */
+  
   project?: string;
-  /** Whether it still waits: one the owner took care of within the minute is not pushed. */
+  
   still: () => boolean;
 }
 
 export interface PushOptions {
   store: Store;
-  /** Seismic's home, with the VAPID key; without one (a test) the key is made up in memory. */
+  
   home?: string;
   language?: () => Language;
   now?: () => number;
-  /** Sends a request to a push service: `fetch`, or a test's. */
+  
   post?: Post;
-  /** Runs `fn` after `ms`: `setTimeout`, or a test's. */
+  
   later?: (fn: () => void, ms: number) => void;
 }
 
@@ -59,11 +59,11 @@ export class Push {
   private readonly post?: Post;
   private readonly later: (fn: () => void, ms: number) => void;
   private vapid?: Promise<Vapid>;
-  /** The paired devices with a page in view, by id, and when it last said so. */
+  
   private devices = new Map<string, number>();
-  /** Per device, the minute after a push and what starts waiting meanwhile. */
+  
   private windows = new Map<string, Map<string, Waits>>();
-  /** Deliveries stay ordered per device, without blocking other devices. */
+  
   private sending = new Map<string, Promise<void>>();
 
   constructor(o: PushOptions) {

@@ -1,7 +1,7 @@
-/**
- * Judges the labels of a card that has its title: a short read-only session reads the card (its
- * screenshots as a help) and gives the labels left to suggest.
- */
+
+
+
+
 import type { Label, Labels } from '../../../../core/labels';
 import type { AgentRuntime, AgentTool } from '../../../runtime';
 import { judgeCardLabelsSystem } from '../../prompts/judgeCardLabelsSystem';
@@ -10,9 +10,9 @@ import { SeismicJob } from '../seismicJob';
 
 export interface JudgeCardLabelsRun {
   runtime: AgentRuntime;
-  /** Where the session reads. */
+  
   cwd: string;
-  /** The labels to judge. */
+  
   asked: Label[];
   title: string;
   body: string;

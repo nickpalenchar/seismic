@@ -130,7 +130,7 @@ test('multiline descriptions preserve blank lines and indentation and end at the
   const description = "cat <<'EOF'\n  café 日本語 🚀\n\nEOF\necho done";
   const running = new Map<string, AgyTask>();
   const entry = JSON.parse(started('c/task-2', description));
-  // An incomplete envelope or a quoted envelope must still be ignored.
+  
   applyLines(running, [JSON.stringify({ ...entry, content: entry.content.split('\nTask logs are available at:')[0] }), JSON.stringify({ ...entry, content: `Example:\n${entry.content}` })]);
   expect(running.size).toBe(0);
   applyLines(running, [JSON.stringify(entry)]);

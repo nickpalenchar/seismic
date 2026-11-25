@@ -1,8 +1,8 @@
-// One-click replies on the entries of "Needs you" (the navigation's list, the phone's): the decision
-// the card's own buttons make, without opening the card. Of an entry's replies exactly one is the
-// default, as on the card; what only the card can settle (a handover, judged by its demo; an idea's
-// reply, several questions, a choice of many or several options, a proposal with questions of its
-// own, a pull request waiting for its merge) has none. A reply that sets work in motion waits out an undo before it is sent.
+
+
+
+
+
 
 import { answerText } from './answer';
 import { ApiError, api, cardsOn } from './api';
@@ -14,19 +14,19 @@ import { failText, snoozeWhen, t } from './strings';
 
 export interface QuickReply {
   label: string;
-  /** What the click does to the card `id`; `keepalive` when it is sent as the page goes. */
+  
   send: (id: string, keepalive: boolean) => Promise<void>;
-  /** The confirmation. */
+  
   ack: string;
-  /** Taking it back afterwards, where the card's own button offers that (a removal). */
+  
   undo?: (id: string) => Promise<unknown>;
-  /** Sent only once its undo has run out (or the page closes), as it sets work in motion. */
+  
   held?: true;
   primary?: true;
   title?: string;
 }
 
-/** Options that fit as buttons on an entry; a longer choice is made on the card. */
+
 export const QUICK_OPTIONS = 4;
 
 const act = (a: CardAction) => (id: string, keepalive: boolean) => api.act(id, a, keepalive);
@@ -52,7 +52,7 @@ export function quickReplies(i: Item): QuickReply[] {
       { label: t.superseded.remove, send: (id) => removeCard(id), ack: t.deleted(plain(i.title)), undo: (id) => restoreCard(id), title: t.superseded.removeHint },
     ];
   if (i.state === 'proposal') {
-    // a merged pair is approved or separated on the card, where the merged text shows
+    
     const p = i.idea?.proposal;
     if (p?.revising || p?.acceptAfterRevision || p?.merge) return [];
     const later = !p?.idea && !!p?.startAt;
@@ -69,13 +69,13 @@ export function quickReplies(i: Item): QuickReply[] {
         ];
     return [...accept, { label: t.dismiss, send: act({ action: 'dismiss' }), ack: t.dismissed, held: true }];
   }
-  // a handover is judged by its demo, on the card; a question waiting there is its decision
+  
   if (i.state !== 'waiting' || i.review?.landing || handedOver(i)) return [];
   const asked = openQuestions(i);
   return asked.length === 1 ? options(asked[0]!) : [];
 }
 
-/** A reply on its way: the card's mark that it is under way (`null` takes it off), and the lines above the microphone. */
+
 export interface ReplyUi {
   mark: (id: string, what: string | null) => void;
   showAck: (text: string, undo?: () => unknown, undoMs?: number) => void;

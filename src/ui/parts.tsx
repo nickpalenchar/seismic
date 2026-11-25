@@ -1,4 +1,4 @@
-// Presentational pieces of the project. State and camera live in App.tsx.
+
 
 import { headClass } from './cardClasses';
 import { connectionDotClass, depHeadClass, depLayerClass, depLineClass, dotSide, type DepKind } from './depsClasses';
@@ -40,32 +40,32 @@ export function TalkIcon() {
   return <MessageSquare size={17} strokeWidth={2} aria-hidden />;
 }
 
-// ------------------------------------------------------------------ cards
+
 
 interface CardProps {
   item: Item;
-  /** An unworked card merged with another card: that card, shown glued to it. */
+  
   partner?: Item;
-  /** On a project with several repositories, cards name theirs. */
+  
   showRepo: boolean;
   b: Bounds;
   lifted: boolean;
   dragging: boolean;
   pop: boolean;
-  /** A prototype of this idea is on the project, which keeps the idea from the archive. */
+  
   prototyped: boolean;
   els: Map<string, HTMLElement>;
-  /** Starts a planned card, or one queued behind others despite the likely conflict. */
+  
   onStart: (item: Item) => void;
-  /** Takes a finished card or a parked or dropped idea off the project into the archive. */
+  
   onArchive: (item: Item) => void;
-  /** While the pointer is on a card with waits: this one is it, comes before it, or waits for it. */
+  
   dep?: 'self' | 'before' | 'after';
-  /** The pointer came onto the card (its id) or left it (null). */
+  
   onHover: (id: string | null) => void;
-  /** Enter or Space on the focused card opens it, as a click does. */
+  
   onOpen: (item: Item) => void;
-  /** What the server is still doing with the card after the owner's click (pushing it onto main, say). */
+  
   underway?: string;
 }
 
@@ -94,7 +94,7 @@ export function LimitNotice({ item, codexAllowed = !item.review?.contribution }:
   const identity = item.agent?.identity;
   const worker = hold?.model ? { harness: setting?.harness ?? 'claude', model: hold.model } : identity?.model ? identity : setting ?? identity;
   const model = modelName(review ? item.review?.codeReview?.agent : worker) ?? u.unknownModel;
-  // a light blue of its own, the colour of a card paused at the limit (`.card.limit-paused`); wrapping on a narrow screen
+  
   return <div role="status" className="limit-notice flex items-start gap-3 py-3 px-4 my-3 mx-0 text-info-strong bg-info-subtle border border-info/30 rounded-xs text-base/[1.4]">
     <HourglassMark />
     <div className="flex-1 min-w-0">
@@ -111,7 +111,7 @@ export function LimitNotice({ item, codexAllowed = !item.review?.contribution }:
   </div>;
 }
 
-/** Where a card's buttons stand: a chip's lower, none while the card is picked up (`held`). */
+
 type PlayOn = { chip: boolean; held: boolean };
 
 /**
@@ -150,7 +150,7 @@ function CardTurn({ item, on }: { item: Item; on: PlayOn }) {
     <Tooltip content={isPausing(item) ? t.pause.takeBackHint : paused ? t.pause.resumeHint : t.pause.safeHint}>
       <button
           className={playClass('turn', on, paused ? 'resume' : undefined)} aria-label={paused ? t.pause.resume : t.pause.button}
-          // the project would take the press as the start of a drag or a click that opens the card
+          
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
@@ -173,7 +173,7 @@ function CardCheckStop({ item, on }: { item: Item; on: PlayOn }) {
     <Tooltip content={t.queue.checkingStopHint}>
       <button
           className={playClass('turn', on)} aria-label={t.stop}
-          // the project would take the press as the start of a drag or a click that opens the card
+          
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
@@ -204,7 +204,7 @@ const ColumnsIcon = ({ size }: { size: number }) => (
 
 const sameBounds = (a: Bounds, b: Bounds) => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
 
-/** Each card of a merged pair: a card's size and padding. */
+
 const HALF = 'relative flex-[0_0_300px] box-border pt-3 px-3.5 pb-3 rounded-xl';
 
 /**
@@ -215,7 +215,7 @@ const HALF = 'relative flex-[0_0_300px] box-border pt-3 px-3.5 pb-3 rounded-xl';
 function MergedPair({ item, partner, showRepo }: { item: Item; partner?: Item; showRepo: boolean }) {
   return (
     <div className="merge-pair flex items-stretch h-full">
-      {/* the card itself, pencilled in like a proposal */}
+      { }
       <div className={`merge-half ${HALF} [border:1.5px_dashed_var(--proposal)] bg-proposal/4`}>
         <CardFace item={item} where={showRepo ? item.repo : undefined} half="first" />
       </div>
@@ -224,7 +224,7 @@ function MergedPair({ item, partner, showRepo }: { item: Item; partner?: Item; s
         <span className="merge-knot">{merging(item) ? <span className="spinner" /> : <MergeMark />}</span>
         <span className="merge-head right absolute top-[calc(50%-7px)] border-y-[7px] border-y-transparent right-0 border-l-[12px] border-l-proposal" aria-hidden />
       </div>
-      {/* the card it merges with: glass, its state a rule across its top */}
+      { }
       <div
         className={`merge-half partner s-${partner?.state ?? 'planned'} ${HALF} [border:1px_solid_var(--glass-edge)] bg-card [box-shadow:var(--shadow)] backdrop-blur-glass backdrop-saturate-150 moving:backdrop-filter-none before:content-[''] before:absolute before:inset-x-0 before:top-0 before:h-1 before:rounded-xs before:bg-(--c)`}
       >
@@ -247,16 +247,16 @@ export const MergeMark = ({ size = 16 }: { size?: number }) => (
 export const CardView = memo(
   function CardView({ item, partner, b, lifted, dragging, pop, prototyped, showRepo, els, onStart, onArchive, dep, onHover, onOpen, underway }: CardProps) {
     const shape = shapeOf(item);
-    // a card the Koordinator is checking has nothing to start yet
+    
     const startable = !item.idea?.proposal?.merge && !item.idea?.mergingInto && item.state === 'planned' && (!item.queue || 'behind' in item.queue);
-    // as "Archivieren" in the unfolded card: a finished card of the owner's whose agent is done, a
-    // stopped task, or a parked or dropped idea without a prototype on the project
+    
+    
     const archivable =
       !item.archivedAt &&
       (finishedArchivable(item) || stoppedArchivable(item) || (!!item.idea?.discussion && item.idea.discussion.status !== 'open' && !prototyped));
     const look = cardLook(item, { underway, place: 'canvas', shape, dep, lifted, dragging, pop });
     const cls = [
-      // the focus ring is an outline: the card's frames and glow are its box-shadow
+      
       'item absolute focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring',
       look.className,
       shape,
@@ -269,7 +269,7 @@ export const CardView = memo(
         data-id={item.id}
         ref={(el) => void (el ? els.set(item.id, el) : els.delete(item.id))}
         style={{ ...look.style, left: b.x, top: b.y, width: b.w, height: b.h, zIndex: 2 }}
-        // reached by Tab like any control; Enter and Space open it (Space is no push-to-talk on a button)
+        
         tabIndex={0}
         role="button"
         aria-label={plain(item.title)}
@@ -293,7 +293,7 @@ export const CardView = memo(
           <Tooltip content={item.queue ? t.queue.force : t.start}>
             <button
                 className={playClass('play', on)} aria-label={item.queue ? t.queue.force : t.start}
-                // the project would take the press as the start of a drag or a click that opens the card
+                
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -325,12 +325,12 @@ export const CardView = memo(
     a.item === b.item && a.partner === b.partner && sameBounds(a.b, b.b) && a.lifted === b.lifted && a.dragging === b.dragging && a.pop === b.pop && a.prototyped === b.prototyped && a.showRepo === b.showRepo && a.onStart === b.onStart && a.onArchive === b.onArchive && a.dep === b.dep && a.onHover === b.onHover && a.onOpen === b.onOpen && a.underway === b.underway,
 );
 
-/**
- * A project's agents on its row in the switcher: while one works
- * there, the moving line of a card at work, which turns into a pause for all of them while the
- * pointer is on the row; with none at work but some paused, a play that resumes them, on the same
- * hover. Where nothing hovers (touch), the button shows throughout.
- */
+
+
+
+
+
+
 /** The pause or play on a project's row; `item` where the row is a dropdown's, which makes the button an item of it that the arrow keys reach and that leaves the menu open. */
 export function ProjectAgents({ project, item }: { project: ProjectInfo; item?: { active: boolean } | null }) {
   const [asked, setAsked] = useState(false);
@@ -345,7 +345,7 @@ export function ProjectAgents({ project, item }: { project: ProjectInfo; item?: 
     (pause ? api.pauseAgents(project.id) : api.resumeAgents(project.id)).catch(console.error).finally(() => setAsked(false));
   };
   const turn = (
-    // faint like the pause on a card and on the bubble in its conversation, full under the pointer
+    
     <button
       type="button"
       className="grid h-5 w-[26px] cursor-pointer place-items-center rounded-xs border after:absolute after:inset-0 after:content-[''] border-border bg-transparent p-0 text-muted-foreground opacity-0 transition-opacity duration-120 group-focus-within/project:opacity-55 group-hover/project:opacity-55 hover:border-muted-foreground! hover:text-foreground! hover:opacity-100! focus-visible:border-muted-foreground! focus-visible:text-foreground! focus-visible:opacity-100! data-highlighted:border-muted-foreground! data-highlighted:text-foreground! data-highlighted:opacity-100! [@media(hover:none)]:opacity-55"
@@ -354,10 +354,10 @@ export function ProjectAgents({ project, item }: { project: ProjectInfo; item?: 
     </button>
   );
   return (
-    // on its project's row: the moving line while one works there, which turns into the pause while the pointer is on the row
+    
     <span
       className={cn(
-        // where a finger taps, the button's reach (its ::after) is the row's whole height and the end of the row the row leaves free, not the small mark
+        
         'absolute top-1/2 right-2.5 flex h-5 w-[26px] -translate-y-1/2 items-center justify-center [@media(hover:none)]:inset-y-0 [@media(hover:none)]:right-0 [@media(hover:none)]:h-auto [@media(hover:none)]:w-11 [@media(hover:none)]:translate-y-0',
       )}
     >
@@ -393,7 +393,7 @@ export function RestartPill({ restart, items, project, onOpen }: { restart: Pend
       go={api.restartNow}
       going={stop ? t.restart.goingStop : update ? t.restart.goingUpdate : t.restart.going}
       say={t.restart.pill(n, owner, restart.reason)}
-      // the deadline does not cut the owner off
+      
       until={!owner.length}
       now={stop ? t.restart.nowStop : update ? t.restart.nowUpdate : t.restart.now}
       risk={stop ? t.restart.nowRiskStop : n ? t.restart.nowRisk : t.restart.nowOwner}
@@ -630,7 +630,7 @@ export function UpdatePill({ update }: { update: AppUpdate }) {
  */
 export function SourcePill({ source }: { source: SourceUpdate }) {
   const [asked, setAsked] = useState(false);
-  // a pull that failed comes back with git's message: the button is there again
+  
   useEffect(() => setAsked(false), [source]);
   const pull = () => {
     setAsked(true);
@@ -715,32 +715,32 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
   project: ProjectInfo;
   projects: ProjectInfo[];
   items: Item[];
-  /** What the server is still doing with a card after the owner's click (landing it, say), by card. */
+  
   underway: Record<string, string>;
   onOpen: (i: Item) => void;
   onElsewhere: (project: string, card: string) => void;
   onTake: (i: Item) => void;
   onKeep: (i: Item) => void;
 }) {
-  // shown while the pointer rests on it, pinned by a click (a tap) until one elsewhere or Escape
+  
   const pop = useHoverOpen();
   const several = pools.length > 1;
   const name = (repo: string) => project.repos.find((r) => r.id === repo)?.name ?? repo;
   const forWorkstation = items.filter((i) => (i.queue && 'workstation' in i.queue && i.queue.workstation !== 'slots') || i.agent?.waitsForClone).length;
   const forSlot = items.filter((i) => i.queue && 'workstation' in i.queue && i.queue.workstation === 'slots').length;
-  // a clone is taken from its card only while none is free and a card of its repository waits for one
+  
   const wanted = (p: ClonePool) =>
     p.hosts.every((h) => !h.uncapped && h.cards.length + blocked(h) >= h.total) && items.some((i) => i.repo === p.repo && ((i.queue && 'workstation' in i.queue) || i.agent?.waitsForClone));
   const blocked = (h: PoolHost) => h.blocked?.length ?? 0;
-  // a new card takes a free clone that is not blocked, on a machine whose busy workers leave it a slot
+  
   const room = (h: PoolHost) => Math.max(0, Math.min(h.slots - h.busy.length, h.total - h.cards.length - blocked(h)));
   const free = (p: ClonePool) => p.hosts.reduce((n, h) => n + room(h), 0);
   const total = (p: ClonePool) => p.hosts.reduce((n, h) => n + h.total, 0);
   const blockedIn = (p: ClonePool) => p.hosts.reduce((n, h) => n + blocked(h), 0);
-  // a pool that is only this machine's checkout (its working ideas, a folder's say) counts what is at work, as one without a cap
+  
   const uncapped = (p: ClonePool) => p.hosts.some((h) => h.uncapped) || p.hosts.every((h) => h.checkout);
   const full = pools.every((p) => !uncapped(p) && free(p) === 0);
-  // the machines a pool names: those with clones, worktrees without a cap, a clone's folder kept, a follow-up's temporary worktree or an idea's agent at work, and every other machine than this one
+  
   const named = (p: ClonePool) => p.hosts.filter((h) => h.total > 0 || h.uncapped || !h.here || h.kept?.length || h.workstations.length || h.exploring?.length);
   const hasDots = pools.some((p) => named(p).some((h) => hostDots(h, items, underway).length > 0));
   const summary = pools.map((p) => uncapped(p) ? t.workstations.uncapped(p.hosts.reduce((n, h) => n + atWorkOn(h), 0)) : t.workstations.free(free(p), total(p), blockedIn(p))).join(', ');
@@ -828,21 +828,21 @@ export function WorkstationsPill({ pools, project, projects, items, underway, on
   );
 }
 
-/** The face of a status bar's pill that opens a list, the pill's whole height. */
+
 export const statusFace = 'flex h-full cursor-pointer flex-row items-center gap-2 rounded-xs bg-transparent px-2 text-inherit';
 
-/**
- * A plan on the project: a quiet frosted container its workstreams stand in, its head along the top.
- * Its blur goes while the canvas is far out or moves (frost.ts), as the cards' does.
- */
+
+
+
+
 const planClass =
   'group/plan absolute rounded-3xl border border-(--container-line) bg-(--container) backdrop-blur-[6px] backdrop-saturate-[1.2] [:is(.z-far,.moving)_&]:backdrop-filter-none';
-/** The plan's head: fold, title, labels, progress and its buttons in a row; a click opens the plan. */
+
 const planHeadClass = 'absolute inset-x-0 top-0 flex cursor-pointer items-center gap-2.5 py-4 pr-6 pl-3 has-[.card-more]:pr-2.5';
-/** Folds the plan to its head and back; always in sight, so it is found. */
+
 const planFoldClass =
   'text-base grid h-6 w-6 flex-none cursor-pointer place-items-center rounded-xs [border:0] bg-transparent p-0 -mr-1 text-muted-foreground hover:bg-card hover:text-foreground [&_path]:[fill:none] [&_path]:[stroke:currentColor] [&_path]:[stroke-width:1.6] [&_path]:[stroke-linecap:round] [&_path]:[stroke-linejoin:round]';
-/** Arranges the workstreams by their dependencies, or starts all planned ones; quiet until the pointer is on one; gone from afar. */
+
 const planHeadButtonClass =
   'flex flex-none cursor-pointer items-center gap-1.5 rounded-xs border border-border bg-card py-1 pr-3 pl-2 text-xs font-medium [transition:background_.15s,color_.15s,border-color_.15s] hover:enabled:border-working hover:enabled:bg-working hover:enabled:text-primary-foreground [.z-far_&]:hidden';
 
@@ -861,7 +861,7 @@ export const PlanView = memo(
     item: Item;
     b: Bounds;
     kids: Item[];
-    /** Answers of its plan agent that wait unread. */
+    
     replies: number;
     els: Map<string, HTMLElement>;
     onStartAll: (plan: Item, count: number) => void;
@@ -873,7 +873,7 @@ export const PlanView = memo(
     const waiting = kids.filter(needsYou).length;
     const startable = startableIn(kids);
     const collapsed = !!item.plan?.collapsed;
-    // the project would take the press as the start of a drag or a click that opens the plan
+    
     const own = (e: React.PointerEvent) => e.stopPropagation();
     const labelled = hasLabels(item);
     return (
@@ -896,7 +896,7 @@ export const PlanView = memo(
               {collapsed ? <ChevronRight size={12} strokeWidth={1.75} aria-hidden="true" /> : <ChevronDown size={12} strokeWidth={1.75} aria-hidden="true" />}
             </button>
           </Tooltip>
-          {/* the keyboard's way to what a click on the head does: Enter or Space opens the plan */}
+          { }
           <span
             className="ttl min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-xl leading-[1.15] [font-family:var(--font)] font-[650] tracking-[-.018em] rounded-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             tabIndex={0}
@@ -916,7 +916,7 @@ export const PlanView = memo(
             </span>
           )}
           <span className="progress ml-auto whitespace-nowrap text-xs text-muted-foreground [.z-far_&]:hidden">{t.progress(live, kids.length)}</span>
-          {/* collapsed, its workstreams are not on the project to arrange; its sheet still has the button */}
+          { }
           {!collapsed && (item.plan?.arranging || arrangeable(kids)) && (
             <button
               className={`head-btn arrange ${planHeadButtonClass} text-muted-foreground disabled:cursor-default disabled:animate-[arranging_1.4s_ease-in-out_infinite]`}
@@ -946,14 +946,14 @@ export const PlanView = memo(
               {t.plan.startAllShort(startable)}
             </button>
           )}
-          {/* "Move to canvas", with its workstreams; its clicks stay its own */}
+          { }
           <span
             className="plan-more flex flex-none opacity-0 [transition:opacity_.15s] group-hover/plan:opacity-100 has-[[aria-expanded=true]]:opacity-100 no-hover:opacity-100"
             onPointerDown={own} onClick={(e) => e.stopPropagation()}>
             <CardMore item={item} floating />
           </span>
         </div>
-        {/* a collapsed plan's workstreams, a mark each in its state's colour: a click opens one, unfolding from its mark */}
+        { }
         {collapsed && (
           <div className={`marks absolute left-[22px] right-[22px] ${labelled ? 'top-[63px]' : 'top-[54px]'} flex h-3.5 flex-wrap gap-1 overflow-hidden`}>
             {kids.filter((k) => !offCanvas(k)).map((k) => (
@@ -974,9 +974,9 @@ export const PlanView = memo(
           </div>
         )}
         {(replies > 0 || waiting > 0) && (
-          // side by side at the plan's corner, counter-scaled so they stay readable zoomed out
+          
           <div className="badges absolute top-[-10px] right-[-8px] flex gap-1.5 [transform:scale(max(1,calc(.9/var(--s))))] origin-[90%_30%]">
-            {/* its plan agent's answers: a speech bubble, unlike the count of workstreams that need the owner */}
+            { }
             {replies > 0 && (
               <Tooltip content={t.plan.replied(replies)}>
                 <Badge
@@ -1035,13 +1035,13 @@ function linkCurve(a: Bounds, b: Bounds, head: number): [Pt, Pt, Pt, Pt] {
   const gapX = Math.max(b.x - (a.x + a.w), a.x - (b.x + b.w));
   const gapY = Math.max(b.y - (a.y + a.h), a.y - (b.y + b.h));
   const across = gapX > gapY;
-  // The direction of travel along the axis the cards face each other on, and the ends on it.
+  
   const dir = across ? Math.sign(b.x + b.w / 2 - (a.x + a.w / 2)) || 1 : Math.sign(b.y + b.h / 2 - (a.y + a.h / 2)) || 1;
   const [x1, y1] = across ? [dir > 0 ? a.x + a.w : a.x, a.y + a.h / 2] : [a.x + a.w / 2, dir > 0 ? a.y + a.h : a.y];
   const [x2, y2] = across ? [(dir > 0 ? b.x : b.x + b.w) - dir * head, b.y + b.h / 2] : [b.x + b.w / 2, (dir > 0 ? b.y : b.y + b.h) - dir * head];
-  // How far the control points reach out from the cards: half the way, but with a head at least its
-  // length (less where the curve hardly goes sideways), so that a short link still runs square into
-  // the head instead of meeting it from the side.
+  
+  
+  
   const along = across ? x2 - x1 : y2 - y1;
   const aside = across ? y2 - y1 : x2 - x1;
   const reach = dir * Math.max(dir * along / 2, Math.min(Math.abs(aside) / 2, head));
@@ -1078,7 +1078,7 @@ export function linkSpot(a: Bounds, b: Bounds, head: number, cards: Bounds[], ro
 export function Links({ placed, waits, standsFor }: { placed: { item: Item; b: Bounds }[]; waits: [string, string][]; standsFor: (id: string) => string }) {
   const byId = new Map(placed.map((p) => [p.item.id, p]));
   const planOf = new Map(placed.flatMap((p) => (p.item.kind === 'plan' && p.item.plan?.origin ? [[p.item.plan.origin, p]] : [])));
-  // both ways: the arrow joins the same two cards whichever of them waits
+  
   const joined = new Set(waits.flatMap(([from, to]) => [`${standsFor(from)} ${standsFor(to)}`, `${standsFor(to)} ${standsFor(from)}`]));
   const paths = placed.flatMap(({ item, b }) => {
     const prototypeOf = item.idea?.prototypeOf;
@@ -1088,18 +1088,18 @@ export function Links({ placed, waits, standsFor }: { placed: { item: Item; b: B
     return [<path key={item.id} d={linkPath(src.b, b)} />];
   });
   return (
-    // above plans (z-index 0), below cards (2): a line from a workstream stays visible over its plan
+    
     <svg id="links" width="1" height="1" className="absolute left-0 top-0 z-1 overflow-visible pointer-events-none [&_path]:fill-none [&_path]:stroke-proposal [&_path]:stroke-2 [&_path]:[stroke-dasharray:5_6] [&_path]:opacity-70">
       {paths}
     </svg>
   );
 }
 
-/**
- * The width of a wait's line in project pixels at zoom `s`, the same faint or highlighted, so that
- * the pointer on a card only changes its colour; never thinner on screen than a hair when zoomed out.
- */
-/** The head at the end of a wait's line, in a box of 9 by 8 that points right. */
+
+
+
+
+
 const DEP_HEAD = 'M0,0 L9,4 L0,8 z';
 
 /**
@@ -1123,22 +1123,22 @@ export const depWidth = (s: number) => Math.max(2, 1.6 / s);
 /** The length of the arrow head at the end of a wait's line, in project pixels: six widths of its line. */
 export const depHead = (s: number) => 6 * depWidth(s);
 
-/**
- * Every direct wait between cards on the project as a faint line, from the card waited for to the
- * card waiting; while the pointer is on a card, the waits around it (`lit`) in the waiting colour
- * instead (`first`: the waits on the way to it in the colour of what comes first). A workstream of a collapsed plan stands for its plan (`standsFor`). A dependency
- * whose prerequisite is finished (`settled`) stays as a dim green line to the card it unlocked.
- * `children` go on top: what the pointer can reach on a line.
- */
-/**
- * The four dots around a card that draw an arrow from it to the card it waits for. `lit`: the sides
- * whose dot shows (the one under the pointer, or all on a card picked up on touch). Its props are
- * values only, so it is drawn again only when one of them changes, not with every card on the canvas.
- */
+
+
+
+
+
+
+
+
+
+
+
+
 export const CardHandles = memo(function CardHandles({ id, x, y, w, h, states, colour, target, lit, onConnect }: { id: string; x: number; y: number; w: number; h: number; states: string; colour: string | undefined; target: boolean; lit: Side | 'all' | null; onConnect: (id: string, side: Side, clientX: number, clientY: number) => void }) {
   return (
     <div data-id={id} className={cn('connection-handles absolute z-4', states, target ? 'pointer-events-auto outline-3 outline-solid outline-waiting outline-offset-3 rounded-sm' : 'pointer-events-none')} style={{ left: x, top: y, width: w, height: h, ...(colour ? { '--c': colour } : {}) } as React.CSSProperties}>
-      {/* a dot draws its arrow to where the pointer goes: four per card would only lengthen the Tab path */}
+      { }
       {SIDES.map((side) => (
         <Tooltip key={side} content={t.deps.connect}>
           <button
@@ -1171,17 +1171,17 @@ export function DepLinks({
   placed: { item: Item; b: Bounds }[];
   waits: [string, string][];
   lit: [string, string][];
-  /** Those of `lit` on the way to the hovered card, as `from to`: in the colour of what comes first. */
+  
   first?: Set<string>;
   settled?: { from: string; to: string }[];
   standsFor: (id: string) => string;
-  /** A wait's own route where it has one (an arrow the owner drew at chosen edges), else none. */
+  
   routeOf?: (from: string, to: string, a: Bounds, b: Bounds, head: number) => string | undefined;
   s: number;
   children?: ReactNode;
 }) {
   const byId = new Map(placed.map((p) => [p.item.id, p.b]));
-  // each wait once between the cards that show it, none from a plan to its own workstream
+  
   const shown = (edges: [string, string][]) =>
     new Map(
       edges.flatMap(([from, to]): [string, [string, string]][] => {
@@ -1199,8 +1199,8 @@ export function DepLinks({
   return (
     <svg id="deps" className={cn(depLayerClass, 'z-1')} width="1" height="1">
       <defs>
-        {/* The line stops at the head's base (refX 0, a hair inside so no seam shows) and the head points
-            on to the card; measured in the line's width, as `depHead` is. */}
+        {
+}
         {(['lit', 'lit-first', 'faint', 'done-dep'] as const).map((cls) => (
           <marker key={cls} id={`${cls}-arrow`} className={cn(depLineClass[cls], depHeadClass[cls])} viewBox="0 0 9 8" refX="0.3" refY="4" markerUnits="strokeWidth" markerWidth={6} markerHeight={(6 * 8) / 9} orient="auto">
             <path d={DEP_HEAD} />
@@ -1215,7 +1215,7 @@ export function DepLinks({
   );
 }
 
-// ------------------------------------------------------------------ plan sheet
+
 
 /** A card a workstream waits for: a sibling by its label, any other by its title. */
 function sibling(id: string, kids: Item[], all: Item[]): string {
@@ -1249,25 +1249,25 @@ export function Sheet({
 }: {
   planCard?: Item;
   kids: Item[];
-  /** Every card on the project, to name the cards a workstream waits for. */
+  
   all: Item[];
   on: boolean;
   reading: { mark?: string } | null;
   onOpen: (i: Item) => void;
-  /** Reads the plan doc (`{}`), or goes back to the workstreams (`null`). */
+  
   onRead: (r: { mark?: string } | null) => void;
-  /** Hands all planned workstreams to the Koordinator, which orders them. */
+  
   onStartAll: (planCard: Item, count: number) => void;
-  /** Puts the workstreams in columns by what builds on what. */
+  
   onArrange: (planCard: Item) => void;
-  /** Where the cards opened from the sheet unfold from (an archived plan's are not on the project). */
+  
   els: Map<string, HTMLElement>;
-  /** Changes when the project does, so the decisions are read again. */
+  
   version: unknown;
 }) {
   const [loaded, setLoaded] = useState<{ id: string; h: PlanHistory; opening: number } | null>(null);
   const id = planCard?.id;
-  // each time the sheet opens: the history loaded before stands until this opening's comes
+  
   const [opening, setOpening] = useState({ n: 0, on });
   if (opening.on !== on) setOpening({ n: on ? opening.n + 1 : opening.n, on });
   useEffect(() => {
@@ -1277,14 +1277,14 @@ export function Sheet({
     api.history(id).then((h) => current && setLoaded({ id, h, opening: n }), console.error);
     return () => void (current = false);
   }, [id, on, version]);
-  // never another plan's
+  
   const history = loaded && loaded.id === id ? loaded.h : null;
-  // its conversation counts as in view once this opening's is there: answers that waited for it are marked then
+  
   const talkLoaded = !!history && loaded!.opening === opening.n;
   const ref = (key: string) => (el: HTMLElement | null) => void (el ? els.set(key, el) : els.delete(key));
   const [doc, setDoc] = useState<{ id: string; markdown: string } | null>(null);
   const [failed, setFailed] = useState(false);
-  // read again whenever the plan changes, which includes an edit of its doc
+  
   useEffect(() => {
     if (!reading || !planCard) return;
     let current = true;
@@ -1299,14 +1299,14 @@ export function Sheet({
   const markEl = useRef<HTMLElement | null>(null);
   const shown = reading && doc?.id === planCard?.id ? doc : null;
   const startable = startableIn(kids);
-  // once Seismic has read what builds on what, the workstreams in the order they stand arranged in
+  
   const inOrder = kids.some((k) => k.plan?.buildsOn) ? dependencyOrder(kids).map((id) => kids.find((k) => k.id === id)!) : kids;
-  // the doc opens at its top, or at the workstream it was opened for
+  
   useEffect(() => {
     if (!shown || !box.current) return;
     box.current.scrollTop = 0;
     if (!markEl.current) return;
-    // the sheet widens first: the workstream is where it ends up once the text has settled
+    
     const h = setTimeout(() => markEl.current?.scrollIntoView({ block: 'center', behavior: scrollBehavior() }), 480);
     return () => clearTimeout(h);
   }, [shown?.id, reading, !!shown]);
@@ -1374,7 +1374,7 @@ export function Sheet({
                 <CardFace
                   item={k}
                   size="xs"
-                  // its text from the plan doc stands below in full
+                  
                   text={false}
                   tail={
                     k.queue && 'behind' in k.queue
@@ -1412,7 +1412,7 @@ export function Sheet({
   );
 }
 
-// ------------------------------------------------------------------ overlays
+
 
 /** Chips at the edge of the project pointing at off-screen cards that need the owner; `side`: the panels docked at the window's edges. */
 export function Edges({ cam, targets, side, onOpen }: { cam: Cam; targets: { item: Item; b: Bounds }[]; side: Sides; onOpen: (i: Item) => void }) {
@@ -1457,7 +1457,7 @@ export function Minimap({
   onFollow,
 }: {
   cam: Cam;
-  /** The panels docked at the window's edges: the project shows between them. */
+  
   side: Sides;
   all: Bounds;
   placed: { item: Item; b: Bounds }[];
@@ -1470,7 +1470,7 @@ export function Minimap({
   const k = mapScale(all);
   const ox = (W - all.w * k) / 2 - all.x * k;
   const oy = (H - all.h * k) / 2 - all.y * k;
-  // a press that moves follows the pointer; one that does not jumps where it was let go
+  
   const press = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const world = (e: React.PointerEvent): [number, number] => {
     const r = e.currentTarget.getBoundingClientRect();

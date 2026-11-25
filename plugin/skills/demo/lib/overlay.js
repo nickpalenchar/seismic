@@ -1,16 +1,16 @@
-// Injected into every page of a demo recording. Headless Chrome paints no mouse pointer and no
-// focus cues a viewer could follow, so the recording carries its own: a pointer that glides to
-// each target, a click ripple, highlight rings that track their elements through scrolling, and
-// an image stage for things the page itself cannot show (a PDF, a rendered e-mail), a white
-// veil over a time jump, a stretch the video leaves out, and a clock strip (`CLOCK`).
+
+
+
+
+
 (() => {
-  // Playwright runs init scripts in every frame: an iframe painted a clock strip of its own, which
-  // stayed in the video, as the director paints over only the top page's. Pointer, rings and image
-  // stage belong to the top page too.
+  
+  
+  
   if (window.__demo || window !== window.top) return;
-  // The time each frame was painted, in a strip of black and white cells at the bottom left: on a
-  // busy machine the screencast hands frames over seconds after they were painted, so the director
-  // reads the time from the picture (`readClock` in timeline.ts) and paints the strip over in the video.
+  
+  
+  
   const CLOCK = { bits: 24, cell: 3, left: 2, bottom: 3 };
   const strip = document.createElement('canvas');
   strip.width = CLOCK.bits * CLOCK.cell;
@@ -21,7 +21,7 @@
   const pen = strip.getContext('2d');
   function tick() {
     if (!strip.isConnected && document.documentElement) document.documentElement.appendChild(strip);
-    // hundredths of a second, the low 24 bits: unique over 46 hours
+    
     const code = Math.floor(Date.now() / 10) % 2 ** CLOCK.bits;
     for (let i = 0; i < CLOCK.bits; i++) {
       pen.fillStyle = (code >> (CLOCK.bits - 1 - i)) & 1 ? '#000' : '#fff';
@@ -31,7 +31,7 @@
   }
   requestAnimationFrame(tick);
   const ACCENT = '#f5a524';
-  // the least distance of a label from the window's edges
+  
   const EDGE = 8;
   let root = null;
   let cursor = null;
@@ -58,9 +58,9 @@
     return root;
   }
 
-  // The part of an element that can be seen: its box cut to every ancestor that clips its
-  // overflow (a scrolling list, a card's conversation) and to the window. A message scrolled half
-  // out of a conversation counted with its whole box, and the ring reached over the card's edge.
+  
+  
+  
   function visibleRect(el) {
     const r = el.getBoundingClientRect();
     let { left, top, right, bottom } = r;
@@ -70,13 +70,13 @@
       const paint = /paint|strict|content/.test(style.contain);
       const clipsX = paint || style.overflowX !== 'visible';
       const clipsY = paint || style.overflowY !== 'visible';
-      // overflow does not apply to inline boxes
+      
       if ((clipsX || clipsY) && !/^(inline|contents)$/.test(style.display)) {
-        // the padding box: borders and scrollbars hide what scrolls under them
+        
         const b = a.getBoundingClientRect();
         const x = b.left + a.clientLeft;
         const y = b.top + a.clientTop;
-        // the root scrolls with the window, which is cut below
+        
         if (a !== document.documentElement && a !== document.body) {
           if (clipsX) {
             left = Math.max(left, x);
@@ -88,7 +88,7 @@
           }
         }
       }
-      // nothing above a fixed element clips it
+      
       fixed = style.position === 'fixed';
     }
     left = Math.max(left, 0);
@@ -102,7 +102,7 @@
     return el.parentElement || (el.parentNode instanceof ShadowRoot ? el.parentNode.host : null);
   }
 
-  // The ring goes around what can be seen of its elements; one not visible at all does not count.
+  
   function unionRect(elements) {
     const rects = elements.filter((e) => e && e.isConnected).map(visibleRect).filter(Boolean);
     if (!rects.length) return null;
@@ -113,10 +113,10 @@
     return { left, top, width: right - left, height: bottom - top };
   }
 
-  // One layer dims the page for all rings together, with a hole in its clip for each ring: a
-  // dimming shadow on every ring would lay itself over the other rings' elements. A clip path, not
-  // an SVG mask: the mask's full-page layer stalled the page for about 0.27 s each time it went
-  // (seen as a jerk in a drag or a card appearing, in every render of the hero video).
+  
+  
+  
+  
   const SVG = 'http://www.w3.org/2000/svg';
   function ensureDim() {
     if (dim && dim.el.isConnected) return dim;
@@ -127,7 +127,7 @@
     dim = { el, path: '' };
     return dim;
   }
-  // a rounded rectangle as a path, for the holes in the dimming layer's clip
+  
   function rounded(x, y, w, h, r) {
     return `M${x + r} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w} ${y + r}V${y + h - r}A${r} ${r} 0 0 1 ${x + w - r} ${y + h}H${x + r}A${r} ${r} 0 0 1 ${x} ${y + h - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
   }
@@ -135,8 +135,8 @@
   function track() {
     for (const ring of rings) {
       const r = unionRect(ring.elements);
-      // A ring whose elements are gone (a closed dialog) or scrolled out of sight must not linger
-      // over whatever is there now.
+      
+      
       ring.box.style.display = r ? '' : 'none';
       ring.hole = null;
       if (!r) continue;
@@ -147,7 +147,7 @@
         width: `${r.width + 2 * pad}px`,
         height: `${r.height + 2 * pad}px`,
       });
-      // the hole is the ring as drawn, border included (the page's box-sizing decides its size)
+      
       const drawn = ring.box.getBoundingClientRect();
       ring.hole = drawn;
     }
@@ -156,8 +156,8 @@
       const path = `path(evenodd, "M0 0H${innerWidth}V${innerHeight}H0Z${holes.join('')}")`;
       if (path !== dim.path) dim.el.style.clipPath = dim.path = path;
     }
-    // A label sits above its ring unless that covers another ring or leaves the window at the
-    // top; then it goes below, as long as it fits there.
+    
+    
     for (const ring of rings) {
       if (!ring.tag) continue;
       const box = ring.box.getBoundingClientRect();
@@ -171,22 +171,22 @@
       const below = (covers || above.top < EDGE) && box.bottom + h <= innerHeight - EDGE;
       ring.tag.style.bottom = below ? '' : 'calc(100% + 8px)';
       ring.tag.style.top = below ? 'calc(100% + 8px)' : '';
-      // It starts at the ring's left edge but stays inside the window: a ring at the right edge
-      // pushed half its label out of the video.
+      
+      
       const w = ring.tag.offsetWidth;
       const left = Math.max(EDGE, Math.min(box.left, innerWidth - EDGE - w));
-      // (offset from the ring's padding box, inside its border)
+      
       ring.tag.style.left = `${left - box.left - ring.box.clientLeft}px`;
     }
     requestAnimationFrame(track);
   }
 
-  // Whether each of the elements is hidden behind another part of the page where it can be seen
-  // (a panel over it, a sheet that slid up): no point of it on a grid over its visible part is its
-  // own. A ring around the brief's line under a card's conversation panel stood beside the question
-  // the narration was about, which says the same words (2026-10-20). The overlay's own layer lets
-  // the pointer through, so it covers nothing; an element out of sight is not hidden, it may be
-  // scrolled to.
+  
+  
+  
+  
+  
+  
   function hidden(elements) {
     return elements.map((el) => {
       const r = el && el.isConnected && visibleRect(el);
@@ -205,7 +205,7 @@
     moveTo(x, y, instant = false) {
       ensureRoot();
       pointer = { x, y };
-      // a drag moves the pointer in small steps, each of which it follows at once
+      
       cursor.style.transition = instant ? 'none' : 'transform 700ms cubic-bezier(.45,0,.2,1)';
       cursor.style.transform = `translate(${x - 3}px,${y - 2}px)`;
     },
@@ -223,9 +223,9 @@
       });
       setTimeout(() => dot.remove(), 600);
     },
-    // Rings the elements, unless a ring has just these already: then it returns that ring's label
-    // (or ''), and the director stops the scene, since a locator that hits what another one did
-    // has mostly matched another element than meant.
+    
+    
+    
     highlight(elements, label) {
       ensureRoot();
       const same = rings.find((r) => r.elements.length === elements.length && r.elements.every((e) => elements.includes(e)));
@@ -242,7 +242,7 @@
         tag.style.cssText =
           `position:absolute;left:-3px;bottom:calc(100% + 8px);background:${ACCENT};color:#111;` +
           'font:600 15px/1.2 system-ui,sans-serif;padding:6px 10px;border-radius:8px;' +
-          // one line as long as the window is wide enough, else it wraps
+          
           `box-sizing:border-box;width:max-content;max-width:calc(100vw - ${2 * EDGE}px);`;
         box.appendChild(tag);
       }
@@ -299,8 +299,8 @@
       if (stage) stage.remove();
       stage = null;
     },
-    // A time jump: the page fades to white, the cut falls while it is white, and it fades back
-    // in with how much later it is.
+    
+    
     whiteOut() {
       ensureRoot();
       if (veil) veil.remove();
@@ -312,7 +312,7 @@
       requestAnimationFrame(() => (veil.style.opacity = '1'));
     },
     timeJump(label) {
-      // A page that reloaded while it was white has lost its veil: it comes back without a fade.
+      
       if (!veil || !veil.isConnected) {
         this.whiteOut();
         veil.style.transition = 'none';

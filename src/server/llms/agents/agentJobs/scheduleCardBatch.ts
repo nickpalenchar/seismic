@@ -1,8 +1,8 @@
-/**
- * Schedules the cards of a batch together: the workstreams of a plan the owner started at once, or
- * cards whose waits ended at once. One read-only session reads them and what runs beside them, and
- * reports each card once, in the order they should go: likely files, what it waits for, duplicates.
- */
+
+
+
+
+
 import { z } from 'zod';
 import type { Item } from '../../../../core/types';
 import type { Board } from '../../../board';
@@ -11,13 +11,13 @@ import { scheduleCardBatchSystem } from '../../prompts/scheduleCardBatchSystem';
 import { type JobRun, SeismicJob } from '../seismicJob';
 import type { CardTags } from './cardTags';
 
-/** A workstream as the Koordinator scheduled it, in its turn's order. */
+
 export interface Planned {
   card: string;
   files: string[];
   duplicates: string[];
   waitsFor: string[];
-  /** Those of `waitsFor` it builds on. */
+  
   buildsOn: string[];
   reason: string;
 }
@@ -25,23 +25,23 @@ export interface Planned {
 export interface ScheduleCardBatchRun {
   runtime: AgentRuntime;
   board: Board;
-  /** Where the session reads: the repository of the batch. */
+  
   cwd: string;
-  /** The plan whose workstreams are scheduled; none for cards freed at once. */
+  
   planCard: Item | undefined;
   batch: Item[];
-  /** Cards in progress and those queued ahead of the batch. */
+  
   active: Item[];
   ahead: Item[];
-  /** Unfinished cards to check for the same requested outcome; none with merge suggestions off. */
+  
   candidates: Item[];
-  /** The tags the session calls all of them by. */
+  
   tags: CardTags;
   merges: boolean;
   folder: boolean;
   language: string;
   preferences?: string;
-  /** What runs beside the batch, as lines of the brief; read when the job starts. */
+  
   others: () => Promise<string[]>;
   onLimit: NonNullable<JobRun['onLimit']>;
 }

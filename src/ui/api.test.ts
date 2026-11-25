@@ -18,12 +18,12 @@ test('a call about a card goes to its project, though another is in view as it g
     fetched.push(url);
     return new Response(null, { status: 204 });
   }) as typeof fetch;
-  // the phone view: a card of the website's project closes, Seismic's conversation is with the shop's
+  
   cardsOn('website', ['c1']);
   setProject('shop');
   await api.act('c1', { action: 'release' });
   await api.command('Das Logo ist zu klein.', { card: 'c1' });
-  // a card the page knows no project for, and words about nothing: the project in view
+  
   await api.act('c2', { action: 'release' });
   await api.command('Neue Karte', null);
   expect(fetched).toEqual(['/api/c/website/cards/c1/act', '/api/c/website/command?card=c1', '/api/c/shop/cards/c2/act', '/api/c/shop/command']);
@@ -55,13 +55,13 @@ test('before the app starts again, the page hands what a reload keeps to the ser
   try {
     globalThis.sessionStorage = storage();
     sessionStorage.setItem('seismic-drafts-shop', '{"card:k1":{"text":"half a sentence"}}');
-    // what is written down just before a reload goes along
+    
     const off = beforeReload(() => sessionStorage.setItem('seismic-kept-shop', '{"card":"k1"}'));
     await handOver('17');
     off();
     expect(handed).toEqual({ token: '17', entries: [['seismic-drafts-shop', '{"card:k1":{"text":"half a sentence"}}'], ['seismic-kept-shop', '{"card":"k1"}']] });
 
-    // the new shell's webview: an empty tab
+    
     globalThis.sessionStorage = storage();
     await takeHandOver();
     expect(sessionStorage.getItem('seismic-kept-shop')).toBe('{"card":"k1"}');
@@ -114,9 +114,9 @@ test('a slow handover answer holds startup only briefly, still fills in what is 
     await takeHandOver(new Set(['seismic-drafts-shop']), 50);
     keepDrafts(draftSession, 'lab');
     keepWish(draftSession, 'lab');
-    draftSession.removeItem('seismic-kept-shop'); // already consumed by startup
+    draftSession.removeItem('seismic-kept-shop'); 
     draftSession.setItem('seismic-setting-draft-2', 'new edit');
-    draftSession.removeItem('seismic-setting-draft-2'); // then cleared by the owner
+    draftSession.removeItem('seismic-setting-draft-2'); 
     expect(performance.now() - started).toBeLessThan(1_000);
     expect(asked).toEqual(['GET /api/app-rebuilt/handover']);
     answer.resolve(Response.json({ token: '9', entries: [
@@ -241,21 +241,21 @@ test('a snapshot keeps what did not change as the objects it was; one that chang
   const a = { id: 'a', title: 'A' } as Item;
   const b = { id: 'b', title: 'B', demo: { share: { slug: 'b' } } } as unknown as Item;
   const previous = { items: [a, b], groups: [{ id: 'g' }], talk: [] } as unknown as ProjectSnapshot;
-  // the same content, read anew from the server's JSON
+  
   const again = JSON.parse(JSON.stringify(previous)) as ProjectSnapshot;
   expect(withUnchanged(previous, again)).toBe(previous);
-  // one card changed: the other stays the object it was, and so does what else did not change
+  
   const changed = JSON.parse(JSON.stringify({ ...previous, items: [a, { ...b, title: 'B2' }] })) as ProjectSnapshot;
   const next = withUnchanged(previous, changed);
   expect(next).not.toBe(previous);
   expect(next.items[0]).toBe(a);
   expect(next.items[1]!.title).toBe('B2');
   expect(next.groups).toBe(previous.groups);
-  // a card gone or come: the list is new, the cards that stayed are the ones they were
+  
   const fewer = withUnchanged(previous, JSON.parse(JSON.stringify({ ...previous, items: [b] })) as ProjectSnapshot);
   expect(fewer.items).toEqual([b]);
   expect(fewer.items[0]).toBe(b);
-  // nothing before: the snapshot as it came
+  
   expect(withUnchanged(null, again)).toBe(again);
 });
 

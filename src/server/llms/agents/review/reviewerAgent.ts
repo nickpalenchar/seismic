@@ -1,9 +1,9 @@
-/**
- * The code review agent: a read-only session of the role `review` that reads a card's diff against
- * main and records its verdicts, regressions and new items once, with the `review` tool. The
- * `CodeReviews` service (`workerSupervisor/codeReview.ts`) decides when it runs and what becomes of what it
- * records, and hands in the card's state as the context.
- */
+
+
+
+
+
+
 import { z } from 'zod';
 import { type AgentSetting, SEVERITIES } from '../../../../core/types';
 import { clip } from '../../../../core/text';
@@ -15,29 +15,29 @@ import { SeismicAgent } from '../seismicAgent';
 import type { AgentPermission, SessionOptions } from '../types';
 
 export interface ReviewerContext {
-  /** The card's pinned harness, model and effort; none leaves it to the "Code reviews" group's. */
+  
   setting: AgentSetting | undefined;
-  /** The exact model an earlier session named, when retrying or resuming that run. */
+  
   resolvedModel?: string;
-  /** The language the findings are written in, with the owner's standing preferences' proviso. */
+  
   language: string;
-  /** The owner's standing preferences, added to the instructions. */
+  
   preferences: string;
-  /** The session goes on from an earlier run: its first message only reminds it. */
+  
   resumed: boolean;
   card?: { title: string; body: string };
-  /** What the card's worker handed over with. */
+  
   summary?: string;
   files: { file: string; status: string; added: number; removed: number }[];
   truncated: boolean;
-  /** The branch's diff against main, cut where the brief's limit is. */
+  
   patch?: string;
-  /** The card's review items as the brief lists them. */
+  
   itemsText: string;
-  /** How many new items a review takes at most, and the number the first of them gets. */
+  
   maxNewItems: number;
   nextNumber: number;
-  /** Takes what the agent recorded; why it is refused, else none. */
+  
   record: (given: Recorded) => string | undefined;
 }
 
@@ -62,7 +62,7 @@ export class ReviewerAgent extends SeismicAgent<ReviewerContext> {
     if (ctx.resumed) return reviewResumed;
     const { card, summary: handoverSummary, files, truncated, patch, itemsText } = ctx;
     return [
-      // the stable parts first (the task does not change between review rounds), the ones that change each round last
+      
       `<card-title>${card?.title ?? ''}</card-title>`,
       card?.body ? `<task>\n${clip(card.body, 8000)}\n</task>` : '',
       handoverSummary ? `<handover-summary>\n${clip(handoverSummary, 8000)}\n</handover-summary>` : '',

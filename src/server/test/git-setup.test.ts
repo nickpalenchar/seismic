@@ -20,7 +20,7 @@ beforeEach(() => {
   globalConfig = process.env.GIT_CONFIG_GLOBAL;
   process.env.GIT_CONFIG_GLOBAL = join(dir, 'gitconfig');
   globalGit('[user]\n\tname = Ada Lovelace\n\temail = ada@example.com\n');
-  // a project that never had git: dependencies, a secret, its code and one large file
+  
   folder = join(dir, 'shop');
   for (const [file, text] of Object.entries({
     'node_modules/left-pad/index.js': 'module.exports = 1;\n',

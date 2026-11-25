@@ -14,7 +14,7 @@ let shop: Board;
 let website: Board;
 let server: ReturnType<typeof serve>;
 
-// two projects on one store, as Seismic runs them: a card's URL names no project
+
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'seismic-card-route-'));
   const store = new Store(':memory:');
@@ -73,7 +73,7 @@ test('a card deleted on the project it is on, answered with nothing; its undo br
   const res = await remove(c.id);
   expect(res.status).toBe(204);
   expect(website.item(c.id)).toBeUndefined();
-  // the undo (routes/v1/cards/_cardId/restore.ts)
+  
   const back = await fetch(new URL(`/api/v1/cards/${c.id}/restore`, server.url), { method: 'POST' });
   expect(back.status).toBe(200);
   expect(((await back.json()) as { card: Item }).card).toMatchObject({ id: c.id, title: 'A' });

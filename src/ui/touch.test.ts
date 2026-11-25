@@ -150,7 +150,7 @@ test('a second finger turns a press into a pinch: no tap, no long press', () => 
   wait(HOLD_MS);
   touches.move(2, p(220, 100));
   touches.up(1, p(100, 100));
-  // the finger that stays pans on
+  
   touches.move(2, p(230, 110));
   touches.up(2, p(230, 110));
   expect(log).toEqual(['moving', 'pinch 200,100->220,100', 'pan 10,10', 'still']);

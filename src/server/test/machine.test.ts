@@ -19,7 +19,7 @@ let dir: string;
 let home: string;
 let bin: string;
 let store: Store;
-/** The configurations the running projects took over, as the test's Config handed them on. */
+
 let applied: string[][];
 
 beforeEach(() => {
@@ -64,7 +64,7 @@ describe('what Seismic needs on this machine', () => {
     fake('claude', 'case "$1" in --version) echo "2.1.300 (Claude Code)";; auth) echo \'{"loggedIn":true,"email":"ada@example.com"}\';; esac');
     const machine = setup();
     expect(section(await machine.view(), 'needed').items.find((i) => i.id === 'claudeLogin')).toMatchObject({ state: 'ok' });
-    // No terminal on this PATH: a valid login action returns the manual-command fallback.
+    
     expect(await machine.login({ section: 'needed', id: 'claudeLogin' })).toEqual({ opened: false, command: `${bin}/claude auth login` });
     await expect(machine.login({ section: 'needed', id: 'git' })).rejects.toThrow();
   });
@@ -81,7 +81,7 @@ describe('what Seismic needs on this machine', () => {
     expect(readFileSync(join(home, 'claude-token'), 'utf8')).toBe('sk-ant-oat01-new\n');
     expect(statSync(join(home, 'claude-token')).mode & 0o777).toBe(0o600);
     expect(claudeToken(home, {})).toBe('sk-ant-oat01-new');
-    // this machine runs on the token: its sessions from now on take the new one
+    
     expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBe('sk-ant-oat01-new');
   });
 
@@ -99,20 +99,20 @@ describe('what Seismic needs on this machine', () => {
       { id: 'claude', state: 'ok', found: '2.1.300' },
       { id: 'claudeLogin', state: 'missing', install: { commands: ['claude auth login'] }, act: 'login' },
     ]);
-    // git in a section of its own: a slow git holds back no agent's result
+    
     expect(section(v, 'git').items).toEqual([
       { id: 'git', state: 'ok', found: '2.45.0' },
       expect.objectContaining({ id: 'gitUser', state: 'missing', act: 'identity' }),
     ]);
-    // gh is not there: its command for this Linux, run by hand; the login waits for it
+    
     const pr = section(v, 'pr').items;
     expect(pr[0]).toMatchObject({ id: 'gh', state: 'missing', install: { url: 'https://cli.github.com' } });
     expect(pr[0]!.act).toBeUndefined();
     expect(pr[1]).toEqual({ id: 'ghLogin', state: 'missing' });
     expect(v.checkedClaude).toMatch(/^\d+\.\d+\.\d+$/);
-    // what demos need is checked too; without a voice check there is no voice section
+    
     expect(v.sections.map((s) => s.id)).toEqual(['needed', 'git', 'codex', 'agents', 'pr', 'demos']);
-    // Antigravity is optional: not there, its login waits for it
+    
     const agents = section(v, 'agents').items;
     expect(agents[0]).toMatchObject({ id: 'agy', state: 'missing', install: { url: 'https://antigravity.google/docs/cli' }, act: 'install' });
     expect(agents[1]).toEqual({ id: 'agyLogin', state: 'missing' });
@@ -139,7 +139,7 @@ describe('what Seismic needs on this machine', () => {
     const items = section(await setup({ env: { SEISMIC_CODEX: join(bin, 'codex.cmd') } }).view(), 'codex').items;
     expect(items[0]).toMatchObject({ id: 'codex', state: 'missing' });
     expect(items[1]).toEqual({ id: 'codexLogin', state: 'missing' });
-    // on Windows the hint names the native release, not npm's shim
+    
     expect(codexHint('win32', false)).toEqual({ commands: [], url: 'https://github.com/openai/codex/releases' });
     expect(codexHint('darwin', true).commands).toEqual(['brew install --cask codex']);
   });
@@ -155,7 +155,7 @@ describe('what Seismic needs on this machine', () => {
 
   test('each check tells which agents are installed and signed in', async () => {
     const told: string[][] = [];
-    // a check of its own that never answers: what it holds is the setup checks' alone
+    
     const agents = new HarnessCheck(() => new Promise(() => {}), Infinity);
     const set = agents.set.bind(agents);
     agents.set = (found, check, of) => (told.push(found), set(found, check, of));
@@ -177,14 +177,14 @@ describe('what Seismic needs on this machine', () => {
     agents.set(['claude', 'agy']);
     const machine = new MachineSetup({ home, config: config(), env: { PATH: bin, HOME: home }, platform: 'linux', arch: 'x64', compiled: true, agents });
     fake('codex', 'case "$1" in --version) echo "codex-cli 0.169.0";; login) echo "Logged in using ChatGPT";; esac');
-    // Claude Code would answer it is logged out: a check of Codex alone never asks it
+    
     fake('claude', 'case "$1" in --version) echo "2.1.300 (Claude Code)";; auth) echo \'{"loggedIn": false}\'; exit 1;; esac');
     const v = await machine.view(['codex']);
     expect(v.sections.map((x) => x.id)).toEqual(['codex']);
     expect(section(v, 'codex').items[1]).toEqual({ id: 'codexLogin', state: 'ok' });
     expect(agents.current()).toEqual(['claude', 'codex', 'agy']);
     expect((await machine.view(['pr', 'voice', 'demos', 'mobile'])).sections.map((x) => x.id)).toEqual(['pr', 'demos']);
-    // Claude Code's section never waits for git: a check of it alone never asks git
+    
     fake('git', `touch "${join(dir, 'git-asked')}"; exit 1`);
     const claude = await machine.view(['needed']);
     expect(claude.sections.map((x) => x.id)).toEqual(['needed']);
@@ -195,7 +195,7 @@ describe('what Seismic needs on this machine', () => {
   test('offers the official installer for a missing Claude Code, and the logins once logged in', async () => {
     fake('git', 'case "$1" in --version) echo "git version 2.45.0";; config) echo "Ada";; esac');
     fake('gh', 'case "$1" in --version) echo "gh version 2.60.0 (2024-10-01)";; auth) echo "  ✓ Logged in to github.com account ada (keyring)";; esac');
-    // not where the official installer puts it either
+    
     const v = await setup({ env: { SEISMIC_CLAUDE: join(dir, 'none', 'claude') } }).view();
     const needed = section(v, 'needed').items;
     expect(needed[0]).toMatchObject({ id: 'claude', state: 'missing', install: { commands: ['curl -fsSL https://claude.ai/install.sh | bash'] }, act: 'install' });
@@ -219,7 +219,7 @@ describe('what Seismic needs on this machine', () => {
     expect(runnable('irm https://claude.ai/install.ps1 | iex', env, 'win32')).toEqual(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'irm https://claude.ai/install.ps1 | iex']);
     expect(runnable('brew install gh', env, 'darwin')).toEqual([join(bin, 'brew'), 'install', 'gh']);
     expect(runnable('sudo apt install gh', env, 'linux')).toBeNull();
-    // winget is not on this PATH
+    
     expect(runnable('winget install --id GitHub.cli -e', env, 'win32')).toBeNull();
   });
 
@@ -234,11 +234,11 @@ describe('what Seismic needs on this machine', () => {
 
   test('on Windows, every check reads the PATH from the registry again: git installed by hand is found at once', async () => {
     const later = join(dir, 'Git', 'cmd');
-    // the registry's PATH, as PowerShell reads it
+    
     fake('powershell', `echo "C:\\Windows;${later}"`);
     const machine = new MachineSetup({ home, config: config(), env: { PATH: bin, HOME: home }, platform: 'win32', arch: 'x64', compiled: true });
     expect(section(await machine.view(), 'git').items.find((i) => i.id === 'git')).toMatchObject({ state: 'missing' });
-    // the owner installs git by hand and comes back to the window
+    
     mkdirSync(later, { recursive: true });
     writeFileSync(join(later, 'git'), '#!/bin/sh\ncase "$1" in --version) echo "git version 2.51.0.windows.1";; config) echo Ada;; esac\n');
     chmodSync(join(later, 'git'), 0o755);
@@ -256,7 +256,7 @@ describe('what Seismic needs on this machine', () => {
     expect(items[1]!.act).toBeUndefined();
     await expect(machine.install({ section: 'voice', id: 'recognition' })).rejects.toThrow('does not install recognition');
     await expect(voice.install()).rejects.toThrow('uv');
-    // with uv there, the recognition installs at a click
+    
     fake('uv', 'case "$1" in --version) echo "uv 0.9.2";; *) exit 1;; esac');
     const recognition = section(await machine.view(), 'voice').items.find((i) => i.id === 'recognition')!;
     expect(recognition).toMatchObject({ state: 'later', act: 'install' });
@@ -336,14 +336,14 @@ describe('the first project', () => {
     expect(agentSetting(home, 'worker').harness).toBeUndefined();
     expect(savedHarnesses(home)).toBeUndefined();
     expect(existsSync(join(home, WELCOME_FILE))).toBe(false);
-    // tried again with Claude Code there too: nothing of the failed try stands in the way
+    
     await setup().project({ path: repo, agents: ['claude', 'codex'] });
     expect(agentSetting(home, 'worker').harness).toBeUndefined();
   });
 
   test('a default agent that cannot be written keeps the project from being saved', async () => {
     const repo = gitRepo(join(dir, 'shop'));
-    // the settings file cannot be written: a directory in its place
+    
     mkdirSync(join(home, 'settings.json'));
     await expect(setup().project({ path: repo, agents: ['codex'] })).rejects.toThrow();
     expect(existsSync(join(home, 'projects.json'))).toBe(false);
@@ -367,7 +367,7 @@ describe('the first project', () => {
     await expect(setup().project({ path: docs, git: false, agents: ['codex'] })).rejects.toMatchObject({ code: 'config', message: expect.stringContaining('Codex works only in a Git repository') });
     expect(agentSetting(home, 'worker').harness).toBeUndefined();
     expect(existsSync(join(home, 'projects.json'))).toBe(false);
-    // A prior harness only affects the Git requirement when selected in this run.
+    
     saveAgents(home, { worker: { harness: 'agy' } });
     await expect(setup().project({ path: docs, git: false, agents: ['claude', 'agy'] })).rejects.toMatchObject({ code: 'config', message: expect.stringContaining('Antigravity') });
     expect(await setup().project({ path: docs, git: false, agents: ['claude', 'codex'] })).toMatchObject({ project: 'dokumente', branch: '' });
@@ -409,7 +409,7 @@ describe('the first project', () => {
     mkdirSync(join(shop, 'node_modules'), { recursive: true });
     writeFileSync(join(shop, 'node_modules', 'x.js'), '');
     writeFileSync(join(shop, 'app.ts'), '');
-    // the name and e-mail the assistant's step for them set
+    
     const before = process.env.GIT_CONFIG_GLOBAL;
     process.env.GIT_CONFIG_GLOBAL = join(dir, 'gitconfig');
     writeFileSync(process.env.GIT_CONFIG_GLOBAL, '[user]\n\tname = Ada\n\temail = ada@example.com\n[init]\n\tdefaultBranch = main\n');
@@ -432,7 +432,7 @@ describe('the first project', () => {
     for (let i = 0; v.job?.running && i < 100; i++) await Bun.sleep(50), (v = await s.view());
     expect(v.job).toMatchObject({ kind: 'clone', running: false, project: 'shop', branch: 'main', opens: true });
     expect(existsSync(join(dir, 'code', 'shop', '.git'))).toBe(true);
-    // the folder is there now: a second clone into it is refused
+    
     await expect(new MachineSetup({ home, config: config() }).project({ clone: origin, into: join(dir, 'code') })).rejects.toMatchObject({ code: 'cloneTarget' });
   });
 
@@ -458,14 +458,14 @@ describe('the first project', () => {
     expect(await s.repo({ clone: 'acme/private-shop' })).toEqual({ readable: true });
     expect(await s.repo({ clone: 'https://github.com/acme/private-shop' })).toEqual({ readable: true });
     expect(await s.repo({ clone: 'http://github.com/acme/private-shop.git' })).toEqual({ readable: true });
-    // not GitHub: no login to offer, and gh's stays out of it
+    
     expect(await s.repo({ clone: 'https://example.com/acme/shop.git' })).toMatchObject({ readable: false, github: false });
-    // the clone goes the way the check went
+    
     await s.project({ clone: 'HTTP://www.GitHub.com/acme/private-shop.git', into: join(dir, 'code') });
     for (let i = 0; (await s.view()).job?.running && i < 100; i++) await Bun.sleep(50);
-    // Background checks and signed-in GitHub clones clear configured helpers.
+    
     const NP = '-c core.askPass= -c credential.interactive=false -c credential.helper= ';
-    // the view's own git calls aside
+    
     const lines = readFileSync(calls, 'utf8').trim().split('\n').filter((l) => l !== '--version');
     expect(lines).toEqual([
       `${NP}ls-remote --heads -- https://github.com/acme/private-shop.git`,
@@ -479,15 +479,15 @@ describe('the first project', () => {
 
   test('a gh logged in only to another host does not count as a github.com login', async () => {
     const calls = join(dir, 'git-calls');
-    // gh reports the Enterprise login without a host; with --hostname github.com it fails
+    
     fake('gh', `case "$*" in --version) echo "gh version 2.60.0 (2024-10-01)";; *"--hostname github.com"*) exit 1;; "auth status") echo "  ✓ Logged in to ghe.acme.com account ada";; *) exit 1;; esac`);
     fake('git', `echo "$@" >> ${calls}; echo "fatal: could not read Username for 'https://github.com': terminal prompts disabled" >&2; exit 128`);
     const s = setup({});
-    // the setup's own GitHub login agrees, and offers github.com's login that the repository line asks for
+    
     expect(section(await s.view(['pr']), 'pr').items[1]).toEqual({ id: 'ghLogin', state: 'missing', install: { commands: ['gh auth login --hostname github.com'] }, act: 'login' });
     expect(await s.login({ section: 'pr', id: 'ghLogin' })).toMatchObject({ command: 'gh auth login --hostname github.com' });
     expect(await s.repo({ clone: 'acme/private-shop' })).toMatchObject({ readable: false, github: true, ghLogin: false });
-    // the clone starts, and without gh's helper: an explicit clone keeps the configured ones
+    
     await s.project({ clone: 'acme/private-shop', into: join(dir, 'code') });
     for (let i = 0; (await s.view()).job?.running && i < 100; i++) await Bun.sleep(50);
     const lines = readFileSync(calls, 'utf8').trim().split('\n').filter((l) => l !== '--version');
@@ -510,7 +510,7 @@ describe('the first project', () => {
     const saved = join(bin, 'saved');
     writeFileSync(gitConfig, `[core]\n\taskPass = ${prompt}\n[credential]\n\thelper = !${saved} global\n[credential "https://example.com"]\n\thelper =\n\thelper = !${saved} scoped\n`);
     fake('gh', 'exit 1');
-    // Exercise Git's actual credential lookup without an authenticated server.
+    
     const probe = join(dir, 'credential-probe.ts');
     writeFileSync(probe, `
       const args = process.argv.slice(2);
@@ -566,7 +566,7 @@ describe('the first project', () => {
     }
     if (transport === 'GIT_SSH') env.GIT_SSH = custom;
     if (transport === 'GIT_SSH_COMMAND') env.GIT_SSH_COMMAND = `'${custom}' --jump bastion`;
-    // An HTTPS URL rewritten to SSH must use the same transport selection.
+    
     const clone = transport === 'configured' ? 'https://example.invalid/team/shop.git' : remote;
     if (clone !== remote) configText += `[url "${remote}"]\n\tinsteadOf = ${clone}\n`;
     writeFileSync(gitConfig, configText);

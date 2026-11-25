@@ -1,34 +1,34 @@
-// The W1 spike of docs/plan/remote-workspaces.md: servers, pages and judgement around the shell in
-// src/main.rs. Build it (`cargo build` here; the Linux container and the Windows job do the same),
-// then:
-//
-//   bun desktop/spike/run.ts desktop/spike/target/debug/webview-spike
-//
-// Origins, all on 127.0.0.1: 8900 this machine's Seismic (window `main`) and the harness, 8901 and
-// 8902 two remote workspaces (windows `desk-a`, `desk-b`), 8903 a foreign site. The binary runs
-// several times:
-//
-// - first: the shell pairs each workspace over HTTP and opens its window at the one-time login link;
-//   the page reloads itself once, then embeds frames (same origin, sandboxed, the other workspace, a
-//   foreign site, a redirect to it) and tries to leave its origin (location, link, redirect, form
-//   post, window.open, meta refresh);
-// - again: a relaunch, each window opened at its start page: the device cookie has to be there;
-// - frames: the navigation hook lets everything through, so the foreign frames load and call the
-//   shell with the invoke key (the worst case): the capability alone has to turn them away;
-//   On Linux that run has to show wry's quirk instead (a foreign frame's postMessage call passes as
-//   the window's page), so the fix below stays needed;
-// - frames-no-postmessage (Linux and macOS): the same with wry's postMessage IPC unregistered, the
-//   way the shell is to run there: no call may pass, an opaque-origin sandboxed frame's included,
-//   and each window's own page still reaches its command over the fetch IPC;
-// - frames-main-frame-ipc (macOS only): the same with wry's postMessage IPC kept but gated to the
-//   window's main frame at the window's own effective origin (the fetch IPC cannot be reached from
-//   https pages there): the gate drops subframes and a separate off-origin main frame.
-//
-// It prints each check with PASS or FAIL and the events behind a failure, and exits 1 on a FAIL.
-// With SPIKE_TLS_CERT and SPIKE_TLS_KEY set, run the HTTPS cookie lifecycle, then the frames run
-// once more over HTTPS (postMessage unregistered on Linux, gated to the main frame on macOS). Both the shell
-// and the webview must trust the fixture certificate. SPIKE_TLS_CA can specify a separate CA file
-// for the harness's login-link replay check; it defaults to the fixture certificate.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 const binary = process.argv[2] ?? "";
@@ -76,7 +76,7 @@ function httpsCookiePage(req: Request, port: number) {
   return response;
 }
 
-// what every page shares: report to its own origin, call the shell through Tauri and around it
+
 const common = (win: string) => `<script>
 const win = ${JSON.stringify(win)};
 const rep = (o) => fetch('/report', { method: 'POST', credentials: 'omit', body: JSON.stringify({ ...o, win, origin: location.origin, href: location.href }) });
@@ -224,7 +224,7 @@ async function handle(req: Request, port: number): Promise<Response> {
   }
   if (path === "/report") {
     events.push({ source: "page", port, ...(await req.json()) });
-    // The sandboxed fixture has an opaque origin even though its document URL is the workspace's.
+    
     return new Response("ok", { headers: { "Access-Control-Allow-Origin": "*" } });
   }
   events.push({ source: "http", port, method: req.method, path, case: url.searchParams.get("case"), win: url.searchParams.get("win"), cookie: DESKS[port] ? hasCookie(req, port) : undefined });
@@ -294,8 +294,8 @@ function judgeFrameProbes(ran: Event[]) {
         && FRAME_COMMANDS.every((cmd) => {
           const result = report[cmd];
           const allowed = frame === "same" && OWN[win]?.cmd === cmd;
-          // A dispatched invoke can go unanswered (for example, a postMessage with no frame
-          // callback). The raw transports and native command log are checked independently.
+          
+          
           const invoke = result?.invoke;
           return (report.internals === false ? invoke === "no __TAURI_INTERNALS__"
             : report.internals === true && typeof invoke === "string"
@@ -351,7 +351,7 @@ function judgeGate() {
     GATE_PROBE, probeUrl, true, probeOrigin, at(8901));
 }
 
-/// Judge the allowed window and effective origin, recording known engine exceptions separately.
+
 function judgeCommands(expectTop: boolean, quirk = false) {
   const ran = events.filter((e) => e.source === "shell" && e.kind === "cmd");
   const mainFrameGate = mode.includes("main-frame");
@@ -367,14 +367,14 @@ function judgeCommands(expectTop: boolean, quirk = false) {
   const wrong = ran.filter((e) => {
     const [win, from, ...call] = String(e.tag).split("|");
     const own = OWN[e.window];
-    // The WKWebView gate controls postMessage only. Its HTTP fetch transport can still serve
-    // the window's own origin, including a same-origin frame.
+    
+    
     const allowedSender = from === "top" || (from === "frame-same" && (!mainFrameGate || (!tls && call.at(-1) === "fetch")));
     return !knownOpaqueCalls.includes(e) && (e.window !== win || own?.cmd !== e.cmd || !allowedSender);
   });
   if (quirk) {
-    // wry on Linux hands a postMessage call to Tauri as the page the webview shows: a foreign frame
-    // passes as the window's page. Still so means the shell still has to unregister that handler.
+    
+    
     check("wry's postMessage still attributes a foreign frame's call to the window's page (why the shell unregisters it)", wrong.some((e) => String(e.tag).includes("|frame-foreign|")), wrong);
   } else check("no calls escaped window and origin scope beyond a recorded exception", wrong.length === 0, wrong);
   if (mode.startsWith("frames")) judgeFrameProbes(ran);
@@ -402,8 +402,8 @@ function judgeGuard(navigated: boolean) {
   const rendered = events.filter((e) => e.source === "page" && (e.case === "frame-loaded" || e.case === "frame")
     && e.port !== Number(Object.keys(DESKS).find((p) => DESKS[Number(p)] === e.win)));
   check("no page of another origin rendered in a workspace window's frames", rendered.length === 0, rendered);
-  // WebView2 sends a navigation's GET while it asks the hook, and drops the answer when the hook
-  // says no: the window stays, the request has left
+  
+  
   if (os === "windows") {
     if (sent.length) console.log(`note [${mode}] refused navigations whose GET still reached the other origin: ${sent.map((e) => `${e.win}:${e.case}`).join(", ")}`);
   } else check("no request reached another origin (navigations, redirects, frames)", sent.length === 0, sent);
@@ -485,8 +485,8 @@ if (!tls) {
 }
 
 if (tls) {
-  // the guard is off, so foreign frames load: the capability and the effective origin alone have
-  // to turn their calls away, and the windows' own pages have to reach their commands over HTTPS
+  
+  
   const postMessage = os === "linux" ? "off" : os === "macos" ? "main-frame" : "on";
   const name = { off: "frames-https-no-postmessage", "main-frame": "frames-https-main-frame-ipc", on: "frames-https" }[postMessage];
   log["frames-https"] = await runMode(name, { SPIKE_RUN: "again", SPIKE_GUARD: "off", SPIKE_POSTMESSAGE: postMessage, SPIKE_SECONDS: "10" });

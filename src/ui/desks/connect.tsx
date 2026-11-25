@@ -1,7 +1,7 @@
-// The form that pairs this app with Seismic on another machine: its address (or the pairing link
-// its QR code holds, which fills in the code too), the 6-digit code of its "Connect a phone", and a
-// name. Once the shell paired, the workspace is on the list and the window shows it. On this
-// machine's page alone: the workspaces page's "New workspace" and the setup's "Remote connection".
+
+
+
+
 
 import { useId, useState } from 'react';
 import { t } from '../strings';
@@ -10,10 +10,10 @@ import { Input } from '../components/input';
 import { Spinner } from '../components/spinner';
 import { deskError, desks, fromPairingLink, originOf } from './shell';
 
-/** A field: its label above it, small. */
+
 export const fieldClass = 'grid gap-1 min-w-0 [&_[data-slot=input]]:w-full [&_[data-slot=input]]:min-w-0';
 export const fieldLabelClass = 'text-xs text-muted-foreground';
-/** What went wrong, wrapped where an address is long. */
+
 export const errorClass = 'm-0 text-sm text-destructive [overflow-wrap:anywhere]';
 
 export function ConnectForm({ onCancel, autoFocus }: { onCancel?: () => void; autoFocus?: boolean }) {
@@ -27,7 +27,7 @@ export function ConnectForm({ onCancel, autoFocus }: { onCancel?: () => void; au
   const origin = originOf(address);
   const codeOk = /^\d{6}$/.test(code);
   const typed = (text: string) => {
-    // a pasted pairing link brings its code along
+    
     const link = fromPairingLink(text);
     if (link) {
       setAddress(link.address);
@@ -45,7 +45,7 @@ export function ConnectForm({ onCancel, autoFocus }: { onCancel?: () => void; au
     setProblem('');
     try {
       const { opened } = await desks.add(origin, code, name);
-      // opened: the window shows the new workspace, and this page goes with it
+      
       if (!opened) setProblem(c.saved(name.trim() || new URL(origin).host));
     } catch (e) {
       setProblem(deskError(e, origin));

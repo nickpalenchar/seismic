@@ -19,7 +19,7 @@ let home: string;
 let repo: string;
 let demo: string;
 
-// the deploy line's stand-in: copies the site's directory to `deployed/`, the host's snapshot
+
 const DEPLOY = `
 const { cpSync, rmSync } = require('node:fs');
 const [site, out] = process.argv.slice(2);
@@ -27,7 +27,7 @@ rmSync(out + '/deployed', { recursive: true, force: true });
 cpSync(site, out + '/deployed', { recursive: true });
 `;
 
-// the host: serves what was deployed last, `404.html` for what it lacks (as Cloudflare and GitHub Pages do)
+
 const server = Bun.serve({
   port: 0,
   fetch(req) {
@@ -79,7 +79,7 @@ describe('an unlisted site', () => {
       const text = readFileSync(join(deployed(), f), 'utf8');
       for (const leak of [A, B, 'sync-button', 'csv-export', 'Title', 's3cr3t']) expect(text).not.toContain(leak);
     }
-    // the host's answers: nothing at the root, nothing one level up from a page, no manifest or feed where a listed site has them
+    
     const get = async (path: string) => {
       const r = await fetch(`${URL_}${path}`);
       return { status: r.status, text: await r.text() };
@@ -89,7 +89,7 @@ describe('an unlisted site', () => {
       for (const leak of [A, B, 'sync-button', 'csv-export']) expect(r.text).not.toContain(leak);
       if (path) expect(r.status).toBe(404);
     }
-    // the manifest only under the secret directory, the pages in it by their whole place
+    
     const m = JSON.parse((await get(`s3cr3tdirectory000000000/${MANIFEST}`)).text) as { pages: Record<string, unknown> };
     expect(Object.keys(m.pages).sort()).toEqual([`${A}/sync-button`, `${B}/csv-export`]);
   });
@@ -103,7 +103,7 @@ describe('an unlisted site', () => {
     expect(html).not.toContain('All demos');
     expect(html).not.toContain('class="tags"');
     expect(html).not.toContain(' · Demos</title>');
-    // the credit line stays, and goes without a referrer
+    
     expect(html).toContain('href="https://seismic.im"');
     const headers = readFileSync(join(siteDir(), '_headers'), 'utf8');
     expect(headers).toContain('/*\n  X-Robots-Tag: noindex, nofollow\n  Referrer-Policy: no-referrer\n');
@@ -172,7 +172,7 @@ describe("sharing on the project's site", () => {
     await settled(id, undefined);
     expect(existsSync(join(deployed(), first!.url!.slice(URL_.length)))).toBe(false);
     sharing.share(id);
-    // shared again, the same link
+    
     expect((await settled(id, 'shared'))?.url).toBe(first!.url!);
   });
 
@@ -266,7 +266,7 @@ describe("this machine's list of demo sites", () => {
 
   test('publishing to a site to add it takes over what is on it and deploys it again', async () => {
     const setup = new SiteSetup({ home, changed: () => {} });
-    // a page another machine has there
+    
     await unlisted(join(dir, 'other'), 'b').publish(page(`${A}/sync-button`));
     setup.add({ manual: { url: entry().url, deploy: `${join(repo, 'deploy.ts')} {dir} ${dir}` } });
     for (let i = 0; i < 300 && setup.view().job?.running; i++) await Bun.sleep(10);
@@ -276,7 +276,7 @@ describe("this machine's list of demo sites", () => {
 });
 
 describe('setting up at GitHub', () => {
-  /** gh's answers by the start of its arguments; every call recorded. */
+  
   let calls: string[][];
   let answers: [string, { code: number; out: string; err?: string }][];
   const x: Exec = async (argv) => {
@@ -368,14 +368,14 @@ test('the deploy to GitHub Pages pushes one commit without history, with gh’s 
   mkdirSync(join(site, 'a/b'), { recursive: true });
   writeFileSync(join(site, 'index.html'), 'root');
   writeFileSync(join(site, 'a/b/demo.mp4'), 'video');
-  // a machine's own git configuration that would leave files out: none of it applies
+  
   writeFileSync(join(dir, 'ignore'), '*.mp4\n');
   const pushes: { argv: string[]; env: Record<string, string | undefined> }[] = [];
   const x: Exec = async (argv, o) => {
     if (argv[0] === 'gh') return { code: 0, out: 'gho_secret\n', err: '' };
     if (argv.includes('push')) {
       pushes.push({ argv, env: o?.env ?? {} });
-      // what the commit holds
+      
       const gitDir = argv.find((a) => a.startsWith('--git-dir='))!.slice('--git-dir='.length);
       const ls = await exec(['git', `--git-dir=${gitDir}`, 'ls-tree', '-r', '--name-only', 'HEAD']);
       const count = await exec(['git', `--git-dir=${gitDir}`, 'rev-list', '--count', 'HEAD']);
@@ -392,9 +392,9 @@ test('the deploy to GitHub Pages pushes one commit without history, with gh’s 
   expect(push!.argv.slice(-4)).toEqual(['--force', '--no-verify', 'https://github.com/ada/seismic-demos.git', 'HEAD:main']);
   expect(push!.argv.join(' ')).not.toContain('gho_secret');
   expect(push!.env.GIT_CONFIG_VALUE_0).toBe(`AUTHORIZATION: basic ${Buffer.from('x-access-token:gho_secret').toString('base64')}`);
-  // its repository is made afresh each time and goes afterwards
+  
   expect(existsSync(join(dir, 'git'))).toBe(false);
-  // a site on a domain of its own keeps it: its CNAME goes with every push, and goes once the domain does
+  
   expect(await githubPagesDeploy(site, 'ada/seismic-demos', join(dir, 'git'), x, { domain: 'demos.example.dev' })).toContain('CNAME');
   expect(readFileSync(join(site, 'CNAME'), 'utf8')).toBe('demos.example.dev\n');
   expect(await githubPagesDeploy(site, 'ada/seismic-demos', join(dir, 'git'), x)).not.toContain('CNAME');
@@ -403,7 +403,7 @@ test('the deploy to GitHub Pages pushes one commit without history, with gh’s 
 
 describe('setting up at Cloudflare', () => {
   let calls: string[][];
-  // where wrangler ran: an empty directory, never the server's own (a command wrangler hands on to Workers uploads it)
+  
   let cwds: string[];
   const x =
     (answer: (args: string) => { code: number; out: string }): Exec =>
@@ -428,7 +428,7 @@ describe('setting up at Cloudflare', () => {
   test('takes the account of a site this machine deploys to, as chosen, and a suffix where the name is taken', async () => {
     mkdirSync(join(home, 'sites/demos.example.dev'), { recursive: true });
     writeFileSync(join(home, 'sites/demos.example.dev/cloudflare.env'), 'CLOUDFLARE_API_TOKEN=tok\nCLOUDFLARE_ACCOUNT_ID=acc\n');
-    // another site of the same account, and one of another
+    
     mkdirSync(join(home, 'sites/more.example.dev'), { recursive: true });
     writeFileSync(join(home, 'sites/more.example.dev/cloudflare.env'), 'CLOUDFLARE_API_TOKEN=tok2\nCLOUDFLARE_ACCOUNT_ID=acc\n');
     mkdirSync(join(home, 'sites/work.example.dev'), { recursive: true });

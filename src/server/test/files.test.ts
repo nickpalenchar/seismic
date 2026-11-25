@@ -39,7 +39,7 @@ describe('a file dropped in a browser', () => {
   test('is found by name, size and time in the folders files come from', async () => {
     const p = put('Downloads/Rechnung März.pdf', '%PDF-1');
     expect(await findDropped(of('Rechnung März.pdf', 6), home)).toBe(p);
-    // deeper in Documents, and in the home itself
+    
     const deep = put('Documents/a/b/report.xlsx', 'abc');
     expect(await findDropped(of('report.xlsx', 3), home)).toBe(deep);
     expect(await findDropped(of('notes.txt', 2), home)).toBeNull();
@@ -49,13 +49,13 @@ describe('a file dropped in a browser', () => {
 
   test('is not taken for another file of its name, nor when two fit', async () => {
     put('Downloads/a.pdf', '12345');
-    // another size, another time
+    
     expect(await findDropped(of('a.pdf', 4), home)).toBeNull();
     expect(await findDropped(of('a.pdf', 5, Date.UTC(2026, 9, 21)), home)).toBeNull();
-    // two that fit: neither
+    
     put('Desktop/a.pdf', '12345');
     expect(await findDropped(of('a.pdf', 5), home)).toBeNull();
-    // hidden folders and names with a path in them are not searched
+    
     put('Downloads/.cache/b.pdf', '1');
     expect(await findDropped(of('b.pdf', 1), home)).toBeNull();
     expect(await findDropped(of('../Downloads/a.pdf', 5), home)).toBeNull();

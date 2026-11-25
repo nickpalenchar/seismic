@@ -6,7 +6,7 @@ test('a phone held upright is portrait, turned either way landscape', () => {
   expect(held(-90, 0)).toBe('portrait');
   expect(held(0, -90)).toBe('landscape');
   expect(held(0, 90)).toBe('landscape');
-  // leaning back a little, tilted a little: still how it is held
+  
   expect(held(60, -45)).toBe('portrait');
   expect(held(10, -60)).toBe('landscape');
 });

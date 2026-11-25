@@ -4,12 +4,12 @@ import type { BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import type * as schema from './schema';
 
-// What every model shares: the connection it queries through and a few helpers for it.
 
-/** The Drizzle connection the models query through: the store's own SQLite connection, so they share its transactions. */
+
+
 export type Db = BunSQLiteDatabase<typeof schema> & { $client: Database };
 
-/** How many hex digits of its id a card's code has at least. */
+
 export const SHORT = 6;
 
 /**

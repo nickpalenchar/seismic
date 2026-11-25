@@ -1,10 +1,10 @@
-// AI Elements' Conversation (use-stick-to-bottom underneath), ours from here on: the scrolling box of a
-// conversation, on a card, in a chat and in the Koordinator's sheet alike. At its end it stays there as
-// the conversation grows (a new message, an agent's next step, a comment's video frame loading, text
-// wrapping anew once the font is in); scrolled up to read further back, the owner stays where they are
-// and a button takes them to the latest message. What the owner says (`said` changing) takes the box to
-// its end; `start` names the message the box opens at instead, once its content is in, and it stays
-// there until the owner scrolls or says something.
+
+
+
+
+
+
+
 
 import { ArrowDown } from 'lucide-react';
 import { cn } from 'cn';
@@ -15,17 +15,17 @@ import { t } from '../../strings';
 import { IconButton } from '../button';
 
 export type ConversationProps = Omit<ComponentProps<typeof StickToBottom>, 'children' | 'ref'> & {
-  /** The box's own element, which marked text is measured against (`CiteButton`). */
+  
   boxRef?: Ref<HTMLDivElement>;
-  /** Changes when the owner says something: the box goes to its end. */
+  
   said?: unknown;
-  /** What the box shows (messages, steps), which is in once it is not empty. */
+  
   entries?: unknown;
-  /** The message the box opens at instead of its end, once its content is in. */
+  
   start?: (box: HTMLElement) => HTMLElement | null;
-  /** Classes of the content, the column the messages stand in. */
+  
   contentClassName?: string;
-  /** False when the containing sheet owns scrolling and following new messages. */
+  
   scrolling?: boolean;
   children?: React.ReactNode;
 };
@@ -40,7 +40,7 @@ export function Conversation({ className, boxRef, said, entries, start, contentC
   }
   return (
     <StickToBottom
-      // the library spreads its props onto the box's div, `ref` included (its types leave it out)
+      
       {...({ ref: boxRef } as object)}
       className={cn('relative min-h-0 overflow-hidden', className)}
       initial="instant"
@@ -71,7 +71,7 @@ function Follow({ said, entries, start }: Pick<ConversationProps, 'said' | 'entr
     started.current = true;
     const anchor = start?.(el);
     if (!anchor) return;
-    // at its top as far as the box scrolls; the initial move to the end comes first, so this goes after it
+    
     stopScroll();
     const place = () => {
       if (anchor.isConnected) el.scrollTop += anchor.getBoundingClientRect().top - el.getBoundingClientRect().top - 8;

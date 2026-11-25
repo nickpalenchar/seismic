@@ -1,9 +1,9 @@
-/**
- * Every skill the plugin ships: one line each. An agent that wants a skill by name imports its
- * instance; code that needs all of them (the listing for harnesses that cannot load the plugin, the
- * card's skill list) reads this. A skill is added with its folder, its instance file and a line here;
- * the test fails when a folder has none.
- */
+
+
+
+
+
+
 import { existsSync } from 'node:fs';
 import { browserSkill } from './browser';
 import { demoSkill } from './demo';

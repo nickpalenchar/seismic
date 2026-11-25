@@ -1,56 +1,56 @@
-// The territories of groups behind the cards, as contours of an energy field (Bubble Sets): a
-// group's cards and the near links between them attract, every other card repels, and where two
-// groups meet the stronger one holds the ground. A card in another group's territory is an island.
-//
-// Each group gets its own grid around its cards, on one lattice shared by all, so the cost follows
-// the territories' area rather than the canvas's; a group's field is computed again only when
-// something within its reach changed, and its contour only when its field or a neighbour's did.
+
+
+
+
+
+
+
 
 import { contours } from 'd3-contour';
 import { type Bounds, centre, unionBounds } from '../core/layout';
 
 type Pt = { x: number; y: number };
 
-/** A card as the territories see it: where it is, and how much it belongs to each group (fading between two). */
+
 export interface Claim {
   id: string;
   b: Bounds;
-  /** Group id → weight; 1 is a member, 0 (or absent) is a stranger. Up to a little over 1 while it springs. */
+  
   w: Record<string, number>;
 }
 
 export interface Territory {
   group: string;
-  /** SVG path of the territory, in world coordinates. */
+  
   main: string;
-  /** SVG path of the dotted line inside it, closer around the cards. */
+  
   inner: string;
-  /** The territory's outlines in world coordinates, each piece's rings (outer first). */
+  
   pieces: [number, number][][][];
-  /** Where its name goes: the middle of its largest piece. */
+  
   label?: Pt;
   labelSize: number;
 }
 
 const CELL = 16;
-/** How far a card's pull reaches, from its edge. */
+
 const R_MEMBER = 100;
-/** How far the link between two near cards of a group pulls. */
+
 const R_EDGE = 54;
-/** How far a stranger pushes back. */
+
 const R_OBST = 40;
-/** Thresholds of the territory and of the dotted line inside it, closer around the cards. */
+
 const T_AREA = 0.16;
 const T_INNER = 0.42;
-/** Cards further apart than this are not linked: each has its own piece. */
+
 const EDGE_MAX = 330;
-/** Two cards facing each other across less than this fill the gap between them. */
+
 const BRIDGE_MAX = 100;
 const MARGIN = R_MEMBER + 2 * CELL;
-/** How far the territory's edge lies from a lone card. */
+
 const REACH = R_MEMBER * (1 - Math.sqrt(T_AREA));
 
-// Math.hypot is several times slower, and this runs for every cell near a card
+
 const len = (dx: number, dy: number) => Math.sqrt(dx * dx + dy * dy);
 const rectDist = (x: number, y: number, b: Bounds) => len(Math.max(b.x - x, 0, x - b.x - b.w), Math.max(b.y - y, 0, y - b.y - b.h));
 const gap = (a: Bounds, b: Bounds) => len(Math.max(a.x - b.x - b.w, 0, b.x - a.x - a.w), Math.max(a.y - b.y - b.h, 0, b.y - a.y - a.h));
@@ -73,7 +73,7 @@ function blocked(a: Pt, b: Pt, rs: Bounds[]) {
   return false;
 }
 
-/** A grid on the shared lattice: cell (i, j) of the lattice is `v[(j - j0) * nx + (i - i0)]`. */
+
 interface Field {
   i0: number;
   j0: number;
@@ -83,7 +83,7 @@ interface Field {
 }
 
 type Member = { b: Bounds; w: number };
-/** How much a member's pull is squeezed towards its left, right, top and bottom. */
+
 type Squeeze = [number, number, number, number];
 type Stranger = { b: Bounds; s: number };
 
@@ -95,10 +95,10 @@ function field(members: Member[], strangers: Stranger[]): Field {
   const nx = Math.ceil((u.x + u.w + MARGIN) / CELL) - i0;
   const ny = Math.ceil((u.y + u.h + MARGIN) / CELL) - j0;
   const v = new Float64Array(nx * ny);
-  // the members' pull, the strongest one's at each cell: summed, two cards side by side would push
-  // the edge out over the gap between them
+  
+  
   const pull = new Float64Array(nx * ny);
-  // each shape adds to the cells within its reach only (or, into `pull`, keeps the larger value)
+  
   const splat = (bx0: number, by0: number, bx1: number, by1: number, f: (x: number, y: number) => number, into = v) => {
     const gx0 = Math.max(0, Math.floor(bx0 / CELL) - i0);
     const gx1 = Math.min(nx - 1, Math.ceil(bx1 / CELL) - i0);
@@ -114,7 +114,7 @@ function field(members: Member[], strangers: Stranger[]): Field {
         }
     }
   };
-  // links: a spanning tree over the members, only between near ones and not across a stranger
+  
   const walls = strangers.filter((o) => o.s > 0.5).map((o) => o.b);
   const inTree = [0];
   const rest = members.map((_, i) => i).slice(1);
@@ -137,8 +137,8 @@ function field(members: Member[], strangers: Stranger[]): Field {
       return e < R_EDGE ? w * (1 - e / R_EDGE) ** 2 : 0;
     });
   }
-  // two members facing each other across a narrow gap pull as one: the gap between them counts as a
-  // member too, so the edge runs straight past it instead of dipping in
+  
+  
   const solid = [...members];
   for (let i = 0; i < members.length; i++)
     for (let j = i + 1; j < members.length; j++) {
@@ -148,7 +148,7 @@ function field(members: Member[], strangers: Stranger[]): Field {
       const x1 = Math.min(a.x + a.w, b.x + b.w);
       const y0 = Math.max(a.y, b.y);
       const y1 = Math.min(a.y + a.h, b.y + b.h);
-      // side by side (the rows overlap) or one above the other (the columns do)
+      
       const bridge =
         y1 > y0 && x0 > x1 && x0 - x1 < BRIDGE_MAX ? { x: x1, y: y0, w: x0 - x1, h: y1 - y0 } : x1 > x0 && y0 > y1 && y0 - y1 < BRIDGE_MAX ? { x: x0, y: y1, w: x1 - x0, h: y0 - y1 } : undefined;
       if (bridge && !walls.some((o) => near(o, bridge, 0))) solid.push({ b: bridge, w: Math.min(members[i]!.w, members[j]!.w) });
@@ -180,7 +180,7 @@ function squeeze(b: Bounds, strangers: Stranger[]): Squeeze {
   for (const o of strangers) {
     const cols = Math.min(b.x + b.w, o.b.x + o.b.w) - Math.max(b.x, o.b.x);
     const rows = Math.min(b.y + b.h, o.b.y + o.b.h) - Math.max(b.y, o.b.y);
-    // the gap on the side it faces, if it faces one; the less it overlaps that side, the less it squeezes
+    
     const sides: [number, number, number][] = [
       [0, b.x - o.b.x - o.b.w, rows],
       [1, o.b.x - b.x - b.w, rows],
@@ -199,10 +199,10 @@ function squeeze(b: Bounds, strangers: Stranger[]): Squeeze {
 const at = (f: Field, i: number, j: number) => (i < f.i0 || j < f.j0 || i >= f.i0 + f.nx || j >= f.j0 + f.ny ? 0 : f.v[(j - f.j0) * f.nx + (i - f.i0)]!);
 const overlap = (a: Field, b: Field) => a.i0 < b.i0 + b.nx && b.i0 < a.i0 + a.nx && a.j0 < b.j0 + b.ny && b.j0 < a.j0 + a.ny;
 
-/** Spacing of a contour's points after resampling, and how far its smoothing reaches (σ of a Gaussian). */
+
 const STEP = 8;
 const SOFT = 20;
-/** How far a smoothed contour turns between the points kept of it (radians). */
+
 const TURN = 0.08;
 const KERNEL = (() => {
   const n = Math.ceil((3 * SOFT) / STEP);
@@ -247,7 +247,7 @@ function soften(ring: [number, number][]): [number, number][] {
       sx[k]! += KERNEL[j]! * xs[q]!;
       sy[k]! += KERNEL[j]! * ys[q]!;
     }
-  // along a straight edge one point does: keep one wherever the direction has turned enough since the last
+  
   const out: [number, number][] = [[sx[0]!, sy[0]!]];
   let turn = 0;
   let dir = Math.atan2(sy[1]! - sy[0]!, sx[1]! - sx[0]!);
@@ -300,14 +300,14 @@ function territory(group: string, f: Field, rivals: Field[]): Territory {
         u[k] = Math.min(u[k]!, f.v[k]! - Math.max(0, at(r, i0 + gx, j0 + gy)));
       }
   }
-  // d3 sorts the thresholds: the lower one, the territory's edge, comes first
+  
   const [main, inner] = contours().size([nx, ny]).thresholds([T_AREA, T_INNER])(u as unknown as number[]);
-  // a ring from d3 ends where it begins; ours do not
+  
   const world = (mp: typeof main) =>
     mp!.coordinates.map((poly) => poly.map((ring) => soften(ring.slice(0, -1).map(([gx, gy]) => [(i0 + gx!) * CELL, (j0 + gy!) * CELL] as [number, number]))));
   const pieces = world(main);
   const path = (ps: [number, number][][][]) => ps.map((poly) => poly.map((ring) => smooth(ring)).join('')).join('');
-  // the name sits in the largest piece
+  
   let label: Pt | undefined;
   let best = 0;
   for (const poly of pieces) {
@@ -341,7 +341,7 @@ const key = (b: Bounds, w: number) => `${b.x},${b.y},${b.w},${b.h},${w.toFixed(3
 export class Territories {
   private fields = new Map<string, { key: string; f: Field }>();
   private shapes = new Map<string, { key: string; t: Territory }>();
-  /** How many fields and contours the last call computed; for measuring. */
+  
   last = { fields: 0, contours: 0, ms: 0 };
 
   compute(claims: Claim[], groups: string[]): Territory[] {
@@ -351,7 +351,7 @@ export class Territories {
     for (const g of groups) {
       const members = claims.flatMap((c) => ((c.w[g] ?? 0) > 0.01 ? [{ b: c.b, w: c.w[g]! }] : []));
       if (!members.length) continue;
-      // strangers matter only within the members' reach
+      
       const u = unionBounds(members.map((m) => m.b))!;
       const reach = { x: u.x - MARGIN, y: u.y - MARGIN, w: u.w + 2 * MARGIN, h: u.h + 2 * MARGIN };
       const strangers = claims.flatMap((c) => {

@@ -1,7 +1,7 @@
-// The archive: finished and stopped cards and parked or dropped ideas taken off the project and plans whose plan doc is
-// gone, the most recently archived first, as a full-page view of the main area. A plan's
-// workstreams belong to it and are not listed on their own. A field over the list filters it as
-// the owner types.
+
+
+
+
 
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { FullPage, fullBodyClass, fullCloseClass, fullHeadClass, fullTitleClass } from './fullPage';
@@ -14,15 +14,15 @@ import { Button, CloseButton } from './components/button';
 interface Props {
   on: boolean;
   onClose: () => void;
-  /** A card unfolded from the list is open: the list stays under the dim, for the card to fold back into. */
+  
   held: boolean;
-  /** The archive as the server sends it, newest first; a plan is followed by its workstreams. */
+  
   archived: Item[];
-  /** Finished cards of the owner's still on the project. */
+  
   done: number;
   onOpen: (i: Item) => void;
   onArchiveDone: () => void;
-  /** Where an archived card unfolds from and folds back to. */
+  
   els: Map<string, HTMLElement>;
 }
 
@@ -30,7 +30,7 @@ interface Props {
 export function ArchiveView({ on, onClose, held, archived, done, onOpen, onArchiveDone, els }: Props) {
   const [query, setQuery] = useState('');
   const field = useRef<HTMLInputElement>(null);
-  // what was searched last stays, selected, so typing starts a new search
+  
   useEffect(() => void (on && field.current?.select()), [on]);
   if (!on) return null;
   const words = searchWords(query);
@@ -68,11 +68,11 @@ export function ArchiveView({ on, onClose, held, archived, done, onOpen, onArchi
   );
 }
 
-/** A day's timeline: per card the time, a tick on the line through the day, and the card; the line starts and ends at the first and last tick. */
+
 const timelineRowClass =
   "relative grid grid-cols-[38px_12px_1fr] gap-x-2 [align-items:start] pb-2 before:content-[''] before:absolute before:left-[51px] before:top-0 before:bottom-0 before:w-0.5 before:bg-border first:before:top-[15px] last:before:bottom-auto last:before:h-[15px] only:before:hidden";
 
-/** An archived card as a small card, the words of the search marked in its title. */
+
 const archiveCardClass =
   'a-card flex flex-col min-w-0 py-2 px-3 text-left [font:inherit] text-foreground bg-card border border-border rounded-xs [box-shadow:var(--shadow)] cursor-pointer [transition:transform_.15s,box-shadow_.15s] hover:[transform:translateY(-1px)] hover:[box-shadow:var(--lift)] focus-visible:[outline:2px_solid_var(--working)] focus-visible:outline-offset-2 [&_mark]:bg-muted [&_mark]:text-inherit [&_mark]:rounded-xs [&_mark]:[box-shadow:0_0_0_1px_var(--muted)]';
 
@@ -134,7 +134,7 @@ export function matches(i: Item, words: string[], workstreams: Item[] = []) {
 /** The title with the words of the search marked where they occur. */
 export function marked(title: string, words: string[]): ReactNode {
   if (!words.length) return title;
-  // folded char by char, each folded unit knowing the title's char it came from
+  
   let folded = '';
   const from: number[] = [];
   const chars = [...title];

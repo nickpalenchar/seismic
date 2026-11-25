@@ -10,7 +10,7 @@ describe('sortable', () => {
   });
 
   test('the dragged row lands past each row whose middle its edge has passed, no farther than its reach', () => {
-    // rows 20 high from 0
+    
     const mids = [10, 30, 50, 70];
     const free = { earlier: 3, later: 3 };
     const at = (from: number, dy: number, reach = free) => landing(mids, from, from * 20 + dy, from * 20 + 20 + dy, reach);
@@ -21,7 +21,7 @@ describe('sortable', () => {
     expect(at(2, -40)).toBe(0);
     expect(at(1, 40, { earlier: 1, later: 1 })).toBe(2);
     expect(at(3, -60, { earlier: 0, later: 0 })).toBe(3);
-    // a tall row moved down past a short one, its top still above the short one's middle
+    
     expect(landing([50, 110], 0, 20, 120, { earlier: 0, later: 1 })).toBe(1);
   });
 });

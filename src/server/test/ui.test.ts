@@ -23,7 +23,7 @@ test('the production page loads without the diff viewer or highlighting grammars
     expect(response.headers.get('content-type')).toContain('javascript');
     const code = await response.text();
     size += Buffer.byteLength(code);
-    expect(code).not.toContain('source.tsx'); // A Shiki grammar's scope must stay out of startup.
+    expect(code).not.toContain('source.tsx'); 
     for (const item of scan.scanImports(code)) {
       const next = new URL(item.path, new URL(path, server.url)).pathname;
       if (item.kind === 'dynamic-import') lazy.add(next);

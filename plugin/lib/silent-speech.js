@@ -1,9 +1,9 @@
-// Injected into every page of the plugin's headless Chromium (the browser skill's and the demo's).
-// `--mute-audio` mutes only what Chrome plays itself: a page's `speechSynthesis` went to the
-// system's voice and spoke out loud on the machine. Here it speaks nothing and goes on as if it
-// had: utterances queue, each fires `start` and, after about as long as it would have taken to say,
-// `end`; `pause`, `resume` and `cancel` fire the events of the spec. Voices, rates and the rest
-// stay as the browser has them.
+
+
+
+
+
+
 (() => {
   const synth = window.speechSynthesis;
   if (!synth || synth.__silent) return;
@@ -32,9 +32,9 @@
   function next() {
     if (current || paused || queue.length === 0) return;
     current = queue.shift();
-    // about 14 characters a second at rate 1, the pace of a system voice
+    
     left = (current.text.length * 70) / (current.rate || 1);
-    // the timer first: a handler of the event may pause or cancel
+    
     run();
     fire(current, 'start');
   }
@@ -45,9 +45,9 @@
     paused: { get: () => paused },
     speak: {
       value(utterance) {
-        // not instanceof: an utterance from another frame of the page is one too
+        
         if (Object.prototype.toString.call(utterance) !== '[object SpeechSynthesisUtterance]') throw new TypeError('speak needs a SpeechSynthesisUtterance');
-        // as Chrome does: a page the user has not interacted with yet may not speak
+        
         if (!navigator.userActivation.hasBeenActive) return void setTimeout(() => fire(utterance, 'error', { error: 'not-allowed' }));
         queue.push(utterance);
         setTimeout(next);

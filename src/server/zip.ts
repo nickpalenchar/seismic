@@ -1,10 +1,10 @@
-// A ZIP archive of a few files, stored without compression: a demo's video is compressed already,
-// and every system opens such an archive without extra tools.
+
+
 
 import { crc32 } from 'node:zlib';
 
 export interface ZipEntry {
-  /** The path inside the archive, with `/` between directories. */
+  
   name: string;
   data: Uint8Array;
 }
@@ -21,9 +21,9 @@ export function zip(entries: ZipEntry[], at = new Date()): Uint8Array<ArrayBuffe
     const crc = crc32(e.data) >>> 0;
     const local = new DataView(new ArrayBuffer(30));
     local.setUint32(0, 0x04034b50, true);
-    local.setUint16(4, 10, true); // version needed: 1.0
-    local.setUint16(6, 0x0800, true); // names in UTF-8
-    local.setUint16(8, 0, true); // stored
+    local.setUint16(4, 10, true); 
+    local.setUint16(6, 0x0800, true); 
+    local.setUint16(8, 0, true); 
     local.setUint16(10, time, true);
     local.setUint16(12, date, true);
     local.setUint32(14, crc, true);
@@ -32,7 +32,7 @@ export function zip(entries: ZipEntry[], at = new Date()): Uint8Array<ArrayBuffe
     local.setUint16(26, name.length, true);
     const head = new DataView(new ArrayBuffer(46));
     head.setUint32(0, 0x02014b50, true);
-    head.setUint16(4, 0x031e, true); // made by: Unix, 3.0 (so the file mode below counts)
+    head.setUint16(4, 0x031e, true); 
     head.setUint16(6, 10, true);
     head.setUint16(8, 0x0800, true);
     head.setUint16(12, time, true);

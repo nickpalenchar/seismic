@@ -1,34 +1,34 @@
-// A demo site in a folder of a GitHub repository the owner already has, served by its GitHub Pages:
-// what the setup reads at GitHub (the repositories gh's login can push to, a repository's Pages and
-// whether a push straight to its default branch goes through), and the git store a share goes
-// through (`folderStore`).
-//
-// The store keeps a shallow, sparse clone of the folder alone (`--filter=blob:none`, a sparse
-// checkout of the folder), so a large repository stays cheap. Before a change it fetches the branch
-// the change goes on and reads the site's manifest from the folder: git holds the pages, so the
-// clone takes the place of reading the live site. A change replaces the folder's contents with the
-// site's directory, commits and pushes, never with force on the default branch; a push rejected
-// because another machine pushed meanwhile is fetched again and made once more (site.ts). Nothing
-// outside the folder is touched, and no `.nojekyll` goes in: it would switch off the owner's own
-// Jekyll site; the pages have no front matter, so Jekyll copies them as they are.
-//
-// In pull-request mode the changes collect on one rolling branch (`DEMOS_BRANCH`) and its pull
-// request against the default branch, opened with the first and listing the pages it holds. Once
-// it is merged or closed (or the branch no longer merges cleanly), the next change starts the branch
-// afresh from the default branch, with this machine's pages, pushed with a lease on the branch as it
-// was; so does a change after commits landed on a closed one's branch. Only a branch no pull request
-// ever had goes on as it is: a share whose pull request could not be opened, nor its push undone.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { GitFolder, GithubRepo, GithubRepoList, GithubRepoView, PushCheck } from '../core/types';
 import { type Exec, exec } from './site-hosts';
 
-/** The deploy line's word for a site in a folder of an existing repository: `seismic:github-folder <owner>/<repository>`. */
+
 export const GITHUB_FOLDER = 'seismic:github-folder';
-/** The rolling branch of pull-request mode. */
+
 export const DEMOS_BRANCH = 'seismic/demos';
-/** Above this, the site's entry warns of the repository's size: GitHub warns at about 1 GB, and Pages serves at most about 1 GB. */
+
 export const SIZE_WARNING = 800 * 1000 * 1000;
 
 const REPO = /^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/;
@@ -97,7 +97,7 @@ export function folderAddress(repo: string, branch: string, pages: GithubRepoVie
   return { address: `${base}/${rel}` };
 }
 
-/** Rules of a ruleset that keep a plain push from going straight to the branch. */
+
 const BLOCKING_RULES = new Set(['pull_request', 'update', 'required_status_checks', 'required_signatures', 'required_deployments', 'merge_queue', 'code_scanning', 'workflows']);
 
 /**
@@ -110,7 +110,7 @@ export async function pushCheck(x: Exec, repo: string, branch: string, rights: {
   const { admin } = rights;
   if (!rights.push) return { allowed: false, admin };
   const b = encodeURIComponent(branch);
-  // every page of them: a blocking rule may come after the first
+  
   const pages = await ghJson<{ type: string; ruleset_id?: number }[][]>(x, ['api', '--paginate', '--slurp', `repos/${repo}/rules/branches/${b}?per_page=100`]);
   if (!Array.isArray(pages) || !pages.every(Array.isArray)) throw new Error('GitHub did not return branch rules.');
   const rule = pages.flat().find((r) => BLOCKING_RULES.has(r.type));
@@ -123,7 +123,7 @@ export async function pushCheck(x: Exec, repo: string, branch: string, rights: {
   try {
     const p = await ghJson<{ enforce_admins?: { enabled?: boolean }; lock_branch?: { enabled?: boolean }; required_pull_request_reviews?: unknown; required_status_checks?: { contexts?: string[]; checks?: unknown[] }; required_signatures?: { enabled?: boolean }; restrictions?: unknown }>(x, ['api', `repos/${repo}/branches/${b}/protection`]);
     if (p.lock_branch?.enabled) return blocked;
-    // an admin passes classic protection unless it includes administrators
+    
     const strict = !!p.required_pull_request_reviews || !!p.required_status_checks?.contexts?.length || !!p.required_status_checks?.checks?.length || !!p.required_signatures?.enabled || !!p.restrictions;
     return strict && p.enforce_admins?.enabled ? blocked : { allowed: true, admin };
   } catch {
@@ -186,58 +186,58 @@ export async function enablePages(repo: string, branch: string, x: Exec = exec):
   if (r.code !== 0) throw new Error(lastLine(r));
 }
 
-/** How a store reaches its repository: `remote` stands in for GitHub in tests. */
+
 export interface FolderStoreOptions {
   repo: string;
   git: GitFolder;
-  /** The clone's directory. */
+  
   clone: string;
-  /** The manifest's place in the folder. */
+  
   manifestAt: string;
-  /** Where a page lies on the site, for the pull request's list. */
+  
   pageUrl: (place: string) => string;
-  /** An unlisted site: the repository must be private. */
+  
   unlisted?: boolean;
   x?: Exec;
   remote?: string;
 }
 
-/** A change pushed: what git said, and in pull-request mode the pull request it is in. */
+
 export type Pushed = { said: string; pr?: string } | 'rejected';
 
 export interface FolderStore {
-  /** Fetches the branch the next change goes on; the manifest the folder holds there, null where it holds none. */
+  
   sync(): Promise<string | null>;
-  /** Where the folder's files lie in the clone, as `sync` checked them out. */
+  
   root: string;
-  /** Replaces the folder's contents with the site's directory, commits and pushes; 'rejected' where the branch moved meanwhile. */
+  
   push(dir: string, message: string): Promise<Pushed>;
-  /** A pull request's state: open, merged or closed; null where GitHub did not say. */
+  
   prState(url: string): Promise<'open' | 'merged' | 'closed' | null>;
-  /** The rolling pull request open now, if any. */
+  
   openPr(): Promise<string | null>;
 }
 
-/** What a share leaves out of a folder: Cloudflare's headers, and files that would change the owner's whole site. */
+
 const LEFT_OUT = new Set(['_headers', '.nojekyll', 'CNAME']);
 
 export function folderStore(o: FolderStoreOptions): FolderStore {
   const x = o.x ?? exec;
   const { folder } = o.git;
-  /** The default branch as the last look at GitHub found it (`liveBranch`); the setup's until then. */
+  
   let branch = o.git.branch;
   const remote = o.remote ?? `https://github.com/${o.repo}.git`;
   const none = join(o.clone, '.git', 'none');
   const cfg = ['-c', 'user.name=Seismic', '-c', 'user.email=seismic@localhost', '-c', 'commit.gpgsign=false', '-c', 'core.autocrlf=false', '-c', `core.hooksPath=${none}`, '-c', `core.excludesFile=${none}`, '-c', 'advice.detachedHead=false'];
   const root = join(o.clone, folder);
-  /** The branch the last sync checked out, and how the next push goes. */
+  
   let at: { pr: { url: string; number: number; base: string } | null; lease: string | null } = { pr: null, lease: null };
   let env: Record<string, string> = {};
 
   const auth = async () => {
     const token = await x(['gh', 'auth', 'token']);
     if (token.code !== 0 || !token.out.trim()) throw new Error(`gh is not logged in to GitHub (gh auth login): ${lastLine(token)}`);
-    // gh's token goes into git's environment, never onto the command line
+    
     env = {
       GIT_TERMINAL_PROMPT: '0',
       GIT_CONFIG_COUNT: '1',
@@ -298,7 +298,7 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
    * though it is built on what an earlier merge put on the default branch.
    */
   const inPr = async (tip: string) => {
-    // all of them: the head the branch holds may be an old one's, however many came since
+    
     const heads = [...new Set((await prs('all')).flatMap((p) => (p.headRefOid ? [p.headRefOid] : [])))];
     if (heads.includes(tip)) return true;
     for (const head of heads) {
@@ -348,7 +348,7 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
           rmSync(o.clone, { recursive: true, force: true });
           throw new Error(`git clone of ${o.repo}: ${lastLine(c)}`);
         }
-        // only the folder comes out of the repository
+        
         await step(['config', 'core.sparseCheckout', 'true'], 'git config');
         mkdirSync(join(o.clone, '.git', 'info'), { recursive: true });
         writeFileSync(join(o.clone, '.git', 'info', 'sparse-checkout'), `/${folder}/\n`);
@@ -362,32 +362,32 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
         const open = (await prs('open'))[0] ?? null;
         const has = (await fetch(DEMOS_BRANCH)).code === 0;
         const tip = has ? await step(['rev-parse', `refs/remotes/origin/${DEMOS_BRANCH}`], 'git rev-parse') : '';
-        // on the open pull request's branch while it merges into the default branch; else afresh from
-        // that, with this machine's pages (one against an earlier default branch is moved over to it)
+        
+        
         if (open && has && open.base === branch && !(await conflicting(open))) {
           base = `refs/remotes/origin/${DEMOS_BRANCH}`;
           at = { pr: open, lease: null };
         } else {
-          // a closed or merged proposal's branch, with commits on top or not, never carries into the next one
+          
           if (!open && has && !(await inPr(tip))) base = `refs/remotes/origin/${DEMOS_BRANCH}`;
           at = { pr: open, lease: tip };
         }
       }
       await step(['checkout', '-q', '--force', '-B', 'seismic-work', base], 'git checkout');
       await step(['clean', '-qfdx'], 'git clean');
-      // Reconcile the description with the remote proposal on every audit, without pushing.
-      // GitHub's stale body is the durable pending state, so this also works after a restart.
+      
+      
       try {
         const proposal = (await prs('open'))[0];
         if (proposal && (await fetch(DEMOS_BRANCH)).code === 0) {
           const body = await prBody(`refs/remotes/origin/${DEMOS_BRANCH}`);
-          // against an earlier default branch, it moves once a share rebuilt its branch on this one
+          
           const moves = proposal.base !== branch && (await builtOn(await step(['rev-parse', `refs/remotes/origin/${DEMOS_BRANCH}`], 'git rev-parse')));
           if (proposal.body !== body || moves) await updatePr(moves ? proposal : { ...proposal, base: branch }, body);
         }
       } catch {
-        // Description maintenance must not turn a readable site into a failed publication.
-        // Its mismatch is checked again on the next audit.
+        
+        
       }
       const file = join(root, o.manifestAt);
       return existsSync(file) ? readFileSync(file, 'utf8') : null;
@@ -403,13 +403,13 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
       if (!same) await step(['commit', '-q', '--no-verify', '-m', message], 'git commit');
       const to = pr ? DEMOS_BRANCH : branch;
       const lease = pr && at.lease !== null ? [`--force-with-lease=refs/heads/${DEMOS_BRANCH}:${at.lease}`] : [];
-      // Prepare metadata before publishing so a local read failure leaves no remote commit.
+      
       const body = pr ? await prBody() : '';
       const tip = pr ? await step(['rev-parse', 'HEAD'], 'git rev-parse') : '';
       const r = await run(['push', '-q', '--no-verify', ...lease, 'origin', `HEAD:refs/heads/${to}`]);
       if (r.code !== 0) {
         const said = r.out + r.err;
-        // a rule or protection refused it: not a race to retry
+        
         if (/GH006|GH013|protected branch|rule violation|declined/i.test(said)) throw new Error(`GitHub refused the push to ${to}: ${lastLine(r)}`);
         if (/rejected|non-fast-forward|fetch first|stale info/i.test(said)) return 'rejected';
         throw new Error(`git push to ${to}: ${lastLine(r)}`);
@@ -423,14 +423,14 @@ export function folderStore(o: FolderStoreOptions): FolderStore {
       const c = await x(['gh', 'pr', 'create', '--repo', o.repo, '--base', branch, '--head', DEMOS_BRANCH, '--title', 'Demos', '--body', body]).catch((e) => ({ code: 1, out: '', err: String(e) }));
       const url = /https:\/\/\S+\/pull\/\d+/.exec(c.out + c.err)?.[0];
       if (c.code !== 0 || !url) {
-        // A timed-out create may have succeeded at GitHub. Recover its URL first.
+        
         const recovered = await prs('open').catch(() => null);
         if (!recovered) throw new Error(`gh pr create: ${lastLine(c)}. The commit remains on ${DEMOS_BRANCH} at ${tip}; GitHub could not confirm whether its pull request exists. Retry publishing to recover it.`);
         if (recovered[0]) return { said: pushed, pr: recovered[0].url };
         const restore = at.lease ?? '';
         const rollback = () => run(['push', '-q', '--no-verify', `--force-with-lease=refs/heads/${DEMOS_BRANCH}:${tip}`, 'origin', `${restore}:refs/heads/${DEMOS_BRANCH}`]);
         let undo = await rollback();
-        // Restoring a fetched shallow tip may need its ancestry once it is no longer advertised.
+        
         if (restore && /shallow update not allowed/.test(undo.err + undo.out)) {
           const ancestry = await run(['fetch', '-q', '--unshallow', '--filter=blob:none', 'origin', restore]);
           if (ancestry.code === 0) undo = await rollback();

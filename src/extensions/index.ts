@@ -1,12 +1,12 @@
-/** The one list of enabled fork extensions. Their client and server implementations are loaded
- * separately, so server code never enters the browser bundle. */
+
+
 export const enabled: readonly string[] = ['always-allow'];
 
-/**
- * Files that call the seam or carry its plumbing (project.ts, runtime.ts, config.tsx), for Lander's
- * outgoing-diff check: it reads this list from seismic's main and refuses changes to the lines in
- * these files that call into the extensions (best effort; the porting agent removes what it misses).
- */
+
+
+
+
+
 export const SEAM_FILES = [
   'src/extensions/index.ts',
   'src/extensions/client.ts',

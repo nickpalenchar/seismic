@@ -21,7 +21,7 @@ test('a path, a slash inside a word, a slash before a space or on an earlier lin
   expect(cardSearchAt('and/or', 6)).toBeNull();
   expect(cardSearchAt('this / that', 11)).toBeNull();
   expect(cardSearchAt('/login\nnext', 11)).toBeNull();
-  // a link put in before is no search
+  
   expect(cardSearchAt('[Login](/p/x/c/ab12) ', 24)).toBeNull();
 });
 
@@ -30,7 +30,7 @@ test('every word of the search is in the title or is the short code; titles that
   expect(matchingCards(items, 'login').map((i) => i.id)).toEqual(['bbbb2', 'aaaa1']);
   expect(matchingCards(items, 'LOGIN page').map((i) => i.id)).toEqual(['aaaa1']);
   expect(matchingCards(items, 'cccc').map((i) => i.id)).toEqual(['cccc3']);
-  // not the card itself, nor what is archived
+  
   expect(matchingCards(items, 'login', 'bbbb2').map((i) => i.id)).toEqual(['aaaa1']);
   expect(matchingCards(items, 'nothing')).toEqual([]);
 });
@@ -58,17 +58,17 @@ test('the field shows the text line by line, a link to a card as a pill and othe
   ]);
 });
 
-// a DOM as the browser leaves it in the field, built of plain objects
+
 const text = (v: string): NodeLike => ({ nodeType: 3, nodeName: '#text', nodeValue: v, childNodes: [] });
 const el = (name: string, kids: NodeLike[] = [], attrs: Record<string, string> = {}): NodeLike => ({ nodeType: 1, nodeName: name, nodeValue: null, childNodes: kids, getAttribute: (n) => attrs[n] ?? null });
 const pill = el('SPAN', [el('SPAN'), el('SPAN', [text('Login with Google')])], { 'data-href': '/p/o/c/ab12', 'data-text': 'Login' });
 
 test('the field\'s content reads back as the text: a pill as its link, a line per block, a placeholder line break as none', () => {
-  // as the field is filled: a block per line, an empty one holding a line break
+  
   expect(textOf(el('DIV', [el('DIV', [text('See '), pill, text('\u00a0now')]), el('DIV', [el('BR')]), el('DIV', [text('end')])]))).toBe('See [Login](/p/o/c/ab12) now\n\nend');
   expect(textOf(el('DIV', [el('DIV', [text('a')]), el('DIV', [el('BR')])]))).toBe('a\n');
   expect(textOf(el('DIV', [el('DIV', [el('BR')])]))).toBe('');
-  // as the browser types: the first line bare, the next ones in blocks, Shift+Enter a line break
+  
   expect(textOf(el('DIV', [text('a'), el('DIV', [text('b')])]))).toBe('a\nb');
   expect(textOf(el('DIV', [text('a'), el('BR'), text('b'), el('BR'), el('BR')]))).toBe('a\nb\n');
   expect(textOf(el('DIV', [el('BR')]))).toBe('');
@@ -90,7 +90,7 @@ test('in a shown text a link to a card is a smart link: its state, current title
   expect(html).toContain('<span class="sl-title">Login with Google</span>');
   expect(html).toContain('prio prio-high');
   expect(html).toMatch(/<span [^>]*class="[^"]*smart-link gone"><span class="sl-dot"><\/span><span class="sl-title">Gone<\/span><\/span>/);
-  // without smart links (a plan doc, say) the link is its text, as before
+  
   expect(renderToStaticMarkup(createElement(Inline, { md }))).toBe('Builds on <span>Login</span> and <span>Gone</span>.');
 });
 

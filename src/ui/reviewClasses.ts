@@ -1,6 +1,6 @@
-// The findings of a review on the unfolded card (Tailwind on frost's tokens): a review card's findings
-// with its checks and merge probe, the items of a card's code review in its Review tab, and the counts
-// beside that tab. The class names before the utilities (`finding`, `f-sev` …) stay as hooks.
+
+
+
 
 import { cn } from 'cn';
 import type { ReviewItem, Severity } from '../core/types';
@@ -9,13 +9,13 @@ import type { ReviewItem, Severity } from '../core/types';
 export const findingsClass = (code?: boolean) =>
   cn('findings mt-2.5 mb-3 text-sm', code && 'code-review [&>[data-slot=button]]:mt-1.5');
 
-/** The heading over the findings: closer to them than the card's other headings. */
+
 export const findingsHead = 'mt-2 mb-1.5';
 
 /** The checks on the PR's head and the merge probe, on one line: green when all pass, red when not. */
 export const checksClass = (ok: boolean) => cn('rr-checks text-sm mb-1.5', ok ? 'ok text-approved' : 'bad text-destructive');
 
-/** A failure in the list (the code review that failed), in the error colour. */
+
 export const badClass = 'bad text-destructive';
 
 /** One finding, framed; a security finding's frame in the error colour, a settled one faded, a folded one lower. */
@@ -28,50 +28,50 @@ export const findingClass = ({ security, settled, folded, extra }: { security?: 
     extra,
   );
 
-/** Its head line: number, badges, title. */
+
 export const findingHead = 'f-head flex items-baseline gap-1.5';
 
-/** The head as the fold's trigger, a click unfolding the finding. */
+
 export const findingFold = cn(findingHead, 'f-fold group/fold w-full');
 
-/** The trigger beside the reopen link: it takes what the link leaves. */
+
 export const findingRow = 'f-row flex items-baseline gap-2 [&>.f-fold]:flex-1 [&>.f-fold]:min-w-0';
 
-/** The chevron at the head's end, darker while the head is hovered. */
+
 export const findingChevron = 'f-chevron ml-auto self-center flex text-muted-foreground group-hover/fold:text-foreground';
 
 export const findingNo = 'f-no text-muted-foreground tabular-nums';
 
-/** "Security", framed in the error colour. */
+
 export const findingTag = 'f-tag text-2xs text-destructive border border-current rounded-md px-1.5';
 
 export const findingText = 'f-text mt-1 text-foreground leading-[1.4]';
 
-/** Where it is (file and line), or which items it goes with. */
+
 export const findingWhere = 'f-where mt-1 text-xs text-muted-foreground [overflow-wrap:anywhere]';
 
 /** What came of it; `pending` what is going to, in the working colour. */
 export const findingStatus = (pending?: boolean) => cn('f-status mt-1 text-xs text-muted-foreground', pending && 'pending text-working');
 
-/** The decision's options on a finding. */
+
 export const findingChoices = 'f-choices mt-1.5';
 
-/** The owner's own words on a finding: the field, the saved words, the link that opens or saves them. */
+
 export const findingContext = 'f-context mt-1.5 flex flex-col items-end gap-1 [&_textarea]:w-full [&_textarea]:box-border [&>.f-note]:self-stretch [&>.f-note]:m-0';
 export const findingNote = 'f-note mt-1 mb-0 text-sm whitespace-pre-wrap bg-muted rounded-sm py-1 px-2';
 export const findingContextButton = 'f-context-btn bg-transparent py-0.5 px-0 text-xs text-working underline cursor-pointer';
 
-/** An item's history, under a line. */
+
 export const findingLog = 'f-log mt-1.5 mb-0 pt-1 pb-0 px-0 border-t border-border list-none text-2xs leading-normal text-muted-foreground';
 
-/** "Reopen" beside a closed or fixed item's head. */
+
 export const findingReopen = 'f-reopen text-xs leading-[1.25] whitespace-nowrap self-center';
 
-/** Findings that would make one follow-up task, under a line that says so. */
+
 export const bundleClass = 'f-bundle mb-2';
 export const bundleHead = 'f-bundle-head text-xs text-warning mb-1';
 
-/** A severity's colour (`--sev`) and, where its own colour is too light for text, the text's (`--badge-ink`). */
+
 const severity: Record<Severity, string> = {
   blocker: '[--sev:var(--color-purple-700)] text-purple-50! bg-purple-950!',
   critical: '[--sev:var(--color-red-600)] text-white! bg-red-600!',
@@ -85,16 +85,16 @@ const severity: Record<Severity, string> = {
 export const severityBadge = (s: Severity) =>
   cn('f-sev self-center text-2xs leading-4 rounded-sm px-1 text-[var(--badge-ink,var(--sev))] bg-[color:--alpha(var(--sev)/16%)]', s, severity[s]);
 
-/** Room after a "Fixing" badge or status pill for its moving line (`fixingLine`), which hangs out of it. */
+
 const fixingRoom = 'relative mr-8';
 
-/** "Fixing" on a review card's finding the owner gave the card's agent. */
+
 export const fixingBadge = cn('f-fixing self-center text-2xs leading-4 text-teal-50 bg-teal-800 rounded-sm px-1', fixingRoom);
 
-/** The moving line (a `DrawLine`) inside a "Fixing" badge or status pill, drawn in the room after it. */
+
 export const fixingLine = 'absolute left-[calc(100%+5px)] top-[calc(50%-1px)] w-6';
 
-/** Each status of a code review's item, in its colours. */
+
 const pills: Record<string, string> = {
   raised: 'text-rose-800 bg-rose-600/14 dark:text-rose-300',
   reopened: 'text-amber-800 bg-amber-100 dark:text-amber-300 dark:bg-amber-950',
@@ -115,7 +115,7 @@ export const statusPill = (status: ReviewItem['status']) => {
   );
 };
 
-/** The counts beside the Review tab: one per severity of what waits for the owner. */
+
 const counts: Record<Severity, string> = {
   blocker: '[--sev:var(--color-purple-700)] dark:[--sev:var(--color-purple-300)]',
   critical: '[--sev:var(--color-red-600)] dark:[--sev:var(--color-red-300)]',
@@ -126,25 +126,25 @@ const counts: Record<Severity, string> = {
 };
 export const reviewCount = (s: Severity) => cn('rv-count ml-1.5 inline-flex items-center gap-0.5 text-[var(--sev)] font-semibold tabular-nums', s, counts[s]);
 
-/** The review running, a dot that breathes beside the tab's label; in the panel, the line that says so. */
+
 export const reviewRunningDot = 'rv-running inline-block size-[7px] ml-2 align-middle rounded-full bg-reviewing animate-[arranging_1.2s_ease-in-out_infinite]';
 export const reviewBusy = 'rv-busy my-1 font-semibold text-reviewing-strong animate-[arranging_1.6s_ease-in-out_infinite]';
 
-/** Nothing open: a check beside the tab's label. */
+
 export const reviewClean = 'rv-clean size-4 ml-1.5 align-middle text-approved stroke-3';
 
-/** "outdated" beside the tab's label, where the review looked at an earlier handover. */
+
 export const reviewOutdated = 'rv-outdated ml-1.5 text-2xs font-normal text-muted-foreground border border-border rounded-md px-1.5';
 
-/** Send the choices, beside "with a new agent"; an error takes its own line. */
+
 export const reviewSubmit = 'review-submit mt-0.5 flex flex-wrap items-stretch gap-1.5 [&>.start-agent>.start-agent-buttons]:h-full [&>.p-error]:basis-full [&>.p-error]:m-0!';
 
-/** What stands in the way of landing (main's unpushed commits a PR collides with, or uncommitted files), in the warning colour. */
+
 export const clashClass = 'rr-clash border border-warning/50 rounded-md py-2 px-2.5 mb-2 bg-card leading-[1.4] [&_b]:text-warning';
 export const clashPush = 'rr-clash-push mt-2 flex items-center gap-2.5 [&>span]:text-foreground [&>span]:text-sm';
 export const clashWhat = 'rr-clash-what mt-1.5 text-muted-foreground text-sm';
 export const blockedFiles = 'blocked-files mt-1.5 mb-0 pl-4';
 
-/** Above the field: what the owner decided for the findings, one line each, and how many tasks they make. */
+
 export const decidedLines = 'decided-lines flex-1 min-w-0 flex flex-col gap-px pt-1 px-2 pb-1.5';
 export const decidedTasks = 'decided-tasks text-xs text-muted-foreground';

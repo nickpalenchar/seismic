@@ -4,7 +4,7 @@ import type { Cam, Sides } from './camera';
 export const CHIP_WIDTH = 300;
 export const CHIP_HEIGHT = 30;
 const COLUMN_GAP = 6;
-/** Centre of the topmost row: a chip's top edge lies below the floating row of buttons (it ends at 92px). */
+
 const TOP_ROW = 92 + COLUMN_GAP + CHIP_HEIGHT / 2;
 /** The switcher in voice.tsx sits 46px up on desktop, 188px up from 761–1100px,
  * and 98px up on narrower screens. Its 36px height exceeds the canvas tabs' 78px reach. */
@@ -12,13 +12,13 @@ function bottomControlReach(width: number) {
   return (width <= 760 ? 98 : width <= 1100 ? 188 : 46) + 36;
 }
 
-/** A screen rectangle the pointers keep clear of (the minimap). */
+
 export type Keepout = { x: number; y: number; w: number; h: number };
 
 /** Screen positions for off-screen card pointers. Card IDs give ties a lasting order; `avoid` is kept uncovered. */
 export function edgeChipPositions(targets: { id: string; b: Bounds }[], cam: Cam, side: Sides, width: number, height: number, avoid?: Keepout) {
   const top = TOP_ROW, bottom = height - bottomControlReach(width) - COLUMN_GAP - CHIP_HEIGHT / 2;
-  // At short window heights the top controls and bottom switcher leave no complete chip row.
+  
   if (bottom < top) return [];
   const left = side.left + 30, right = width - side.right - 30;
   const chipWidth = Math.min(CHIP_WIDTH, Math.max(0, right - left));
@@ -30,8 +30,8 @@ export function edgeChipPositions(targets: { id: string; b: Bounds }[], cam: Cam
     const edge = cx >= right ? 'right' : cx <= left ? 'left' : cy <= 64 ? 'top' : 'bottom';
     return [{ id, x, wantedY: Math.max(top, Math.min(bottom, cy)), cx, cy, edge }];
   }).sort((a, b) => a.id.localeCompare(b.id));
-  // Indicators on a vertical screen edge form one contiguous stack, even when their cards
-  // lie at different heights off-screen. Keep the stack near their average direction.
+  
+  
   for (const edge of ['left', 'right']) {
     const group = candidates.filter((chip) => chip.edge === edge);
     if (!group.length) continue;
@@ -50,7 +50,7 @@ export function edgeChipPositions(targets: { id: string; b: Bounds }[], cam: Cam
       if (nextX < left || nextX + chipWidth > right) break;
       columns.push(nextX);
     }
-    // the free strip beside the minimap is a column of its own, wherever the fixed steps fall
+    
     if (avoid) {
       const beside = chip.cx >= right ? avoid.x - COLUMN_GAP - chipWidth : avoid.x + avoid.w + COLUMN_GAP;
       if (beside >= left && beside + chipWidth <= right && !columns.includes(beside)) columns.push(beside);
@@ -66,7 +66,7 @@ export function edgeChipPositions(targets: { id: string; b: Bounds }[], cam: Cam
       const free = choices.find((candidate) => !covers(candidate) && peers.every((p) => Math.abs(candidate - p.y) >= CHIP_HEIGHT));
       if (free !== undefined) { x = nextX; y = free; break; }
     }
-    // no column has room: crowd the first column, but still off the minimap where a row allows
+    
     y ??= [chip.wantedY, ...(avoid ? [avoid.y - COLUMN_GAP - CHIP_HEIGHT / 2, avoid.y + avoid.h + COLUMN_GAP + CHIP_HEIGHT / 2] : [])]
       .filter((candidate) => candidate >= top && candidate <= bottom && !covering(chip.x, candidate))[0] ?? chip.wantedY;
     const anchorX = chip.cx >= right ? right : chip.cx <= left ? left : Math.max(left, Math.min(right, chip.cx));

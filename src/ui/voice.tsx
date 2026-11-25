@@ -1,12 +1,12 @@
-// Push-to-talk: hold Space or the microphone, speak, let go. With the cursor in a text field the
-// words are written into it, for the owner to add to and send. Otherwise the recording goes to
-// Seismic with what stands in the field of the card or sidebar in view (its words first, its
-// screenshots, the message it quotes): with an agent on the open card straight to that agent, else
-// to the Koordinator, which answers with a confirmation to show. Where no field is in view,
-// screenshots picked or pasted beside the microphone, and the paths of other files dropped on it,
-// go with the next recording. The microphone is
-// free again at once: each spoken command has its own line above it while it is read, which becomes
-// its confirmation; a typed one gets its line with the confirmation.
+
+
+
+
+
+
+
+
+
 
 import { Tooltip } from './components/tooltip';
 import { Mic } from 'lucide-react';
@@ -25,26 +25,26 @@ import { failText, t } from './strings';
 import { CloseButton } from './components/button';
 import { cn } from 'cn';
 
-/** Starts a recording, for a text field's microphone and Space held in it; null where nobody listens. */
+
 export const HoldToTalk = createContext<(() => void) | null>(null);
 
 type Phase = 'idle' | 'listening';
 
-/** Space let go sooner is a tap, which plays or pauses the demo video: push-to-talk takes no shorter recording. */
+
 export const TAP_MS = 350;
 
-/** Below this peak a working microphone delivers nothing, not even room noise (the sidecar's threshold too). */
+
 const QUIET_DBFS = -60;
-/** How long the level may stay flat at the start of a recording before the owner is told. */
+
 const FLAT_MS = 1500;
 
-/**
- * How long Space is held before the microphone shows it listens: a tap on Space plays or pauses the
- * demo video, and the microphone lit up for that tap flickered. The recording runs from the press.
- */
+
+
+
+
 export const SPACE_SHOWS_MS = 200;
 
-/** How long a note under a field about its dictation stays. */
+
 const NOTE_MS = 6000;
 
 /**
@@ -79,12 +79,12 @@ export function usePushToTalk(
   place: () => Place | undefined,
 ) {
   const [phase, setPhase] = useState<Phase>('idle');
-  /** The microphone shows it listens: `shownAfter` into the recording. */
+  
   const [shown, setShown] = useState(false);
   const showing = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [level, setLevel] = useState(0);
   const [flat, setFlat] = useState(false);
-  /** Recordings let go of that Seismic has not answered yet. */
+  
   const [writing, setWriting] = useState(0);
   const mic = useRef<Promise<{ stream: MediaStream; ctx: AudioContext; analyser: AnalyserNode }> | null>(null);
   const rec = useRef<{ recording: Recording; t0: number; target: Where; into: string | null; spot: Taken | null } | null>(null);
@@ -97,14 +97,14 @@ export function usePushToTalk(
     const pressed = performance.now();
     held.current = pressed;
     const target = where();
-    // the cursor in a field: the words go into it
+    
     const into = focusedDraft();
-    // the video stands where the owner started speaking: what they say is about that place
+    
     const spot = !into && target && 'card' in target ? take(target.card) : null;
     api.warmVoice();
     let m;
     try {
-      // the first press after a page load opens the microphone, which takes a moment
+      
       mic.current ??= navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
         const ctx = new AudioContext();
         const analyser = ctx.createAnalyser();
@@ -120,7 +120,7 @@ export function usePushToTalk(
       return;
     }
     if (held.current !== pressed) {
-      // let go before the microphone was open: nothing was recorded, and a recording started now would run on unheld
+      
       if (held.current === null && performance.now() - pressed >= TAP_MS) onHeard({ confirm: t.voice.notReady });
       return;
     }
@@ -143,7 +143,7 @@ export function usePushToTalk(
         loudest = Math.max(loudest, Math.abs(x));
       }
       setLevel(Math.min(1, Math.sqrt(s / buf.length) * 6));
-      // a suspended context reads flat too; only a running one tells about the microphone
+      
       setFlat(m.ctx.state === 'running' && performance.now() - r.t0 > FLAT_MS && 20 * Math.log10(loudest) < QUIET_DBFS);
       frame.current = requestAnimationFrame(meter);
     };
@@ -161,32 +161,32 @@ export function usePushToTalk(
     setLevel(0);
     setFlat(false);
     const length = performance.now() - r.t0;
-    // a card the command makes goes where the owner was when they stopped speaking, not once it is read
+    
     const at = r.into ? undefined : place();
     setPhase('idle');
     setWriting((n) => n + 1);
-    // the project and field it was said on, before the audio is ready: the owner may switch to another project meanwhile
+    
     const project = shownProject();
     const key = r.into ?? field(r.target);
     const back = draftIn(key);
     const done = r.spot && length >= TAP_MS && r.target && 'card' in r.target ? beginSpotSend(r.target.card) : undefined;
     void r.recording.stop().then(async (audio) => {
       if (r.into) return into(r.into, r.target, length < TAP_MS ? null : audio, back, project);
-      // a tap is not a command
+      
       if (length < TAP_MS) return;
-      // what stands in the field goes out with the words and leaves it; nothing heard, it comes back.
-      // Switched away already, the field there keeps it: the words go alone
+      
+      
       const here = back.here();
       if (here) await uploaded(key);
       const { text, images } = here ? draftOf(key) : { text: '', images: [] as string[] };
       if (here) updateDraft(key, (d) => ({ text: '', images: d.images.filter((id) => !images.includes(id)) }));
-      // said in reply to the message the field quotes, as typed words are
+      
       const reply = here ? replyOn(key) : null;
       if (reply) setReply(key, null);
-      // the field gets them back only when Seismic says it has not taken the command: until
-      // 2026-10-16 a connection that broke (the browser cutting it off as the page went to another
-      // project, say) counted as that, although Seismic had the command and read on, and the draft
-      // kept for the page's next load brought the screenshots back
+      
+      
+      
+      
       const name = recordingName();
       let failed = false;
       const h = await send(r.target, async () => {
@@ -199,7 +199,7 @@ export function usePushToTalk(
         }
       });
       if (!h.unheard && !failed) return;
-      // into the draft kept for the project it was said on, where the owner has switched to another meanwhile
+      
       back.update((d) => ({ text: [text, d.text].filter((x) => x.trim()).join(' '), images: [...images, ...d.images.filter((id) => !images.includes(id))] }));
       if (back.here() && reply && !replyOn(key)) setReply(key, reply);
     }).finally(() => {
@@ -218,7 +218,7 @@ export function usePushToTalk(
     } catch (e) {
       h = { confirm: failText(e, { offline: t.voice.failed }), unheard: true };
     }
-    // the owner switched to another project meanwhile: the words go to the end of the draft kept for the one they were said on
+    
     if (!draft.here()) return void (h.text && !h.unheard && draft.update((d) => ({ text: appended(d.text, h.text!) })));
     if (!h.unheard && h.text) dictate(key, h.text);
     const note = h.unheard ? h.confirm : '';
@@ -227,8 +227,8 @@ export function usePushToTalk(
   }
 
   useEffect(() => () => void mic.current?.then((m) => m.stream.getTracks().forEach((tr) => tr.stop())), []);
-  // a restart waits while the owner speaks and until what they said is in the field or answered:
-  // until 2026-10-14 it went ahead once they let go, and a long dictation's words were lost
+  
+  
   useEffect(() => {
     holdRestart('voice', phase === 'idle' && !writing ? null : 'voice');
     return () => holdRestart('voice', null);
@@ -251,14 +251,14 @@ export function useTold(
   inView: (h: Heard) => boolean = () => false,
   onGo: (card: NonNullable<Notice['made']>[number]) => void = () => {},
 ) {
-  // the lines outlive renders: they call what the latest render passed
+  
   const latest = useRef({ onHeard, inView, onGo });
   latest.current = { onHeard, inView, onGo };
   const [reading, setReading] = useState(false);
   const told = useRef<ReturnType<typeof toldLines> | undefined>(undefined);
   told.current ??= toldLines({ toasts, onHeard: (h) => latest.current.onHeard(h), inView: (h) => latest.current.inView(h), onGo: (c) => latest.current.onGo(c), undo: (token) => api.undo(token), onReading: setReading });
 
-  // a restart waits while Seismic reads what the owner said or typed
+  
   useEffect(() => {
     holdRestart('told', reading ? 'voice' : null);
     return () => holdRestart('told', null);
@@ -277,7 +277,7 @@ export function useHeldByTouch<T extends HTMLElement>() {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // React listens to touchstart passively, where cancelling it does nothing
+    
     const hold = (e: TouchEvent) => e.preventDefault();
     el.addEventListener('touchstart', hold, { passive: false });
     return () => el.removeEventListener('touchstart', hold);
@@ -303,7 +303,7 @@ export function PushToTalk({ phase, level, flat, target, field, onDown, instead,
   const on = useFieldOn(field);
   const key = on ? field! : MIC_DRAFT;
   const shots = useShotInput({ draft: key, off: !takesImages(key) });
-  // the screenshots and files for Seismic show where Seismic is spoken to: in its field while that is in view, else beside the microphone
+  
   const seismic = useRef<string | null>(null);
   const { images: waiting, text: paths } = useDraft(MIC_DRAFT);
   useEffect(() => {
@@ -326,8 +326,8 @@ export function PushToTalk({ phase, level, flat, target, field, onDown, instead,
   const n = shots.images.length;
   const mic = useHeldByTouch<HTMLButtonElement>();
   const parts = [...(text.trim() ? [t.voice.withText] : []), ...(n ? [t.voice.withShots(n)] : []), ...(on && quote ? [t.voice.withQuote] : [])];
-  // whom the microphone speaks to: in the status bar on its glass, else under the microphone (the
-  // phone, where a field's own microphone says it, and turned, the line wraps to four in the strip)
+  
+  
   const lineClass = cn(
     'overflow-hidden rounded-xs text-ellipsis whitespace-nowrap text-muted-foreground [&_b]:font-semibold [&_b]:text-foreground',
     'max-w-[calc((100vw-var(--left,0px)-var(--side,0px))*.6)] bg-card px-3 py-1 text-xs shadow-glass ph-landscape:max-w-[104px] ph-landscape:border-y-4 ph-landscape:border-[var(--card)] ph-landscape:px-2 ph-landscape:py-0 ph-landscape:text-center ph-landscape:whitespace-normal ph-landscape:[-webkit-box-orient:vertical] ph-landscape:[-webkit-line-clamp:4] ph-landscape:[display:-webkit-box]',
@@ -361,11 +361,11 @@ export function PushToTalk({ phase, level, flat, target, field, onDown, instead,
             ref={mic}
             style={{ ['--lvl' as string]: 1 + level * 0.45 }}
             onPointerDown={(e) => {
-              // the cursor stays where it is: in a field, what is said is written into it
+              
               e.preventDefault();
               onDown();
             }}
-            // held by a finger, it shows no menu
+            
             onContextMenu={(e) => e.preventDefault()}
           >
             <span className={micRingClass} />
@@ -381,7 +381,7 @@ export function PushToTalk({ phase, level, flat, target, field, onDown, instead,
           <MicIcon />
         </div>
       )}
-      {/* the screenshots stand beside it; in a narrow window the project's settings, floating over the page, hide it */}
+      { }
       <div className="ptt-row relative [@media(max-width:760px)]:[body:has(#project-settings.on)_&]:invisible">
         {instead ?? micButton}
         {key === MIC_DRAFT && (
@@ -414,11 +414,11 @@ function FileChips() {
   );
 }
 
-/**
- * The push-to-talk row: in the middle of the project, left of a sheet docked on the right; on the phone
- * centred under its views, and turned, at the right edge where the thumb holds the phone, in a strip of
- * its own beside the cards. While the keyboard is up the field has its own microphone, so the big one goes.
- */
+
+
+
+
+
 const pttClass = cn(
   'group/ptt fixed left-[calc(50%_+_(var(--left,0px)_-_var(--side,0px))_/_2)] bottom-[46px] [transform:translateX(-50%)] z-50 flex flex-col items-center gap-2',
   '[transition:left_.45s_cubic-bezier(.3,.9,.3,1)] resizing:[transition:none]',
@@ -426,34 +426,34 @@ const pttClass = cn(
   'ph-ptt:ph-landscape:left-auto ph-ptt:ph-landscape:right-[env(safe-area-inset-right)] ph-ptt:ph-landscape:w-[112px] ph-ptt:ph-landscape:top-[calc(50%_-_34px)] ph-ptt:ph-landscape:bottom-auto ph-ptt:ph-landscape:[transform:none]',
 );
 
-/**
- * With the desktop's view switcher where the microphone was, on medium screens: centred, the switcher would
- * run into the canvas tabs at the bottom right, whose width grows with the canvases and which a right dock
- * pushes inward. It moves to the left and one row up, above the tab row (and above the minimap, which shows
- * from 761px), so no width of either can make them meet. It stays above the full-page views (z 23), so
- * Canvas always leads back, and shrinks to fit the main area left of a dock.
- */
+
+
+
+
+
+
+
 const pttSwitchingClass =
   '[@media(max-width:1100px)]:left-[calc(var(--left,0px)_+_14px)] [@media(max-width:760px)]:bottom-[98px] [@media(min-width:761px)_and_(max-width:1100px)]:bottom-[188px] [@media(max-width:1100px)]:[transform:none] [@media(max-width:1100px)]:items-start [@media(max-width:1100px)]:z-24 [@media(max-width:1100px)]:max-w-[calc(100vw_-_var(--left,0px)_-_var(--side,0px)_-_28px)]';
 
-/** The microphone: a round glass button, filled with the waiting colour while it listens; outlined while files are dragged over the row. */
+
 const micClass = cn(
   'w-[58px] h-[58px] rounded-full border border-glass-edge bg-glass backdrop-blur-glass [box-shadow:var(--lift)] cursor-pointer grid place-items-center relative [&_svg]:w-6 [&_svg]:h-6',
-  // held by a finger: no long-press menu, no text selected
+  
   '[-webkit-touch-callout:none] select-none touch-none',
   'group-[.listening]/ptt:bg-waiting group-[.listening]/ptt:text-waiting-foreground',
   'group-[.dropping]/ptt:outline-2 group-[.dropping]/ptt:outline-dashed group-[.dropping]/ptt:outline-working group-[.dropping]/ptt:outline-offset-[5px]',
   'ph-ptt:w-[68px] ph-ptt:h-[68px]',
 );
 
-/** The ring around the microphone that swells with the voice's level (`--lvl`) while it listens. */
+
 const micRingClass =
   'absolute -inset-1.5 rounded-full border-3 border-waiting opacity-0 [transform:scale(var(--lvl,1))] [transition:transform_.08s_linear,opacity_.2s] group-[.listening]/ptt:opacity-80';
 
-/**
- * Screenshots for the next recording: a small button and thumbnails to the right of the microphone, which
- * stays centred (smaller beside the view switcher); turned, above the microphone instead of beside it.
- */
+
+
+
+
 const shotsClass = cn(
   'absolute left-[calc(100%_+_12px)] top-1/2 [transform:translateY(-50%)] flex items-center gap-2.5',
   '[&_.c-shots]:flex-nowrap [&_.c-shots]:items-center [&_.c-shots]:basis-auto [&_.c-paste-hint]:flex-[0_0_auto] [&_.c-paste-hint]:w-[320px]',
@@ -461,7 +461,7 @@ const shotsClass = cn(
   'ph-ptt:ph-landscape:left-1/2 ph-ptt:ph-landscape:top-auto ph-ptt:ph-landscape:bottom-[calc(100%_+_12px)] ph-ptt:ph-landscape:[transform:translateX(-50%)] ph-ptt:ph-landscape:flex-col-reverse ph-ptt:ph-landscape:[&_.c-shots]:flex-col-reverse',
 );
 
-/** The screenshot button beside the microphone: a small glass tile. */
+
 const attachClass =
   'static size-[34px] rounded-lg grid place-items-center p-0 bg-glass hover:not-disabled:bg-glass border border-glass-edge [box-shadow:var(--shadow)] backdrop-blur-glass hover:text-foreground hover:[box-shadow:var(--lift)]';
 

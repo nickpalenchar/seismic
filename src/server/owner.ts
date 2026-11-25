@@ -1,13 +1,13 @@
-// Only the owner talks to Seismic from this machine. Every request names
-// the owner's key, a secret in `owner.key` in Seismic's home that only the owner's account may read
-// (0600): in the header `X-Seismic-Key` (`X-Obeya-Key` from before the rename) (the app's shell, Seismic's own scripts) or in a cookie (the
-// page, the push-to-talk panel). A browser gets the cookie from a link with a token
-// (`/login?token=…`), as Jupyter's: Seismic prints it when it starts, and gives it to whoever holds
-// the key (`POST /api/login-link`: the app's shell, a second start of Seismic,
-// scripts/scratch-seismic.ts). It signs in any number of browsers until the server stops; a link
-// that goes through the system's `open` (the app's "Open in browser"), where other accounts see
-// it in the process list, has a token of its own that signs in one browser.
-// Another program or account on the machine reaches the port but holds neither.
+
+
+
+
+
+
+
+
+
+
 
 import { chmodSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -17,11 +17,11 @@ import { MESSAGES } from '../core/messages.ts';
 
 export const KEY_FILE = 'owner.key';
 export const KEY_HEADER = 'x-seismic-key';
-/** The header's name before the rename, which a server still accepts (migration shim: an app or script from before sends it). */
+
 export const OLD_KEY_HEADER = 'x-obeya-key';
-/** The cookie's lifetime, the longest browsers keep one (400 days); the key decides how long it holds. */
+
 const COOKIE_MAX_AGE = 400 * 24 * 3600;
-/** One-time tokens that wait to be used; the oldest goes when another comes. */
+
 const OUTSTANDING = 32;
 
 const random = () => Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url');
@@ -40,14 +40,14 @@ export function ownerKey(home: string): string {
       if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
       const key = random();
       try {
-        // `wx`: of two starts at once, one writes it and the other reads it
+        
         writeFileSync(file, `${key}\n`, { mode: 0o600, flag: 'wx' });
         return key;
       } catch (e) {
         if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
       }
     }
-    // the other start opened the file and writes it now
+    
     if (tries > 100) throw new Error(`${file} stays empty`);
     Bun.sleepSync(10);
   }
@@ -111,9 +111,9 @@ const localPath = (next: string | null) => (next && next.startsWith('/') && new 
 export class Owner {
   readonly key: string;
   private readonly language: () => Language;
-  /** The token of this server's run: signs in any number of browsers until the server stops. */
+  
   private readonly run = random();
-  /** One-time tokens, each spent by the browser it signs in. */
+  
   private readonly tokens = new Set<string>();
 
   /** Without `home` (a test) the key is made up and kept in memory. */
@@ -141,7 +141,7 @@ export class Owner {
   /** What a request from this machine gets instead of its route's answer, or `null` when it names the key. */
   refusal(req: Request, port: number, route: string): Response | null {
     if (this.admits(req, port)) return null;
-    // a link from another site opened the page: the browser sent the cookie, `SameSite=Strict`, not with it
+    
     const url = new URL(req.url);
     if (req.headers.get('sec-fetch-site') === 'cross-site' && req.headers.get('sec-fetch-mode') === 'navigate' && !url.pathname.startsWith('/api/'))
       return onward(localPath(`${url.pathname}${url.search}`));
@@ -173,7 +173,7 @@ export class Owner {
       const set = `${this.cookieName(port)}=${this.key}; Path=/; Max-Age=${COOKIE_MAX_AGE}; HttpOnly; SameSite=Strict`;
       return onward(next, { 'set-cookie': set });
     }
-    // a link opened again in the browser it signed in
+    
     if (this.admits(req, port)) return onward(next);
     return this.page(true);
   }

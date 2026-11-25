@@ -19,7 +19,7 @@ describe('what git names in its refusal', () => {
     expect(namedInRefusal(untracked)).toEqual(['new.ts']);
     expect(namedInRefusal("error: Entry 'x.ts' not uptodate. Cannot merge.\nfatal: Could not reset index file to revision 'abc'.")).toEqual(['x.ts']);
     expect(namedInRefusal('fatal: something else')).toEqual([]);
-    // blanks at a name's start or end are part of it
+    
     expect(namedInRefusal('error: Your local changes to the following files would be overwritten by merge:\n\t lead.ts\n\ttrail.ts \nAborting')).toEqual([' lead.ts', 'trail.ts ']);
   });
 });
@@ -70,18 +70,18 @@ describe('a leased clone', () => {
     const board = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: repo, branch: 'main' }] }, () => ({ docs: [], dirs: [] }));
     const spaces = new Workstations(store, 'c', { mode: 'clones', repoPath: repo, dir: join(dir, 'ws') });
     const [clone] = spaces.ensureClones(repo, 1);
-    // its origin is gone: the fetch fails
+    
     git(clone!, 'remote', 'set-url', 'origin', join(dir, 'gone'));
     const [a, b] = [board.create({ title: 'A', x: 0, y: 0 }).id, board.create({ title: 'B', x: 0, y: 0 }).id];
     const lease = spaces.lease(a, 'seismic/a');
-    // taken at once, while git fetches
+    
     expect(spaces.leasedBy(a)).toBe(clone!);
     expect(spaces.leasable()).toBe(false);
     await expect(lease.ready!).rejects.toThrow('fetch');
     expect(spaces.leasedBy(a)).toBeNull();
     expect(spaces.leasable()).toBe(false);
     expect(() => spaces.lease(b, 'seismic/b')).toThrow(expect.objectContaining({ code: 'noWorkstation' }));
-    // the pool says why the free clone goes to no card
+    
     expect(spaces.pool([])[0]!.blocked).toEqual([{ path: clone!, why: 'failed', error: expect.stringContaining('fetch'), made: true }]);
   });
 });
@@ -100,18 +100,18 @@ describe('free clones', () => {
   test('are chosen by their last look, taken in the background; one dirty now gives way to the next', async () => {
     const { board, spaces, clones, changed } = setup();
     const [one, two] = clones as [string, string];
-    // not looked at yet: either may be taken; the looks run in the background and change the board once they find them
+    
     expect(spaces.leasable()).toBe(true);
     await until(() => changed() === 2);
     writeFileSync(join(one, 'stray.txt'), 'x');
-    // the first was clean when looked at: a card takes it at once, and git, looking again, finds it dirty
+    
     const a = board.create({ title: 'A', x: 0, y: 0 }).id;
     const lease = spaces.lease(a, 'seismic/a');
     expect(lease.path).toBe(one);
     expect(await lease.ready!).toBe(two);
     expect(spaces.leasedBy(a)).toBe(two);
     expect(git(two, 'branch', '--show-current')).toBe('seismic/a');
-    // the dirty one is free, and known as dirty: no card takes it until it is clean
+    
     expect(spaces.list().find((w) => w.path === one)!.card_id).toBeNull();
     expect(spaces.leasable()).toBe(false);
     const b = board.create({ title: 'B', x: 0, y: 0 }).id;
@@ -124,7 +124,7 @@ describe('free clones', () => {
     for (let i = 1; i <= 7; i++) writeFileSync(join(one, `stray ${i}.txt`), 'x');
     writeFileSync(join(one, 'README.md'), 'changed');
     rmSync(two, { recursive: true });
-    // not looked at yet: the pool shows them free, and looks at them in the background
+    
     expect(spaces.pool([])[0]!.blocked).toBeUndefined();
     await until(() => changed() === 2);
     expect(spaces.pool([])[0]).toMatchObject({
@@ -218,7 +218,7 @@ describe('a workstation git frees', () => {
     const a = card('A');
     const { path, ready } = spaces.lease(a, 'seismic/a');
     await ready;
-    // what git ignores (installed dependencies) does not make it dirty
+    
     writeFileSync(join(path, '.gitignore'), 'node_modules/\n');
     git(path, 'add', '.gitignore');
     git(path, '-c', 'user.name=T', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'ignore');
@@ -288,7 +288,7 @@ describe("a follow-up's temporary worktree", () => {
     await ready;
     expect(tree).toBe(join(dir, 'ws', 'follow-up', 'card-123'));
     expect(git(tree, 'rev-parse', 'HEAD')).toBe(pushed);
-    // the checkout stays as it was: clean, on its branch
+    
     expect(git(checkout, 'status', '--porcelain')).toBe('');
     expect(git(checkout, 'branch', '--show-current')).toBe('main');
     await spaces.removeFollowUpTree(tree);
@@ -301,7 +301,7 @@ describe("a follow-up's temporary worktree", () => {
 });
 
 describe('the pull after a merge', () => {
-  // the machine's own git configuration may set a way of pulling: none is set unless a test sets one
+  
   let globalConfig: string | undefined;
   let origin: string;
   let checkout: string;
@@ -331,7 +331,7 @@ describe('the pull after a merge', () => {
     const merged = commit(origin, 'README.md', 'merged\n');
     const r = await spaces.pullMain();
     expect(r).toEqual({ from: own, to: git(checkout, 'rev-parse', 'HEAD') });
-    // the owner's commit on top of the merge, no merge commit
+    
     expect(git(checkout, 'rev-parse', 'HEAD~1')).toBe(merged);
     expect(git(checkout, 'log', '-1', '--format=%s')).toBe('notes.md: mine');
     expect(git(checkout, 'rev-list', '--merges', '--count', 'HEAD')).toBe('0');
@@ -396,7 +396,7 @@ describe('pushing main', () => {
     process.env.GIT_CONFIG_GLOBAL = join(dir, 'gitconfig');
     writeFileSync(process.env.GIT_CONFIG_GLOBAL, '');
     origin = gitRepo(join(dir, 'origin'), { 'README.md': 'hello\n', 'notes.md': 'notes\n' });
-    // a remote one can push to
+    
     git(origin, 'config', 'receive.denyCurrentBranch', 'updateInstead');
     checkout = join(dir, 'checkout');
     git(dir, 'clone', '--quiet', origin, checkout);
@@ -442,7 +442,7 @@ describe('before a merge, the clash with unpushed commits', () => {
     process.env.GIT_CONFIG_GLOBAL = join(dir, 'gitconfig');
     writeFileSync(process.env.GIT_CONFIG_GLOBAL, '');
     origin = gitRepo(join(dir, 'origin'), { 'README.md': 'hello\n', 'notes.md': 'notes\n' });
-    // the contributor's pull request, on the remote's main as it is
+    
     git(origin, 'checkout', '--quiet', '-b', 'contrib');
     writeFileSync(join(origin, 'README.md'), 'theirs\n');
     git(origin, 'commit', '--quiet', '-am', 'theirs');
@@ -533,7 +533,7 @@ describe('a resolved pull lands', () => {
   test("the local main goes to the worker's HEAD, on the merge", async () => {
     const at = await resolved();
     const head = git(ws, 'rev-parse', 'HEAD');
-    // the unpushed commit is found again by its new one
+    
     const base = git(checkout, 'merge-base', at.main, at.upstream);
     expect(await spaces.landResolution(ws, at)).toEqual({ from: at.main, to: head, rewritten: { [base]: at.upstream, [at.main]: head } });
     expect(git(checkout, 'rev-parse', 'HEAD')).toBe(head);
@@ -575,7 +575,7 @@ describe('clones the configuration no longer names', () => {
     for (const p of paths) identify(p);
     return { spaces, paths };
   };
-  // what the stop command ran in, as the path names it (macOS's temporary directory is behind a link)
+  
   const stopped = () => (existsSync(join(ws, 'stopped')) ? readFileSync(join(ws, 'stopped'), 'utf8').trim().split('\n').map((p) => p.replace(/^\/private\//, '/')) : []);
 
   beforeEach(() => {
@@ -615,9 +615,9 @@ describe('clones the configuration no longer names', () => {
     expect(watched.pool([])[0]!.kept!.toSorted()).toEqual(paths);
     expect(changes).toBe(4);
     for (const p of paths) expect(existsSync(join(p, '.git'))).toBe(true);
-    // nothing was stopped: the folder stays as it is
+    
     expect(stopped()).toEqual([]);
-    // the work landed or was thrown away: the next start finds nothing left, and the folders go
+    
     git(changed, 'checkout', '--quiet', '.');
     rmSync(join(untracked, 'notes.txt'));
     git(stashed, 'stash', 'drop', '--quiet');
@@ -645,14 +645,14 @@ describe('clones the configuration no longer names', () => {
     commit(deleted, 'gone.txt');
     git(deleted, 'push', '--quiet', 'origin', 'seismic/gone');
     git(origin, 'branch', '--quiet', '-D', 'seismic/gone');
-    // a name with a tab or a leading space is its own file, not one main has
+    
     git(odd, 'checkout', '--quiet', '-b', 'odd');
     commit(odd, 'notes\tsecret.txt');
     commit(odd, ' leading.txt');
     git(squashed, 'checkout', '--quiet', '-b', 'seismic/squashed');
     commit(squashed, 'a.txt');
     commit(squashed, 'b.txt');
-    // the pull request was squashed onto main, and its branch deleted
+    
     const other = join(dir, 'other');
     git(dir, 'clone', '--quiet', origin, other);
     identify(other);
@@ -725,9 +725,9 @@ describe('clones the configuration no longer names', () => {
     expect(existsSync(paths[0]!)).toBe(true);
     spaces.release(a);
     expect(spaces.list()).toEqual([]);
-    // the card's branch holds nothing that is not on origin
+    
     await until(() => !existsSync(paths[0]!));
-    // a deleted card brought back does not take it back
+    
     expect(spaces.retake(a, paths[0]!)).toBe(false);
   });
 
@@ -754,13 +754,13 @@ describe('clones the configuration no longer names', () => {
     expect(held.path).toBe(paths[0]!);
     await held.ready;
     spaces.register(own, [origin]);
-    // a worktree from before the repository went over to clones, under the home Seismic had then
+    
     const old = join(dir, 'old-home', 'a7d7c689');
     store.workstations.add('c', old);
     store.workstations.lease(old, b);
     board.work(a, { state: 'working', workstation: held.path, branch: 'seismic/a' });
     board.work(b, { state: 'planned', workstation: old, branch: 'seismic/b' });
-    // the owner moved the listed clone and the held one away; the old home is gone with its worktree
+    
     rmSync(own, { recursive: true });
     rmSync(held.path, { recursive: true });
     const lost = spaces.keepOnly(null, paths.slice(1));
@@ -773,14 +773,14 @@ describe('clones the configuration no longer names', () => {
     expect(board.row(a)).toMatchObject({ state: 'planned', workstation: null, branch: 'seismic/a' });
     expect(board.row(b)).toMatchObject({ state: 'planned', workstation: null });
     expect(board.events(a).at(-1)!.text).toContain(held.path);
-    // the next start takes a clone that is there
+    
     const again = spaces.lease(a, 'seismic/a');
     expect(paths.slice(1)).toContain(again.path);
     await again.ready;
     expect(existsSync(again.path)).toBe(true);
     const other = spaces.lease(c, 'seismic/c');
     expect(other.path).not.toBe(again.path);
-    // settled here, not in a later test: whether it is made does not matter to this one
+    
     await other.ready?.catch(() => {});
   });
 
@@ -799,9 +799,9 @@ test('a trailer goes beside the trailers a commit message ends with, else into a
   const t = 'Demo-Video: https://demos.example.dev/a-1/';
   expect(addTrailer('Fix\n\nBody.\n\nCo-Authored-By: C <c@x>\n', t)).toBe(`Fix\n\nBody.\n\nCo-Authored-By: C <c@x>\n${t}\n`);
   expect(addTrailer('Fix\n\nBody: not a trailer, a sentence.\nIt goes on.', t)).toBe(`Fix\n\nBody: not a trailer, a sentence.\nIt goes on.\n\n${t}\n`);
-  // a trailer needs no space after its colon
+  
   expect(addTrailer('Fix\n\nCo-Authored-By:C <c@x>', t)).toBe(`Fix\n\nCo-Authored-By:C <c@x>\n${t}\n`);
-  // a subject alone is no trailer block, even with a colon
+  
   expect(addTrailer('Docs: typo', t)).toBe(`Docs: typo\n\n${t}\n`);
 });
 
@@ -834,11 +834,11 @@ describe('capturing working changes for another host', () => {
     git(dir, 'clone', '--quiet', repo, target);
     git(repo, 'rm', '--quiet', 'kept.dat');
     writeFileSync(join(repo, 'notes.txt'), 'one\r\ntwo\r\n');
-    // a filter as LFS has it: the index gets a pointer, the contents stay behind in this checkout
+    
     git(repo, 'config', 'filter.store.clean', 'printf pointer');
     git(repo, 'config', 'filter.unused.clean', 'cat');
     git(repo, 'config', 'filter.off.clean', '');
-    // a deletion carries no contents, and a conversion of git's own is undone by git apply
+    
     const converted = await workingChanges(repo);
     expect(converted.files.sort()).toEqual(['kept.dat', 'notes.txt']);
     const patch = join(dir, 'filtered.patch');

@@ -1,13 +1,13 @@
-// The hint that screenshots may be pasted from the clipboard: shown once the owner has picked one
-// with the file dialog, in that field, until they confirm it; never again after that, and never
-// once they have pasted one.
+
+
+
 
 import { useEffect, useSyncExternalStore } from 'react';
 import { know, known } from './known';
 
-/** Set once the owner pasted a screenshot or confirmed the hint: it never shows again. */
+
 export const PASTE_KNOWN = 'seismic-paste-known';
-/** The field (its draft key) the hint is due in, kept across reloads until it is confirmed. */
+
 const PASTE_DUE = 'seismic-paste-hint';
 
 let due: string | null = (() => {
@@ -17,7 +17,7 @@ let due: string | null = (() => {
     return null;
   }
 })();
-/** The fields that take screenshots now, in the order they appeared. */
+
 let fields: string[] = [];
 const listeners = new Set<() => void>();
 const changed = () => listeners.forEach((l) => l());

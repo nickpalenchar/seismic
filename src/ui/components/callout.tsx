@@ -1,7 +1,7 @@
-// Callout: an `Alert` tinted by its kind, after shadcn's custom-colour alerts (a light fill, a border
-// and text of one hue, the dark theme's darker fill with light text). `info` stays the plain alert;
-// `success` is green, `warn` yellow, `error` red, `note` purple, `bold-info` blue. The description takes the callout's
-// hue instead of the muted grey, so a tinted callout reads as one colour.
+
+
+
+
 
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from 'cn';

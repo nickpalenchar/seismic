@@ -1,24 +1,24 @@
-// What changed on shared demo pages (site.ts writes them from demo-page.ts), as their viewers see
-// it, oldest first. A page keeps the newest change it was published after (`version` of its share);
-// the changes after that one which show on its kind of page are what sharing it again brings, and a
-// page with none is up to date. Their words are in the UI's strings (`pageChanges`), by id.
-//
-// A change to the templates that shows on the pages gets an entry here; one that shows nowhere
-// (a refactoring, a style only the other kind of page uses) gets none, so it marks no page.
-// `PAGES_HASH` is the hash of sample pages these entries account for: site.test.ts fails once the
-// pages come out different, and says what to do.
+
+
+
+
+
+
+
+
+
 
 import type { DemoKind } from './types';
 
 export interface PageChange {
-  /** The day it came and a few words; stays for good, since shares keep it. */
+  
   id: string;
-  /** The kinds of page it shows on. */
+  
   kinds: readonly DemoKind[];
-  /**
-   * It shows only on a page with tags, which no page published before it had: those get it with
-   * their tags (the Koordinator's "N pages without tags"), so it leaves no page outdated.
-   */
+  
+
+
+
   tagged?: true;
 }
 
@@ -43,16 +43,16 @@ export const PAGE_CHANGES = [
 export type KnownChange = (typeof PAGE_CHANGES)[number];
 export type PageChangeId = KnownChange['id'];
 
-/**
- * A page is outdated by its repository's theme too (`.seismic/theme.css`, src/server/theme.ts): once the
- * theme differs from the one it was published with. That is no change of Seismic's pages, so it has
- * no day, and the card and the Koordinator name it beside them.
- */
+
+
+
+
+
 export const THEME_CHANGED = 'theme';
-/** What leaves a page outdated: a change of Seismic's pages, or its repository's theme. */
+
 export type OutdatedBy = PageChangeId | typeof THEME_CHANGED;
 
-/** The sample pages' hash (`pagesHash` in site.ts) the changes above account for. */
+
 export const PAGES_HASH = { video: 'd9246994a3dd', html: '3b23512757fe', stacked: 'e722ffe8ae02' };
 
 /** The version a page published now gets: the newest change; '' while there is none. */

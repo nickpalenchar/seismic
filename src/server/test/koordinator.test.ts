@@ -50,10 +50,10 @@ const activity = (id: string) => board.activityRows(['c'], undefined, 100).filte
 async function settle() {
   await Bun.sleep(5);
   const asking = () => runtime.sessions.some((s) => !s.closed && s.spec.tools.some((t) => t.name === 'scope' || t.name === 'schedule'));
-  // a change of the board reaches the Koordinator after a timer and the decisions before it: on a loaded runner, later than 5 ms
+  
   const judging = () => (k.busy || board.snapshot().items.some((i) => i.queue && 'checking' in i.queue)) && !asking();
   for (const end = Date.now() + 1000; judging() && Date.now() < end; ) await Bun.sleep(2);
-  // the workers it started at work in their workstations
+  
   await workers.prepared();
 }
 /** Waits until `done` holds, for what goes on in the background: git keeping a card's work, a turn starting after the board's change got round. */
@@ -105,10 +105,10 @@ describe('Koordinator', () => {
     const later = card('Add CSV export for invoices');
     k.request(later.id);
     await settle();
-    // nothing else runs or waits: it starts at once, without an estimate that looks for duplicates
+    
     expect(item(later.id).state).toBe('working');
     expect(item(later.id).possibleDuplicates).toBeUndefined();
-    // the estimate of its scope for the cards after it
+    
     await scope(['src/export.ts']);
     expect(JSON.parse(board.row(later.id).scope ?? '{}').duplicateCheck).toBeUndefined();
     merges = true;
@@ -138,7 +138,7 @@ describe('Koordinator', () => {
         expect('duplicates' in tool.schema).toBe(on);
         expect(s.inbox[0]!.includes('Other unfinished tasks to check')).toBe(on);
         expect(shape(s, 'scope')).toContain('files');
-        // a duplicate the agent reports anyway is not recorded when off
+        
         s.call('scope', { files: ['src/a.ts'], conflicts_with: [], duplicates: ['K1'], reason: 'Same.' });
         s.emit({ type: 'idle' });
         await settle();
@@ -174,7 +174,7 @@ describe('Koordinator', () => {
         });
         s.emit({ type: 'idle' });
         await settle();
-        // with merges off nothing is recorded as a duplicate
+        
         expect(item(first.id).possibleDuplicates?.length ?? 0).toBe(on ? 1 : 0);
       });
     }
@@ -370,7 +370,7 @@ describe('Koordinator', () => {
     await scope(['src/a.ts', 'src/b.ts'], ['K1'], 'Beide ändern decide() in src/a.ts.');
     expect(warned).toMatchObject([{ cardId: b.id, level: 'warning' }]);
     expect(item(b.id)).toMatchObject({ state: 'planned', queue: { behind: [a.id], reason: 'Beide ändern decide() in src/a.ts.' } });
-    // the wait is in the Activity log once, with the card it waits for
+    
     expect(activity(b.id)).toEqual([{ code: 'waitsForCard', who: 'seismic', otherId: a.id }]);
 
     const wa = board.row(a.id).workstation!;
@@ -493,7 +493,7 @@ describe('Koordinator', () => {
     const a = card('A');
     k.request(a.id);
     await scope(['src/a.ts']);
-    // the later card comes first on the board: its turn must still come second
+    
     const later = card('Später');
     const first = card('Zuerst');
     k.request(first.id);
@@ -506,7 +506,7 @@ describe('Koordinator', () => {
 
     await workers.stop(a.id);
     await settle();
-    // neither starts before the joint turn has seen both
+    
     expect(item(first.id).queue).toMatchObject({ checking: true });
     expect(item(later.id).queue).toMatchObject({ checking: true, since });
     expect(board.events(first.id).at(-1)!.text).toContain('together with the other tasks');
@@ -543,7 +543,7 @@ describe('Koordinator', () => {
     expect(item(c.id).queue).toMatchObject({ behind: [b.id], reason: 'Beide ändern render() in src/b.ts.' });
     expect(board.events(c.id).some((e) => e.text.includes('“B” (waiting itself, and ahead in the queue)'))).toBe(true);
 
-    // B goes first; C waits for it to land, not only to start
+    
     await workers.stop(a.id);
     await settle();
     expect(item(b.id).state).toBe('working');
@@ -695,14 +695,14 @@ describe('Koordinator', () => {
     expect(board.events(c.id).at(-1)).toMatchObject({ author: 'owner', text: 'Moved ahead of “B” in the queue.' });
     k.reorder(d.id, true);
     expect(order()).toEqual(['C', 'D', 'B']);
-    // D waits for C, which stays ahead of it, and C is first already
+    
     expect(() => k.reorder(d.id, true)).toThrow(expect.objectContaining({ code: 'notMovable' }));
     expect(() => k.reorder(c.id, false)).toThrow(expect.objectContaining({ code: 'notMovable' }));
     expect(() => k.reorder(c.id, true)).toThrow(expect.objectContaining({ code: 'notMovable' }));
     expect(move(d.id, true, board.snapshot().items)).toMatchObject({ past: { id: c.id }, why: 'waitsFor' });
     expect(move(c.id, false, board.snapshot().items)).toMatchObject({ past: { id: d.id }, why: 'waitedOn' });
 
-    // a card being judged is passed by none, nor does it move
+    
     const e = card('E');
     k.request(e.id);
     await settle();
@@ -712,7 +712,7 @@ describe('Koordinator', () => {
     expect(item(e.id).state).toBe('working');
     await workers.stop(e.id);
 
-    // C now comes first: it and B are judged together in that order
+    
     await workers.stop(a.id);
     await settle();
     const brief = schedules().at(-1)!.inbox[0]!;
@@ -734,7 +734,7 @@ describe('Koordinator', () => {
       board.work(c.id, { queue: JSON.stringify(behind ? { behind: [behind], reason: 'Grund.', since } : { workstation: 'none', since }) });
       return c;
     };
-    // B and C came in the same millisecond; E waits for B
+    
     const a = wait('A', 0);
     const b = wait('B', 10);
     const c = wait('C', 10);
@@ -751,7 +751,7 @@ describe('Koordinator', () => {
     expect(order()).toEqual(['D', first, second, 'E', 'A']);
     expect(board.events(a.id).at(-1)).toMatchObject({ text: 'Moved behind “E” in the queue.' });
 
-    // E goes no farther up than right behind B, the card it waits for
+    
     const items = () => board.snapshot().items;
     expect(reach(e.id, true, items())).toMatchObject({ places: first === 'B' ? 1 : 0, stop: { id: b.id }, why: 'waitsFor' });
     expect(reach(b.id, false, items())).toMatchObject({ places: first === 'B' ? 1 : 0, stop: { id: e.id }, why: 'waitedOn' });
@@ -760,7 +760,7 @@ describe('Koordinator', () => {
     expect(() => k.reorder(e.id, true, 3)).toThrow(expect.objectContaining({ code: 'notMovable' }));
     expect(() => k.reorder(e.id, true, 0)).toThrow(expect.objectContaining({ code: 'invalid' }));
     expect(order()).toEqual(['D', first, second, 'E', 'A']);
-    // every card keeps a time of its own, so the order no longer hangs on the ids
+    
     const times = queueOrder(items()).map((i) => i.queue!.since);
     expect(new Set(times).size).toBe(times.length);
   });
@@ -777,7 +777,7 @@ describe('Koordinator', () => {
     s.emit({ type: 'error', message: "You've hit your session limit · resets 2:40pm (Europe/Berlin)", limit: { resetsAt: Date.now() + 20 } });
     s.emit({ type: 'idle' });
     await settle();
-    // it does not start without an estimate: it waits with the Koordinator, and says until when
+    
     expect(item(b.id)).toMatchObject({ state: 'planned', queue: { checking: true } });
     expect(item(b.id).agent?.limitedUntil).toBeDefined();
     expect(board.events(b.id).some((e) => e.kind === 'error')).toBe(false);
@@ -819,7 +819,7 @@ describe("Koordinator queues a review's follow-up tasks", () => {
     expect(board.events(f.id).at(-1)!.text).toBe('Seismic: waits for “PR #34: Manual dependencies”. A follow-up task from the review of PR #34; starts once the PR is merged.');
     await settle();
     expect(estimates()).toEqual([]);
-    // the owner stopping the review does not free it: the PR is not merged
+    
     board.work(r.id, { state: 'planned' });
     await settle();
     expect(item(f.id).state).toBe('planned');
@@ -836,7 +836,7 @@ describe("Koordinator queues a review's follow-up tasks", () => {
     k.followUp(f2.id, r.id);
     board.work(r.id, { state: 'live' });
     await settle();
-    // the first does not start before the turn has seen the second
+    
     expect(item(f1.id).queue).toMatchObject({ checking: true });
     const brief = schedules().at(-1)!.inbox[0]!;
     expect(brief).toContain('K1: task "Explain the arrows" — Tooltips on the arrows.');
@@ -1014,7 +1014,7 @@ describe('Koordinator suggests the labels the owner left empty', () => {
     await naming;
     expect(item(a.id)).toMatchObject({ title: 'Export no longer crashes', labels: { category: 'frontend', subcategory: 'bugFix', complexity: 2, priority: 'veryHigh' } });
     expect(item(a.id).labels?.suggested).toEqual(['category', 'subcategory', 'complexity', 'priority']);
-    // started later, it runs no second session
+    
     k.request(a.id);
     await scope([]);
     expect(labellings()).toHaveLength(0);
@@ -1031,9 +1031,9 @@ describe('Koordinator suggests the labels the owner left empty', () => {
     const s = labellings()[0]!;
     expect(s.spec).toMatchObject({ permission: 'readOnly', role: 'chores' });
     expect(s.inbox[0]).toContain('Add CSV export');
-    // only what is empty and the owner never set (not even to none) is asked for
+    
     expect(params(s, 'labels')).toEqual(['subcategory', 'complexity']);
-    // the owner picks meanwhile: theirs stands
+    
     board.patch(a.id, { complexity: 8 });
     s.call('labels', { subcategory: 'New feature', complexity: 3, category: 'Backend', priority: 'Low' });
     s.emit({ type: 'idle' });
@@ -1091,7 +1091,7 @@ describe('Koordinator suggests the labels the owner left empty', () => {
     expect(collect.labels?.priority).toBeUndefined();
     expect(runtime.sessions).toHaveLength(0);
 
-    // Later rules append to the same card without undoing the owner's label choices.
+    
     board.patch(collect.id, { category: 'tooling', subcategory: null });
     board.acceptProposal(board.proposePreference('Use UTC timestamps.', {}, undefined, 'home'));
     expect(board.collecting('home')!.id).toBe(collect.id);
@@ -1195,10 +1195,10 @@ describe('Koordinator waits for a free workstation', () => {
     await workerOf(f.id).call('ready_for_review', { summary: 'S', demo: artifact() });
     workerOf(f.id).emit({ type: 'idle' });
     await workers.approve(f.id);
-    // finishing after the landing, in its clone
+    
     expect(item(f.id).agent?.finishing).toBe(true);
     expect(workstations.pool(workers.inTurn(), (c) => workers.turnAt(c))[0]).toMatchObject({ cards: [f.id], busy: [f.id] });
-    // it asks the owner: its clone stays its own, its slot is free
+    
     await workerOf(f.id).call('ask', { question: 'Stack stoppen?' });
     workerOf(f.id).emit({ type: 'idle' });
     await settle();
@@ -1213,7 +1213,7 @@ describe('Koordinator waits for a free workstation', () => {
     k.request(a.id);
     await scope(['src/a.ts']);
     expect(board.row(a.id).workstation).toBe(clones[0]!);
-    // the owner asks the finished card while no clone is free: its worker answers in a temporary worktree, on a slot of this machine
+    
     workers.message(f.id, 'Läuft die Demo?');
     await workers.prepared();
     await settle();
@@ -1223,7 +1223,7 @@ describe('Koordinator waits for a free workstation', () => {
       cards: [a.id],
       busy: [a.id, f.id],
       total: 1,
-      // its temporary worktree shows in the pool after the clones, its dot and row there
+      
       workstations: [{ path: clones[0]!, card: a.id }, { path: board.row(f.id).workstation!, card: f.id }],
     });
     expect(workers.busyOn(null)).toBe(2);
@@ -1241,7 +1241,7 @@ describe('Koordinator waits for a free workstation', () => {
     expect(board.events(b.id).at(-1)!.text).toContain('No slot free');
     expect(workstations.pool(workers.inTurn())).toEqual([expect.objectContaining({ here: true, slots: 1, total: 3, cards: [a.id], busy: [a.id] })]);
 
-    // A asks the owner: its clone stays its own, its slot is free
+    
     await workerOf(a.id).call('ask', { question: 'Welche Farbe?' });
     workerOf(a.id).emit({ type: 'idle' });
     await settle();
@@ -1272,7 +1272,7 @@ describe('Koordinator waits for a free workstation', () => {
       { name: HERE, here: true, worktrees: true, slots: 1, total: 1, cards: [a.id], busy: [a.id], workstations: [{ path: expect.any(String), card: a.id }] },
     ]);
 
-    // A asks the owner: its worktree stays its own, its slot is free
+    
     await workerOf(a.id).call('ask', { question: 'Welche Farbe?' });
     workerOf(a.id).emit({ type: 'idle' });
     await settle();
@@ -1280,7 +1280,7 @@ describe('Koordinator waits for a free workstation', () => {
     expect(board.events(b.id).some((e) => e.text.includes('free slot again'))).toBe(true);
     expect(workstations.pool(workers.inTurn())[0]).toMatchObject({ cards: [b.id], busy: [b.id] });
 
-    // a worker finishing after its card's landing holds its slot as well
+    
     await workerOf(b.id).call('ready_for_review', { summary: 'S', demo: artifact() });
     workerOf(b.id).emit({ type: 'idle' });
     expect(workstations.pool(workers.inTurn())[0]).toMatchObject({ cards: [], busy: [] });
@@ -1297,7 +1297,7 @@ describe('Koordinator waits for a free workstation', () => {
       await scope([`src/${i}.ts`]);
     }
     expect(cards.map((c) => item(c.id).state)).toEqual(['working', 'working', 'working']);
-    // the pill shows the cards in worktrees alone, nothing capping them
+    
     const [here] = workstations.pool(workers.inTurn());
     expect(here).toMatchObject({ worktrees: true, uncapped: true, slots: 0, total: 0 });
     expect(here!.workstations.map((w) => w.card).sort()).toEqual(cards.map((c) => c.id).sort());
@@ -1314,7 +1314,7 @@ describe('Koordinator waits for a free workstation', () => {
     const c = card('C');
     k.request(c.id);
     await settle();
-    // B is ahead of C in the queue, so C is judged against it
+    
     expect(estimates().at(-1)!.inbox[0]).toContain('a free workstation');
     await scope(['src/c.ts']);
     const d = card('D');
@@ -1343,7 +1343,7 @@ describe('Koordinator waits for a free workstation', () => {
     expect(item(b.id).queue).toMatchObject({ workstation: 'dirty' });
 
     rmSync(join(free, 'stray.txt'));
-    // a dirty clone is not asked again on every change of the board, but once another one frees up
+    
     await workers.stop(a.id);
     await settle();
     expect(item(b.id).state).toBe('working');
@@ -1382,7 +1382,7 @@ describe('Koordinator waits for a free workstation', () => {
     expect(item(a.id)).toMatchObject({ state: 'planned', queue: { workstation: 'none' } });
     expect(board.row(a.id)).toMatchObject({ workstation: null, kept_in: clones[0]! });
     expect(runtime.sessions.find((s) => s.spec.cwd === at && s.closed)).toBeDefined();
-    // the work A had not committed is in a commit on its branch
+    
     expect(git(at, 'show', '--stat', '--format=%B', board.row(a.id).branch!)).toContain('a.ts');
     expect(board.events(a.id).some((e) => e.text.startsWith('Workstation taken away'))).toBe(true);
 
@@ -1442,7 +1442,7 @@ describe('Koordinator starts all workstreams of a plan', () => {
     await scope(['src/a.ts']);
     const { p, w2, w3, w4 } = plan();
     k.request(p.id);
-    // in the plan's order until the Koordinator has decided
+    
     expect([w2, w3, w4].map((w) => item(w.id).queue)).toEqual([0, 1, 2].map(() => expect.objectContaining({ checking: true, together: p.id })));
     await settle();
     expect(schedules()).toHaveLength(1);
@@ -1451,7 +1451,7 @@ describe('Koordinator starts all workstreams of a plan', () => {
     expect(brief).toContain('plan doc docs/plan/p.md');
     expect(brief).toContain('- K2: W2 "Titel W2" — Text W2');
     expect(brief).toContain('- K1: "A"');
-    // W4 goes first, W2 builds on it, W3 collides with A
+    
     await schedule([
       ['K4', ['src/w4.ts'], [], [], 'W4 ist unabhängig.'],
       ['K2', ['src/w2.ts'], ['K4'], [], 'W2 baut auf der API aus W4 auf.'],
@@ -1462,13 +1462,13 @@ describe('Koordinator starts all workstreams of a plan', () => {
     expect(item(w3.id)).toMatchObject({ state: 'planned', queue: { behind: [a.id] } });
     expect(item(w3.id).queue).not.toHaveProperty('buildsOn');
     expect(board.events(w2.id).at(-1)!.text).toBe('Seismic: waits for W4 “Titel W4”. W2 baut auf der API aus W4 auf.');
-    // the Koordinator's order is the queue's
+    
     expect(k.ahead(item(w3.id)).map((i) => i.id)).toEqual([w2.id]);
     expect(board.events(p.id).at(-1)!.text).toContain('1 of 3 workstreams start now');
 
     await workers.stop(a.id);
     await settle();
-    // what runs now is W4: W3 is judged again against it
+    
     expect(item(w3.id).queue).toMatchObject({ checking: true });
   });
 
@@ -1480,7 +1480,7 @@ describe('Koordinator starts all workstreams of a plan', () => {
     board.docsChanged();
     expect(item(w2.id)).toMatchObject({ state: 'planned', body: 'Text W2, neu', hold: { reason: 'snoozed', until, start: true } });
     k.request(p.id);
-    // a workstream that builds on it can wait for it
+    
     expect(item(w2.id)?.hold?.reason).not.toBe('snoozed');
     expect([w2, w3, w4].map((w) => item(w.id).queue)).toEqual([0, 1, 2].map(() => expect.objectContaining({ checking: true, together: p.id })));
   });
@@ -1524,7 +1524,7 @@ describe('Koordinator starts all workstreams of a plan', () => {
     schedules()[0]!.emit({ type: 'idle' });
     await settle();
     expect(board.events(p.id).at(-1)!.text).toContain('checks them one by one');
-    // each sees the others it may build on
+    
     await settle();
     expect(estimates().at(-1)!.inbox[0]).toMatch(/W3 "Titel W3" \(queued after this card\)/);
     await scope(['src/w2.ts']);
@@ -1562,13 +1562,13 @@ describe('Koordinator starts all workstreams of a plan', () => {
     schedules()[0]!.emit({ type: 'idle' });
     await settle();
     expect(board.events(p.id).some((e) => e.text.includes('checks them one by one'))).toBe(true);
-    // only W2 is judged alone; the second start keeps its workstreams together
+    
     expect(item(w2.id).queue).toMatchObject({ checking: true });
     expect(item(w2.id).queue).not.toHaveProperty('together');
     expect([w3, w4].map((w) => item(w.id).queue)).toEqual([0, 1].map(() => expect.objectContaining({ checking: true, together: p.id })));
     await scope(['src/w2.ts']);
     expect(item(w2.id).state).toBe('working');
-    // and gets a joint turn of its own, with both of them
+    
     expect(schedules()).toHaveLength(2);
     expect(schedules()[1]!.inbox[0]).toContain('W3 "Titel W3"');
     expect(schedules()[1]!.inbox[0]).toContain('W4 "Titel W4"');
@@ -1617,7 +1617,7 @@ describe('Koordinator starts all workstreams of a plan', () => {
     const { w2, w3, w4 } = plan();
     k.request(w3.id);
     await settle();
-    // nothing runs, but the workstreams not started are there to build on
+    
     expect(item(w3.id).state).toBe('planned');
     const brief = estimates().at(-1)!.inbox[0]!;
     expect(brief).toContain('W2 "Titel W2" (not started) — Text W2');
@@ -1627,7 +1627,7 @@ describe('Koordinator starts all workstreams of a plan', () => {
     expect(item(w3.id)).toMatchObject({ state: 'planned', queue: { behind: [w2.id], buildsOn: [w2.id], reason: 'W3 nutzt die API aus W2.' } });
     expect(board.events(w3.id).at(-1)!.text).toBe('Seismic: waits for W2 “Titel W2” (not started yet). W3 nutzt die API aus W2.');
 
-    // the owner starts W2: W3 waits for it, so W2 does not wait for W3
+    
     k.request(w2.id);
     await settle();
     expect(estimates().at(-1)!.inbox[0]!.split('Other unfinished tasks')[0]).not.toContain('Titel W3');
@@ -1635,7 +1635,7 @@ describe('Koordinator starts all workstreams of a plan', () => {
     expect(item(w2.id).state).toBe('working');
     expect(item(w3.id).queue).toMatchObject({ behind: [w2.id] });
 
-    // W3 is queued ahead of W4, and no workstream is left unstarted
+    
     k.request(w4.id);
     await settle();
     expect(estimates().at(-1)!.inbox[0]).toContain('- K2: "Titel W3"');
@@ -1645,7 +1645,7 @@ describe('Koordinator starts all workstreams of a plan', () => {
 
     await land(w2.id);
     expect(item(w2.id).state).toBe('live');
-    // W4 runs still: W3 is judged again against it
+    
     expect(item(w3.id).queue).toMatchObject({ checking: true });
     await scope(['src/w3.ts']);
     expect(item(w3.id).state).toBe('working');
@@ -1664,14 +1664,14 @@ describe('Koordinator starts all workstreams of a plan', () => {
 
     await workers.stop(w2.id);
     await settle();
-    // W4 only collided with W2, and nothing runs now: it starts
+    
     expect(item(w4.id).state).toBe('working');
-    // W3 builds on it: it waits until W2 has landed, which the owner sees
+    
     expect(item(w3.id).queue).toMatchObject({ behind: [w2.id], buildsOn: [w2.id] });
     expect(item(w2.id)).toMatchObject({ state: 'planned' });
     expect(item(w2.id).queue).toBeUndefined();
 
-    // started anyway, it goes without waiting
+    
     k.force(w3.id);
     await settle();
     expect(item(w3.id).state).toBe('working');
@@ -1691,7 +1691,7 @@ describe('Koordinator starts all workstreams of a plan', () => {
     expect(schedules()).toHaveLength(0);
     expect(() => k.dequeue(p.id)).toThrow(expect.objectContaining({ code: 'notQueued' }));
 
-    // once the Koordinator has planned them, it is too late
+    
     k.request(p.id);
     await new Promise((r) => setTimeout(r, 60));
     await schedule([
@@ -1733,7 +1733,7 @@ describe('preference memory', () => {
       { id: 1, text: 'Beschriftungen: präzise vor kurz.', state: 'proposed', cardId: a.id, quote: 'Präzise, auch wenn es länger wird. Das gilt immer.' },
     ]);
     expect(board.events(a.id).at(-1)!.text).toBe('Proposes: “Beschriftungen: präzise vor kurz.”');
-    // agents do not follow it yet, and the next learner does not count it among the rules
+    
     expect(board.preferencesText()).toBe('');
     expect(board.snapshot().preferences.map((p) => p.state)).toEqual(['proposed']);
 
@@ -1757,7 +1757,7 @@ describe('preference memory', () => {
     await learn('propose', { rule: 'Beschriftungen: präzise vor kurz, mit Einheit.', replaces: 2 });
     const [p] = board.preferences('proposed');
     expect(p).toMatchObject({ replaces: old, quote: 'Und immer mit Einheit.' });
-    // until then, the old rule stands
+    
     expect(board.preferencesText()).toEndWith('- Beschriftungen: präzise vor kurz.');
 
     board.acceptProposal(p!.id, 'Beschriftungen: präzise vor kurz, Zahlen immer mit Einheit.');
@@ -1774,7 +1774,7 @@ describe('preference memory', () => {
     const [p] = board.preferences('proposed');
     board.rejectProposal(p!.id);
     expect(texts('rejected')).toEqual(['Keine Emojis in Texten.']);
-    // the learner sees it, and the proposals still waiting, so neither comes back
+    
     board.proposePreference('Commits auf Englisch.', { cardId: a.id });
     k.learn(item(a.id), 'note', 'Wirklich keine Emojis, und Commits auf Englisch.');
     await settle();
@@ -1809,7 +1809,7 @@ describe('preference memory', () => {
     await settle();
     expect(learnSession().inbox[0]).toContain(`The project's repositories (ids for repos):\n- home: Home, at ${board.project.repos[0]!.path} (the card's)`);
     expect(learnSession().spec.system).toContain("A repository's CLAUDE.md, for anything about a repository");
-    // a repository the project does not have is refused, and the learner may try again
+    
     expect(learnSession().call('propose', { rule: 'Tests auf Deutsch benennen.', repos: ['web'] })).toContain('Unknown repository web');
     await learn('propose', { rule: 'Tests auf Deutsch benennen.', repos: ['home'] });
     const [p] = board.preferences('proposed');
@@ -1823,7 +1823,7 @@ describe('preference memory', () => {
     expect(collect).toMatchObject({ title: 'Add to CLAUDE.md', state: 'planned', kind: 'task' });
     expect(collect.body).toEndWith('\n\n- Tests auf Deutsch benennen.');
 
-    // the next learner knows it is on its way; a rule for the preferences can be moved to a CLAUDE.md, and back
+    
     k.learn(item(a.id), 'note', 'Und Commits auf Englisch, immer.');
     await settle();
     expect(learnSession().inbox[0]).toContain("Rules the owner accepted for a repository's CLAUDE.md (in it or on their way; do not propose them again):\n- Tests auf Deutsch benennen. (for the CLAUDE.md of home)");
@@ -1835,7 +1835,7 @@ describe('preference memory', () => {
     expect(board.collecting('home')!.id).toBe(collect.id);
     expect(board.collecting('home')!.body).toEndWith('- Tests auf Deutsch benennen.\n- Commits auf Englisch.');
 
-    // once it runs, the next rule starts a new card
+    
     k.request(collect.id);
     expect(board.collecting('home')).toBeUndefined();
     board.acceptProposal(board.proposePreference('Keine any-Typen.', {}, undefined, 'home'));
@@ -1861,7 +1861,7 @@ describe('preference memory', () => {
     board.log(a.id, 'activity', 'worker', 'Liest src/export.ts');
     board.log(a.id, 'hint', 'owner', 'Schon wieder: entscheide Dateinamen selbst.');
     k.learn(item(a.id), 'note', 'Schon wieder: entscheide Dateinamen selbst.');
-    // the worker answers before the learner's turn: the learner still reads what the note answered
+    
     board.log(a.id, 'say', 'worker', 'Gut, export.csv.');
     await settle();
     const brief = learnSession().inbox[0]!;
@@ -1870,7 +1870,7 @@ describe('preference memory', () => {
     const recent = brief.slice(brief.indexOf('What the owner said in the last'), brief.indexOf("The agent's last message"));
     expect(recent).toContain('to the agent on "Import": Frag nicht nach jedem Dateinamen.');
     expect(recent).toContain('to you: Wie weit ist der Export?');
-    // neither what was taken back nor the input itself
+    
     expect(recent).not.toContain('Starte alles.');
     expect(recent).not.toContain('Schon wieder');
     expect(brief).toContain("The owner's note to the worker: Schon wieder: entscheide Dateinamen selbst.");
@@ -1933,7 +1933,7 @@ describe('Rückschau', () => {
   test('after enough inputs, counted across a restart, it reads the history since the last one and proposes rules from it', async () => {
     let k1 = koordinator();
     k1.noticed();
-    // what the owner said and clicked meanwhile
+    
     const a = card('Export');
     board.log(a.id, 'hint', 'owner', 'Bitte ohne Emojis.');
     board.log(a.id, 'state', 'owner', 'Trotz Überschneidung gestartet.');
@@ -1944,11 +1944,11 @@ describe('Rückschau', () => {
     k1.noticed();
     expect(board.setting('review_inputs')).toBe('2');
 
-    // Seismic starts again: the count goes on
+    
     k1 = koordinator();
     k1.noticed();
     expect(reviews()).toHaveLength(0);
-    // the input that completes the count is read on its own first
+    
     board.log(a.id, 'hint', 'owner', 'Wieder Emojis. Lass das.');
     k1.learn(item(a.id), 'note', 'Wieder Emojis. Lass das.');
     await settle();
@@ -1981,7 +1981,7 @@ describe('Rückschau', () => {
     await settle();
     expect(board.preferences('proposed')).toEqual([{ id: 2, text: 'Keine Emojis in Texten.', state: 'proposed', quote: 'Auf “Export” zweimal gesagt, den Emoji-Picker verworfen.', review: true }]);
 
-    // the next one reads only what came after
+    
     for (let n = 0; n < 3; n++) k1.noticed();
     expect(reviews()).toHaveLength(1);
     board.log(a.id, 'hint', 'owner', 'Und kürzer.');
@@ -1997,7 +1997,7 @@ describe('Rückschau', () => {
     const k1 = koordinator();
     for (let n = 0; n < 4; n++) k1.noticed();
     await settle();
-    // nothing on the project since: no session
+    
     expect(reviews()).toHaveLength(0);
     board.log(card('A').id, 'hint', 'owner', 'X.');
     for (let n = 0; n < 4; n++) k1.noticed();
@@ -2086,7 +2086,7 @@ describe('Koordinator arranges a plan by what builds on what', () => {
     expect(brief).toContain('plan doc docs/plan/p.md');
     expect(brief).toContain('- K1 (delivered): W1 "Titel W1"');
     expect(brief).toContain('- K3: W3 "Titel W3" — Text W3');
-    // W2 builds on W4, W3 on W2 and on the delivered W1
+    
     await read({ K1: [], K2: ['K4'], K3: ['K2', 'K1'], K4: [] });
     expect(item(p.id).plan?.arranging).toBeUndefined();
     expect(item(w2.id).plan?.buildsOn).toEqual([w4.id]);
@@ -2137,7 +2137,7 @@ describe('Koordinator arranges a plan by what builds on what', () => {
     await read({ K2: ['K4'], K3: [], K4: ['K3'] });
     await done;
     expect(readings()).toHaveLength(2);
-    // W3, then W4, then W2: three columns
+    
     expect(item(w4.id).x).toBeGreaterThan(item(w3.id).x);
     expect(item(w2.id).x).toBeGreaterThan(item(w4.id).x);
   });

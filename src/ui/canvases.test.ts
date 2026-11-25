@@ -29,13 +29,13 @@ test('the dialog holds a name to the rule: not empty, not too long, no number fr
   expect(nameProblem('42', canvases)).toBeDefined();
   expect(nameProblem('1000', canvases)).toBeUndefined();
   expect(nameProblem('billing', canvases)).toBeDefined();
-  // its own name, in another case, is no clash
+  
   expect(nameProblem('billing', canvases, 'b')).toBeUndefined();
   expect(nameProblem('Design', canvases)).toBeUndefined();
 });
 
 test('every icon the picker offers is one a canvas may carry, and each Lucide one draws, in each colour', () => {
-  // the emoji picker offers Emojibase's emojis but the components (skin tones, hair styles), with their skin tones
+  
   const offered = emojis.filter((e) => e.group !== undefined && e.group !== 2).flatMap((e) => [e.emoji, ...(e.skins ?? []).map((s) => s.emoji)]);
   expect(offered.length).toBeGreaterThan(3000);
   expect(offered.filter((e) => !isCanvasIcon(e))).toEqual([]);
@@ -94,7 +94,7 @@ test('a wait to or from a card off the canvas (snoozed, parked, or a workstream 
     card('d', 'b'),
   ];
   const byId = (id: string) => items.find((i) => i.id === id);
-  // expanded plans: every card stands for itself
+  
   const stubs = stubsOf(
     [
       ['z', 'a'],

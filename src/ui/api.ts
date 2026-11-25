@@ -1,11 +1,11 @@
-/**
- * The page's link to the server: the live project over its WebSocket (`useProject`), and the calls
- * to the old API (`api`).
- *
- * Deprecated for new calls: `api` is the old API (and marked `@deprecated`). Add new calls to the
- * RESTful client in `src/ui/clients/seismic.ts` instead, with their route under
- * `src/server/routes/v1/`. The WebSocket, `call` and the snapshot helpers here stay.
- */
+
+
+
+
+
+
+
+
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { afterAttachments } from './attachmentSwitch';
 import { prepareSessionHandOver, sessionWithDrafts } from './draftSession';
@@ -93,7 +93,7 @@ async function download(path: string, fallback: string) {
 const query = (where: Where) =>
   !where ? '' : 'card' in where ? `?card=${encodeURIComponent(where.card)}` : `?plan=${encodeURIComponent(where.plan)}`;
 
-/** The project this page shows; every call goes to its API. */
+
 let projectId = '';
 export function setProject(id: string) {
   projectId = id;
@@ -102,11 +102,11 @@ export function setProject(id: string) {
 export const at = (path: string, project = projectId) => `/api/c/${encodeURIComponent(project)}${path}`;
 /** The project shown now, for work that ends after the owner may have switched to another. */
 export const shownProject = () => projectId;
-/**
- * The project each card is on, where the page shows the cards of several (the phone view). A call
- * about a card goes to its project even once another is in view: the card closing puts Seismic's in
- * view before the card's last calls (its held comments released, say) go out.
- */
+
+
+
+
+
 const projectOfCard = new Map<string, string>();
 export function cardsOn(project: string, cards: string[]) {
   for (const id of cards) projectOfCard.set(id, project);
@@ -128,30 +128,30 @@ export const answerFile = (thread: number, name: string, download = false) =>
 export const cardFile = (id: string, path: string, download = false) =>
   cardAt(id, `/files/${path.split('/').map(encodeURIComponent).join('/')}${download ? '?download' : ''}`);
 
-/** What a command is said about: the open card, the open plan, or neither. */
+
 export type Where = { card: string } | { plan: string } | null;
-/** The field on a card words were typed into, which tells the Koordinator what they were meant as. */
+
 export type Field = 'note' | 'answer' | 'feedback' | 'demo' | 'discuss' | 'revise';
 
-/** What Seismic made of a command. */
+
 export interface Heard {
   confirm: string;
   token?: string;
-  /** How long the command still waits for "Undo". */
+  
   undoMs?: number;
-  /** Said to the open card's agent: the card shows it, so there is nothing to confirm. */
+  
   quiet?: boolean;
-  /** Nothing was heard: the screenshots shown with it wait for the next recording. */
+  
   unheard?: boolean;
-  /** The words heard. */
+  
   text?: string;
-  /** The owner asked to tell Seismic's makers something: the draft for them opens with it. */
+  
   wish?: Wish;
-  /** The exchange the reply stands in, which the conversation in view may show already. */
+  
   talk?: number;
-  /** The plan whose sheet shows that exchange too. */
+  
   plan?: string;
-  /** The card whose conversation shows the reply in full. */
+  
   inCard?: string;
 }
 /** How long "Undo" shows: until shortly before the command stops waiting. */
@@ -159,11 +159,11 @@ export const undoShownMs = (undoMs: number) => Math.max(0, undoMs - 400);
 /** How long a confirmation stays above the microphone: 7 s, unless its undo window is longer. */
 export const confirmShownMs = (undoMs = 0) => Math.max(7000, undoMs + 1500);
 
-/**
- * How a new site is set up at its host: in the Cloudflare account of a site this machine deploys to
- * (`account`, by site), with another account's API token, or (neither) with the machine's own login;
- * at GitHub in a public repository (`public`) or a private one.
- */
+
+
+
+
+
 export interface SiteHow {
   account?: string;
   token?: string;
@@ -171,20 +171,20 @@ export interface SiteHow {
   public?: true;
 }
 
-/** "Add a demo site": at a host Seismic sets it up at (unlisted on Cloudflare unless `unlisted: false`), or entered by hand. */
+
 export type AddSiteInput =
   | ({ host: 'cloudflare' | 'github'; unlisted?: false; name?: string } & SiteHow)
   | { host: 'github'; repo: string; folder: string; via: 'pr' | 'push' }
   | { manual: { url: string; deploy: string; env?: string; maxFile?: number } };
 
-/**
- * The calls to the old API (`/api/…`, `/api/c/:project/…`), most of which answer with nothing and
- * leave the change to the next snapshot.
- *
- * @deprecated Add new calls to the RESTful client in `src/ui/clients/seismic.ts` instead, with their
- * route under `src/server/routes/v1/` (see the Router Layer in `docs/design/code-organization.md`).
- * A call moved there is taken out of here, and its callers switch to it.
- */
+
+
+
+
+
+
+
+
 export const api = {
   exportProjects: (ids: string[], as: 'csv' | 'json') => download(`/api/projects/export?as=${as}${ids.map((id) => `&project=${encodeURIComponent(id)}`).join('')}`, `seismic-projects.${as}`),
   projects: () => call<ProjectInfo[]>('GET', '/api/projects'),
@@ -192,17 +192,17 @@ export const api = {
   waiting: () => call<Record<string, Waiting>>('GET', '/api/waiting'),
   activity: (project: string, all: boolean, before?: number) => call<ActivityPage>('GET', `/api/activity?project=${encodeURIComponent(project)}${all ? '&all=1' : ''}${before ? `&before=${before}` : ''}`),
   project: (id: string) => call<ProjectSnapshot>('GET', `/api/c/${encodeURIComponent(id)}/project`),
-  /** Seismic's configuration, for all projects. */
+  
   /** What the configuration as saved amounts to, and what is wrong with it: it reads every repository, so it comes after `config`. */
   configCheck: () => call<ConfigChecked>('GET', '/api/config/check'),
   checkConfig: (projects: ProjectConfig[]) => call<ConfigChecked>('POST', '/api/config/check', projects),
   retryStart: () => call<{}>('POST', '/api/config/retry'),
-  /** Saves it; Seismic then starts again with it where something restarts it. */
+  
   /** "Take over into the repository for everyone": the repository's settings for this machine into its settings file (`.seismic/settings.json`, else `.obeya/`). */
   shareSettings: (path: string, direct = false) => call<SettingsShared>('POST', '/api/config/share-settings', { path, direct }),
   /** The owner confirms the repository's commands the dialog showed them (the groups `held` of `now`): they count from now on. */
   trustCommands: (path: string, trust: RepoTrust) => call<object>('POST', '/api/config/trust', { path, seen: trust.now, held: trust.held }),
-  // other devices reaching Seismic: the section "Other devices" and "Connect a phone"
+  
   access: () => call<AccessView | { local: false }>('GET', '/api/access'),
   saveAccess: (remote: RemoteSetting | null) => call<AccessView>('PUT', '/api/access', { remote }),
   pair: () => call<Pairing>('POST', '/api/access/pair'),
@@ -293,7 +293,7 @@ export const api = {
   /** Draws or removes an owner-drawn arrow, `anchor` the edges and place it was drawn at; `keepalive` for one sent as the page goes. */
   dependency: (from: string, to: string, remove = false, keepalive = false, anchor?: import('../core/types').ManualAnchor) => call<void>(remove ? 'DELETE' : 'POST', at('/dependencies'), { from, to, ...(anchor ? { anchor } : {}) }, keepalive),
   create: (c: NewCard) => call<Item>('POST', at('/cards'), c),
-  // the project's canvases: a new one, a new name, icon (`null`: none) or place (from 1), deleting an empty one, cards moved onto one
+  
   createCanvas: (name: string, icon?: string) => call<Canvas>('POST', at('/canvases'), { name, ...(icon ? { icon } : {}) }),
   updateCanvas: (id: string, p: { name?: string; icon?: string | null; position?: number }) => call<Canvas>('PATCH', at(`/canvases/${encodeURIComponent(id)}`), p),
   deleteCanvas: (id: string, expected: { parked: number; snoozed: number }, moveTo?: string) =>
@@ -313,7 +313,7 @@ export const api = {
     const total = Number(/\/(\d+)$/.exec(res.headers.get('content-range') ?? '')?.[1]);
     return res.ok && total > 0 ? total : null;
   },
-  /** Takes a finished card off the project into the archive. */
+  
   /** The archive, the most recently archived first. */
   archived: () => call<Item[]>('GET', at('/archive')),
   /** Archives every finished card of the owner's on the project. */
@@ -438,7 +438,7 @@ export const api = {
   stopReshare: () => call<void>('POST', at('/reshare/stop')),
   /** "Ausblenden": puts away what the finished run says, and the notice of outdated pages until a newer change. */
   dismissReshare: () => call<void>('DELETE', at('/reshare')),
-  /** The owner has the Koordinator's sheet in view: the answers waiting there are read. */
+  
   /** Seismic's sheet is in view, or (`ids`) these exchanges in a plan's sheet. */
   readTalk: (ids?: number[]) => call<void>('POST', at('/talk/read'), ids ? { ids } : undefined),
   /** A new chat with Seismic on the shown project, or (`id`) an earlier one, of `project` where it is another. */
@@ -452,15 +452,15 @@ export const api = {
   unwait: (talk: number, card: string) => call<{ stopped: boolean }>('POST', at(`/talk/${talk}/unwait`), { card }),
 };
 
-// Log lines arrive over the project's WebSocket; whoever shows a card's log listens here.
+
 const eventListeners = new Set<(e: CardEvent) => void>();
 export function onCardEvent(fn: (e: CardEvent) => void): () => void {
   eventListeners.add(fn);
   return () => eventListeners.delete(fn);
 }
 
-// A successful feedback request can outlive a gap in the project's WebSocket. Read the saved
-// conversation and card state before clearing the composer, even if the server's push was missed.
+
+
 const cardRefreshListeners = new Set<(id: string) => Promise<void> | void>();
 const cardRefreshes = new Map<string, object>();
 const failedCardRefreshes = new Set<string>();
@@ -483,7 +483,7 @@ export function onCardRefresh(fn: (id: string) => Promise<void> | void): () => v
 export async function refreshCard(id: string): Promise<void> {
   const attempt = {};
   cardRefreshes.set(id, attempt);
-  // Retry the read alone. The mutation has already succeeded and must never be sent twice.
+  
   const results = await Promise.allSettled([...cardRefreshListeners].map(async (read) => {
     try {
       await read(id);
@@ -498,31 +498,31 @@ export async function refreshCard(id: string): Promise<void> {
   for (const fn of cardRefreshChanges) fn();
 }
 
-// A project's WebSocket is open again after it was lost: what was pushed meanwhile never arrived, so
-// whoever shows a card's log loads it anew (the agent may have read the owner's words meanwhile).
+
+
 const reconnectListeners = new Set<() => void>();
 export function onReconnect(fn: () => void): () => void {
   reconnectListeners.add(fn);
   return () => reconnectListeners.delete(fn);
 }
 
-// A line taken out of a card's log (a comment deleted before it went to the worker).
+
 const goneListeners = new Set<(cardId: string, id: number) => void>();
 export function onCardEventGone(fn: (cardId: string, id: number) => void): () => void {
   goneListeners.add(fn);
   return () => goneListeners.delete(fn);
 }
 
-// What Seismic tells the owner without a command of theirs to answer (an answer looked up, what a
-// request an agent passed on came to): it shows above the microphone, with "Undo" while actions wait.
+
+
 const noticeListeners = new Set<(n: Notice) => void>();
-/** Notices that came before anything showed them: those a page gets as it opens, before the project is drawn. */
+
 let heldNotices: { n: Notice; at: number }[] = [];
 export function onNotice(fn: (n: Notice) => void): () => void {
   noticeListeners.add(fn);
   const held = heldNotices;
   heldNotices = [];
-  // the undo window went on meanwhile
+  
   for (const { n, at } of held) fn(n.undoMs ? { ...n, undoMs: Math.max(0, n.undoMs - (Date.now() - at)) } : n);
   return () => noticeListeners.delete(fn);
 }
@@ -531,11 +531,11 @@ function notice(n: Notice) {
   for (const fn of noticeListeners) fn(n);
 }
 
-// What the owner does in this page that a restart would cut off, by who holds it (the demo video,
-// push-to-talk); the server hears every change, and again after a reconnect.
+
+
 const holds = new Map<string, OwnerHold>();
 export const restartHeld = () => holds.size > 0;
-/** The page's open WebSockets: one for the project it shows, one per project in the phone view. */
+
 const sockets = new Map<string, WebSocket>();
 const sendHolds = () => {
   for (const ws of sockets.values()) if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'hold', hold: [...new Set(holds.values())] } satisfies ClientMessage));
@@ -548,9 +548,9 @@ export function holdRestart(by: string, what: OwnerHold | null) {
   sendHolds();
 }
 
-// Where the owner looks on the project, for a card a command makes without a place of its own: the
-// server hears every change, again after a reconnect, and when the page gets the focus back, so
-// the page the owner looked at last wins.
+
+
+
 let focusMessage: Extract<ClientMessage, { type: 'focus' }> | null = null;
 const sendFocus = () => {
   const ws = sockets.get(projectId);
@@ -561,8 +561,8 @@ export function reportFocus(place: Place) {
   sendFocus();
 }
 
-// A paired device reports when its page is in view, so it holds off its own pushes. A phone
-// counts as in use while visible; other pages report recent interaction or video playback.
+
+
 const HERE_MS = 30_000;
 let used = true;
 let inViewIsUse = false;
@@ -573,7 +573,7 @@ const sendHere = () => {
   if (document.visibilityState === 'visible' && ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'here' } satisfies ClientMessage));
 };
 if (typeof document !== 'undefined') {
-  // a stall of this page goes into the server's log
+  
   watchPageStalls((stall) => {
     const ws = sockets.get(projectId) ?? [...sockets.values()][0];
     if (ws?.readyState !== WebSocket.OPEN) return false;
@@ -587,7 +587,7 @@ if (typeof document !== 'undefined') {
     used = false;
     sendHere();
   }, HERE_MS);
-  // the phone locked or another app in front: what starts waiting from now on is pushed again
+  
   const away = () => {
     if (document.visibilityState !== 'hidden') return;
     for (const ws of sockets.values()) if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'away' } satisfies ClientMessage));
@@ -596,7 +596,7 @@ if (typeof document !== 'undefined') {
   addEventListener('pagehide', away);
 }
 
-// Whoever has something to keep across the reload a restart brings writes it down here first.
+
 const reloadListeners = new Set<() => void>();
 export function beforeReload(fn: () => void): () => void {
   reloadListeners.add(fn);
@@ -606,7 +606,7 @@ export function beforeReload(fn: () => void): () => void {
 /** Loads the page again, keeping what is open, as after a restart. */
 export function reload() {
   for (const fn of reloadListeners) fn();
-  // A native route sent during the reload belongs to the document that starts next.
+  
   delete window.seismicDeskPage;
   location.reload();
 }
@@ -653,12 +653,12 @@ export async function takeHandOver(restoredDrafts?: ReadonlySet<string>, wait = 
   clearTimeout(deadline);
 }
 
-/** How many snapshots the page took in, by project: a write's answer is older than one that came after the write went out. */
+
 const snapshotsIn = new Map<string, number>();
 const tookSnapshot = (project: string) => snapshotsIn.set(project, (snapshotsIn.get(project) ?? 0) + 1);
 export const snapshotsOf = (project: string) => snapshotsIn.get(project) ?? 0;
 
-/** A write's answer, applied to the snapshot of the project it was on. */
+
 type SnapshotChange = (snapshot: ProjectSnapshot) => ProjectSnapshot;
 const savedListeners = new Set<(project: string, change: SnapshotChange, seen: number) => void>();
 function onCardSaved(fn: (project: string, change: SnapshotChange, seen: number) => void): () => void {
@@ -731,47 +731,47 @@ export function withUnchanged(previous: ProjectSnapshot | null, next: ProjectSna
   return unchanged ? previous : (merged as unknown as ProjectSnapshot);
 }
 
-/**
- * The live project `id` (the shown one by default): the server pushes a snapshot on connect and after
- * every change, the restart that waits, the newer version of the app there is, how many cards on
- * each project need the owner, and the Bun it runs on when that is too old. A lost connection is
- * tried again with a growing pause, and at once when the page comes back into view (a phone that
- * was locked).
- */
-/** The server answered nothing while the page loaded (the app from the home screen, the machine asleep). */
+
+
+
+
+
+
+
+
 export let quietAtStart = false;
 export const markQuiet = () => void (quietAtStart = true);
 
-/** How long a connection may take to open before the page counts the server as not answering. */
+
 const QUIET_MS = 3000;
-/** How long before it is given up and tried anew. */
+
 const GIVE_UP_MS = 10_000;
-/** How often the page asks an open connection whether the server is there. */
+
 const PING_MS = 5000;
-/** How long a ping may stay unanswered before the page counts the server as frozen. */
+
 const FROZEN_MS = 10_000;
 
 export function useProject(id = projectId): {
   snapshot: ProjectSnapshot | null;
   online: boolean;
-  /** Since when the server does not answer; null while it does. */
+  
   offlineSince: number | null;
-  /** Since when the server, though connected, answers nothing (frozen); null while it does. */
+  
   frozenSince: number | null;
   restart: PendingRestart | null;
   update: AppUpdate | null;
-  /** New commits on the upstream of the checkout Seismic runs from. */
+  
   source: SourceUpdate | null;
-  /** The plans' usage limits, a harness's each (Claude Code's first), while the bar shows them. */
+  
   usage: Usage[];
-  /** What waits for the owner on each project, by project id. */
+  
   waiting: Record<string, Waiting>;
   oldBun: string | null;
-  /** The projects from the connection, initially and as they change. */
+  
   projects: ProjectInfo[] | null;
 } {
   const [snapshot, setSnapshot] = useState<ProjectSnapshot | null>(null);
-  // a page that loaded while the server answered nothing says so at once
+  
   const [online, setOnline] = useState(!quietAtStart);
   const [offlineSince, setOfflineSince] = useState<number | null>(() => (quietAtStart ? Date.now() - QUIET_MS : null));
   const [frozenSince, setFrozenSince] = useState<number | null>(null);
@@ -789,32 +789,32 @@ export function useProject(id = projectId): {
     let closed = false;
     let server: string | undefined;
     let hidden = document.visibilityState !== 'visible';
-    /** The socket was open before: one that opens now opens again. */
+    
     let opened = false;
     let snapshotVersion = 0;
     const offRefresh = onCardRefresh(async (cardId) => {
       if (projectOf(cardId) !== id) return;
       const version = ++snapshotVersion;
       const fresh = await api.project(id);
-      // A newer read or push takes precedence over a response that was still in flight.
+      
       if (!closed && version === snapshotVersion) {
         tookSnapshot(id);
         setSnapshot((previous) => withUnchanged(previous, fresh));
       }
     });
-    // a card a write answered with shows at once, unless a snapshot came in after the write went out
+    
     const offSaved = onCardSaved((project, change, seen) => {
       if (project !== id || closed || snapshotsOf(id) !== seen) return;
       setSnapshot((s) => s && change(s));
     });
-    /** When the oldest ping the server has not answered was sent. */
+    
     let unanswered: number | null = null;
-    /** Since when the server counts as frozen; a connection lost meanwhile keeps counting from there. */
+    
     let frozenAt: number | null = null;
     const connect = () => {
       ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/c/${encodeURIComponent(id)}/ws`);
       sockets.set(id, ws);
-      // a sleeping machine answers nothing, not even a refusal: the page says so meanwhile, and tries anew
+      
       const since = Date.now();
       const opening = ws;
       setTimeout(() => {
@@ -841,9 +841,9 @@ export function useProject(id = projectId): {
         setFrozenSince(null);
         const start = performance.now();
         const msg = JSON.parse(e.data) as ServerMessage;
-        // what the page took in, for a stall right after it
+        
         queueMicrotask(() => noteMessage(msg.type, e.data.length, start, performance.now() - start));
-        // a new server process may run new code: the page loads it, and keeps what was open
+        
         if (msg.type === 'pong') return;
         if (msg.type === 'hello') {
           if (server && server !== msg.server) afterAttachments(reload);
@@ -856,7 +856,7 @@ export function useProject(id = projectId): {
         } else if (msg.type === 'restart') setRestart(msg.restart);
         else if (msg.type === 'update') setUpdate(msg.update);
         else if (msg.type === 'source') setSource(msg.source);
-        // these come with every change on any project: one that brings nothing new leaves the page as it is
+        
         else if (msg.type === 'usage') setUsage(unlessSame(msg.usage));
         else if (msg.type === 'waiting') setWaiting(unlessSame(msg.waiting));
         else if (msg.type === 'projects') setProjects(unlessSame<ProjectInfo[] | null>(msg.projects));
@@ -871,9 +871,9 @@ export function useProject(id = projectId): {
         setFrozenSince(null);
         setOnline(false);
         setOfflineSince((t) => t ?? outageStart);
-        // a project the configuration no longer has: the page goes to the first one there is; a
-        // device removed from Seismic's devices, or a browser whose cookie no longer names the
-        // owner's key, gets the page that says how to connect or sign in again
+        
+        
+        
         api.projects().then(
           (list) => {
             if (!closed && !list.some((c) => c.id === id)) afterAttachments(() => {
@@ -889,7 +889,7 @@ export function useProject(id = projectId): {
       };
     };
     connect();
-    // an open connection does not mean the server answers: a frozen one keeps it open and says nothing
+    
     const beat = setInterval(() => {
       if (ws.readyState !== WebSocket.OPEN || document.visibilityState !== 'visible') return;
       const now = Date.now();
@@ -897,22 +897,22 @@ export function useProject(id = projectId): {
       if (unanswered === null) unanswered = now;
       ws.send(JSON.stringify({ type: 'ping' } satisfies ClientMessage));
     }, PING_MS);
-    // back from GitHub, say: the server looks at the pull requests now instead of at its next round
+    
     const back = () => {
       const visible = document.visibilityState === 'visible';
       const cameBack = hidden && visible;
       hidden = !visible;
-      // pings a locked phone or suspended tab left unanswered say nothing of the server: it gets to answer anew
+      
       if (cameBack) {
         unanswered = frozenAt = null;
         setFrozenSince(null);
       }
       if (visible && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'back' } satisfies ClientMessage));
       if (!visible || closed || ws.readyState === WebSocket.OPEN) return sendFocus();
-      // a phone that was locked had no connection meanwhile, which says nothing of the server: not
-      // answering counts from now, and a connection still opening from back then is tried anew
+      
+      
       if (cameBack) setOfflineSince((t) => (t === null ? null : Date.now()));
-      // a connection lost meanwhile is tried again now, not after the pause it waits
+      
       if (ws.readyState === WebSocket.CLOSED || (cameBack && ws.readyState === WebSocket.CONNECTING)) {
         clearTimeout(retry);
         ws.onclose = null;

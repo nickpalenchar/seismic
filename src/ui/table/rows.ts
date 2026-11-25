@@ -1,9 +1,9 @@
-// What the Table view lists and in which order: a row per card on any of the project's canvases and
-// per workstream of a plan (a collapsed plan's too), none for a parked, snoozed or archived card.
-// Sorting and filtering are done here rather than by the table library, so that the order and the
-// selection are plain functions: enumerations sort by their own order (priority from trivial to
-// critical, state in lifecycle order, canvas in the owner's order), and an empty value sorts last in
-// either direction.
+
+
+
+
+
+
 
 import { CATEGORIES, type Category, type Complexity, PRIORITIES, type Priority } from '../../core/labels';
 import { type Canvas, type CardState, type Group, type Item, offCanvas, type RepoRef, STATES } from '../../core/types';
@@ -11,27 +11,27 @@ import { type Canvas, type CardState, type Group, type Item, offCanvas, type Rep
 export const COLUMNS = ['title', 'state', 'priority', 'canvas', 'plan', 'group', 'category', 'complexity', 'updated', 'repo'] as const;
 export type ColumnId = (typeof COLUMNS)[number];
 
-/** A card as the table shows it, each value empty where the card has none. */
+
 export interface Row {
   item: Item;
   title: string;
   state: CardState;
   priority?: Priority;
-  /** A canvas id. */
+  
   canvas?: string;
-  /** The parent plan's title, for a workstream. */
+  
   plan?: string;
-  /** The group's name. */
+  
   group?: string;
   category?: Category;
   complexity?: Complexity;
-  /** ISO time. */
+  
   updated?: string;
-  /** The repository's name. */
+  
   repo?: string;
 }
 
-/** Priority's option for cards without one. */
+
 export const NO_PRIORITY = 'none';
 export type PriorityOption = Priority | typeof NO_PRIORITY;
 
@@ -39,7 +39,7 @@ export interface Filters {
   title: string;
   state: CardState[];
   priority: PriorityOption[];
-  /** Canvas ids. */
+  
   canvas: string[];
 }
 export type Facet = 'state' | 'priority' | 'canvas';
@@ -49,7 +49,7 @@ export interface Sort {
   desc: boolean;
 }
 
-/** What the table keeps per project in this browser. */
+
 export interface Kept {
   sort: Sort;
   filters: Filters;

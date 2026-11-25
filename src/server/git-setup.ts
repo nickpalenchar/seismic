@@ -1,8 +1,8 @@
-// Setting up git in a folder that has none, for the first project and "+ Repository" in the
-// configuration: first a preview of what the first commit holds (computed against a git directory
-// of its own in the temp directory, so looking changes nothing in the folder), then, once the owner
-// confirms, `git init`, a default `.gitignore` where the folder has none, and the first commit with
-// every file not ignored, since workers only see committed files.
+
+
+
+
+
 
 import { existsSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -11,7 +11,7 @@ import { type GitSetupPreview, LARGE_FILE } from '../core/types';
 import { BadRequest } from './board';
 import { GIT } from './workstations';
 
-/** What Seismic writes as `.gitignore` where the folder has none: build output, dependencies, secrets. */
+
 export const DEFAULT_GITIGNORE = `# Build output
 dist/
 build/
@@ -41,7 +41,7 @@ id_ed25519*
 Thumbs.db
 `;
 
-// with the environment as it is now: on Windows each check reads PATH afresh (path.ts)
+
 const run = (args: string[], cwd?: string) => {
   const r = Bun.spawnSync([GIT, ...args], { cwd, env: process.env, stderr: 'pipe' });
   return { ok: r.exitCode === 0, out: r.stdout.toString(), err: r.stderr.toString().trim() };
@@ -82,7 +82,7 @@ export function previewGitSetup(path: string): GitSetupPreview {
       return r.out.split('\0').filter(Boolean);
     };
     const files = list().map((f) => ({ path: f, bytes: size(join(path, f)) }));
-    // the default .gitignore goes in with the files
+    
     if (!own) files.push({ path: '.gitignore', bytes: Buffer.byteLength(DEFAULT_GITIGNORE) });
     const entries = new Map<string, { path: string; dir: boolean; files: number; bytes: number }>();
     for (const f of files) {

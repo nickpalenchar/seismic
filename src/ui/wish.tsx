@@ -1,9 +1,9 @@
-// A wish or a bug for Seismic's makers: a dialog over the page, opened from the foot of Seismic's
-// sidebar, from the `?` legend, by the Koordinator when the owner asks it to tell the makers
-// something, and from the link under a reply that says Seismic cannot do what they asked. What the
-// owner writes or says in its field a small job writes up as a GitHub issue in English; title and
-// body stand editable as they go out, and "Open on GitHub" opens the prefilled issue for the
-// owner to submit under their own account. The draft is kept per tab and project, like every input.
+
+
+
+
+
+
 
 import { cn } from 'cn';
 import { MessageCircle } from 'lucide-react';
@@ -20,18 +20,18 @@ import { Button, CloseButton } from './components/button';
 import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { Input, Textarea } from './components/input';
 
-/** The issue as it will go out; `raw`: the job wrote nothing, the owner's words stand as they are. */
+
 interface Issue {
   title: string;
   body: string;
   images: string[];
   raw?: true;
-  /**
-   * The account's usage limit kept the job from writing: it writes the draft from the same words at
-   * `until` (ISO time), reworking the draft before them (`base`), unless the owner edits it first.
-   */
+  
+
+
+
   again?: { wish: Wish; images: string[]; until: string; base: { title: string; body: string } | null };
-  /** The wish the draft was written from, when it started from one: its link opens this draft again. */
+  
   from?: Wish;
 }
 
@@ -40,9 +40,9 @@ interface WishState {
   issue: Issue | null;
   writing: boolean;
   error: string;
-  /** A wish to write once the draft that stands is discarded. */
+  
   pending?: Wish;
-  /** Opened on GitHub: what the owner still needs to know (the clipboard). */
+  
   sent?: string[];
 }
 
@@ -93,7 +93,7 @@ const shown = (at: typeof kept) => kept?.key === at?.key && kept?.store === at?.
 export function keepWish(store: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>, project: string) {
   const key = `seismic-wish-${project}`;
   if (kept?.key === key && kept.store === store) return;
-  // the project before keeps its draft under its own name
+  
   if (kept) state = { open: false, issue: null, writing: false, error: '' };
   kept = { store, key };
   const issue = storedIssue(kept);
@@ -160,13 +160,13 @@ async function write(w: Wish, images: string[], { base, seed }: { base?: { title
       ...(images.length ? { images } : {}),
       app: !!window.seismicApp,
     });
-    // the draft as it stands now on the project it was asked on: after a switch, the one kept there
+    
     const now = shown(at) ? state.issue : storedIssue(at);
     const shots = base === undefined ? [...(now?.images ?? []), ...images] : (now?.images ?? images);
     const limited = out.limitedUntil ? { again: { wish: w, images, until: out.limitedUntil, base: before ? { title: before.title, body: before.body } : null } } : {};
     const issue: Issue = { title: out.title, body: out.body, images: shots, ...(out.raw ? { raw: true as const } : {}), ...limited, ...(from ? { from } : {}) };
     if (shown(at)) set({ writing: false, issue });
-    // the owner switched to another project meanwhile: the draft goes to the project it was written on
+    
     else if (at)
       try {
         at.store.setItem(at.key, JSON.stringify(issue));
@@ -218,7 +218,7 @@ async function send(issue: Issue) {
   }
   window.open(url, '_blank', 'noopener');
   if (!shown(at)) {
-    // sent from the project before the owner switched: its draft is done there, this project's stays
+    
     if (at)
       try {
         at.store.removeItem(at.key);
@@ -242,7 +242,7 @@ export function WishDialog() {
         glass
         className="flex w-[760px] flex-col gap-3 overflow-auto px-6 py-6"
         onOpenAutoFocus={(e) => {
-          // the words go into the composer, not onto the close button that comes first
+          
           const field = (e.currentTarget as HTMLElement).querySelector<HTMLElement>('textarea, [contenteditable]');
           if (!field) return;
           e.preventDefault();
@@ -320,12 +320,12 @@ const short = (said: string) => {
 function IssueFields({ issue, disabled }: { issue: Issue; disabled: boolean }) {
   const body = useRef<HTMLTextAreaElement>(null);
   useFitHeight(body, issue.body);
-  // what the owner edits stands: the job does not write it again once the usage limit lifts
+  
   const edit = (change: Partial<Issue>) => {
     const { again: _, ...rest } = issue;
     set({ issue: { ...rest, ...change } });
   };
-  // the job's draft arrives: the title is where the owner reads first
+  
   const title = useRef<HTMLInputElement>(null);
   useEffect(() => title.current?.focus(), [disabled]);
   return (
@@ -344,10 +344,10 @@ function IssueFields({ issue, disabled }: { issue: Issue; disabled: boolean }) {
   );
 }
 
-/** A label over one of the draft's fields. */
+
 const issueLabel = 'flex flex-col gap-1 text-xs text-muted-foreground';
 
-/** The quiet link to the draft, its words underlined faintly until hovered. */
+
 const wishLinkClass = 'group/wish inline-flex cursor-pointer items-baseline gap-1.5 bg-transparent p-0 text-left text-xs text-muted-foreground hover:text-foreground';
 const wishTextClass = 'border-b border-b-border group-hover/wish:border-muted-foreground';
 

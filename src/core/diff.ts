@@ -1,29 +1,29 @@
-// What a card's work changes in its repository, as `git diff` shows it: the server sums it up for
-// the line beside the card's branch, the UI shows it file by file.
+
+
 
 import { diffArrays } from 'diff';
 
-/** A card's change: the branch in its workstation so far, or what landed; in a folder without git, what the card changed there. */
+
 export interface CardDiff {
-  /**
-   * `branch`: the workstation's branch against the default branch, committed or not; `landed`: what
-   * the landing put on the default branch; `folder`: what the card changed in a folder without git
-   * (`folder` holds the list, `patch` the text files' diffs).
-   */
+  
+
+
+
+
   source: 'branch' | 'landed' | 'folder';
-  /** A fingerprint of the whole diff: it differs whenever any line of the change does, also where the files and their counts stay the same. */
+  
   version?: string;
   files: DiffFile[];
   folder?: FolderChanges;
-  /** The whole diff, when it was asked for; cut off at `PATCH_LIMIT` characters (`truncated`). */
+  
   patch?: string;
   truncated?: true;
 }
 
 export interface DiffFile {
-  /** The file as it is now (as it was, for a deleted one). */
+  
   file: string;
-  /** A renamed file: its name before. */
+  
   from?: string;
   status: 'added' | 'deleted' | 'renamed' | 'modified';
   added: number;
@@ -31,37 +31,37 @@ export interface DiffFile {
   binary?: true;
 }
 
-/** What a card changed in a folder without git, as its change list shows it. */
+
 export interface FolderChanges {
-  /**
-   * Which undo the card has: `full` from a clone of the folder taken at its start (where the file
-   * system clones), `partial` from copies of what its editing tools overwrote and of the folder's
-   * text files; null once nothing can be undone (the card is done).
-   */
+  
+
+
+
+
   undo: 'full' | 'partial' | null;
   changes: FolderChange[];
 }
 
 export interface FolderChange {
   kind: 'added' | 'modified' | 'deleted' | 'moved';
-  /** Relative to the folder, with `/`; where it is now (for a deleted one, where it was). */
+  
   path: string;
-  /** A moved one: where it was. */
+  
   from?: string;
   dir?: true;
-  /** A moved file the card also changed. */
+  
   changed?: true;
-  /** A file the card made or changed that is no longer where it left it: someone deleted or moved it since. */
+  
   gone?: true;
-  /** Lines added and removed, for a text file whose earlier version Seismic kept. */
+  
   added?: number;
   removed?: number;
-  /**
-   * What undoing the card does with it: puts it back (`yes`); cannot, as no copy of it from before
-   * the card's change is kept (`lost`); or leaves it as it is, since someone changed it after the
-   * card (`changedSince`), or since another card's agent was at work when it changed and it may be
-   * that card's (`shared`). None once nothing can be undone.
-   */
+  
+
+
+
+
+
   undo?: 'yes' | 'lost' | 'changedSince' | 'shared';
 }
 
@@ -75,10 +75,10 @@ export function shownChanges(changes: FolderChange[]): FolderChange[] {
   });
 }
 
-/** How much of a diff goes to the page: beyond it, it is cut off at a file's end. */
+
 export const PATCH_LIMIT = 2_000_000;
 
-/** One file's part of a `git diff`: the summary, and its lines from the `diff --git` line on. */
+
 export interface DiffPart extends DiffFile {
   lines: string[];
 }
@@ -89,7 +89,7 @@ export function splitDiff(patch: string): DiffPart[] {
   let header = false;
   for (const line of patch.split('\n')) {
     if (line.startsWith('diff --git ')) {
-      // the names as the header line has them; `---`/`+++` or `rename` lines correct them below
+      
       const names = /^diff --git a\/(.*) b\/(.*)$/.exec(line);
       out.push({ file: names?.[2] ?? line.slice(11), status: 'modified', added: 0, removed: 0, lines: [line] });
       header = true;
@@ -104,7 +104,7 @@ export function splitDiff(patch: string): DiffPart[] {
       else if (line.startsWith('deleted file mode')) cur.status = 'deleted';
       else if (line.startsWith('rename from ')) [cur.status, cur.from] = ['renamed', line.slice(12)];
       else if (line.startsWith('rename to ')) cur.file = line.slice(10);
-      // git ends a name with a space in it with a tab here
+      
       else if (line.startsWith('+++ b/')) cur.file = line.slice(6).replace(/\t$/, '');
       else if (line.startsWith('--- a/') && cur.status === 'deleted') cur.file = line.slice(6).replace(/\t$/, '');
       else if (line.startsWith('Binary files ') || line === 'GIT binary patch') cur.binary = true;
@@ -143,7 +143,7 @@ function fingerprint(text: string): string {
 
 type LineOp = { kind: ' ' | '-' | '+'; line: string };
 
-/** The steps a diff of two lists may take before it gives up: its cost is about their length times the lines that differ. */
+
 const DIFF_BUDGET = 20_000_000;
 
 /**
@@ -176,7 +176,7 @@ function patience(before: string[], after: string[]): LineOp[] {
     const c = count.get(l);
     if (c) c[1]++;
   });
-  // the lines once in each list, in the order of `after`, as [index in before, index in after]
+  
   const pairs: [number, number][] = [];
   after.forEach((l, j) => {
     const c = count.get(l);
@@ -231,11 +231,11 @@ function increasing(pairs: [number, number][]): [number, number][] {
  * git's "No newline at end of file" after it, and a line that gains or loses its line feed changes.
  */
 export function patchOf(file: string, before: string[], after: string[], { context = 3, ends = { old: true, new: true } }: { context?: number; ends?: { old: boolean; new: boolean } } = {}): DiffPart {
-  // the last line without a line feed compares with a NUL after it
+  
   const open = (lines: string[], ended: boolean) => (ended || !lines.length ? lines : [...lines.slice(0, -1), `${lines.at(-1)}\0`]);
   const d = lineDiff(open(before, ends.old), open(after, ends.new));
   const changed = d.flatMap((x, i) => (x.kind === ' ' ? [] : [i]));
-  // the runs of the diff to show: each change with its context, runs that touch merged
+  
   const runs: [number, number][] = [];
   for (const i of changed) {
     const from = Math.max(0, i - context);
@@ -253,9 +253,9 @@ export function patchOf(file: string, before: string[], after: string[], { conte
     const run = d.slice(from, to);
     const oldCount = run.filter((x) => x.kind !== '+').length;
     const newCount = run.filter((x) => x.kind !== '-').length;
-    // a side the hunk takes no line from names the line before it
+    
     lines.push(`@@ -${oldCount ? old + 1 : old},${oldCount} +${newCount ? neu + 1 : neu},${newCount} @@`);
-    // one line at a time: a run of a whole long list passed as arguments overruns the engine's limit
+    
     for (const x of run) {
       if (!x.line.endsWith('\0')) lines.push(x.kind + x.line);
       else lines.push(x.kind + x.line.slice(0, -1), '\\ No newline at end of file');

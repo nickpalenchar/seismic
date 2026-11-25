@@ -1,6 +1,6 @@
 import type { ChangeRow } from '../core/files';
 
-/** A path can be both a changed file and a directory prefix across the two revisions. */
+
 export interface DiffTreeEntry {
   name: string;
   path: string;

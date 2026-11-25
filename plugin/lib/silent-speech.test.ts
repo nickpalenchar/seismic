@@ -2,18 +2,18 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import type { Browser, Page } from 'playwright-core';
 import { launchChromium, SILENT_SPEECH } from './chromium.ts';
 
-// The silent speechSynthesis in a real browser, as the demo's contexts load it.
+
 describe('silent speech', () => {
   let browser: Browser;
   let page: Page;
 
-  // Chrome starts and closes slowly while the other test files run beside it.
+  
   beforeAll(async () => {
     browser = await launchChromium();
     const ctx = await browser.newContext();
     await ctx.addInitScript({ path: SILENT_SPEECH });
     page = await ctx.newPage();
-    // goto, not setContent: Playwright writes that content as a user gesture
+    
     await page.goto(`data:text/html,${encodeURIComponent(`<button>go</button><script>
       window.say = (text, rate = 1) => {
         const u = new SpeechSynthesisUtterance(text);
@@ -51,7 +51,7 @@ describe('silent speech', () => {
       ['Hallo Welt', 'start', 0],
       ['Hallo Welt', 'end', 10],
     ]);
-    // 70 ms a character at rate 1: "Lena" ends after 280 ms, "Hallo Welt" at rate 2 after 350 ms
+    
     const [, lenaEnd, , halloEnd] = log.map(([, , , ms]) => ms);
     expect(lenaEnd).toBeGreaterThanOrEqual(270);
     expect(lenaEnd).toBeLessThan(600);

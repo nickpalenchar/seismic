@@ -1,28 +1,28 @@
-// The component library of the UI: shadcn/ui's parts (on Radix Primitives, from the single `radix-ui`
-// package, so the parts never disagree on shared internals), one file per family, and AI Elements for
-// the conversations in `ai/`. Conventions every component here follows:
-//
-// - Source: added with the shadcn CLI (`bunx --bun shadcn@latest add <part>`, set up by
-//   `components.json`), then ours: edited freely, in this repository's style, with frost's needs
-//   written into it rather than patched over from outside. Small composable parts (`Menu`,
-//   `MenuTrigger`, `MenuItem` …), `variant` and `size` through cva, `className` merged with `cn`,
-//   `asChild` where a link or label must be the element. Text comes from `strings.ts`, never literal.
-// - Look: Tailwind classes in the component on shadcn's tokens (`bg-primary`, `text-muted-foreground`)
-//   and Seismic's own (`bg-waiting`, `bg-glass`), which `tailwind.css` defines (one palette, Tailwind's hues), so light,
-//   dark and frost apply without a rule of their own. Tailwind's preflight is on, so a bare `button` or
-//   `input` needs no reset of its own; layout (gap, alignment, margin) belongs to the container, which
-//   reaches a part through its `data-slot` (`[data-slot=button]`), never to change its look.
-// - State: styled by the data attributes Radix sets (`data-[state=open]:`, `data-disabled:`,
-//   `data-highlighted:`) and our own (`data-variant`), not by extra state classes.
-// - Layers: anything that opens over the page (menu, popover, dialog, sheet, tooltip) portals into
-//   `uiPortal()` so the theme applies, and dismisses itself on Esc and outside click; App's Esc
-//   handler leaves an open layer alone (see `layerOpen`).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { VisuallyHidden } from 'radix-ui';
 import { type ReactNode, useCallback, useRef, useState } from 'react';
 import { TooltipProvider } from './tooltip';
 
-/** The id of the element portals go into, inside the app root. */
+
 const PORTAL_ID = 'ui-portal';
 
 /**

@@ -1,8 +1,8 @@
-// Asking before the start: on a planned card nobody has worked on, what the owner types goes to an
-// agent that answers at once, with a worker's tools to read and check, while the card stays planned.
-// It is Seismic's answering agent as the Koordinator's look-ups have it (`advisor.ts`), one turn per
-// message in a session that resumes, and the card's conversation is where the owner and it talk. The
-// worker that starts later hears that conversation with its task (`history`).
+
+
+
+
+
 
 import { oneAtATime } from '../core/one-at-a-time';
 import { asksAhead } from '../core/queue';
@@ -19,21 +19,21 @@ import { describeTool, SPOKEN } from './workerSupervisor/workerSupervisor';
 export interface AheadOptions {
   board: Board;
   runtime: AgentRuntime;
-  /** The checkout the agent reads: the card's repository. */
+  
   pathFor: (card: Item) => string;
-  /** The task the card's worker would get if the owner started it now. */
+  
   startBrief: (card: Item) => string | undefined;
-  /** The files of the owner's screenshots, by id; unknown ones are left out. */
+  
   imageFiles?: (ids?: string[]) => string[];
   preferences?: () => string;
-  /** The workers' permission mode, which the answering agent runs in too. */
-  /** Called with what the owner says, so lasting preferences can be learned. */
+  
+  
   onOwnerInput?: (card: Item, text: string) => void;
-  /** Passes on to the Koordinator what the owner's words ask of Seismic (`to_seismic`); without it the agent has no such tool. */
+  
   toSeismic?: (cardId: string, request: string) => Promise<string>;
 }
 
-/** The owner's words the agent has not answered yet, as `CardRow.unheard` keeps them, with the lines of the log they carry. */
+
 interface Pending {
   said: number[];
   text: string;
@@ -41,15 +41,15 @@ interface Pending {
 }
 
 export class Ahead {
-  /** Cards whose agent is in a turn, or has one waiting behind it. */
+  
   private busy = new Set<string>();
-  /** Cards whose agent reads right now: what the owner says meanwhile waits for the next turn, unread until then. */
+  
   private reading = new Set<string>();
-  /** The session of each card's agent; a fresh one gets the conversation so far, so it need not outlive a restart. */
+  
   private sessions = new Map<string, { id: string; setting?: AgentSetting }>();
   private turns = new Map<string, Promise<unknown>>();
   private ends = new Map<string, AbortController>();
-  /** Cards whose agent the owner let go on after a pause: its next turn hears so. */
+  
   private resumed = new Set<string>();
 
   constructor(private o: AheadOptions) {}
@@ -72,7 +72,7 @@ export class Ahead {
     const quoted = replyTo ? this.o.board.quoted(cardId, replyTo) : undefined;
     const words = `${replyNote(quoted, 'koordinator')}${text}${imageNote(images)}`;
     this.store(cardId, [...this.pending(cardId), { said: [e.id], text: spoken ? `(${SPOKEN}:) ${words}` : words, images }]);
-    // the owner's words let a paused agent go on, and one about to pause read on
+    
     if (isPaused(card)) this.goOn(cardId);
     else if (isPausing(card)) this.pauseTakenBack(cardId);
     this.start(cardId);
@@ -158,7 +158,7 @@ export class Ahead {
   private async turn(cardId: string) {
     const card = this.o.board.item(cardId);
     const taken = card ? [...this.pending(cardId)] : [];
-    // paused while it waited for its turn: it goes on once the owner lets it
+    
     if (!card || !asksAhead(card) || !taken.length || isPaused(card)) {
       this.busy.delete(cardId);
       this.o.board.changed();
@@ -176,13 +176,13 @@ export class Ahead {
     try {
       answer = await this.consult(card, words, images, resumed, end.signal);
     } catch (e) {
-      // paused or the card started: what it was asked stays pending, or is of no use any more
+      
       if (e instanceof Interrupted) return this.settle(cardId, end);
       failure = this.o.board.t.answer.failed(messageOf(e));
     }
     this.settle(cardId, end);
     const now = this.o.board.item(cardId);
-    // the card started or went meanwhile: the worker has the conversation, nobody answers
+    
     if (!now || !asksAhead(now)) {
       this.busy.delete(cardId);
       return;
@@ -195,7 +195,7 @@ export class Ahead {
       this.o.board.log(cardId, 'talk', 'koordinator', text, { agent: answer.agent });
       this.o.board.notify({ cardId, text, inTalk: true });
     }
-    // asked to pause once its answer was given: what was said meanwhile waits for the owner to let it go on
+    
     if (this.o.board.holdOf(cardId)?.reason === 'pausing') return this.halt(cardId);
     if (left.length) return void oneAtATime(this.turns, cardId, () => this.turn(cardId));
     this.busy.delete(cardId);
@@ -285,11 +285,11 @@ export class Ahead {
   }
 }
 
-/** What the agent hears when the owner lets it go on after a pause. */
+
 const RESUMED =
   'The owner paused you while you worked on your answer and has now let you go on. Pausing ended your session at once: whatever you had running was stopped with it (a command still running shows exit code 137). What they asked is still unanswered.';
 
-/** How the answering agent of a card nobody has started works. */
+
 const AHEAD_RULES = `
 The owner talks a task card over with you before anyone starts it: they ask what the task would involve, what the code or docs say, what you would do, or tell you what the worker should keep in mind. No worker has begun; when the owner starts the card, a worker takes over the task and gets this whole conversation with it, so what the owner settles with you here (a decision, a constraint, a change of the task) is not lost. The owner heard that your answer comes in a moment. Take the time to look it up: the repository's docs and plan docs, CLAUDE.md, the code, and what the message gives you. You have the tools a worker has: what the answer depends on beyond the text (the git history, a pull request or CI run on GitHub with gh, a page on the web), check rather than guess.
 - Answer what was asked, concretely and grounded in what you read; name the source (plan doc section, file). Say where you are guessing. Never answer that you cannot know: say what the sources say.

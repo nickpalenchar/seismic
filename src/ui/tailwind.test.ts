@@ -2,9 +2,9 @@ import { expect, test } from 'bun:test';
 import tailwind from 'bun-plugin-tailwind';
 import { Glob } from 'bun';
 
-// Tailwind beside frost.css (tailwind.css): its utilities are generated for every word in src/ui that
-// names one, so a class frost.css styles named like a utility (`hidden`, `fixed`, `ring`) would get the
-// utility's styles too. And no control is bespoke: they are the parts in components/.
+
+
+
 
 const dir = new URL('.', import.meta.url).pathname;
 const read = (path: string) => Bun.file(`${dir}${path}`).text();
@@ -52,21 +52,21 @@ test('every token the token file names is defined, in light and in dark', async 
   };
   const light = defined(':root');
   const named = new Set([...own.matchAll(/var\(--([\w-]+)\)/g)].map((m) => m[1]!));
-  // Tailwind's own variables, and the ones a rule sets per element: the state colour (`--c` and its steps, set by
-  // `.s-*` and `c-*`), a link's highlight, the card panel's room under its foot
+  
+  
   const own_ = (v: string) => /^(color|tw|text|radius|spacing|blur|shadow|font|default)-/.test(v) || ['c', 'c-subtle', 'c-strong', 'c-foreground', 'hl', 'pb'].includes(v);
   expect([...named].filter((v) => !light.has(v) && !own_(v))).toEqual([]);
-  // the dark look redefines the colours that differ; it never defines one the light look lacks
+  
   const dark = defined(':root:where([data-theme="dark"], :not([data-theme])[data-system-theme="dark"])');
   expect([...dark].filter((v) => !light.has(v))).toEqual([]);
 });
 
-// The colours are one palette in one file (tailwind.css, the token file): Tailwind's hues, shadcn's semantic tokens and
-// the state tokens. A part takes them by name (`bg-waiting/10`, `text-c-strong`, `--alpha(var(--working)/22%)`); it writes
-// no hex, rgb() or rgba() of its own, mixes none with color-mix(), and uses none of frost's former names (`text-ink`,
-// `bg-chip`, `border-line`, `bg-panel`, `text-error`, `text-warn`, `text-on-ink`, `bg-dim`), now shadcn's.
+
+
+
+
 test('colours come from the token file', async () => {
-  // what is not a CSS colour, or is drawn into a canvas or an image where a token cannot reach: named with its reason
+  
   const allowed: Record<string, string> = {
     'marks.ts': 'the marks drawn into a screenshot on a canvas, where CSS variables do not resolve',
   };
@@ -75,7 +75,7 @@ test('colours come from the token file', async () => {
     ['rgb()/rgba()', /\brgba?\(/],
     ['color-mix()', /color-mix\(/],
     ['frost alias class', /(?<![\w-])(?:bg|text|border(?:-[trblxy])?|ring|fill|stroke|shadow|outline|divide)-(?:ink|chip|line|panel|error|warn|on-ink|dim|online|ice)(?![\w-])/],
-    // text in a state's colour takes its strong step: these fills fall short of 4.5:1 as small text on light glass (frost.test.ts measures them)
+    
     ['state fill as text', /(?<![\w-])text-(?:planned|reviewing|waiting|in-pr|idea|asking|restart|\(--c\)|\[var\(--c\)\])(?![\w-])/],
     ['frost alias variable', /var\(--(?:ink|chip|line|panel|error|warn|on-ink|dim|online|ice|bg)\)/],
   ];
@@ -84,22 +84,22 @@ test('colours come from the token file', async () => {
     if (file.includes('.test.') || file === 'tailwind.css' || allowed[file.split('/').pop()!]) continue;
     const text = await read(file);
     for (const [what, re] of forbidden) {
-      // the token file alone mixes colours; frost.css and every view only name them
+      
       const lines = text.split('\n').flatMap((l, i) => (re.test(l) ? [`${file}:${i + 1}`] : []));
       if (lines.length) found.push(`${what}: ${lines.slice(0, 5).join(' ')}`);
     }
   }
-  // the token file itself writes hues from the palette: no hex or rgb() literal there either
+  
   const own = await read('tailwind.css');
   for (const [what, re] of forbidden.slice(0, 2)) if (re.test(own.replace(/\/\*[\s\S]*?\*\//g, ''))) found.push(`${what}: tailwind.css`);
   expect(found).toEqual([]);
 });
 
-// Every menu, dialog, switch and select is a part of src/ui/components/ (shadcn on Radix), which brings its own
-// role, keyboard and focus handling; a view that writes one itself leaves it out.
+
+
 test('no bespoke control outside src/ui/components/', async () => {
   const bespoke = [/className="btn[ "]/g, /className="btn-(?!mark)/g, /role="switch"/g, /<select/g, /role="dialog"/g, /role="menu"/g, /useMenuClose/g];
-  // the few places a part cannot do it, each counted with its reason: a further one in the same file still fails
+  
   const allowed: Record<string, { needle: string; count: number; reason: string }[]> = {
     'phoneNext.tsx': [{ needle: '<select', count: 1, reason: "the top bar's project switcher: a native select over the project's name, so a finger gets the system picker" }],
     'phoneTalkPanel.tsx': [{ needle: 'role="dialog"', count: 1, reason: 'the phone\'s sheets (half or full height, dragged by their grip) are a dialog of their own' }],
@@ -120,8 +120,8 @@ test('no bespoke control outside src/ui/components/', async () => {
   expect(found).toEqual([]);
 });
 
-// `c-waiting`, `c-working` … each set the same `--c` properties, so two on one element are decided by the stylesheet's
-// order, not by the class list: a part in components/ leaves the state colour to its caller instead of defaulting to one.
+
+
 test('no component sets a state colour of its own', async () => {
   const found: string[] = [];
   for (const file of new Glob('components/**/*.tsx').scanSync(dir)) {
@@ -132,17 +132,17 @@ test('no component sets a state colour of its own', async () => {
   expect(found).toEqual([]);
 });
 
-// Type, radius and spacing come from the scales in tailwind.css, everywhere in src/ui. Inherited sizes and radii
-// are composition, not a new size. Rings, borders, shadows and viewport calculations are effects or layout
-// constraints rather than the scales; so are the widths, heights and offsets a view lays out with, which the shared
-// components keep on the spacing scale too.
+
+
+
+
 test('the UI uses the type, radius and spacing scales', async () => {
   const scales = [
     /(?<![\w-])text-\[(?:length:)?-?[\d.]+(?:px|rem|em|%|pt)\]/,
     /(?<![\w-])rounded(?:-[trblse]{1,2})?-\[(?!inherit\])[^\]]+\]/,
-    // one length or a shorthand of up to four (`p-[1px_3px]`); a calc() over the safe area is layout, not a step
+    
     /(?<![\w-])(?:p[xytrblse]?|m[xytrblse]?|gap(?:-[xy])?|space-[xy])-\[(?:-?[\d.]+(?:px|rem|em)|0)(?:_(?:-?[\d.]+(?:px|rem|em)|0))*\]/,
-    // the same values written as arbitrary properties (`[margin:8px_0]`, `[font-size:13.5px]`)
+    
     /\[(?:padding|margin|gap|row-gap|column-gap)(?:-[a-z]+)?:(?:-?[\d.]+(?:px|rem|em)|0)(?:_(?:-?[\d.]+(?:px|rem|em)|0))*\]/,
     /\[(?:font-size|border(?:-[a-z]+)*-radius):-?[\d.]/,
     /\[font:[^\]]*\d(?:px|rem|em)/,

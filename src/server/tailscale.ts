@@ -1,15 +1,15 @@
-// Tailscale on this machine, for other devices to reach Seismic (remote.ts): what `tailscale status`
-// says it allows, and the one `tailscale serve` entry Seismic keeps, which proxies HTTPS at the
-// machine's tailnet name to Seismic's port on 127.0.0.1. Seismic touches no other entry: one on a port
-// that serves something else stays, and Seismic takes the next port.
+
+
+
+
 
 import { existsSync } from 'node:fs';
 import type { RemoteProblem, TailscaleState } from '../core/types';
 
-/** The HTTPS ports Seismic tries in turn (those the tailnet also lets Funnel use, which every client knows). */
+
 export const SERVE_PORTS = [443, 8443, 10000] as const;
 
-/** The entry Seismic serves: HTTPS on `https` of the tailnet name, proxied to `target`. */
+
 export interface ServeEntry {
   https: number;
   target: string;
@@ -48,14 +48,14 @@ interface ServeConfig {
 }
 
 export class Tailscale {
-  /** What `state` found last, once Tailscale answered. */
+  
   private last: TailscaleState | undefined;
 
   constructor(
-    /** Its CLI; `null` where it is not installed. */
+    
     private readonly bin: string | null = findTailscale(),
     private readonly platform = process.platform,
-    /** How long `tailscale status` may take. */
+    
     private readonly statusTimeout = 10_000,
   ) {}
 
@@ -63,7 +63,7 @@ export class Tailscale {
     const p = Bun.spawn([this.bin!, ...args], { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', timeout });
     const [out, err] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text()]);
     const code = await p.exited;
-    // a CLI newer than its service warns about it on stderr: only the output counts
+    
     return { ok: code === 0, out: code === 0 ? out : `${out}\n${err}`.trim(), ...(p.signalCode ? { late: true as const } : {}) };
   }
 
@@ -73,7 +73,7 @@ export class Tailscale {
     let status: Status;
     try {
       const r = await this.run(['status', '--json'], this.statusTimeout);
-      // on a machine under load the answer can take longer than it may: that says nothing new
+      
       if (r.late && this.last) return this.last;
       status = JSON.parse(r.out.slice(r.out.indexOf('{'))) as Status;
     } catch {
@@ -113,12 +113,12 @@ export class Tailscale {
     const proxy = (https: number) => config.Web?.[`${name}:${https}`]?.Handlers?.['/']?.Proxy;
     const already = SERVE_PORTS.find((p) => proxy(p) === target);
     if (already) return { entry: { https: already, target } };
-    // the kept entry is still Seismic's only while nothing answers at its target: a home copied from a
-    // running Seismic records that one's entry, and taking it would take that Seismic's address
+    
+    
     const reclaim = kept && proxy(kept.https) === kept.target && !(await answers(kept.target));
     const https = reclaim ? kept.https : SERVE_PORTS.find((p) => !config.TCP?.[String(p)]);
     if (!https) return { problem: { code: 'portsTaken' } };
-    // the tailnet may ask for HTTPS to be turned on and wait for it: the state says so beforehand, the timeout ends the wait
+    
     const r = await this.run(['serve', '--bg', `--https=${https}`, target], 20_000);
     return r.ok ? { entry: { https, target } } : { problem: this.problemOf(r.out) };
   }

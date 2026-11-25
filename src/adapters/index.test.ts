@@ -31,7 +31,7 @@ describe('defaultsFor', () => {
     expect(land()).toBe('pr');
     git(repo, 'remote', 'set-url', 'origin', 'https://gitlab.com/acme/shop.git');
     expect(land()).toBe('main');
-    // a GitHub Enterprise host the GitHub CLI is logged into
+    
     const gh = join(dir, 'gh');
     mkdirSync(gh);
     writeFileSync(join(gh, 'hosts.yml'), 'github.acme.com:\n    user: t\n    git_protocol: https\n');
@@ -54,13 +54,13 @@ describe('withSettings', () => {
     expect([a.land, a.checks, a.workstations]).toEqual(['main', ['bun test'], 'clones']);
     s = { checks: [], workstations: 'worktrees' };
     expect([a.land, a.checks, a.workstations]).toEqual(['pr', [], 'clones']);
-    // the defaults say nothing about the app or the demo site
+    
     expect([a.app, a.demo]).toEqual([undefined, undefined]);
     s = { app: { run: 'Start it with `bun dev`.' } };
     expect(a.app).toEqual({ run: 'Start it with `bun dev`.' });
     s = { demo: { language: 'en' } };
     expect(a.demo).toEqual({ language: 'en' });
-    // the configuration's clones go before the setting
+    
     expect(withSettings(generic, () => ({ workstations: 'worktrees' }), true).workstations).toBe('clones');
   });
 
@@ -74,9 +74,9 @@ describe('withSettings', () => {
 describe('.seismic/settings.json', () => {
   test('is read from the default branch, not the checkout; a field that is wrong does not count, the rest does', () => {
     const repo = gitRepo(join(dir, 'shop'), { 'README.md': 'hi\n', '.seismic/settings.json': '{ "land": "main", "checks": ["bun test"] }\n' });
-    // with the tree of .seismic/ there, which the repository's theme is read from (theme.ts)
+    
     expect(readShared(repo)).toEqual({ settings: { land: 'main', checks: ['bun test'] }, raw: { land: 'main', checks: ['bun test'] }, problems: [], file: '.seismic/settings.json', seismicTree: expect.stringMatching(/^[0-9a-f]{40,64}$/) });
-    // the checkout's own change counts once it is committed on the default branch
+    
     writeFileSync(join(repo, '.seismic/settings.json'), '{ "land": "pr" }\n');
     expect(readShared(repo).settings).toEqual({ land: 'main', checks: ['bun test'] });
     expect(readShared(gitRepo(join(dir, 'plain'))).settings).toBeUndefined();
@@ -104,10 +104,10 @@ describe('.seismic/settings.json', () => {
     const site = { title: 'Demos', url: 'https://demos.example.dev', deploy: 'bunx wrangler pages deploy {dir}' };
     expect(parseShared(JSON.stringify({ app, demo: { language: 'en' } }))).toMatchObject({ settings: { app, demo: { language: 'en' } }, problems: [] });
     expect(parseShared(JSON.stringify({ demo: { language: 'fr' } })).settings).toEqual({});
-    // the language of what lands in the repository stands beside that of its demos
+    
     expect(parseShared(JSON.stringify({ language: 'en', demo: { language: 'en' } })).settings).toEqual({ language: 'en', demo: { language: 'en' } });
     expect(parseShared(JSON.stringify({ language: 'fr' })).problems).toHaveLength(1);
-    // a demo site, which a project chooses now, goes alone: the rest stays
+    
     const old = parseShared(JSON.stringify({ demo: { site, language: 'en' } }));
     expect(old.settings).toEqual({ demo: { language: 'en' } });
     expect(old.problems).toEqual(['.seismic/settings.json, demo.site: no longer read; a project chooses its demo site in its settings']);
@@ -135,7 +135,7 @@ describe('.seismic/settings.json', () => {
       language: { value: 'en', source: 'default' },
       demo: { language: { value: null, source: 'default' } },
     });
-    // a repository that names English for what lands in it
+    
     expect(withSettings(defaultsFor(repoInfo(repo)), () => ({ language: 'en' })).language).toBe('en');
     expect(repoValues(repoInfo(repo), false, { language: 'en' }).language).toEqual({ value: 'en', source: 'repository' });
   });
@@ -162,7 +162,7 @@ describe("a repository's Claude Code configuration", () => {
     const before = readShared(repo).claude!;
     expect(Object.keys(before)).toEqual(['.claude/skills/probe/SKILL.md', '.mcp.json']);
     expect(before['.mcp.json']!.text).toBe('{}');
-    // a blank line before the frontmatter is what decides whether a skill's hook runs
+    
     writeFileSync(join(repo, '.claude/skills/probe/SKILL.md'), '\nhooks\n');
     git(repo, 'commit', '--quiet', '-am', 'blank line');
     expect(readShared(repo).claude!['.claude/skills/probe/SKILL.md']!.id).not.toBe(before['.claude/skills/probe/SKILL.md']!.id);

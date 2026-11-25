@@ -1,8 +1,8 @@
-/**
- * Permissions: what the owner's `--permission-mode` says (every agent follows it unless it says
- * otherwise, `SeismicAgent.getPermissionMode()`), and how a harness reads an agent's
- * `AgentPermission`.
- */
+
+
+
+
+
 import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk';
 import type { AgentSpec } from '../../runtime';
 import type { AgentPermission } from './types';
@@ -15,7 +15,7 @@ export const setOwnerPermission = (permission: AgentPermission) => {
   owner = permission;
 };
 
-/** The values the flag takes, and the Claude Code names it took before. */
+
 const FLAG: Record<string, AgentPermission> = {
   ask: 'ask',
   default: 'ask',

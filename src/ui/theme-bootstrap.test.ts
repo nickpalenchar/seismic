@@ -27,7 +27,7 @@ for (const chosen of [null, 'light', 'dark', 'invalid', 'blocked']) {
       const explicit = chosen === 'light' || chosen === 'dark' ? chosen : undefined;
       expect(dataset.theme).toBe(explicit);
       expect(dataset.systemTheme).toBe(dark ? 'dark' : 'light');
-      // A system change never replaces an explicit choice. Returning to System uses its latest value.
+      
       media.matches = !dark;
       changed();
       expect(dataset.theme).toBe(explicit);

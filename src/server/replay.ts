@@ -1,21 +1,21 @@
-// A scratch Seismic's agents recorded once and played back (`--record`, `--replay`): a demo whose
-// agents ran for real once comes out the same in every take after, in minutes and without a model.
-//
-// A recording is a directory: `meta.json`, and for each agent session a `session-<n>.jsonl`, its
-// first line what the agent got (role, instructions, tools, first message), each further line one
-// thing that happened in it, in order: an event of the session, a call of one of Seismic's tools with
-// its arguments and result, a message sent to it, a context update taken after a tool step. A
-// worker's call also keeps the commits it made in its workstation since its call before
-// (`session-<n>/<k>.bundle`), a handover (`ready_for_review`) a copy of the demo it names
-// (`session-<n>/demo-<k>/`). `cuts.json`, which the demo copies in after
-// the take, holds what the take cut out (`Director.skip`, wall clock).
-//
-// Playing back, each session Seismic starts gets the recorded one of its role and tools, in order;
-// its events go out again at the recorded pace, its calls run Seismic's real tools with the recorded
-// arguments, and a step after a message waits for that message. What the take cut out goes by in a
-// moment, the rest at the recorded pace (without cuts, no gap is longer than `GAP_MS`). Card ids,
-// branches and paths differ in every staging: what the agent was given then and is given now
-// pairs them, and what it says and calls is told in today's.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -25,14 +25,14 @@ import type { AgentEvent, AgentRuntime, AgentSession, AgentSpec, AgentTool } fro
 import { gitAsync } from './workstations';
 import { messageOf } from '../core/text';
 
-/** What an agent was given of a tool: what the fingerprint of a recording covers. */
+
 export interface ToolPrint {
   name: string;
   description: string;
   schema: unknown;
 }
 
-/** The first line of a session's file. */
+
 export interface SessionStart {
   type: 'start';
   at: number;
@@ -44,21 +44,21 @@ export interface SessionStart {
   images: number;
 }
 
-/** What happened in a session, numbered (`seq`) in the order it happened: a call when it was made. */
+
 export type Entry = { seq: number; at: number } & (
   | { type: 'event'; event: AgentEvent }
   | { type: 'call'; end: number; name: string; args: Record<string, unknown>; result: string; head?: Head; demo?: { dir: string; copy: string } }
   | { type: 'send'; text: string; images: number }
   | { type: 'context'; text?: string }
   | { type: 'close' }
-  /** The session ended by itself. */
+  
   | { type: 'end' }
 );
 
-/**
- * The workstation's commits at a worker's call: `bundle` (in the recording) holds `to`, which follows
- * `from`; `rewritten` where it does not descend from it (an amended commit, a branch rebased).
- */
+
+
+
+
 interface Head {
   bundle: string;
   from: string;
@@ -68,20 +68,20 @@ interface Head {
 
 interface Meta {
   version: 1;
-  /** The recorded Seismic's home, whose paths the agents were told. */
+  
   home: string;
   at: number;
 }
 
-/** The handover, whose demo goes into the recording. */
+
 const HANDOVER = 'ready_for_review';
-/** Without the take's cuts, the longest a gap of the recording lasts when played back. */
+
 export const GAP_MS = 2000;
-/** What a gap inside a cut of the take lasts when played back. */
+
 export const CUT_MS = 100;
-/** A tool's refusal, as Seismic's tools word it ("Not handed over: …", the Koordinator's "Nothing recorded: …"). */
+
 const REFUSAL = /^(?:Not [a-z ]+|Nothing recorded):/;
-/** How long a step that took a context update waits for it to be there now. */
+
 const CONTEXT_WAIT_MS = 120_000;
 
 /** What a tool's schema looks like to the agent, as JSON Schema. */
@@ -110,7 +110,7 @@ export function recordingRuntime(inner: AgentRuntime, dir: string, home: string)
   mkdirSync(dir, { recursive: true });
   if (!existsSync(join(dir, 'meta.json'))) writeFileSync(join(dir, 'meta.json'), `${JSON.stringify({ version: 1, home, at: Date.now() } satisfies Meta, null, 1)}\n`);
   let sessions = readdirSync(dir).filter((f) => /^session-\d+\.jsonl$/.test(f)).length;
-  // the last commit recorded of each workstation: the next call's commits follow it
+  
   const heads = new Map<string, Promise<string | undefined>>();
   return {
     start(spec, firstMessage, images) {
@@ -133,7 +133,7 @@ export function recordingRuntime(inner: AgentRuntime, dir: string, home: string)
           const n = seq++;
           const kept: Pick<Extract<Entry, { type: 'call' }>, 'head' | 'demo'> = {};
           if (worker) {
-            // the commits since the worker's call before
+            
             const from = await heads.get(spec.cwd);
             const to = await headOf(spec.cwd);
             if (from && to && to !== from) {
@@ -143,7 +143,7 @@ export function recordingRuntime(inner: AgentRuntime, dir: string, home: string)
               await gitAsync(spec.cwd, 'bundle', 'create', '-q', join(dir, bundle), 'HEAD');
               kept.head = { bundle, from, to, ...((await descends(spec.cwd, from, to)) ? {} : { rewritten: true as const }) };
             }
-            // a question may bring a demo too (drafts to choose from)
+            
             const demoDir = t.name === HANDOVER || t.name === 'ask' ? (args.demo as { dir?: unknown } | undefined)?.dir : undefined;
             if (typeof demoDir === 'string' && existsSync(demoDir)) {
               const copy = `session-${i}/demo-${k}`;
@@ -206,7 +206,7 @@ async function descends(cwd: string, from: string, to: string): Promise<boolean>
   );
 }
 
-/** A recorded session as `replayRuntime` reads it. */
+
 interface Recorded {
   n: number;
   start: SessionStart;
@@ -225,12 +225,12 @@ export function readRecording(dir: string): { meta: Meta; sessions: Recorded[]; 
         .split('\n')
         .filter(Boolean)
         .map((l) => JSON.parse(l) as SessionStart | Entry);
-      // a call's line is written once it returned: in order of when it was made
+      
       return { n: Number(m[1]), start: start as SessionStart, entries: (entries as Entry[]).sort((a, b) => a.seq - b.seq) };
     })
     .sort((a, b) => a.n - b.n);
   const cutsFile = join(dir, 'cuts.json');
-  // the director's, in seconds
+  
   const cuts = existsSync(cutsFile) ? (JSON.parse(readFileSync(cutsFile, 'utf8')) as { from: number; to: number }[]).map((c) => ({ from: c.from * 1000, to: c.to * 1000 })) : undefined;
   return { meta, sessions, cuts };
 }
@@ -246,7 +246,7 @@ export function paced(from: number, to: number, cuts: { from: number; to: number
   return gap - cut + Math.min(cut, CUT_MS);
 }
 
-/** UUIDs, and runs of hex digits (a card id's start in a branch name or path, a commit): what differs from staging to staging. */
+
 const VOLATILE = /(?<![0-9A-Za-z])(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{6,40})(?![0-9A-Za-z])/g;
 
 /**
@@ -262,7 +262,7 @@ export class Swap {
   path(then: string, now: string) {
     if (then === now || this.paths.some(([t]) => t === then)) return;
     this.paths.push([then, now]);
-    // the longest first: a workstation before the home it lies in
+    
     this.paths.sort((a, b) => b[0].length - a[0].length);
     this.moves = new RegExp(this.paths.map(([t]) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g');
   }
@@ -290,7 +290,7 @@ export class Swap {
       const y = b[i]!;
       if (x === y || this.tokens.has(x)) return;
       this.tokens.set(x, y);
-      // a card's id stands in its branch and its workstation by its start
+      
       if (x.length === 36 && y.length === 36) for (const k of [6, 8]) if (!this.tokens.has(x.slice(0, k))) this.tokens.set(x.slice(0, k), y.slice(0, k));
     });
   }
@@ -343,11 +343,11 @@ const names = (tools: { name: string }[]) =>
     .join(' ');
 
 export interface ReplayOptions {
-  /** Seismic's home now. */
+  
   home: string;
-  /** Hears why the recording does not fit, once: the recording's agents then do nothing. */
+  
   refused?: (why: string) => void;
-  /** Hears what differs without stopping the playback (a message the agent gets now, a tool's result). */
+  
   log?: (line: string) => void;
 }
 
@@ -382,7 +382,7 @@ export function replayRuntime(dir: string, o: ReplayOptions): AgentRuntime {
       const shared = (s: Recorded) => s.start.tools.filter((t) => spec.tools.some((x) => x.name === t.name)).length;
       const most = Math.max(0, ...left.map(shared));
       const exact = left.filter((s) => names(s.start.tools) === names(spec.tools));
-      // a changed set of tools is the closest one, for the check below to name what changed
+      
       const candidates = exact.length ? exact : most ? left.filter((s) => shared(s) === most) : [];
       const fits = (s: Recorded) => {
         if (s.start.first === undefined) return firstMessage === undefined;
@@ -468,15 +468,15 @@ function play(rec: Recorded, spec: AgentSpec, p: Player): AgentSession {
   let closed = false;
   let end!: () => void;
   const done = new Promise<void>((r) => (end = r));
-  // the messages sent so far, with when they came, how many of them the recording's steps took, and who waits for the next
+  
   const sent: { text: string; at: number }[] = [];
   let taken = 0;
   let wake: (() => void) | undefined;
-  // played to its end (or refused): a message from then on gets a turn that ends at once
+  
   let over = false;
   const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
   const run = async () => {
-    // the recorded time of the step before, and when it was played
+    
     let then = rec.start.at;
     let now = Date.now();
     for (const e of rec.entries) {
@@ -487,14 +487,14 @@ function play(rec: Recorded, spec: AgentSpec, p: Player): AgentSession {
         const got = sent[taken++]!;
         swap.learn(e.text, got.text);
         if (swap.text(e.text) !== got.text) p.log(`${who} got another message than recorded: ${firstDifference(swap.text(e.text), got.text)}`);
-        // the steps after a message are timed from it
+        
         then = e.at;
         now = Math.max(now, got.at);
         continue;
       }
       if (e.type === 'close') continue;
       if (e.type === 'end') {
-        // the session ended by itself, as recorded
+        
         closed = true;
         end();
         return;
@@ -504,7 +504,7 @@ function play(rec: Recorded, spec: AgentSpec, p: Player): AgentSession {
       if (closed) return;
       if (e.type === 'event') spec.onEvent(swap.deep(e.event));
       else if (e.type === 'context') {
-        // what the agent read with this step then (the owner's note, say) it waits for now
+        
         let text = spec.contextUpdate?.();
         for (const until = Date.now() + CONTEXT_WAIT_MS; e.text && text === undefined && Date.now() < until && !closed; text = spec.contextUpdate?.()) await sleep(250);
         if (e.text && text === undefined) p.log(`${who} took no context update where the recording has one: ${firstDifference(e.text, '')}`);
@@ -555,7 +555,7 @@ function play(rec: Recorded, spec: AgentSpec, p: Player): AgentSession {
         });
         return;
       }
-      // rewritten (an amend; a rebase, which the landing of today did too): what changed, as one commit
+      
       if ((await gitAsync(cwd, 'rev-parse', 'HEAD^{tree}')) === (await gitAsync(cwd, 'rev-parse', `${head.to}^{tree}`))) return;
       const patch = join(mkdtempSync(join(tmpdir(), 'seismic-replay-')), 'change.patch');
       const diff = await gitAsync(cwd, 'diff', '--binary', head.from, head.to);
@@ -579,7 +579,7 @@ function play(rec: Recorded, spec: AgentSpec, p: Player): AgentSession {
       })
       .finally(() => {
         over = true;
-        // what came after the last recorded message
+        
         for (; taken < sent.length; taken++) {
           p.log(`${who} gets a message the recording has no turn for; the turn ends at once`);
           turnEnds();

@@ -1,10 +1,10 @@
-// A repository's allow list (`permissions.allow` of its `.claude/settings.json`, as the owner
-// confirmed it in "Configuration") applied to a harness that has no such list of its own: Claude
-// Code checks it itself, a Codex worker asks the owner for each command its sandbox does not
-// cover. A command counts only when it is plain: one program with arguments, none of the shell's
-// own syntax, so that a rule for `bun test *` never lets `bun test x; rm -rf y` through. In front
-// of covered commands, preparing the shell needs no rule of its own (`setup`): `source` of a file
-// the agent cannot change, `nvm use`.
+
+
+
+
+
+
+
 
 import { realpathSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -38,7 +38,7 @@ export function codexRules(settingsText: string, by: string): { file: string; sk
   for (const rule of bashRules(settingsText)) {
     const prefix = prefixOf(rule);
     const line = prefix && `prefix_rule(pattern=${JSON.stringify(prefix)}, decision="allow")`;
-    // `bun test` and `bun test *` are one prefix
+    
     if (line) lines.includes(line) || lines.push(line);
     else skipped.push(rule);
   }
@@ -67,7 +67,7 @@ function words(text: string): string[] | null {
       let j = i + 1;
       let part = '';
       for (; j < text.length && text[j] !== '"'; j++) {
-        // in double quotes a backslash only escapes `"`, `\\`, `$` and the backtick; the escaped character is the text's own
+        
         if (text[j] === '\\') {
           const next = text[j + 1];
           if (next === undefined || !'"\\$`'.includes(next)) return null;
@@ -96,10 +96,10 @@ function atHome(rule: string): string {
   return rule.replace(/(^|\s)~\//g, `$1${homedir()}/`);
 }
 
-/** Where a command may send its output to: the temporary directories, and no `..` out of them. */
+
 export const TEMP_ROOTS: readonly string[] = ['/tmp/', '/private/tmp/'];
 
-/** Variables a command may not set in front of itself: they change what a rule's program is or does. */
+
 const UNSAFE_VARIABLES = /^(?:PATH|HOME|SHELL|IFS|ENV|BASH_ENV|LD_\w*|DYLD_\w*|NODE_\w*|BUN_\w*|PYTHON\w*|GIT_\w*|OBEYA_\w*|SEISMIC_\w*|NPM_\w*)$/;
 
 /**
@@ -116,7 +116,7 @@ function parts(script: string): string[] | null {
       const end = script.indexOf(c, i + 1);
       if (end < 0) return null;
       const quoted = script.slice(i, end + 1);
-      // inside double quotes the shell still expands these
+      
       if (c === '"' && /[\\$`]/.test(quoted)) return null;
       cur += quoted;
       i = end;
@@ -141,14 +141,14 @@ function parts(script: string): string[] | null {
 
 /** `part` without its output redirections (to a file under a temporary directory, and `2>&1`); null for any other. */
 function withoutRedirects(part: string, roots: readonly string[]): string | null {
-  // what lies between quotes is no syntax: masked, it keeps its place and its length
+  
   const mask = part.replace(/'[^']*'|"[^"]*"/g, (m) => 'x'.repeat(m.length));
   let rest = '';
   let at = 0;
   for (const m of mask.matchAll(/(?:^|\s)(\d*)(>>?)(?:&(\d))?\s*([^\s>]*)/g)) {
     const [whole, fd, , dup, target] = m;
     const from = m.index!;
-    // `2>&1`
+    
     if (dup !== undefined) {
       if (fd !== '2' || dup !== '1') return null;
     } else {
@@ -194,7 +194,7 @@ function plainParts(command: unknown, roots: readonly string[]): { command: stri
       inner.shift();
       set = true;
     }
-    // `..` in a path would take a text pattern out of the directory it names
+    
     if (!inner.length || inner.some((w) => w.split('/').includes('..'))) return null;
     commands.push({ command: inner.join(' '), set });
   }
@@ -243,7 +243,7 @@ function setup(plain: string, writable: readonly string[]): boolean {
   const w = plain.split(' ');
   if ((w[0] === 'source' || w[0] === '.') && w.length === 2) {
     const file = w[1]!;
-    // a file that is not there yet, or a link to one, the agent could still make
+    
     const resolved = file.startsWith('/') ? real(file) : null;
     if (!writable.length || !resolved) return false;
     const places = [...writable, ...TEMP_ROOTS, tmpdir()].flatMap((p) => [p, real(p) ?? p]);
@@ -265,7 +265,7 @@ export function allowed(rules: string[], command: unknown, roots?: readonly stri
   const all = plainParts(command, roots ?? TEMP_ROOTS);
   if (all === null) return false;
   let first = 0;
-  // a variable set in front of the setup (`NVM_DIR=…`) would let the agent choose what it loads
+  
   while (first < all.length && !all[first]!.set && setup(all[first]!.command, writable)) first++;
   const rest = all.slice(first);
   return rest.length > 0 && rest.every((plain) => rules.some((r) => covers(r, plain.command)));

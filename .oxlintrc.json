@@ -1,9 +1,15 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["react"],
+  "jsPlugins": ["./tools/oxlint-plugin.js"],
   "categories": { "correctness": "off" },
-  "rules": {
-    "react-hooks/rules-of-hooks": "error"
-  },
-  "ignorePatterns": ["**/*.test.ts", "**/*.test.tsx"]
+  "rules": { "seismic/documentation-comments": "error" },
+  "overrides": [
+    {
+      "files": ["src/ui/**"],
+      "excludeFiles": ["**/*.test.ts", "**/*.test.tsx"],
+      "rules": { "react-hooks/rules-of-hooks": "error" }
+    }
+  ],
+  "ignorePatterns": ["desktop/target-*/**"]
 }

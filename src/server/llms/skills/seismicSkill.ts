@@ -1,27 +1,27 @@
-/**
- * A skill Seismic ships: `plugin/skills/<dir>/SKILL.md`, instructions an agent reads on demand. The
- * front matter names and describes it, the rest is the instructions. An agent lists the skills it
- * uses in `SeismicAgent.getSkills()` and each harness attaches them its own way
- * (`attachedSkills.ts`): Claude loads the plugin, the others are told the file.
- *
- * The file is read when first needed, so a damaged plugin (`checkPlugin` names the fault) does not
- * stop the server from starting.
- */
+
+
+
+
+
+
+
+
+
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Skill } from '../../../core/types';
 import { PLUGIN_NAME, SEISMIC_PLUGIN } from '../../demo';
 
 const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
-/** The longest description a listing shows. */
+
 const DESCRIPTION_MAX = 200;
 
 export class SeismicSkill {
-  /** As an agent invokes it: `seismic:labels`. */
+  
   readonly name: string;
-  /** The Claude Code plugin directory the skill is part of. */
+  
   readonly plugin: string;
-  /** The file holding the instructions. */
+  
   readonly file: string;
   private meta?: { description?: string; 'argument-hint'?: string };
   private instructions?: string;

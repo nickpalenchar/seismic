@@ -1,9 +1,9 @@
-// AI Elements' Message, ours from here on: one turn of a conversation, on a card, in a chat
-// and in the Koordinator's sheet alike. `from` places it (the owner's, `user`, on the right) and
-// `MessageHead` heads it with who said it; `MessageActions` hold the buttons in its corner (reply,
-// take back), which show while the pointer is on the message and always on a touch screen. What a kind
-// of message adds (a question, the agent at work, an unread note) is the class `className` gives it,
-// styled here on frost tokens.
+
+
+
+
+
+
 
 import { cn } from 'cn';
 import { Reply, Trash2 } from 'lucide-react';
@@ -11,7 +11,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import { t } from '../../strings';
 import { IconButton } from '../button';
 
-/** Who a message is from: `user` the owner, `assistant` anyone else (an agent, Seismic, the plan). */
+
 export type MessageFrom = 'user' | 'assistant';
 
 export function Message({ className, from, ...props }: ComponentProps<'div'> & { from: MessageFrom }) {
@@ -22,7 +22,7 @@ export function Message({ className, from, ...props }: ComponentProps<'div'> & {
         'group/message group relative flex-none min-w-0 rounded-xl',
         from === 'user' ? 'is-user self-end max-w-[92%] bg-secondary px-3 py-2' : 'is-assistant w-full self-stretch py-1',
         '[&.q]:bg-waiting/9 [&.q]:px-3 [&.q]:py-2',
-        // State hooks are shared by the card, chats and Koordinator adapters.
+        
         '[&:is(.held,.unread)]:px-3 [&:is(.held,.unread)]:py-2 [&:is(.held,.unread)]:outline [&:is(.held,.unread)]:outline-dashed [&:is(.held,.unread)]:outline-working/40 [&:is(.held,.unread)]:-outline-offset-1',
         '[&.unread>:not(.msg-actions):not(.unread-mark)]:opacity-60 [&.paused>:not(.who)]:opacity-70',
         '[&.fresh]:px-3 [&.fresh]:py-2 [&.fresh]:shadow-[0_0_0_1.5px_--alpha(var(--waiting)/70%)] [&.flash]:animate-[msg-flash_2.4s_ease-out]',
@@ -35,7 +35,7 @@ export function Message({ className, from, ...props }: ComponentProps<'div'> & {
   );
 }
 
-/** The colour of who said it, by the author's kind. */
+
 const author: Record<string, string> = {
   owner: 'text-working',
   worker: 'text-foreground',
@@ -92,5 +92,5 @@ export const DeleteAction = ({ onClick, label }: { onClick: () => void; label?: 
   <MessageAction icon={<Trash2 size={15} strokeWidth={1.75} aria-hidden="true" />} label={label ?? t.delete} variant="danger" onClick={onClick} />
 );
 
-/** A state change between turns, shared by card conversations and chats. */
+
 export const noteClass = 'note text-xs text-muted-foreground italic self-center text-center [&.ev-error]:text-destructive [&.ev-error]:not-italic [&.ev-denied]:text-warning [&.ev-denied]:not-italic [&_.reauthenticate]:justify-center [&.snooze-line]:flex [&.snooze-line]:flex-col [&.snooze-line]:items-center [&.snooze-line]:gap-0.5 [&.snooze-line]:border-t [&.snooze-line]:border-dashed [&.snooze-line]:border-border [&.snooze-line]:pt-2 [&.snooze-line]:not-italic [&.snooze-line_.clock-mark]:align-[-1px]';

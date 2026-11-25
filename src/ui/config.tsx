@@ -1,9 +1,9 @@
 import { parkClones, restoreClones } from './workstationDraft';
-// Seismic's configuration, in a dialog over the page with its sections listed on the left: the
-// projects it serves and their repositories, edited and saved together (Seismic then starts again
-// with them), and the settings saved on their own (models, voice, demos, notifications, other
-// devices). Language, theme and the server are blocks of this file shown in the logo's preferences
-// dialog (prefs.tsx).
+
+
+
+
+
 
 import { Info as InfoIcon, Trash2 } from 'lucide-react';
 import { forwardRef, Fragment, lazy, type ReactNode, Suspense, useContext, useEffect, useMemo, useRef, useState } from 'react';
@@ -63,12 +63,12 @@ import type { EntryDraft } from './projectSettings/entry';
 
 declare global {
   interface Window {
-    /**
-     * In the app's window (app/src/main.rs); `built`: installed from a checkout, the commit it was built
-     * from; `handedOver`: its shell started again, and the page before handed over what a reload keeps.
-     */
+    
+
+
+
     seismicApp?: { version: string; platform: string; built?: string | null; handedOver?: boolean };
-    /** Called by the app before its shell starts again while the server runs on (`handOver`). */
+    
     seismicHandOver?: (token: string, signal?: AbortSignal) => Promise<void>;
     seismicAttachmentSwitch?: typeof import('./attachmentSwitch').attachmentSwitch;
     seismicRestartHeld?: () => boolean;
@@ -81,16 +81,16 @@ declare global {
   }
 }
 
-/** Hands the Koordinator a request; to the one of `project` where given, else to this page's. */
+
 type Ask = (text: string, project?: string) => void;
 
-/** The dialog's sections, in the order its list shows them. */
+
 type Section = 'defaults' | 'agents' | 'harnesses' | 'voice' | 'demos' | 'notices' | 'devices' | 'advanced' | 'developer';
 /** A field of prose in a setting (a voice's style, its sample text): the page's font, not a path's. */
 const proseFieldClass = (hook: string) => `${hook} block w-full max-w-[420px] resize-y text-sm leading-[1.45] py-1.5 px-2`;
 
 const SECTIONS: Section[] = ['defaults', 'agents', 'harnesses', 'voice', 'demos', 'notices', 'devices', 'advanced', 'developer'];
-// the section shown, per tab: a save that restarts Seismic reloads the page, and the dialog comes back at it
+
 const SECTION_KEY = 'seismic-config-section';
 
 /** Opens the dialog at the demos next time, scrolled to this machine's demo sites. */
@@ -98,9 +98,9 @@ export const showDemosSection = () => {
   sessionStorage.setItem(SECTION_KEY, 'demos');
   sessionStorage.setItem(SITES_SHOW_KEY, '1');
 };
-/** The demo sites are to be scrolled to once the dialog shows them. */
+
 const SITES_SHOW_KEY = 'seismic-config-sites';
-/** The dialog shows the page that adds a demo site ("Configure publishing site"), in place of the Demos section. */
+
 const ADD_SITE_KEY = 'seismic-config-add-site';
 const ADD_SITE_EVENT = 'seismic-add-site';
 /** Opens the page that adds a demo site: at once where the dialog is open, else the next time it opens. */
@@ -123,20 +123,20 @@ const keptSection = () => {
  * Seismic's configuration: what holds for every project and this machine. A project's own entry (its
  * name, repositories) and settings are in its settings sheet; "+ New project" adds one.
  */
-export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectSettings }: { on: boolean; usage: Usage[]; onClose: () => void; onTalk: () => void; onConnect: () => void; /** Closes Configuration and opens the current project's settings sheet. */ onProjectSettings: () => void }) {
+export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectSettings }: { on: boolean; usage: Usage[]; onClose: () => void; onTalk: () => void; onConnect: () => void;  onProjectSettings: () => void }) {
   const [setupOn, setSetupOn] = useState(false);
-  // Closing for the project settings sheet: the focus goes into it, not back to what opened Configuration.
+  
   const toSheet = useRef(false);
-  // Project defaults: a project added from "+ New project" starts with them, as one made elsewhere does on the server
+  
   const [defaults, setDefaults] = useState<ProjectDefaultsView | null>(null);
   const [problems, setProblems] = useState<ConfigProblem[]>([]);
   const [section, setSectionState] = useState<Section>(() => keptSection() ?? 'defaults');
-  // the page that adds a demo site, over the Demos section; kept across a reload
+  
   const [addingSite, setAddingSiteState] = useState(() => !!sessionStorage.getItem(ADD_SITE_KEY));
   const setAddingSite = (on: boolean) => {
     if (on) sessionStorage.setItem(ADD_SITE_KEY, '1');
     else sessionStorage.removeItem(ADD_SITE_KEY);
-    // left on purpose: a publish mode not chosen yet stays in the site's entry, not on the page
+    
     if (!on) sessionStorage.removeItem(ADD_MODE_KEY);
     setAddingSiteState(on);
   };
@@ -153,7 +153,7 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectS
     window.addEventListener(ADD_SITE_EVENT, open);
     return () => window.removeEventListener(ADD_SITE_EVENT, open);
   }, []);
-  // read afresh whenever the dialog opens
+  
   useEffect(() => {
     if (!on) return;
     const s = keptSection();
@@ -171,7 +171,7 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectS
 
   const c = t.config;
   return (
-    // a press on the dim around the dialog closes it; a press that starts inside does not
+    
     <Dialog open={on} onOpenChange={(open) => !open && onClose()}>
       <Tabs asChild orientation="vertical" value={section} onValueChange={(v) => setSection(v as Section)}>
       <DialogContent id="config" glass keepMounted className={K.cfgBoxClass} layerClassName={K.cfgLayerClass} onCloseAutoFocus={(e) => {
@@ -206,7 +206,7 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectS
             <WishLink onOpen={onClose} />
           </div>
         </nav>
-        {/* on the box, not in the scrolling column, so it stays in view however far that scrolls */}
+        { }
         <CloseButton label={t.close} className={K.cfgCloseClass} onClick={onClose} />
         <div className={K.cfgMainClass}>
           <ConfigurationProblems problems={problems} />
@@ -280,7 +280,7 @@ function ProjectExport({ on }: { on: boolean }) {
   const ids = selected === null ? names.map((project) => project.id) : selected.filter((id) => names.some((project) => project.id === id));
   const exportAs = async (as: 'csv' | 'json') => {
     setError('');
-    // An empty project parameter list asks the server for all projects as of the download.
+    
     try { await api.exportProjects(selected === null ? [] : ids, as); } catch (e) { setError(failText(e)); }
   };
   return <>
@@ -373,7 +373,7 @@ export function Info({ text }: { text: string }) {
             type="button"
             className={cn(K.cfgInfoClass, open && 'on')}
             aria-label={t.config.info}
-            // the trigger closes the tip on a click once this handler has run: open it again after that
+            
           onClick={(e) => (e.preventDefault(), setTimeout(() => setOpen(true)))}
       >
         <InfoIcon size={14} strokeWidth={1.75} aria-hidden="true" />
@@ -400,7 +400,7 @@ export function ServerBlock({ server }: { server: ConfigView['server'] }) {
         <code>{server.permissionMode}</code>
       </Field>
       <Field label={c.restarts}>{!server.restarts ? c.no : server.commit ? c.yes : c.noCheckout}</Field>
-      {/* from a checkout, in a browser: how to have the app instead (scripts/app.ts) */}
+      { }
       {server.commit && !window.seismicApp && (
         <Field label={c.asApp} hint={c.asAppHint}>
           <code>bun run app install</code>
@@ -411,7 +411,7 @@ export function ServerBlock({ server }: { server: ConfigView['server'] }) {
           {c.checkout(window.seismicApp.built.slice(0, 7))}
         </Field>
       )}
-      {/* in the app's window (app/src/main.rs), which opens a new window in the default browser */}
+      { }
       {window.seismicApp && (
         <Button size="small" title={c.openInBrowserHint} onClick={() => window.open(location.href, '_blank')}>
           {c.openInBrowser}
@@ -421,13 +421,13 @@ export function ServerBlock({ server }: { server: ConfigView['server'] }) {
   );
 }
 
-/** Voices grouped as the settings sheet offers them; `say` only on a Mac. */
+
 const VOICE_GROUPS: { group: 'local' | 'service' | 'own'; voices: VoiceKind[] }[] = [
   { group: 'local', voices: ['piper', 'qwen3', 'say'] },
   { group: 'service', voices: ['gemini', 'openai', 'elevenlabs', 'azure'] },
   { group: 'own', voices: ['command', 'http'] },
 ];
-/** The fields each voice reads, in the order the sheet shows them. */
+
 const VOICE_FIELDS: Record<VoiceKind, ('voiceName' | 'command' | 'url' | 'keyFile')[]> = {
   piper: ['voiceName'],
   qwen3: ['voiceName'],
@@ -439,11 +439,11 @@ const VOICE_FIELDS: Record<VoiceKind, ('voiceName' | 'command' | 'url' | 'keyFil
   elevenlabs: ['voiceName', 'keyFile'],
   azure: ['url', 'voiceName', 'keyFile'],
 };
-/** Where the settings sheet keeps the sentence typed to hear a voice by, for the tab. */
+
 const SAMPLE_TEXT_KEY = 'seismic-demo-sample-text';
-/** A stock voice of a model or service is nobody's own. */
+
 const STOCK_ONLY: VoiceKind[] = ['piper', 'say'];
-/** Where demos go when the settings name no directory (`DEFAULT_DEMO_DIRECTORY` of the demo skill, which the page cannot import). */
+
 const DEFAULT_DEMO_DIRECTORY = '~/demos';
 
 /**
@@ -465,7 +465,7 @@ export function LanguageBlock({ on }: { on: boolean }) {
     try {
       const v = await saveSetting('language', { language });
       setView(v);
-      // the strings are set before the first render: the page loads again, keeping what is open
+      
       reload();
     } catch (e) {
       setStatus(failText(e));
@@ -767,7 +767,7 @@ export function RightClickField({ value, onChange }: { value: RightClick | undef
  * Whether a separate agent reviews work that lands on main, and when ("Reviews happen"): the same
  * controls for a new project's draft and for Project defaults.
  */
-export function CodeReviewField({ value, onChange, bare }: { value: Partial<CodeReviewSetting> | undefined; onChange: (v: CodeReviewSetting) => void; /** Under a heading of its own that names it (the settings sheet): the controls alone. */ bare?: boolean }) {
+export function CodeReviewField({ value, onChange, bare }: { value: Partial<CodeReviewSetting> | undefined; onChange: (v: CodeReviewSetting) => void;  bare?: boolean }) {
   const l = t.config.codeReviews;
   const now: CodeReviewSetting = { on: value?.on === true, mode: value?.mode === 'manual' ? 'manual' : 'auto' };
   const controls = (
@@ -799,7 +799,7 @@ export function CodeReviewField({ value, onChange, bare }: { value: Partial<Code
 function ProjectDefaultsBlock({ view, onSaved, onProjectSettings }: { view: ProjectDefaultsView | null; onSaved: (v: ProjectDefaultsView) => void; onProjectSettings: () => void }) {
   const [status, setStatus] = useState('');
   const c = t.config;
-  // opening the sheet does not depend on the defaults, so the link stands while they load
+  
   const link = <LinkButton className="mb-4" onClick={onProjectSettings}>{c.defaults.openProjectSettings}</LinkButton>;
   if (!view) return (
     <>
@@ -815,7 +815,7 @@ function ProjectDefaultsBlock({ view, onSaved, onProjectSettings }: { view: Proj
       setStatus(failText(e));
     }
   };
-  // a field for every project setting: one added to the defaults without a field here does not compile
+  
   const fields: { [K in keyof ProjectDefaults]: ReactNode } = {
     suggest: <SuggestField value={view.defaults.suggest} onChange={(suggest) => save({ suggest })} />,
     suggestLabels: <SuggestionField which="labels" value={view.defaults.suggestLabels} onChange={(suggestLabels) => save({ suggestLabels })} />,
@@ -824,10 +824,10 @@ function ProjectDefaultsBlock({ view, onSaved, onProjectSettings }: { view: Proj
     planBaselines: <PlanBaselineField value={view.defaults.planBaselines} onChange={(planBaselines) => save({ planBaselines })} />,
     archive: <CardArchiveField value={view.defaults.archive} onChange={(archive) => save({ archive })} />,
     rightClick: <RightClickField value={view.defaults.rightClick} onChange={(rightClick) => save({ rightClick })} />,
-    // a project's models default to "Agents and models": its own are chosen in its settings sheet
+    
     agents: <Field label={c.defaults.agents}>{c.defaults.agentsValue}</Field>,
     codeReviews: <CodeReviewField value={view.defaults.codeReviews} onChange={(codeReviews) => save({ codeReviews })} />,
-    // a project chooses its demo site, and a path of its own there, in its settings
+    
     demoSite: <Field label={t.config.projectSite.label}>{t.config.projectSite.defaults}</Field>,
   };
   return (
@@ -842,10 +842,10 @@ function ProjectDefaultsBlock({ view, onSaved, onProjectSettings }: { view: Proj
   );
 }
 
-/** The columns' names over the agents' table. */
+
 const agentsHeadClass = 'text-muted-foreground text-xs pb-1';
 
-/** A group of agents, its name over what it does; in the project's settings sheet a little closer to its choices. */
+
 export const agentClass = 'cfg-agent flex flex-col py-2 px-0 text-base max-[900px]:col-span-full max-[900px]:pb-0.5 [.cs-agents_&]:pt-2.5 [.cs-agents_&]:pb-1';
 
 /** The model and effort of each group of agents: saved on each change, taken by the next agent that starts. */
@@ -992,7 +992,7 @@ function DemoBlock({ on }: { on: boolean }) {
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const [sampling, setSampling] = useState(false);
-  // the sentence to hear the voice by: the owner's own, kept in the tab like the draft, else the stock one
+  
   const [sampleText, setSampleText] = useState(() => sessionStorage.getItem(SAMPLE_TEXT_KEY) ?? '');
   const keepSampleText = (text: string) => {
     setSampleText(text);
@@ -1008,7 +1008,7 @@ function DemoBlock({ on }: { on: boolean }) {
       setStatus('');
     }, console.error);
   }, [on]);
-  // a draft not saved yet is written down as it changes: closing the dialog or a reload brings it back
+  
   useEffect(() => {
     if (view && draft) keepConfigDraft(draftSession, 'demo', draft, view.settings);
   }, [draft, view]);
@@ -1021,7 +1021,7 @@ function DemoBlock({ on }: { on: boolean }) {
     });
   }, [on, view]);
   const installing = !!view?.job?.running;
-  // the voice as it is being chosen: its problems, what it still needs installed
+  
   useEffect(() => {
     if (!draft) return;
     let live = true;
@@ -1030,7 +1030,7 @@ function DemoBlock({ on }: { on: boolean }) {
       live = false;
     };
   }, [draft, installing]);
-  // an installation runs on the server, or it counts the demos' space: follow it until it ends
+  
   const counting = !!view?.space?.busy;
   useEffect(() => {
     if (!on || !(installing || counting)) return;
@@ -1078,7 +1078,7 @@ function DemoBlock({ on }: { on: boolean }) {
     }
     setSampling(false);
   };
-  // Qwen3's speakers are a fixed set: a list, so no name the model lacks gets in; one saved before stays shown, marked
+  
   const speakerField = () => {
     const name = draft.voiceName;
     const known = name ? qwen3Speaker(name) : QWEN3_SPEAKER;
@@ -1141,7 +1141,7 @@ function DemoBlock({ on }: { on: boolean }) {
             <Select
               aria-label={d.voice}
               value={draft.voice}
-              // another voice starts with its own fields, and is nobody's own until ticked; directory and frames stay
+              
               onValueChange={(picked) =>
                 setDraft({ language: draft.language, voice: picked as VoiceKind, ...(draft.directory ? { directory: draft.directory } : {}), ...(draft.keepFrames ? { keepFrames: draft.keepFrames } : {}), ...(draft.artifacts ? { artifacts: draft.artifacts } : {}) })
               }
@@ -1246,7 +1246,7 @@ function DemoBlock({ on }: { on: boolean }) {
   );
 }
 
-/** Which Cloudflare account a new site goes into: that of a site this machine deploys to (its name), this machine's login (''), or another account by its API token ('token'). */
+
 interface CloudflareWay {
   account: string;
   token: string;
@@ -1256,7 +1256,7 @@ interface CloudflareWay {
 /** The choice as the server takes it. */
 const cloudflareHow = (w: CloudflareWay): SiteHow => (w.account === 'token' ? { token: w.token, ...(w.accountId.trim() ? { accountId: w.accountId.trim() } : {}) } : w.account ? { account: w.account } : {});
 
-/** Where Cloudflare's API tokens are made. */
+
 const CLOUDFLARE_TOKENS = 'https://dash.cloudflare.com/profile/api-tokens';
 
 /**
@@ -1301,25 +1301,25 @@ function CloudflareAccount({ accounts, way, onChange, disabled }: { accounts: st
   );
 }
 
-/** A mebibyte, the unit the largest file is entered in. */
+
 const MIB = 1024 * 1024;
 
-/** How a new site is added, in the switcher's order: GitHub (a repository of the owner's, or one just for demos); another host is entered by hand. */
+
 type AddHost = 'github' | 'cloudflare' | 'manual';
-/** The option of an appearance choice that follows the system, in place of `null`. */
+
 const SYSTEM = 'system';
 const ADD_HOSTS: AddHost[] = ['github', 'cloudflare', 'manual'];
 
-/** The way chosen for a new site, a site entered by hand and a connection code not sent yet: they survive closing the dialog. */
+
 const ADD_HOST_KEY = 'seismic-site-host';
 const ADD_MANUAL_KEY = 'seismic-site-manual';
 const ADD_CODE_KEY = 'seismic-site-code';
-/** The Cloudflare account and listing chosen for a new site, kept alike; never its token. */
+
 const ADD_CLOUDFLARE_KEY = 'seismic-site-cloudflare';
-/**
- * A site this tab started adding, and then the folder site whose publish mode is still to be chosen:
- * what follows the setup survives closing the dialog, a reload, and going back to the list meanwhile.
- */
+
+
+
+
 const ADD_MINE_KEY = 'seismic-site-adding';
 const ADD_MODE_KEY = 'seismic-site-mode-for';
 
@@ -1333,7 +1333,7 @@ const keptCloudflare = (): { way: CloudflareWay | null; unlisted: boolean } => {
   }
 };
 
-/** The demo sites of this machine, read once per page and shared by every block that shows them. */
+
 let sitesNow: DemoSitesView | null = null;
 const sitesListeners = new Set<(v: DemoSitesView) => void>();
 const showSites = (v: DemoSitesView) => {
@@ -1380,14 +1380,14 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
   const [code, setCode] = useState(() => sessionStorage.getItem(ADD_CODE_KEY) ?? '');
   const [connecting, setConnecting] = useState(() => !!sessionStorage.getItem(ADD_CODE_KEY));
   const [status, setStatus] = useState('');
-  // the job this tab started, by its id: its site is handed on once it is on the list
+  
   const [mine, setMineState] = useState(() => sessionStorage.getItem(ADD_MINE_KEY));
   const setMine = (id: string | null) => {
     if (id) sessionStorage.setItem(ADD_MINE_KEY, id);
     else sessionStorage.removeItem(ADD_MINE_KEY);
     setMineState(id);
   };
-  // a site in a repository's folder, just added: how its demos go in is asked before it is handed on
+  
   const [modeFor, setModeForState] = useState<string | null>(() => sessionStorage.getItem(ADD_MODE_KEY));
   const setModeFor = (url: string | null) => {
     if (url) sessionStorage.setItem(ADD_MODE_KEY, url);
@@ -1403,7 +1403,7 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
   useEffect(() => {
     if (!mine || (job?.id === mine && job.running)) return;
     setMine(null);
-    // no job left, or another one since (Seismic restarted, another tab took its result or added a site): nothing to hand on
+    
     if (job?.id === mine && job.site) {
       if (view.sites.find((x) => x.url === job.site)?.git) setModeFor(job.site);
       else onAdded?.(job.site);
@@ -1411,7 +1411,7 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
       void api.demoSitesSeen().then(onView, console.error);
     }
   }, [mine, job?.id, job?.running, job?.site]);
-  // a site removed meanwhile asks nothing any more
+  
   useEffect(() => {
     if (modeFor && !view.sites.some((x) => x.url === modeFor)) setModeFor(null);
   }, [modeFor, view.sites]);
@@ -1426,7 +1426,7 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
       return null;
     }
   };
-  // the first site's account, until the owner chooses
+  
   const chosen: CloudflareWay = way ?? { account: view.cloudflareAccounts[0] ?? '', token: '', accountId: '' };
   const add = async (h: AddHost) => {
     setHost(h);
@@ -1472,7 +1472,7 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
     );
   }
   const ready = host !== 'manual' ? !(host === 'cloudflare' && chosen.account === 'token' && !chosen.token.trim()) : !!(manual.url.trim() && manual.deploy.trim());
-  // a part of the hand-entered site: its label above it
+  
   const sub = (label: string, control: ReactNode) => (
     <label className="wide">
       <span className={K.cfgSubHintClass}>{label}</span>
@@ -1586,7 +1586,7 @@ function AddSite({ view, onView, onAdded, onCancel }: { view: DemoSitesView; onV
 function AddSitePage({ on, onBack: back }: { on: boolean; onBack: () => void }) {
   const [view, setView] = useDemoSites(on);
   const p = t.config.sites;
-  // back at the list of sites, scrolled to it
+  
   const onBack = () => {
     sessionStorage.setItem(SITES_SHOW_KEY, '1');
     back();
@@ -1606,7 +1606,7 @@ function AddSitePage({ on, onBack: back }: { on: boolean; onBack: () => void }) 
   );
 }
 
-/** The demo sites' column: not as wide as the settings. */
+
 const narrowClass = 'cfg-narrow max-w-[620px] [&>.hint]:my-1.5 [&>.hint]:mx-0';
 
 /** A site's address as the owner reads it. */
@@ -1617,26 +1617,26 @@ const siteLabel = (url: string) => url.replace(/^https?:\/\//, '').replace(/\/+$
  * is listed, the projects' paths on it, the code for another machine and removing it from this
  * machine; and "Add a demo site".
  */
-function DemoSitesBlock({ on, onAdd }: { on: boolean; /** Opens the page that adds a site. */ onAdd: () => void }) {
+function DemoSitesBlock({ on, onAdd }: { on: boolean;  onAdd: () => void }) {
   const [view, setView] = useDemoSites(on);
   const [removing, setRemoving] = useState<string | null>(null);
   const [copied, copy] = useCopy(1500);
   const [copiedUrl, setCopiedUrl] = useState('');
-  // each site's connection code, at hand before the click: the clipboard takes it within the click
+  
   const [codes, setCodes] = useState<Record<string, string>>({});
   const [status, setStatus] = useState('');
   const p = t.config.sites;
   const box = useRef<HTMLDivElement>(null);
-  // opened from a card's hint: it comes into view
+  
   useEffect(() => {
     if (!on || !view || !sessionStorage.getItem(SITES_SHOW_KEY)) return;
     sessionStorage.removeItem(SITES_SHOW_KEY);
-    // the demo settings above load meanwhile and push it down: scrolled once they stand
+    
     const at = setTimeout(() => box.current?.scrollIntoView({ block: 'start', behavior: scrollBehavior() }), 400);
     return () => clearTimeout(at);
   }, [on, !!view]);
-  // a site this tab started adding, done while the list showed: a folder site's page asks how its
-  // demos go in; any other is on the list, and that is all
+  
+  
   const job = view?.job;
   useEffect(() => {
     const mine = sessionStorage.getItem(ADD_MINE_KEY);
@@ -1723,7 +1723,7 @@ function DemoSitesBlock({ on, onAdd }: { on: boolean; /** Opens the page that ad
   );
 }
 
-/** A line under the path on the site: whether the site is set up for it. */
+
 const siteInitHintClass = cn(K.cfgSubHintClass, 'my-1 mx-0');
 
 /** Whether a path is one a project may have on a site: lower-case parts with hyphens, `/` between up to three; '' for the root. */
@@ -1738,7 +1738,7 @@ const tidyPath = (path: string) => path.trim().replace(/^\/+|\/+$/g, '');
  * meanwhile), the vocabulary of tags and when a demo goes on the site. `project`: the
  * project's id where it runs (Initialize needs it). Path and tags take effect when the field is left.
  */
-export function ProjectSiteField({ project, value, onChange, homePath, language, bare, onAddSite = showAddSite }: { project: string | undefined; value: ProjectDemoSite | null | undefined; onChange: (v: ProjectDemoSite | null) => void; /** The project's home repository, which "Have an agent propose the tags" reads. */ homePath?: string; language: NarrationLanguage | null; /** Under a heading of its own that names it (the settings sheet): the controls alone. */ bare?: boolean; /** "+ Add new site" opens the add-site page in the machine-wide Configuration dialog. */ onAddSite?: () => void }) {
+export function ProjectSiteField({ project, value, onChange, homePath, language, bare, onAddSite = showAddSite }: { project: string | undefined; value: ProjectDemoSite | null | undefined; onChange: (v: ProjectDemoSite | null) => void;  homePath?: string; language: NarrationLanguage | null;  bare?: boolean;  onAddSite?: () => void }) {
   const [view] = useDemoSites(true);
   const [path, setPath] = useState(value?.path ?? '');
   const [init, setInit] = useState<ProjectDemoSiteState | null>(null);
@@ -1746,7 +1746,7 @@ export function ProjectSiteField({ project, value, onChange, homePath, language,
   const l = t.config.projectSite;
   const c = t.config.settings;
   useEffect(() => setPath(value?.path ?? ''), [value?.url, value?.path]);
-  // the initialization the project runs, from wherever it was started: followed until it ends
+  
   const running = !!init?.init?.running;
   useEffect(() => {
     if (!project) return;
@@ -1857,7 +1857,7 @@ export function ProjectSiteField({ project, value, onChange, homePath, language,
               )}
             </div>
           )}
-          {/* what the project's pages carry, once its path is on the site */}
+          { }
           {ready && (
             <>
           <label className="wide">
@@ -1865,7 +1865,7 @@ export function ProjectSiteField({ project, value, onChange, homePath, language,
             <TagLines tags={value?.tags} placeholder={c.siteTagsPlaceholder} label={c.siteTags} onChange={(tags) => value && onChange(tags ? { ...value, tags } : (({ tags: _, ...rest }) => rest)(value))} />
           </label>
           {homePath && <TagProposal path={homePath} current={value?.tags} language={language} onTags={(tags) => value && onChange(tags ? { ...value, tags } : (({ tags: _, ...rest }) => rest)(value))} />}
-          {/* not a label: a click on its words would press the first button */}
+          { }
           <div className="wide">
             <span className={K.cfgSubHintClass}>{c.sitePublish}</span>
             <SegmentedControl
@@ -1890,7 +1890,7 @@ export function ProjectSiteField({ project, value, onChange, homePath, language,
   );
 }
 
-/** The days choosable for keeping a demo's frames, besides one the settings name already. */
+
 const KEEP_CHOICES = [7, 14, 30, 90, 'always'] as const;
 
 /**
@@ -2030,19 +2030,19 @@ function VoiceBlock({ on }: { on: boolean }) {
 
 interface ProjectProps {
   n: number;
-  /** Opens the configuration of a project named by a problem, where it has a running page. */
+  
   showProject: (n: number) => (() => void) | undefined;
   project: EntryDraft;
-  /** A new project can set its review policy and repository options before creation. */
+  
   configure?: boolean | undefined;
-  /** The repositories are being checked: their ids and settings are still to come. */
+  
   checking: boolean;
   resolved: ConfigChecked['resolved'][number];
   running: string[];
-  /** The id of the running project this one is: a new name keeps it. */
+  
   pin?: string;
   problems: ConfigProblem[];
-  /** Has the Koordinator create a task that fixes a problem; only for the configuration as saved, which is what it reads. */
+  
   ask?: Ask;
   onRecheck: () => Promise<void>;
   onChange: (c: EntryDraft) => void;
@@ -2056,7 +2056,7 @@ function ProjectIconField({ icon, onChange }: { icon: string | undefined; onChan
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<IconPickerView>({});
   return (
-    // modal: the Configuration dialog's children sit outside its content in React's tree (`keepMounted`), so only a pane that holds the pointer and focus itself keeps a press in it from closing the dialog
+    
     <Popover modal open={open} onOpenChange={setOpen}>
       <Tooltip content={t.config.projectIcon}>
         <PopoverTrigger asChild>
@@ -2065,7 +2065,7 @@ function ProjectIconField({ icon, onChange }: { icon: string | undefined; onChan
           </Button>
         </PopoverTrigger>
       </Tooltip>
-      {/* as tall as the screen has room for, up to its full size: the icon or emoji list inside shrinks and scrolls, the pane never does */}
+      { }
       <PopoverContent align="start" className="flex w-[min(460px,calc(100vw-16px))] flex-col !overflow-hidden px-4 pt-3.5 pb-3">
         <IconPicker
           className="min-h-0 flex-[0_1_auto]"
@@ -2088,18 +2088,18 @@ function ProjectIconField({ icon, onChange }: { icon: string | undefined; onChan
  */
 export function ProjectBlock({ n, project, configure, checking, resolved, running, pin, problems, ask, onRecheck, onChange, showProject }: ProjectProps) {
   const fresh = resolved && !running.includes(resolved.id);
-  // the Koordinator of the project with the problem, where it runs: a card for it goes there
+  
   const askHere = ask && ((text: string) => ask(text, resolved && running.includes(resolved.id) ? resolved.id : undefined));
   const here = t.config.project(n + 1);
   const setRepo = (i: number, r: RepoConfig | null) => onChange({
     ...project,
     repos: r ? project.repos.map((x, j) => j === i ? { ...r, originalPath: x.originalPath } : x) : project.repos.filter((_, j) => j !== i),
   });
-  // the repository shown: the home one at first
+  
   const [tab, setAt] = useState(0);
   const at = Math.min(tab, project.repos.length - 1);
   const repo = project.repos[at];
-  // the harness the project's workers run in: one that needs git leaves a folder without it no choice but setting it up
+  
   const worker = useWorkerConfiguration();
   const harness = worker ? projectAgentSetting('worker', worker.agents.worker, project.agents, worker.harnesses).harness : undefined;
   const gitOnly = needsGit(harness) ? harness : undefined;
@@ -2151,7 +2151,7 @@ export function ProjectBlock({ n, project, configure, checking, resolved, runnin
           <Problem key={k} problem={p} where={here} ask={askHere} retried={askHere && onRecheck} />
         ))}
       {configure && <CodeReviewField value={project.codeReviews} onChange={(codeReviews) => onChange({ ...project, codeReviews })} />}
-      {/* its repositories as tabs, one shown at a time, with the problems of each counted on it */}
+      { }
       <Tabs value={String(at)} onValueChange={(v) => setAt(Number(v))}>
       <Field label={t.config.repos}>
         <div className="cfg-repo-tabs flex flex-wrap items-center gap-y-2 gap-x-3">
@@ -2205,15 +2205,15 @@ export function ProjectBlock({ n, project, configure, checking, resolved, runnin
 interface RepoProps {
   repo: RepoConfig;
   configure?: boolean | undefined;
-  /** The harness that needs git which the project's workers run in, where they do: a folder without git is no choice then. */
+  
   gitOnly?: 'codex' | 'agy' | undefined;
   home: boolean;
   resolved?: ResolvedProject['repos'][number];
   problems: ConfigProblem[];
-  /** Where it is, for a request to the Koordinator. */
+  
   where: string;
   ask?: (text: string) => void;
-  /** Checks the configuration again: git was set up in the repository's folder. */
+  
   onRecheck: () => Promise<void>;
   onChange: (r: RepoConfig | null) => void;
 }
@@ -2221,12 +2221,12 @@ interface RepoProps {
 /** A repository's name on its tab: its id once checked, else its folder's name. */
 export const repoName = (repo: RepoConfig, resolved: ResolvedProject['repos'][number] | undefined) => resolved?.id ?? (repo.path.trim().split(/[\\/]/).filter(Boolean).pop() || t.config.newRepo);
 
-/** What "For everyone" needs of the dialog: whether the projects are as saved (what is taken over), how to read them again, how to save them first. */
+
 export interface Takeover {
   saved: boolean;
-  /** Reads the saved configuration again: the server changed it. */
+  
   onReload: () => Promise<void>;
-  /** Saves the dialog's changes; none where saving restarts Seismic. Says whether they were saved. */
+  
   prepare?: () => Promise<boolean>;
 }
 
@@ -2239,15 +2239,15 @@ function withField<K extends keyof RepoConfig>(repo: RepoConfig, k: K, v: RepoCo
 }
 
 function RepoRow({ repo, configure, gitOnly, home, resolved, problems, where, ask, onRecheck, onChange }: RepoProps) {
-  // a folder without git: its agents work in the folder itself
+  
   const folder = repo.git === false;
-  // A new project's repository can be configured here before its settings sheet is available.
+  
   return (
     <section className="cfg-repo mt-2 pt-2.5 border-t border-t-border [&>.c-row]:mt-1.5 [&>.c-row]:mb-1 [&>.c-row]:max-w-[900px]">
       <Field label={t.config.path} hint={home || folder ? [...(home ? [t.config.home] : []), ...(folder ? [t.config.folderMode] : [])].join(' · ') : undefined}>
         <div className="cfg-repo-path flex items-center gap-3 max-w-[664px] [&>.c-del]:ml-0">
           <Input className={pathClass} aria-label={t.config.path} value={repo.path} placeholder={t.config.path} spellCheck={false} onChange={(e) => {
-              // another folder: whether it goes without git is chosen for it anew
+              
               const { git: _, ...rest } = repo;
               onChange({ ...rest, path: e.target.value });
             }} />
@@ -2275,8 +2275,8 @@ function RepoRow({ repo, configure, gitOnly, home, resolved, problems, where, as
  * What is wrong with a repository, each problem with what fixes it where it can be fixed here:
  * setting up git in a folder without it, trusting the repository's commands.
  */
-export function RepoProblems({ repo, resolved, problems, where, ask, onRecheck, gitOnly, onFolder }: { repo: RepoConfig; resolved: ResolvedProject['repos'][number] | undefined; problems: ConfigProblem[]; where: string; ask?: ((text: string) => void) | undefined; onRecheck: () => Promise<void>; /** The harness that needs git which the workers run in (`GitSetup`). */ gitOnly?: 'codex' | 'agy' | undefined; /** The entry editor can keep the folder without git. */ onFolder?: () => void }) {
-  // a path without a repository that is a folder: git can be set up there
+export function RepoProblems({ repo, resolved, problems, where, ask, onRecheck, gitOnly, onFolder }: { repo: RepoConfig; resolved: ResolvedProject['repos'][number] | undefined; problems: ConfigProblem[]; where: string; ask?: ((text: string) => void) | undefined; onRecheck: () => Promise<void>;  gitOnly?: 'codex' | 'agy' | undefined;  onFolder?: () => void }) {
+  
   const noGit = useFolderWithoutGit(problems.some((p) => p.code === 'notRepo') ? repo.path.trim() : '');
   return (
     <>
@@ -2293,24 +2293,24 @@ export function RepoProblems({ repo, resolved, problems, where, ask, onRecheck, 
 
 /** Where a repository's agents work as its entry has it (`workIn`), and what that rests on. */
 export function workPlace(repo: RepoConfig, resolved: ResolvedProject['repos'][number] | undefined) {
-  // where work lands on the repository's main, its own folder listed as a clone is none: work lands there (as the server has it)
+  
   const landsHere = (repo.settings?.land ?? resolved?.values.land.value) === 'main';
   const itself = (w: string) => landsHere && w.trim().replace(/\/+$/, '') === repo.path.trim().replace(/\/+$/, '');
-  // clones the configuration names (to make, existing ones, on hosts) put the repository in clones whatever its settings say
+  
   const named = !!repo.clones || (repo.workstations ?? []).some((w) => w.trim() && !itself(w)) || !!repo.hosts?.length;
   const base = resolved?.values.workstations;
-  // what the repository's settings say without this machine's, where the check could tell it apart from the clones named
+  
   const known = base && base.source !== 'clones' ? base.value : undefined;
   const own = repo.settings?.workstations;
   const workIn: 'clones' | 'worktrees' = named ? 'clones' : (own ?? known ?? resolved?.workstations ?? 'worktrees');
   return { itself, named, base, known, own, workIn };
 }
 
-/**
- * "Where agents work" of a repository: worktrees or clones, and with clones the existing ones listed,
- * how many to make, the slots and the machines over SSH. None for a folder without git, nor before
- * the repository is read unless it names clones.
- */
+
+
+
+
+
 export const Workstations = forwardRef<HTMLDivElement, { repo: RepoConfig; resolved: ResolvedProject['repos'][number] | undefined; flash?: boolean; onChange: (r: RepoConfig) => void }>(function Workstations({ repo, resolved, flash = false, onChange }, ref) {
   const folder = repo.git === false;
   const { itself, named, base, known, own, workIn } = workPlace(repo, resolved);
@@ -2318,7 +2318,7 @@ export const Workstations = forwardRef<HTMLDivElement, { repo: RepoConfig; resol
   const existing = useRef<HTMLTextAreaElement>(null);
   const existingText = (repo.workstations ?? []).join('\n');
   useFitHeight(existing, existingText, clones);
-  // "Agents work in": this machine's setting where the repository's says otherwise; worktrees put the clones named aside
+  
   const setWorkIn = (mode: 'clones' | 'worktrees') => {
     if (mode === workIn) return;
     const { workstations: _, ...others } = repo.settings ?? {};
@@ -2330,7 +2330,7 @@ export const Workstations = forwardRef<HTMLDivElement, { repo: RepoConfig; resol
   if (folder || (!resolved && !clones)) return null;
   const source = named ? t.config.settings.source.clones : own !== undefined ? t.config.settings.source.machine : base ? t.config.settings.source[base.source] : undefined;
   const listed = (repo.workstations ?? []).filter((w) => w.trim() && !itself(w)).length;
-  // what saving does to the clones registered now: those it no longer names leave the pool, a card's once it is done
+  
   const leaving = resolved?.leaving?.length ? <p className="hint cfg-clone-leaving">{t.config.cloneLeaving(resolved.leaving.map((c) => (c.card ? { ...c, card: plain(c.card) } : c)))}</p> : null;
   const slots = (hint: string, placeholder: string) => (
     <Field className="cfg-slots" label={<>{t.config.slots} <Info text={hint} /></>}>
@@ -2393,10 +2393,10 @@ export const Workstations = forwardRef<HTMLDivElement, { repo: RepoConfig; resol
   );
 });
 
-/**
- * The settings of a repository, set on this machine (`RepoSettings`); those of `app` and `demo` each
- * on its own, `demo.language` as `demoLanguage` beside the repository's own `language`.
- */
+
+
+
+
 export type SettingKey = Exclude<keyof RepoSettings, NestedSetting> | 'run' | 'stop' | 'keep' | 'demoLanguage' | 'artifacts';
 
 /** The setting of `app` or `demo` that holds `k`, and its field there, if one does. */
@@ -2408,7 +2408,7 @@ function nestedOf(k: SettingKey): [NestedSetting, string] | undefined {
   return n && [n, k];
 }
 
-/** The groups of a repository's settings, each in its order: Configuration shows them under a heading each, the settings sheet in its sections. */
+
 export const REPO_SETTING_GROUPS = {
   landing: ['branch', 'land', 'direct', 'autoMerge', 'prNoise', 'softPaths'],
   app: ['setup', 'checks', 'run', 'stop', 'keep'],
@@ -2416,20 +2416,20 @@ export const REPO_SETTING_GROUPS = {
   demos: ['demoLanguage', 'artifacts'],
 } as const satisfies Record<string, readonly SettingKey[]>;
 
-/**
- * A repository's settings as its fields edit them: this machine's (`settings`, the repository's
- * entry) over what applies without them (`values`). Configuration edits its draft through it, the
- * settings sheet saves each change.
- */
+
+
+
+
+
 export interface RepoSettingsAt {
-  /** What applies: this machine's, else the repository's, detected or default. */
+  
   value: <T>(k: SettingKey) => T;
-  /** What this machine sets; undefined where it sets nothing. */
+  
   own: (k: SettingKey) => unknown;
-  /** Sets it on this machine; `undefined` takes it back to its source ("Reset"). */
+  
   set: (k: SettingKey, v: unknown) => void;
   base: Record<SettingKey, SettingValue<unknown>>;
-  /** The setting marked for a moment: the dialog was opened from a proposal for it. */
+  
   shown?: string | null;
 }
 
@@ -2548,7 +2548,7 @@ export const fromRepository = (v: RepoValues) => SHARED_FIELDS.some((k) => (isNe
  */
 function TagLines({ tags, placeholder, label, onChange }: { tags: PageTags | undefined; placeholder: string; label: string; onChange: (tags: PageTags | undefined) => void }) {
   const [text, setText] = useState(() => tagLines(tags));
-  // the setting changed elsewhere (another machine's file, a reset): its lines, unless they say the same
+  
   useEffect(() => {
     if (JSON.stringify(parseTagLines(text)) !== JSON.stringify(tags)) setText(tagLines(tags));
   }, [JSON.stringify(tags)]);
@@ -2579,7 +2579,7 @@ function TagProposal({ path, current, language, onTags }: { path: string; curren
   const [taken, setTaken] = useState<{ why: string; before: PageTags | undefined } | null>(null);
   const [status, setStatus] = useState('');
   const c = t.config.settings;
-  // the poll outlives renders: the field as it is now, and the draft to set
+  
   const now = useRef({ current, onTags });
   now.current = { current, onTags };
   const take = (j: TagProposalJob | null) => {
@@ -2668,7 +2668,7 @@ export function sharedPreview(repo: RepoConfig, values: RepoValues): Record<stri
   return Object.fromEntries(Object.entries(merged).filter(([, v]) => v !== undefined));
 }
 
-/** What "Take over into the repository for everyone" says: the file as it would be, where it goes, and what came of it. */
+
 const shareHint = 'text-muted-foreground text-sm leading-[1.45] max-w-[76ch] mt-1 mx-0 mb-0';
 const shareOk = cn(shareHint, 'text-foreground');
 const shareConfirmHint = 'hint mt-1 mx-0 mb-0 max-w-[76ch]';
@@ -2692,7 +2692,7 @@ export function ShareSettings({ repo, values, branch, shareTo, shareDirect, sett
     setBusy(true);
     setError('');
     try {
-      // what is taken over is what is saved: the dialog's changes are saved first (why not, its status line says)
+      
       if (!saved && !(await prepare?.())) return setBusy(false);
       const r = await api.shareSettings(repo.path, direct);
       setDone(r);
@@ -2761,17 +2761,17 @@ function slotsOf(value: string): number | undefined {
   return value.trim() === '' || !Number.isFinite(Number(value)) ? undefined : Math.max(0, Math.round(Number(value)));
 }
 
-/**
- * Removes an entry of the configuration (a project, a repository, a host): a waste bin, so that it
- * does not pass for the dialog's close button, shown while the pointer or focus is on its entry.
- */
-/**
- * Repository problems shown elsewhere in Project settings, under Allowed commands or Git and
- * releasing. The Configuration section shows the problems that matter to the entry's save.
- */
+
+
+
+
+
+
+
+
 export const SHEET_PROBLEMS: ConfigProblemCode[] = ['untrusted', 'adapterGone', 'repoSettings'];
 
-/** Problems of a project's name, shown at the name. */
+
 const NAME_PROBLEMS: ConfigProblemCode[] = ['nameTaken', 'oldNameTaken'];
 
 /**
@@ -2872,7 +2872,7 @@ function Hosts({ hosts, onChange }: { hosts: HostConfig[]; onChange: (hosts: Hos
   );
 }
 
-// problems whose detail says what to fix, in the repository's settings rather than here, or why something did not start
+
 const DETAILED: ConfigProblem['code'][] = ['invalid', 'adapterGone', 'repoSettings', 'hostName', ...START_FAILED];
 
 export function ConfigurationProblems({ problems, retried }: { problems: ConfigProblem[]; retried?: () => void }) {
@@ -2892,12 +2892,12 @@ export function ConfigurationProblems({ problems, retried }: { problems: ConfigP
  * what to fix, and a button that has the Koordinator create a task that fixes it (with the detail, which it reads).
  * What did not start as saved tries again with "Try again", where `retried` is given (called after it).
  */
-export function Problem({ problem, where, ask, retried, onShow }: { problem: ConfigProblem; where: string; ask?: (text: string) => void; retried?: () => void; /** Shows the project the problem points to. */ onShow?: (() => void) | undefined }) {
+export function Problem({ problem, where, ask, retried, onShow }: { problem: ConfigProblem; where: string; ask?: (text: string) => void; retried?: () => void;  onShow?: (() => void) | undefined }) {
   const [asked, setAsked] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [error, setError] = useState('');
   const text = problem.of && (problem.code === 'nameTaken' || problem.code === 'oldNameTaken') ? t.config[problem.code](problem.of) : t.config.problem[problem.code];
-  // the project a name is taken by, as a link to its page
+  
   const named = problem.of && problem.ofProject !== undefined && onShow && (problem.code === 'nameTaken' || problem.code === 'oldNameTaken') ? t.config[problem.code]('\0').split('\0') : null;
   const retry = async () => {
     setRetrying(true);
@@ -2938,7 +2938,7 @@ export function Problem({ problem, where, ask, retried, onShow }: { problem: Con
         </Button>
       )}
       {error && <p>{error}</p>}
-      {/* commands to trust are the owner's to look at, not a task's to fix */}
+      { }
       {ask && problem.code !== 'untrusted' && (
         <Button
           size="small"
@@ -3047,7 +3047,7 @@ const blankOnly = (trust: RepoTrust, g: 'claude' | 'codex') =>
  * Creates the card that writes the repository's settings for everyone, and opens it on its project;
  * the dialog's changes are saved first, so the project runs with the repository on it.
  */
-export function AdapterSetup({ project, repo, takeover, label = t.config.adapterSetup, hint = t.config.adapterSetupHint, icon, stacked }: { project: string; repo: string; takeover: Takeover; label?: string; hint?: string; icon?: ReactNode; /** The button over what it does, as wide as its place (the settings sheet). */ stacked?: boolean }) {
+export function AdapterSetup({ project, repo, takeover, label = t.config.adapterSetup, hint = t.config.adapterSetupHint, icon, stacked }: { project: string; repo: string; takeover: Takeover; label?: string; hint?: string; icon?: ReactNode;  stacked?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const { saved, prepare } = takeover;
@@ -3057,7 +3057,7 @@ export function AdapterSetup({ project, repo, takeover, label = t.config.adapter
     try {
       if (!saved && !(await prepare?.())) return setBusy(false);
       const card = await api.adapterSetup(project, repo);
-      // the project loads with the card open, as after a restart
+      
       keep(draftSession, project, { at: Date.now(), card: card.id, scroll: [], drafts: [] });
       location.assign(projectPath(project));
     } catch (e) {

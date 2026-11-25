@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import type { SQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
 import type { Db } from '../common';
 
-// What the tables of a card's parts share: one row per card, there once any of it is set.
+
 
 /**
  * Sets fields of the card's part in `table` (keyed by `cardId`): its row comes once any field

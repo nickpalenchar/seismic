@@ -6,7 +6,7 @@ import { type Db, now } from './common';
 import { events } from './events';
 import { projects } from './projects';
 
-/** The owner's response on approved work, one per handover, with whom it credits as at that handover. */
+
 export const feedback = sqliteTable(
   'feedback',
   {

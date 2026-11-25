@@ -1,6 +1,6 @@
-// Progress: how far something is, as a bar (shadcn/ui's, ours from then on). The root is the track and
-// carries `role=progressbar` with the value; `indicatorClassName` sets the fill's colour, `className`
-// the track's size and tint.
+
+
+
 
 import { cn } from 'cn';
 import { Progress as ProgressPrimitive } from 'radix-ui';

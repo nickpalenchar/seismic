@@ -101,7 +101,7 @@ describe('parsePlanDoc', () => {
       ['4A', 'Sitzungen und Mandantensperre'],
       ['3B', 'Auth zusammenführen'],
     ]);
-    // the same code twice: told apart by title, so a reorder keeps each card with its own
+    
     expect(doc(['**S3 Upload.** Rest', '**S3 Download.** Rest']).map((w) => w.key)).toEqual(['S3~upload', 'S3~download']);
     expect(doc(['**S3 Download.** Rest', '**S3 Upload.** Rest']).map((w) => w.key)).toEqual(['S3~download', 'S3~upload']);
   });

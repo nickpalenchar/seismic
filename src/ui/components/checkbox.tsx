@@ -1,5 +1,5 @@
-// One of several options that may be picked together (shadcn/ui's Checkbox, on Radix Checkbox); a
-// single on/off setting is a `Switch`. Put it in a `CheckLabel` with its text.
+
+
 
 import { cn } from 'cn';
 import { Check } from 'lucide-react';

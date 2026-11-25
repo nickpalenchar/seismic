@@ -4,10 +4,10 @@ import { type Label, LABELS, type Labels as LabelValues } from '../../../core/la
 import { atomic, type Db } from '../common';
 import { cards } from './cards';
 
-/**
- * A card's labels (`Item.labels`), one row per label it has: its value (none where the owner set it
- * to none) and who set it, the owner or Seismic's suggestion. A label nobody set has no row.
- */
+
+
+
+
 export const cardLabels = sqliteTable(
   'card_labels',
   {
@@ -15,9 +15,9 @@ export const cardLabels = sqliteTable(
       .notNull()
       .references(() => cards.id),
     label: text().notNull().$type<Label>(),
-    /** As text, the complexity too; null where the owner set the label to none. */
+    
     value: text(),
-    /** `owner`: Seismic suggests no other value again; `suggestion`: Seismic's, which the owner has not touched since; null for one set before either was told apart. */
+    
     by: text().$type<LabelBy>(),
   },
   (t) => [primaryKey({ columns: [t.cardId, t.label] })],
@@ -27,14 +27,14 @@ export type LabelBy = 'owner' | 'suggestion';
 
 export const cardLabelsRelations = relations(cardLabels, ({ one }) => ({ card: one(cards, { fields: [cardLabels.cardId], references: [cards.id] }) }));
 
-/** A card's label as it is set: its value (none: set to none) and by whom. */
+
 export interface CardLabel<L extends Label = Label> {
   value: NonNullable<LabelValues[L]> | null;
   by: LabelBy | null;
 }
-/** A card's labels as read with it (`CardRow.labels`), those it has. */
+
 export type CardLabels = { [L in Label]?: CardLabel<L> };
-/** Labels to set on a card; `null` takes one off. */
+
 export type LabelsUpdate = { [L in Label]?: CardLabel<L> | null };
 
 /** The labels of a card as its rows have them (`Cards.rows`). */

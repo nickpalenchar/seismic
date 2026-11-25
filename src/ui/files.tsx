@@ -1,7 +1,7 @@
-// Deliverables on the left beside the conversation, with the underlying change list in its own tab;
-// Markdown formatted, a PDF in the browser's viewer (drawn by pdf.js on a phone), an image, a page in the sandboxed frame of an
-// HTML artifact, text as it is, anything else as a tile; each to open on the computer, show in its
-// folder, or download. Folder and git cards alike.
+
+
+
+
 
 import { ChevronDown, ChevronRight, ChevronUp, Database } from 'lucide-react';
 import { cn } from 'cn';
@@ -25,18 +25,18 @@ import { SegmentedControl } from './components/segmented';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 import { Tooltip } from './components/tooltip';
 
-/** How many lines the change list shows before "and N more" and a chevron where it is not folded to the result; the file picked shows too. */
+
 const FOLD = 8;
-/** How much of a text file the view shows; the rest is a click on "Open on the computer" or ↓ away. */
+
 const TEXT_CAP = 400_000;
-/** The highest a page grows in its frame; a higher one scrolls inside it. */
+
 const PAGE_CAP = 30000;
 
-/** The id of the file view under the change list, which its lines' tabs control. */
+
 const FILE_PANEL = 'result-file-panel';
 const DEMO = '';
 const DIFF = '\0diff';
-/** The code review's tab, to open it from elsewhere on the card. */
+
 export const REVIEW = '\0review';
 
 /** The card's change, read as the work moves on; `given` where the card has read it already (a folder's change list). */
@@ -77,11 +77,11 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
   const [asChanges, setAsChanges] = useState<Record<string, boolean>>({});
   const demoBox = useRef<HTMLDivElement>(null);
   const rev = revision(`${item.state}:${item.need ?? ''}:${item.review?.summary ?? ''}:${change?.version ?? ''}:${JSON.stringify(change?.files ?? [])}:${JSON.stringify(change?.folder?.changes ?? [])}`);
-  // one read of the whole change for every file view below, again once the change moves on
+  
   const readChange = useMemo(() => {
     let read: Promise<DiffPart[] | 'failed'> | undefined;
     return (card: string) => {
-      // a read that failed is not kept: the next view to open asks again
+      
       read ??= readWholeChange(card).then(
         (parts) => {
           if (parts === 'failed') read = undefined;
@@ -96,9 +96,9 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
     };
   }, [item.id, rev]);
   const box = useRef<HTMLDivElement>(null);
-  // A tab switched to starts as tall as the one left, up to what the card shows of the tabs, while
-  // it loads (a placeholder marked aria-busy), so the card does not shrink and grow back; once it
-  // has loaded, it takes its own height.
+  
+  
+  
   const left = useRef({ tab: current, floor: 0 });
   const [floor, setFloor] = useState(0);
   const busy = () => !!box.current?.querySelector('[data-slot=tabs-content]:not([hidden]) [aria-busy="true"]');
@@ -134,7 +134,7 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
     left.current.tab = current;
     setFloor(busy() ? left.current.floor : 0);
   }, [current]);
-  // A video left playing under another tab would go on talking.
+  
   useEffect(() => {
     if (current !== DEMO) demoBox.current?.querySelectorAll('video').forEach((v) => v.pause());
   }, [current]);
@@ -144,8 +144,8 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
     const view = box.current?.querySelector(`#${FILE_PANEL}`);
     if (view && !seen(view)) view.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
   }, [picked]);
-  // stacked under the tree, every changed file is a bar of its own; the first starts open, again
-  // whenever the change moves on (a new handover, the work changing its files or their lines)
+  
+  
   const [openBars, setOpenBars] = useState<{ rev: string; open: Set<string> } | null>(null);
   const shownBars = openBars?.rev === rev ? openBars.open : new Set(ordered[0] ? [ordered[0].path] : []);
   const openBar = (path: string, open: boolean) => {
@@ -198,7 +198,7 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
   return (
     <WholeChange.Provider value={readChange}>
     <Tabs value={current ?? ''} onValueChange={onTab} className="results" ref={box} style={floor ? { minHeight: floor } : undefined}>
-      {/* deliverables stay in front; the change list has its own tab */}
+      { }
       <TabsList variant="underline" className="result-tabs mb-3.5 phone:[&_[data-slot=tabs-trigger]]:min-h-11">
         {tabs.map((entry) => (
           <TabsTrigger key={entry.path} value={entry.path} title={'title' in entry ? entry.title : undefined}>
@@ -206,7 +206,7 @@ export function ResultFiles({ item, diff, demo, review, tab, onTab }: { item: It
           </TabsTrigger>
         ))}
       </TabsList>
-      {/* the video stays mounted under another tab, hidden, so it keeps its place */}
+      { }
       {demo && (
         <TabsContent value={DEMO} forceMount hidden={current !== DEMO} ref={demoBox}>
           {demo}
@@ -284,12 +284,12 @@ export function ChangeList({
   fold?: boolean;
   total?: { added: number; removed: number; files: number };
   current?: string;
-  /** The id of what the picked line shows, which the lines control. */
+  
   panel?: string;
   onPick?: (path: string, changes?: boolean) => void;
 }) {
   const [more, setMore] = useState(false);
-  // one file's diff over the page, or the whole change's
+  
   const [open, setOpen] = useState<string | null>(null);
   const [whole, setWhole] = useState(false);
   const pick = onPick && ((path: string, changes?: boolean) => {
@@ -298,13 +298,13 @@ export function ChangeList({
   });
   const lines = rows;
   const at = (l: ChangeRow) => l.path;
-  // folded, the result is the files the worker named; otherwise a line or two past the fold are shown rather than folded
+  
   const kept = fold ? lines.filter((l) => l.caption !== undefined) : lines.slice(0, FOLD);
   const folds = fold ? kept.length < lines.length : lines.length > FOLD + 2;
   const visible = folds && !more ? lines.filter((l) => kept.includes(l) || at(l) === current) : lines;
   const hidden = lines.length - visible.length;
   const toggle = folds && (more || hidden > 0);
-  // folded completely, the toggle counts the files, and the size beside it need not
+  
   const counted = toggle && !more && !visible.length;
   return (
     <div className="cl-list mb-3 text-sm [&_table]:w-full [&_table]:border-collapse [&_table]:table-fixed [.results_&_table]:border-b [.results_&_table]:border-border [&_td]:py-0.5 [&_td]:px-0 [&_td]:align-top [&_col.cl-mark]:w-[2em] [&_col.cl-n]:w-[4.5em] [&_.f-mark]:pt-0.5 [&_.f-mark]:pr-1 [&_.f-mark]:pb-0.5 [&_.f-mark]:pl-1.5 [&_.f-mark]:text-center [&_.f-mark]:text-muted-foreground [&_td.d-add]:pl-2.5 [&_td.d-del]:pl-2.5 [&_td.d-add]:whitespace-nowrap [&_td.d-del]:whitespace-nowrap [&_td.d-add]:text-right [&_td.d-del]:text-right [&_td.d-del]:pr-1.5 [&_button.cl-lines]:text-inherit [&_button.cl-lines]:[font:inherit] [&_tr:has(.cl-lines:hover)_.cl-lines]:underline [&_[role=tablist]_.cl-row:not(.off)]:cursor-pointer [@media(hover:hover)]:[&_[role=tablist]_.cl-row:not(.off,.on):hover]:bg-muted phone:text-base phone:[&_td]:py-2.5 phone:[&_.f-mark]:py-2.5">
@@ -373,7 +373,7 @@ function TableFrame({ pick, current, children }: { pick: boolean; current?: stri
 function Line({ row, on, onPick, onDiff, tabs, panel }: { row: ChangeRow; on: boolean; onPick?: (changes?: boolean) => void; onDiff?: () => void; tabs: boolean; panel?: string }) {
   const name = (p: string) => (row.dir ? `${p}/` : p);
   const path = row.from ? `${name(row.from)} → ${name(row.path)}` : name(row.path);
-  // a file the column cannot show is greyed: its name opens nothing, its lines its diff
+  
   const byName = tabs ? onPick : onDiff;
   const lines = row.added !== undefined && (row.added > 0 || row.removed! > 0);
   const onLines = onPick ? () => onPick(row.file?.diff ? true : undefined) : onDiff;
@@ -414,7 +414,7 @@ function Line({ row, on, onPick, onDiff, tabs, panel }: { row: ChangeRow; on: bo
   );
 }
 
-/** The path takes what the columns of the sign and the lines leave, cut at its front so that the file's name stays. */
+
 const nameClass = 'cl-name block max-w-full border-0 bg-transparent p-0 [font:inherit]! text-working text-left overflow-hidden whitespace-nowrap text-ellipsis [direction:rtl] cursor-pointer [.cl-row.on_&]:text-foreground [.cl-row.on_&]:font-semibold!';
 
 /** A line's name: a tab (of the change list's tabs, valued by `tab`) or a plain button. */
@@ -473,7 +473,7 @@ function FileView({ item, file, rev, changes, onChanges }: { item: Item; file: S
   const open = (show: boolean) => {
     setNote('');
     api.openCardFile(item.id, file.path, show).catch(() => {
-      // from another device, or where the system has no app for it: the browser saves it instead
+      
       if (show) setNote(t.files.notHere);
       else location.assign(cardFile(item.id, file.path, true));
     });
@@ -523,7 +523,7 @@ function Shown({ item, file, url, rev, onOpen }: { item: Item; file: ShownFile; 
       return (
         <Text url={url}>
           {(md) => (
-            // its images from beside it, as far as the card serves them
+            
             <DocImages.Provider value={(src) => (imageAt(file.path, src) ? `${cardFile(item.id, imageAt(file.path, src)!)}?v=${rev}` : null)}>
               <div className="r-doc max-w-[760px]">
                 <Doc md={md} />
@@ -587,7 +587,7 @@ function Text({ url, children }: { url: string; children: (text: string) => Reac
 function Page({ url, title }: { url: string; title: string }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const height = useReportedHeight(frame, PAGE_CAP);
-  // a page that never reports its height still settles a moment after it has loaded
+  
   const [loaded, setLoaded] = useState(false);
   return <iframe ref={frame} aria-busy={height === undefined && !loaded} onLoad={() => setTimeout(() => setLoaded(true), 500)} className="r-page w-full min-h-[120px] h-[min(560px,62vh)] border border-border rounded-xs bg-white block" sandbox="allow-scripts" src={url} title={title} style={height ? { height } : undefined} />;
 }
@@ -624,10 +624,10 @@ async function readWholeChange(card: string): Promise<DiffPart[] | 'failed'> {
   return d ? splitDiff(d.patch ?? '') : 'failed';
 }
 
-/**
- * The whole change, read once for all the file views of a card's result (each open bar of the
- * Diff tab, a result's "Changes") until the change moves on; without it, each view reads its own.
- */
+
+
+
+
 const WholeChange = createContext<((card: string) => Promise<DiffPart[] | 'failed'>) | null>(null);
 
 /** What the card changed in the file, line by line. */

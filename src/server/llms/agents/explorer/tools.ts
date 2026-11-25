@@ -1,8 +1,8 @@
-/**
- * The exploration agent's tools: what it answers, keeps the idea's brief and plans prototypes with
- * (`reply`, `update_brief`, `plan_prototypes` and the rest). They act on the idea's card through
- * the `Explorers` that runs it (`ExplorerHost`).
- */
+
+
+
+
+
 import { z } from 'zod';
 import { type Mock, NEXT_STEPS, type NextStep, type PlannedPrototype, type Question, type SettledPart } from '../../../../core/types';
 import { type Asked, withPick } from '../../../advisor';
@@ -13,10 +13,10 @@ import { folderPath } from '../../../new-repo';
 import type { Explorers, Live } from '../../../explorers';
 import { WORDS } from './systemPrompt';
 
-/** What the tools need of the `Explorers` that runs the idea. */
+
 export type ExplorerHost = Pick<Explorers, 'o' | 'live' | 'answer'>;
 
-/** At most this many prototypes are planned for one idea. */
+
 export const MAX_VARIANTS = 6;
 
 /** How a mock is written, for both tools that take them. */
@@ -47,7 +47,7 @@ function mocksOf(list: unknown): Mock[] {
     .slice(0, MAX_VARIANTS);
 }
 
-/** A mock is a sketch, not a page: longer ones are left out rather than cut off mid-tag. */
+
 const MOCK_MAX = 20000;
 
 /** The part to build now as the agent marked it: both a title and a brief, or no split. */
@@ -68,7 +68,7 @@ function nextStep(next: unknown, asked: Question[], split: boolean): NextStep | 
 export function explorerTools(self: ExplorerHost, cardId: string, live: Live): AgentTool[] {
   const current = (tools: AgentTool[]): AgentTool[] =>
     tools.map((t) => ({ ...t, run: (args) => (self.live.get(cardId) === live ? t.run(args) : 'This conversation has ended. End your turn.') }));
-  // the examples in the language the owner talks in by default, the names of the card's parts in the interface's
+  
   const language = self.o.board.conversation();
   const OWNER_LANGUAGE = "the owner's language";
   const MOCKS = mocks(OWNER_LANGUAGE);

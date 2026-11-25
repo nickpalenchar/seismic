@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import type { Db } from './common';
 
-/** What a card changed in a folder without git, and the undo it has there (JSON `FolderCard`, folder.ts). */
+
 export const folderCards = sqliteTable('folder_cards', {
   cardId: text('card_id').primaryKey(),
   folder: text().notNull(),

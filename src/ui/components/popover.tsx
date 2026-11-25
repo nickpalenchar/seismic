@@ -1,14 +1,14 @@
-// Popovers (shadcn/ui's Popover, on Radix Popover): a panel that opens from a button and holds content
-// of its own (links, buttons, a form), unlike a tooltip's text or a menu's list of actions. Non-modal:
-// the page stays live under it. Radix closes it on Esc and on a click or focus outside it, returns the
-// focus to its trigger, and places it beside the trigger, flipping to the other side where the screen
-// has no room. The panel is portaled into `uiPortal()` and closes when a shortcut asks the bar's menus
-// to make room (`closeBarMenus`).
-//
-// `Popover` is the root (`open` and `onOpenChange` to control it), `PopoverTrigger` the button that
-// toggles it (`asChild` to use the caller's), `PopoverAnchor` what it is placed beside when that is
-// more than the trigger, `PopoverContent` the panel in frost's look (a class of the caller's sets its
-// width). A popover that also opens while the pointer rests on its trigger takes `useHoverOpen`.
+
+
+
+
+
+
+
+
+
+
+
 
 import { cn } from 'cn';
 import { Popover as PopoverPrimitive } from 'radix-ui';
@@ -60,7 +60,7 @@ export function useHoverOpen({ delay = 260, enabled = true }: { delay?: number; 
   const [open, setOpen] = useState(false);
   const [pinned, setPinned] = useState(false);
   const leave = useRef<ReturnType<typeof setTimeout>>(undefined);
-  // whether the popover closing now was pinned: only then does the focus go back to its trigger
+  
   const wasPinned = useRef(false);
   const restoreOnClose = useRef(true);
   useEffect(() => () => clearTimeout(leave.current), []);
@@ -74,7 +74,7 @@ export function useHoverOpen({ delay = 260, enabled = true }: { delay?: number; 
   return {
     open,
     show,
-    // Actions opening another view hand focus to that view instead of back to this trigger.
+    
     close: ({ restoreFocus = true }: { restoreFocus?: boolean } = {}) => {
       show(false);
       restoreOnClose.current = restoreFocus;
@@ -93,7 +93,7 @@ export function useHoverOpen({ delay = 260, enabled = true }: { delay?: number; 
       },
     },
     trigger: {
-      // a click pins what hovering showed; a second one closes it
+      
       onClick: (e: MouseEvent) => {
         e.preventDefault();
         if (!enabled) return;
@@ -101,7 +101,7 @@ export function useHoverOpen({ delay = 260, enabled = true }: { delay?: number; 
       },
     },
     content: {
-      // shown by hovering, it leaves the focus where it was (the composer, say), opening and closing
+      
       onOpenAutoFocus: (e: Event) => pinned || e.preventDefault(),
       onCloseAutoFocus: (e: Event) => (wasPinned.current && restoreOnClose.current) || e.preventDefault(),
     },

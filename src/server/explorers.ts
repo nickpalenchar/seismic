@@ -1,8 +1,8 @@
-// Exploration agents: one session per idea with a worker's tools, resumed for every message, even
-// days later. The owner and the agent talk on the card; the agent keeps the idea's brief, which is what
-// remains of the conversation: whoever opens the card later reads the brief, not the talk. The
-// brief holds the substance and the replies only the turns, so the two never say the same; how
-// the agent got to a reply (what it read and thought) folds away under that reply.
+
+
+
+
+
 
 import { type Language } from '../core/locale';
 import { formatQuestion, type Item, type Mock, type NextStep, type Question, isPaused, isPausing } from '../core/types';
@@ -18,44 +18,44 @@ import { clip } from '../core/text';
 export interface ExplorerOptions {
   board: Board;
   runtime: AgentRuntime;
-  /** The checkout the agent works in: the one of the idea's repository. */
+  
   pathFor: (card: Item) => string;
-  /** The language of what lands in the idea's repository (`language` of its settings); English when left out. */
+  
   repoLanguage?: (card: Item) => Language;
-  /** The workers' permission mode: the agent has their tools and runs as they do. */
-  /** The owner's recorded preferences, as agents read them. */
+  
+  
   preferences?: () => string;
-  /** Called with what the owner says, so lasting preferences can be learned. */
+  
   onOwnerInput?: (card: Item, text: string) => void;
-  /** The files of the owner's screenshots, by id; unknown ones are left out. */
+  
   imageFiles?: (ids?: string[]) => string[];
-  /** The agent answered all it was told and its session ended (`replied`), or its turn ended without (an error, a restart). */
+  
   onReplied?: (cardId: string, replied: boolean) => void;
-  /** Passes on to the Koordinator what the owner's words to the idea's agent ask of Seismic (`to_seismic`); without it the agent has no such tool. */
+  
   toSeismic?: (cardId: string, request: string) => Promise<string>;
-  /** How long an ended turn waits for a sign of the agent once none of its background work runs (any more). */
+  
   backgroundGrace?: number;
-  /** How long an ended turn waits at most while the agent's background work still runs. */
+  
   backgroundLimit?: number;
 }
 
 export interface Live {
   session: AgentSession;
-  /** The messages the running turn answers. */
+  
   current: Message[];
-  /** Messages that arrived during a turn; they go in together once it ends, unread until then. */
+  
   queue: Message[];
   replied: boolean;
   lastText: string;
-  /** The turn only takes something into the brief: words without a reply are no reply. */
+  
   quiet?: boolean;
-  /** The owner's preferences as the agent last heard them: in its instructions, or since then. */
+  
   preferences: string;
-  /** The agent heard that the owner clicked "Build it like this" during its turn. */
+  
   toldBuild?: boolean;
-  /** The agent's background work, and a turn that ended without a reply waiting for it to wake the agent. */
+  
   work: BackgroundWait;
-  /** The last words of a turn that ended waiting for its background work: the reply, should it never wake the agent. */
+  
   said?: string;
 }
 
@@ -75,7 +75,7 @@ export class Explorers {
       this.o.board.setIdea(cardId, { status: 'open' });
       this.o.board.log(cardId, 'state', 'owner', this.o.board.t.idea.reopened);
     }
-    // words said while the agent works on a reply wait for its next turn, unread until then
+    
     const said = this.o.board.log(cardId, 'talk', 'owner', text, { images, replyTo, unread: this.live.has(cardId) });
     this.o.board.setIdea(cardId, { yourTurn: false, questions: [], next: undefined });
     if (text) this.o.onOwnerInput?.(card, text);
@@ -111,7 +111,7 @@ export class Explorers {
     const card = this.idea(cardId);
     if (isPausing(card)) return this.pauseTakenBack(cardId);
     if (!isPaused(card)) throw new BadRequest('notPaused', 'the agent is not paused');
-    // a reply already given left nothing unanswered: it goes on with what it did after it, its words no new reply
+    
     const unanswered = !!this.o.board.idea(cardId).unread;
     this.send(card, unanswered ? 'Answer them now.' : RESUMED, [], !unanswered, [], true);
   }
@@ -185,11 +185,11 @@ export class Explorers {
   interrupt(cardId: string, why: Unread['why'], paused = false) {
     const live = this.live.get(cardId);
     if (live) {
-      // a reply already given answered the turn's messages
+      
       const messages = [...(live.replied ? [] : live.current), ...live.queue];
       if (messages.length) this.o.board.setIdea(cardId, { unread: { why, messages } });
     } else {
-      // parked or dropped while paused: that is what the agent hears when it goes on
+      
       const { unread } = this.o.board.idea(cardId);
       if (unread?.why === 'paused') this.o.board.setIdea(cardId, { unread: { ...unread, why } });
     }
@@ -200,14 +200,14 @@ export class Explorers {
   resumeAll() {
     for (const i of this.o.board.items()) {
       if (i.state !== 'idea' || !i.idea?.discussion?.thinking) continue;
-      // about to pause after its reply, which the restart cut off: it stays paused, its words unanswered
+      
       if (isPausing(i)) {
         this.o.board.setIdea(i.id, { thinking: false });
         this.o.board.work(i.id, { hold: holdNow('paused') });
         this.o.board.log(i.id, 'state', 'owner', this.o.board.t.worker.pausedByOwner);
         continue;
       }
-      // with its repository not on the project, what it has not answered waits for the owner's next words
+      
       if (this.o.board.row(i.id).session_id && !i.repoDown) this.send(i, 'Seismic was restarted while you worked on your reply. Answer the owner’s last message now.');
       else {
         this.o.board.setIdea(i.id, { thinking: false });
@@ -232,13 +232,13 @@ export class Explorers {
 
   /** `owner`: the owner's words, which let a paused agent go on; what Seismic tells it waits with what it has not answered yet. */
   private send(card: Item, message: string, images: string[] = [], quiet = false, said: number[] = [], owner = false) {
-    // the owner's words let an agent about to pause after its reply go on, as they do a paused one
+    
     if (owner && this.o.board.holdOf(card.id)?.reason === 'pausing') this.pauseTakenBack(card.id);
     const live = this.live.get(card.id);
     if (live) {
-      // queued, it goes in with whatever else came, which may well need a reply
+      
       live.queue.push({ text: message, images, said });
-      // a turn waiting for its background work ended: the message goes in at once, and the turn answers it too
+      
       if (live.work.waiting) {
         live.work.stop();
         this.sendQueued(card.id, live, [...live.current]);
@@ -246,7 +246,7 @@ export class Explorers {
       return;
     }
     const row = this.o.board.row(card.id);
-    // what an interrupted turn left unanswered goes first
+    
     const { unread } = this.o.board.idea(card.id);
     if (row.hold && isPaused({ hold: row.hold })) {
       if (!owner) {
@@ -262,17 +262,17 @@ export class Explorers {
     const text = unread ? `${UNREAD_NOTE[unread.why]}\n\n${unread.messages.map((m) => m.text).join('\n\n')}\n\n---\n\n${message}` : message;
     const all = current.flatMap((m) => m.images);
     if (row.session_id) return this.launch(card, current, text, row.session_id, all, quiet);
-    // a planned card that became an idea brings the screenshots of its task
+    
     const shots = this.o.imageFiles?.(card.images) ?? [];
     this.launch(card, current, text, undefined, [...shots, ...all], quiet, { shots, said: current.flatMap((m) => m.said) });
   }
 
   private launch(card: Item, current: Message[], message: string, resume: string | undefined, images: string[], quiet = false, start?: { shots: string[]; said: number[] }) {
-    // where it reads, first: without its repository on the project, nothing starts
+    
     const cwd = this.o.pathFor(card);
     const preferences = this.o.preferences?.() ?? '';
     const live: Live = { session: undefined!, current, queue: [], replied: false, lastText: '', quiet, preferences, work: undefined! };
-    // without a sign of the agent for a long while (the work ended, and nothing woke it), its turn is over
+    
     live.work = new BackgroundWait(
       () => {
         if (this.live.get(card.id) === live) this.turnOver(card.id, live);
@@ -296,7 +296,7 @@ export class Explorers {
         setting: resume ? this.o.board.sessionSetting(card.id) : undefined,
         options: {
           at: { card: card.id },
-          // the idea's agent waits for the usage limit, on the card, and the owner's words wait with it
+          
           onLimit: (until, retry) => this.o.board.waitsForLimit({ card: card.id }, until, retry),
         },
       },
@@ -309,7 +309,7 @@ export class Explorers {
   private onEvent(cardId: string, live: Live, e: AgentEvent) {
     if (this.live.get(cardId) !== live) return;
     if (e.type === 'background') return live.work.changed(e.tasks.length);
-    // a turn may also start without a message from Seismic (a finished background command)
+    
     live.work.stop();
     switch (e.type) {
       case 'session':
@@ -317,11 +317,11 @@ export class Explorers {
         break;
       case 'text':
         live.lastText = e.text;
-        // what it thinks on the way to its reply; words after the reply only close the turn
+        
         if (!live.replied && e.text.trim()) this.o.board.log(cardId, 'say', 'explorer', clip(e.text.trim(), 12000));
         break;
       case 'tool':
-        // its own tools show in the conversation and the brief, not as reading
+        
         if (!e.name.startsWith('mcp__') && !OWN_TOOLS.includes(e.name)) this.o.board.log(cardId, 'activity', 'explorer', describeTool(e.name, e.input, this.o.board.t));
         break;
       case 'error':
@@ -331,17 +331,17 @@ export class Explorers {
         break;
       case 'idle': {
         live.work.running = e.background ?? 0;
-        // its background work still runs (a download, a watcher), and it wakes the agent when it ends:
-        // the idea shows it at work until then, and it goes on from there; its words so far are no reply
+        
+        
         if (live.work.running > 0) {
           if (live.replied) {
-            // a reply it gave (that it waits for the work, say) answered the turn's messages
+            
             live.current = [];
             live.said = undefined;
             live.replied = false;
           } else if (live.lastText.trim()) live.said = live.lastText.trim();
           live.lastText = '';
-          // what the owner said meanwhile goes in now, and the turn answers it too
+          
           if (live.queue.length) this.sendQueued(cardId, live, [...live.current]);
           else live.work.start();
           return;
@@ -354,14 +354,14 @@ export class Explorers {
 
   /** The agent's turn is over: what it said last is the reply, and the owner is next, unless more waits for it. */
   private turnOver(cardId: string, live: Live) {
-    // a turn without reply still said something: that is the reply, unless the turn was for the brief only
+    
     const said = live.lastText.trim() || live.said;
     if (!live.replied && !live.quiet && said) this.answer(cardId, said);
     live.replied = false;
     live.lastText = '';
     live.said = undefined;
     live.quiet = false;
-    // the owner asked it to pause once its reply was given: what was said meanwhile waits for them to let it go on
+    
     if (this.o.board.holdOf(cardId)?.reason === 'pausing') {
       live.current = [];
       this.interrupt(cardId, 'paused', true);
@@ -417,7 +417,7 @@ const OWN_TOOLS = ['reply', 'update_brief', 'plan_prototypes', 'plan_split', 'pl
 
 
 
-/** How the agent opens the discussion of an idea the owner wrote, or one a worker proposed. */
+
 const OPENING =
   'The owner wrote this as a card to be built, then chose to discuss it first. They have not said more yet: what the card says above is where the conversation starts. Look into it and open the discussion.';
 
@@ -430,12 +430,12 @@ const OPENING_PROPOSED =
 const OPENING_PROPOSED_TASK =
   "A worker proposed this as a task to build while on another card, and the owner chose to discuss it as an idea first. They have not said more yet: what the card says above is where the conversation starts, with what the owner decided on the proposal and the questions still open. Look into it and open the discussion.";
 
-/** The owner let the paused agent go on after it had replied already. */
+
 const RESUMED =
   'The owner paused you after your reply and has now let you go on. Pausing ended your session at once: whatever you had running was stopped with it (a command still running shows exit code 137). Go on where you stopped.';
 
 
-/** How the agent hears the messages an interrupted turn left unanswered. */
+
 const UNREAD_NOTE: Record<Unread['why'], string> = {
   parked: 'The owner parked the idea while you were working on a reply, which ended that turn. These messages are still unanswered; take them in with the one after them:',
   dropped: 'The owner dropped the idea while you were working on a reply, which ended that turn. These messages are still unanswered; take them in with the one after them:',

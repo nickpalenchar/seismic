@@ -11,7 +11,7 @@ import { checkShared } from './schema';
 import type { RepoAdapter, RepoInfo } from './types';
 import { messageOf } from '../core/text';
 
-/** Where a repository kept an adapter module before its settings said it all (`hasAdapterModule`). */
+
 export const REPO_ADAPTER_DIR = '.obeya/adapter';
 
 /** Seismic's defaults for the repository: what it runs on where its settings say nothing. */
@@ -23,7 +23,7 @@ export const defaultsFor = (repo: RepoInfo): RepoAdapter => ({ ...generic, land:
  */
 export const detectedLand = (repo: RepoInfo): RepoAdapter['land'] => (repo.remote && onGitHub(repo.remote) ? 'pr' : 'main');
 
-/** The fields of the settings read each time they are asked for: all but `workstations`. */
+
 const LIVE = SHARED_FIELDS.filter((f) => f !== 'workstations');
 
 /**
@@ -58,7 +58,7 @@ export function repoValues(repo: RepoInfo, clones = false, shared: SharedSetting
   const a = defaultsFor(repo);
   const value = <K extends Exclude<keyof SharedSettings, NestedSetting>, T>(v: T, field: K) =>
     shared[field] !== undefined ? { value: shared[field] as T, source: 'repository' as const } : { value: v, source: field === 'land' ? ('detected' as const) : ('default' as const) };
-  // a field of `app` or `demo` from the repository, else none
+  
   const nested = <K extends NestedSetting, F extends (typeof NESTED_SETTINGS)[K][number], T>(k: K, f: F, none: T) => {
     const v = (shared[k] as Record<string, unknown> | undefined)?.[f];
     return v !== undefined ? { value: v as T, source: 'repository' as const } : { value: none, source: 'default' as const };
@@ -85,18 +85,18 @@ export function repoValues(repo: RepoInfo, clones = false, shared: SharedSetting
   };
 }
 
-/**
- * The folder a repository keeps what Seismic reads from it in (settings, theme, remote helpers).
- * `.seismic/` is read first, then `.obeya/` (migration shim: other people's repositories are never
- * moved); Seismic writes to whichever exists, a repository with neither gets `.seismic/`.
- */
+
+
+
+
+
 export const REPO_DIR = '.seismic';
 export const OLD_REPO_DIR = '.obeya';
 export const REPO_DIRS = [REPO_DIR, OLD_REPO_DIR];
 
-/** Where a repository keeps its settings for everyone (`SharedSettings`), like `.vscode/settings.json`: the file a repository with none gets. */
+
 export const REPO_SETTINGS_FILE = `${REPO_DIR}/settings.json`;
-/** `REPO_SETTINGS_FILE` in each folder that may hold it, in the order they are read. */
+
 export const REPO_SETTINGS_FILES = REPO_DIRS.map((d) => `${d}/settings.json`);
 
 /**
@@ -108,33 +108,33 @@ export function settingsFileOf(has: { file: (f: string) => boolean; dir: (d: str
   return REPO_SETTINGS_FILES.find(has.file) ?? `${REPO_DIRS.find(has.dir) ?? REPO_DIR}/settings.json`;
 }
 
-/** A repository's `.seismic/settings.json` (else `.obeya/settings.json`) as read: its settings that count, the file's own object, and what does not count. */
+
 export interface SharedRead {
   settings?: SharedSettings;
-  /** The object the file holds, every field as it is; none where there is no file or it is no JSON object. */
+  
   raw?: Record<string, unknown>;
   problems: string[];
-  /** The repository's own Claude Code configuration on the default branch, by file (`CLAUDE_PATHS`); none where it has none. */
+  
   claude?: Record<string, ClaudeFile>;
-  /** The repository's own Codex configuration on the default branch, by file (`CODEX_PATHS`); none where it has none. */
+  
   codex?: Record<string, ClaudeFile>;
-  /** The settings file, relative to the repository (`settingsFileOf`): where problems are found and a change goes. */
+  
   file?: string;
-  /** The git tree of `.seismic/` (else `.obeya/`) on the default branch, which its theme is read from (theme.ts); none where it has none, or the repository is a folder without git. */
+  
   seismicTree?: string;
 }
 
-/**
- * Where a repository keeps its own Claude Code configuration: an agent's session working in it reads
- * it and runs what it names outside the permission checks (the hooks, MCP servers and helpers of
- * `.claude/settings.json`; the hooks and MCP servers of its skills, commands and subagents; `.mcp.json`).
- */
+
+
+
+
+
 export const CLAUDE_PATHS = ['.claude', '.mcp.json'];
 
-/**
- * Where a repository keeps its own Codex configuration: a Codex session that loads it runs what it
- * names (its `config.toml`'s hooks and MCP servers, its rules) outside Codex's sandbox and approvals.
- */
+
+
+
+
 export const CODEX_PATHS = ['.codex'];
 
 /** The files of `files` (by path, sorted) as the configuration of each harness, those of none left out. */
@@ -206,8 +206,8 @@ export function* readingShared(commit: string): GitSteps<SharedRead> {
   const text = found[REPO_SETTINGS_FILES.indexOf(file)];
   const tree = trees.find((t) => t != null);
   const read: SharedRead = { ...(text != null ? parseShared(text, file) : { problems: [] }), file, ...(tree ? { seismicTree: tree } : {}) };
-  // `<mode> <type> <object>\t<path>`: a blob's text is read (trimmed, for reading: its object tells
-  // contents apart), a submodule's commit stands for what it holds
+  
+  
   const entries = (listed ?? '')
     .split('\0')
     .flatMap((e) => {

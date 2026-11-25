@@ -1,7 +1,7 @@
-/**
- * Writes the text of the page on which a demo is shared, for a demo handed over without one: a short
- * session reads the worker's summary and writes the page, choosing the tags the page lacks along with it.
- */
+
+
+
+
 import { z } from 'zod';
 import { LANGUAGE_NAMES } from '../../../../core/locale';
 import type { Demo, DemoPage, Item, PageTags } from '../../../../core/types';
@@ -15,14 +15,14 @@ export const plainText = (s: string) => s.replace(/[*_`#>]/g, '').replace(/\s+/g
 
 export interface WriteDemoPageRun {
   runtime: AgentRuntime;
-  /** Where the session reads: the card's repository. */
+  
   cwd: string;
   card: Item;
   demo: Demo;
-  /** The worker's summary, or what stands in for it. */
+  
   summary: string;
   language: PageLanguage;
-  /** The tags the page lacks for the site's vocabulary, chosen along with the text; none where it lacks none. */
+  
   lacking: PageTags | null;
 }
 

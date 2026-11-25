@@ -1,12 +1,12 @@
-// Where a demo video or a screenshot stands when zoomed (detail.tsx useZoom, shots.tsx Lightbox),
-// and where it grows out of: the video as large as the window allows, short of full screen, with
-// the microphone below it still in view.
 
-/** How long growing and shrinking takes, and how it moves. */
+
+
+
+
 export const ZOOM_MS = 380;
 export const ZOOM_EASE = 'cubic-bezier(.3,.9,.3,1)';
 
-/** Room the video leaves to the window's edge, and below it for the microphone. */
+
 export const ZOOM_MARGIN = 32;
 export const ZOOM_BELOW = 112;
 

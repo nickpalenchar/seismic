@@ -1,8 +1,8 @@
-// The languages of Seismic's owner, both chosen in its configuration dialog (`settings.json` under
-// Seismic's home): the interface's, else the system's, which the server's own words are in; and the
-// conversation's, else English, which agents write the owner in unless a standing preference
-// names another language. A demo is narrated in it unless the demo settings name another. Plain Node, like
-// the director: it runs without Seismic too.
+
+
+
+
+
 
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -22,7 +22,7 @@ function chosen(home: string, key: 'language' | 'conversationLanguage'): Languag
   return LANGUAGES.find((l) => l === o[key]);
 }
 
-/** The owner's settings as last read, by file, with the file's state then: the server asks for the language with every text it writes. */
+
 const read = new Map<string, { at: string; settings: Record<string, unknown> }>();
 
 /** Seismic wrote the owner's settings: they are read again, even where the file's time did not move on (a coarse clock). */

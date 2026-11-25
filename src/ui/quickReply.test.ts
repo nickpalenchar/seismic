@@ -14,7 +14,7 @@ async function sent(i: Item) {
     for (const q of quickReplies(i)) {
       let a: CardAction | 'remove' = 'remove';
       api.act = async (_id, x) => void (a = x);
-      // a deletion goes out as the card's DELETE
+      
       const fetched = globalThis.fetch;
       globalThis.fetch = (async (_url: string, init: RequestInit) => {
         if (init.method === 'DELETE') a = 'remove';

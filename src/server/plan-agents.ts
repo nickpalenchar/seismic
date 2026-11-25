@@ -1,5 +1,5 @@
-// Plan agents: one long-lived session per plan that answers the owner's questions about it
-// from the plan doc, the decision log and the repository, with a worker's tools to check what it says.
+
+
 
 import type { AgentAt, Item } from '../core/types';
 import { oneAtATime } from '../core/one-at-a-time';
@@ -10,16 +10,16 @@ import type { AgentRuntime, AgentTool } from './runtime';
 import { TO_SEISMIC } from './to-seismic';
 
 export class PlanAgents {
-  /** Questions about one plan are answered one after the other, in one session. */
+  
   private queues = new Map<string, Promise<unknown>>();
 
   constructor(
     private board: Board,
     private runtime: AgentRuntime,
-    /** The repository's read checkout, which the plan docs are read from (read-tree.ts). */
+    
     private repoPath: () => string,
     private preferences: () => string = () => '',
-    /** The workers' permission mode, which the plan agent runs in too. */
+    
   ) {}
 
   /**

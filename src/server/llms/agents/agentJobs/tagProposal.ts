@@ -1,10 +1,10 @@
-/**
- * Proposes a vocabulary of tags for a demo site ("Suggest tags"): a read-only session reads the
- * repository (how the app is built: its areas, its users) and the cards of the projects it is on
- * (finished and open, archived ones too, with what their demos show), and proposes the vocabulary,
- * which the dialog puts into the field for the owner to change and save. It runs in the background,
- * so the dialog may close meanwhile and take the proposal in when it opens again.
- */
+
+
+
+
+
+
+
 
 import { z } from 'zod';
 import { LANGUAGE_NAMES, type Language } from '../../../../core/locale';
@@ -15,15 +15,15 @@ import { BadRequest } from '../../../board';
 import { SeismicJob } from '../seismicJob';
 import type { AgentRuntime, AgentTool } from '../../../runtime';
 
-/** A card as the session reads it. */
+
 export interface TagCard {
   title: string;
-  /** Finished (its work landed, or needed no change), at work or waiting, or not started. */
+  
   status: 'done' | 'open' | 'planned';
   task: string;
-  /** What its worker handed over, if it did. */
+  
   summary?: string;
-  /** Its demos, the latest first: each one's page title and text, else its chapters. */
+  
   demos: string[];
 }
 
@@ -44,18 +44,18 @@ export function tagCards(items: Item[], summary: (id: string) => string | undefi
 
 export interface TagRun {
   runtime: AgentRuntime;
-  /** The repository's checkout, where the session reads. */
+  
   cwd: string;
-  /** The language of the site's pages, which the tags are in. */
+  
   language: Language;
-  /** The owner's language, for why. */
+  
   owner: Language;
-  /** The vocabulary the field holds now, if any. */
+  
   current?: PageTags;
   cards: TagCard[];
 }
 
-/** The longest brief: the newest cards first, the rest left out. */
+
 const BRIEF_MAX = 80_000;
 
 /** Proposes the vocabulary of tags; keeps its proposal in `out`, and in `tried` why a try was refused. */

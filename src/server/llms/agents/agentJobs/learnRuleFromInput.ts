@@ -1,7 +1,7 @@
-/**
- * Learns a rule from one thing the owner said (to an agent, in a card's text, to the Koordinator):
- * one session reads it and proposes a rule where it holds a lasting preference.
- */
+
+
+
+
 import { z } from 'zod';
 import type { Item } from '../../../../core/types';
 import type { Board } from '../../../board';
@@ -11,24 +11,24 @@ import { reposParam } from '../../prompts/whereRulesGo';
 import { type JobRun, SeismicJob } from '../seismicJob';
 import { ownerFacing, proposalTargets, ruleLines } from './ruleProposals';
 
-/**
- * What the owner said that may hold a lasting preference: to a worker (answer, note, feedback), in
- * an idea's discussion, to the Koordinator in conversation (a command it carried out, or a question
- * or remark it replied to), or in the text of a card they wrote.
- */
+
+
+
+
+
 export type OwnerInput = 'answer' | 'note' | 'feedback' | 'idea' | 'command' | 'talk' | 'card';
 
-/** What the learner reads an input with. */
+
 export interface InputContext {
-  /** The question the owner answered. */
+  
   question?: string;
-  /** The Koordinator's reply to what the owner said to it. */
+  
   reply?: string;
-  /** The card's text before the owner wrote in it: a proposal's, a follow-up's. */
+  
   before?: string;
 }
 
-/** How the learner calls each kind of input. */
+
 const INPUTS: Record<OwnerInput, string> = {
   answer: 'answer',
   note: 'note to the worker',
@@ -42,16 +42,16 @@ const INPUTS: Record<OwnerInput, string> = {
 export interface LearnRuleFromInputRun {
   runtime: AgentRuntime;
   board: Board;
-  /** Where the session reads. */
+  
   cwd: string;
-  /** The language the proposal is written in, with the clause that standing preferences may name another. */
+  
   language: string;
-  /** The card the input concerns, or the one open; none in a conversation without one. */
+  
   card: Item | null;
   kind: OwnerInput;
   text: string;
   context: InputContext;
-  /** What surrounded the input: the card's text, what the owner said lately, the agent's last message. */
+  
   around: string[];
   onLimit?: JobRun['onLimit'];
 }
@@ -62,7 +62,7 @@ class LearnRuleFromInputJob extends SeismicJob {
   readonly name = 'learnRuleFromInput';
   readonly description = 'Proposes a rule where something the owner said holds a lasting preference.';
   private proposed = false;
-  /** The recorded rules as the session numbered them, and the proposals that already wait. */
+  
   private readonly rules;
   private readonly open;
 

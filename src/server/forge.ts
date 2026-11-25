@@ -1,5 +1,5 @@
-// Where pull requests live. GitHub through the `gh` CLI, Forgejo and Gitea through their API
-// (`forgejo.ts`); tests use a fake.
+
+
 
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -11,27 +11,27 @@ import { spawnOutput } from './spawn';
 export interface PrStatus {
   state: 'OPEN' | 'MERGED' | 'CLOSED';
   mergeable: 'MERGEABLE' | 'CONFLICTING' | 'UNKNOWN';
-  /**
-   * GitHub's verdict on merging now (`mergeStateStatus`): `CLEAN` when nothing stands in the way,
-   * `BLOCKED` while branch protection waits for something (an approval, a required check), `BEHIND`,
-   * `DIRTY`, `UNSTABLE`, `DRAFT`, `UNKNOWN` while GitHub still works it out.
-   */
+  
+
+
+
+
   mergeState?: string;
-  /** The commit the checks ran on. */
+  
   head: string;
-  /**
-   * When the PR's own changes last changed: the committer date of its newest commit that is not a
-   * merge (merging the base in brings changes reviewed there). A review written before it has not
-   * seen them.
-   */
+  
+
+
+
+
   changedAt?: string;
   checks: { name: string; state: 'pending' | 'success' | 'failure'; url?: string }[];
-  /**
-   * Conversation comments, review summaries and inline review comments, oldest first. An inline
-   * comment's `round` is the review it came with; a reply names its thread's first comment in
-   * `replyTo`, and that first comment says whether the thread is `resolved`. `edited`: when a
-   * conversation comment was last changed (a review bot rewrites its summary each round).
-   */
+  
+
+
+
+
+
   comments: {
     id: string;
     author: string;
@@ -44,56 +44,56 @@ export interface PrStatus {
     round?: string;
     replyTo?: string;
     resolved?: boolean;
-    /** A review's verdict, where it gives one: approved, changes requested, or such a review dismissed since. */
+    
     verdict?: 'approved' | 'changes' | 'dismissed';
   }[];
-  /** Who opened the PR (the owner's account; the worker's own replies carry it too; on a review card, the contributor's). */
+  
   author: string;
-  /** The account Seismic acts as on the forge (the owner's), where the forge says: on a review card, comments of its own. */
+  
   viewer?: string;
-  /** Once merged: the commit the merge put on the base branch. */
+  
   mergeCommit?: string;
 }
 
-/**
- * A forge's calls go over the network and take seconds when it is slow: each runs in the background,
- * so the server answers meanwhile.
- */
+
+
+
+
 export interface Forge {
   status(cwd: string, url: string): Promise<PrStatus>;
-  /** The PR's description. */
+  
   body(cwd: string, url: string): Promise<string>;
-  /** Replaces the PR's description. */
+  
   setBody(cwd: string, url: string, body: string): Promise<void>;
-  /**
-   * Merges the PR, if its head is still `head`, the way the repository allows; throws with GitHub's
-   * reason when it cannot. Returns the commit the merge put on the base branch, where GitHub says.
-   */
+  
+
+
+
   merge(cwd: string, url: string, head: string): Promise<string | void>;
-  /** Opens a pull request from the pushed branch `head` onto `base`; returns its URL. */
+  
   open(cwd: string, pr: { base: string; head: string; title: string; body: string }): Promise<string>;
-  /** The URL of pull request `n` of the repository whose checkout `cwd` is (its `origin`). */
+  
   urlOf(cwd: string, n: number): Promise<string>;
-  /** A pull request someone outside opened, as a review card takes it on. */
+  
   contribution(cwd: string, url: string): Promise<ContributionInfo>;
-  /** Writes `body` as a comment in the PR's conversation; returns the comment's URL where the forge says. */
+  
   comment(cwd: string, url: string, body: string): Promise<string | void>;
-  /** A review of the PR that asks for changes (on GitHub "Request changes"), with `body`; returns its URL where the forge says. */
+  
   requestChanges(cwd: string, url: string, body: string): Promise<string | void>;
-  /** Whether the repository at `cwd`'s origin is public, as its forge says; null where it cannot tell. */
+  
   visibility?(cwd: string): Promise<'public' | 'private' | null>;
 }
 
-/** A pull request a review card takes on (`Forge.contribution`). */
+
 export interface ContributionInfo {
   title: string;
   author: string;
   state: PrStatus['state'];
-  /** Its head commit. */
+  
   head: string;
-  /** Maintainers may push to its branch (GitHub's `maintainerCanModify`, Forgejo's `allow_maintainer_edit`). */
+  
   canModify: boolean;
-  /** Its branch's repository (a fork's, usually) and the branch, for pushing onto it. */
+  
   headRepo?: string;
   headRef?: string;
 }
@@ -111,14 +111,14 @@ export function parsePrUrl(
   github: (url: string) => boolean = onGitHub,
 ): { forge: 'github' | 'forgejo'; base: string; host: string; owner: string; repo: string; number: number; url: string } | null {
   const m = /^(https?:\/\/[^/\s]+(?:\/[^/\s]+)*?)\/([\w.-]+)\/([\w.-]+)\/pulls?\/(\d+)\/?$/.exec(url.trim());
-  // a login, query or fragment in the server's address (`https://elsewhere#@github.com`) would let
-  // the host it is told by differ from the one it is sent to
+  
+  
   if (!m || /[@?#\\]/.test(m[1]!) || !URL.canParse(m[1]!)) return null;
   const [, , owner, repo, n] = m as unknown as [string, string, string, string, string];
   const at = new URL(m[1]!);
   const host = at.host;
   const number = Number(n);
-  // told by the host it goes to, as the URL parser reads it
+  
   if (github(`${at.protocol}//${host}`)) {
     return at.pathname === '/' ? { forge: 'github', base: `https://${host}`, host, owner, repo, number, url: `https://${host}/${owner}/${repo}/pull/${number}` } : null;
   }
@@ -185,10 +185,10 @@ export const routedForge = (github: Forge, forgejo: Forge, origin: (cwd: string)
   };
 };
 
-/**
- * Where gh runs: the directory, and the GitHub host (github.com or an Enterprise server) and owner
- * of the repository it works on, where known.
- */
+
+
+
+
 export interface GhAt {
   cwd: string;
   host?: string;
@@ -205,20 +205,20 @@ export function githubRepo(remote: string, hosts: () => string[] = ghHosts): { h
   if (!host || !onGitHub(url, hosts)) return undefined;
   const path = url.includes('://') ? url.replace(/^[a-z][a-z0-9+.-]*:\/\/[^/]*\//i, '') : url.replace(/^[^:]*:\/?/, '');
   const owner = /^([^/]+)\/[^/]+?\/?$/.exec(path)?.[1];
-  // ssh.github.com, GitHub's SSH over port 443, is github.com to gh
+  
   return owner ? { host: host.endsWith('.github.com') ? 'github.com' : host, owner } : undefined;
 }
 
 
-/** How long a token gh keeps for an account is taken as it stands. */
+
 const TOKEN_TTL = 10 * 60_000;
-/** By gh program, host and account: its token as gh hands it out (asked once for calls side by side), and when it was asked. */
+
 const tokens = new Map<string, { token: Promise<string | null>; at: number }>();
 
-/**
- * How long one gh call may take before it counts as failed: GitHub slow to answer holds up only the
- * card it reads for, and only that long.
- */
+
+
+
+
 const GH_TIMEOUT = 60_000;
 
 /**
@@ -235,7 +235,7 @@ async function ghEnv(program: string, { host, owner }: Omit<GhAt, 'cwd'>, timeou
     const key = `${program}\n${host}\n${owner}`;
     let known = tokens.get(key);
     if (!known || Date.now() - known.at > TOKEN_TTL) {
-      // without the tokens in the environment, which gh would hand back instead of the account's own
+      
       const { GH_TOKEN: _, GITHUB_TOKEN: __, GH_ENTERPRISE_TOKEN: ___, GITHUB_ENTERPRISE_TOKEN: ____, ...plain } = process.env;
       const asked = spawnOutput([program, 'auth', 'token', '--hostname', host, '--user', owner], { env: plain, stdin: 'ignore', timeout }).then(
         (r) => (r.code === 0 && r.stdout.trim()) || null,
@@ -248,7 +248,7 @@ async function ghEnv(program: string, { host, owner }: Omit<GhAt, 'cwd'>, timeou
   }
   const env: NodeJS.ProcessEnv = { ...process.env, GH_HOST: host };
   if (token) {
-    // the account's token in place of any the environment has for the host
+    
     const [name, other] = enterpriseServer(host) ? ['GH_ENTERPRISE_TOKEN', 'GITHUB_ENTERPRISE_TOKEN'] : ['GH_TOKEN', 'GITHUB_TOKEN'];
     delete env[other];
     env[name] = token;
@@ -331,7 +331,7 @@ export const makeGhForge = (
   async status(cwd, url) {
     const ref = prRef(url);
     const at = atPr(cwd, url);
-    // side by side: each is a round trip to GitHub
+    
     const [pr, inline, threads] = await Promise.all([
       run(at, 'pr', 'view', ghUrl(url), '--json', 'state,mergeable,mergeStateStatus,headRefOid,mergeCommit,author,statusCheckRollup,comments,reviews'),
       run(at, 'api', `repos/${ref.owner}/${ref.repo}/pulls/${ref.number}/comments`, '--paginate'),
@@ -359,7 +359,7 @@ export const makeGhForge = (
   },
   async open(cwd, pr) {
     const at: GhAt = { cwd, ...(await repoOf(cwd)) };
-    // gh prints the new pull request's URL last
+    
     const out = await withBodyFile(pr.body, (file) => run(at, 'pr', 'create', '--base', pr.base, '--head', pr.head, '--title', pr.title, '--body-file', file));
     return out.trim().split('\n').at(-1)!.trim();
   },
@@ -390,13 +390,13 @@ export const makeGhForge = (
     };
   },
   async comment(cwd, url, body) {
-    // gh prints the new comment's URL
+    
     const out = await withBodyFile(body, (file) => run(atPr(cwd, url), 'pr', 'comment', ghUrl(url), '--body-file', file));
     return out.trim().split('\n').at(-1)?.trim() || undefined;
   },
   async requestChanges(cwd, url, body) {
     const ref = prRef(url);
-    // through the API, which names the review's URL; `gh pr review` does not
+    
     const out = await withBodyFile(body, (file) =>
       run(atPr(cwd, url), 'api', '-X', 'POST', `repos/${ref.owner}/${ref.repo}/pulls/${ref.number}/reviews`, '-f', 'event=REQUEST_CHANGES', '-F', `body=@${file}`, '--jq', '.html_url'),
     );
@@ -405,15 +405,15 @@ export const makeGhForge = (
   async merge(cwd, url, head) {
     const ref = prRef(url);
     const at = atPr(cwd, url);
-    // the repository's own merge methods (some allow squash only); squash first where it allows several
+    
     const allows = JSON.parse(await run(at, 'api', `repos/${ref.owner}/${ref.repo}`, '--jq', '{squash: .allow_squash_merge, merge: .allow_merge_commit, rebase: .allow_rebase_merge}')) as Record<string, boolean>;
     const method = (['squash', 'merge', 'rebase'] as const).find((m) => allows[m] !== false) ?? 'squash';
-    // no --delete-branch: that also switches branches in the workstation; the repository deletes merged branches or not
+    
     await run(at, 'pr', 'merge', ghUrl(url), `--${method}`, '--match-head-commit', head);
     try {
       return (await run(at, 'pr', 'view', ghUrl(url), '--json', 'mergeCommit', '--jq', '.mergeCommit.oid')).trim() || undefined;
     } catch {
-      // merged all the same: the first fetch after it stands in for the commit (WorkerSupervisor.merged)
+      
       return undefined;
     }
   },
@@ -433,8 +433,8 @@ function ghStatus(prOut: string, inlineOut: string, threadsOut: string): PrStatu
     pull_request_review_id?: number | null;
     in_reply_to_id?: number | null;
   }[];
-  // whether a thread is resolved and when a comment was last changed only GraphQL says; a thread
-  // is known by its first comment
+  
+  
   const threads = JSON.parse(threadsOut) as {
     data?: {
       viewer?: { login: string };
@@ -452,7 +452,7 @@ function ghStatus(prOut: string, inlineOut: string, threadsOut: string): PrStatu
   );
   const changedAt = (threads.data?.repository?.pullRequest?.commits?.nodes ?? []).findLast((n) => n.commit.parents.totalCount < 2)?.commit.committedDate;
   const updated = new Map((threads.data?.repository?.pullRequest?.comments?.nodes ?? []).map((c) => [c.id, c.updatedAt]));
-  // an edit within a minute of writing is part of writing it
+  
   const edited = (id: string, at?: string) => {
     const u = updated.get(id);
     return u && at && Date.parse(u) - Date.parse(at) > 60_000 ? { edited: u } : {};
@@ -490,7 +490,7 @@ function ghStatus(prOut: string, inlineOut: string, threadsOut: string): PrStatu
       ...pr.reviews
         .map((r) => ({ id: `r${r.id}`, author: r.author.login, body: r.body, ...(r.submittedAt ? { at: r.submittedAt } : {}), ...verdictOf(r.state) }))
         .filter((r) => r.body.trim() || r.verdict),
-      // the REST API names an app `<name>[bot]`, `gh pr view` plain `<name>`: one name for both
+      
       ...inline.map((c) => ({
         id: `i${c.id}`,
         author: c.user.login.replace(/\[bot\]$/, ''),
@@ -552,7 +552,7 @@ export function reviewOf(s: PrStatus, skip: string[] = [], self = s.author): PrR
   for (const c of shown) {
     const reply = { author: c.author, ...mine(c.author), body: readable(c.body), at: c.at ?? '' };
     if (c.replyTo) threads.get(c.replyTo)?.replies.push(reply);
-    // a comment rewritten since stands where it was last changed
+    
     else if (!c.id.startsWith('i')) entries.push({ ...reply, ...(c.edited ? { at: c.edited, edited: true } : {}), ...(c.url ? { url: c.url } : {}) });
   }
   for (const r of rounds.values()) r.at = r.threads.reduce((a, t) => (t.at && t.at < a ? t.at : a), r.at);
@@ -574,7 +574,7 @@ export function waitsOf(s: PrStatus, skip: string[] = []): PrWait[] {
   else if (s.mergeState === 'BEHIND') waits.push('behind');
   else if (s.mergeState === 'DRAFT') waits.push('draft');
   else if (s.mergeState === 'BLOCKED') waits.push('protection');
-  // UNSTABLE: a check not passed, which the checks below name where they hold it
+  
   else if (s.mergeable !== 'MERGEABLE' || (s.mergeState !== 'CLEAN' && s.mergeState !== 'HAS_HOOKS' && !(s.mergeState === 'UNSTABLE' && s.checks.some((c) => c.state !== 'success'))))
     waits.push('forge');
   if (s.checks.some((c) => c.state === 'failure')) waits.push('checksFailed');
@@ -636,7 +636,7 @@ export function requestOf(s: PrStatus, skip: string[] = []): { at: string; await
 /** When the author last asked for another look (`requestOf`); empty where they never did. */
 export const lastAsked = (s: PrStatus, skip: string[] = []) => requestOf(s, skip)?.at ?? '';
 
-/** Below this share of a reviewer's confidence (4 of 5), Seismic leaves the merge to the owner. */
+
 export const MIN_CONFIDENCE = 0.8;
 
 /** Whether a reviewer's comment is a verdict that lets the PR go: an approval, or a confidence of at least 4/5. */
@@ -689,7 +689,7 @@ const reviewers = (s: PrStatus, skip: string[]) => s.comments.filter((c) => c.au
 const latest = (a: string, b?: string) => (b && b > a ? b : a);
 
 const MAX_BODY = 3000;
-/** Where `readable` took a part out. */
+
 const GONE = '\u0000';
 
 /**
@@ -713,7 +713,7 @@ export function readable(body: string): string {
     .replace(/&#39;/g, "'")
     .replace(/&amp;/g, '&')
     .replace(/\\([\\`*_{}\[\]()#+\-.!|])/g, '$1');
-  // headings become bold lines; a heading whose section went (a diagram, say) goes with it
+  
   const lines = t.split('\n').map((l) => l.trimEnd());
   const out: string[] = [];
   for (const [i, line] of lines.entries()) {

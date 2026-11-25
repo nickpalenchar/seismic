@@ -1,7 +1,7 @@
-/**
- * The worker's system prompt: who it is, how it talks to the owner through Seismic's tools, and the
- * rules it follows.
- */
+
+
+
+
 import { LANGUAGE_NAMES, ownersLanguage, repositoryLanguage } from '../../../../core/locale';
 import { type Item } from '../../../../core/types';
 import { TO_SEISMIC } from '../../../to-seismic';

@@ -1,10 +1,10 @@
-// Reusable, dependency-free server components for schema artifacts. They render once from data;
-// the output needs neither a client framework nor a network request to display its schema.
+
+
 import { describeChanges, columns, cut, diffModels, esc, relations, type EntityDiff, type FieldDiff, type SchemaChange, type Status, type Relation } from './schema-model.ts';
 import { SCHEMA_STYLE } from './schema-look.ts';
 import { DRAW } from './schema-draw.ts';
 
-// Only component output is markup; all ordinary strings and attributes are escaped here.
+
 class Markup {
   readonly html: string;
   constructor(html: string) { this.html = html; }

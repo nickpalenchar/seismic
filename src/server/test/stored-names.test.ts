@@ -1,4 +1,4 @@
-// The names stored in other places (repositories, git, browsers) from before the rename keep working beside the new ones.
+
 
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -44,7 +44,7 @@ describe('.seismic/ in repositories', () => {
     const kept = repo({ '.obeya/settings.json': '{ "checks": ["x"] }\n' });
     await commitShared(kept, { land: 'pr' });
     expect(readShared(kept).settings).toEqual({ land: 'pr', checks: ['x'] });
-    // a .seismic/ with only its theme: the settings stay in .obeya/settings.json
+    
     expect(await where({ '.seismic/theme.css': ':root{}', '.obeya/settings.json': '{}\n' })).toEqual(['.obeya/settings.json', '.seismic/theme.css']);
   });
 

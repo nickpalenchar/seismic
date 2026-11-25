@@ -1,9 +1,9 @@
-// Input and Textarea: the one look of a text field (shadcn/ui's, ours from then on). A field sunk a
-// little into its surface, a shade darker with a firmer edge, which comes up to the surface's own colour
-// while it is typed in. No container styles a field's look; layout (width, flex) belongs to the container,
-// which reaches a field through `[data-slot=input]`. `bare` is the field that is part of something else
-// (a title, a written answer, a search box with its own icon): no fill, edge or padding, the container
-// sets its size and type.
+
+
+
+
+
+
 
 import { cn } from 'cn';
 import type { ComponentProps } from 'react';

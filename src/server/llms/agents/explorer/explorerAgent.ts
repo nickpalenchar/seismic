@@ -1,9 +1,9 @@
-/**
- * The exploration agent: one session per idea, with a worker's tools, resumed for every message.
- * What it is (its role, model, prompt, tools) is defined here; the `Explorers` that runs the idea
- * hands in the idea's state as the context. It has no permission of its own: the harness follows the
- * owner's mode, as for the workers.
- */
+
+
+
+
+
+
 import type { AgentSetting, Item } from '../../../../core/types';
 import type { Language } from '../../../../core/locale';
 import { SeismicAgent } from '../seismicAgent';
@@ -15,23 +15,23 @@ import { explorerSystemPrompt } from './systemPrompt';
 import { type ExplorerHost, explorerTools } from './tools';
 
 export interface ExplorerContext {
-  /** The `Explorers` that runs the idea. */
+  
   host: ExplorerHost;
   cardId: string;
   live: Live;
-  /** The language the owner talks in by default, the interface's, and the repository's. */
+  
   conversation: Language;
   ui: Language;
   repository: Language;
-  /** The agent has the tool that passes the owner's words on to the Koordinator. */
+  
   toSeismic: boolean;
-  /** The owner's standing preferences, added to the instructions. */
+  
   preferences: string;
-  /** What the owner has said; a session from scratch is briefed first (`start`). */
+  
   message: string;
-  /** A session that starts from scratch: the card, the screenshots of its task, the messages this turn answers. */
+  
   start?: { card: Item; shots: string[]; said: number[] };
-  /** Where it shows and how it waits for a usage limit. */
+  
   options: SessionOptions;
   setting?: AgentSetting;
 }

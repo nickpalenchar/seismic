@@ -1,18 +1,18 @@
-// The unfolded card's shared looks (Tailwind on frost's tokens), for parts that several components
-// build: the row of decisions and the framed boxes the card's states put above it. The class names
-// before the utilities (`actions`, `question brief`) stay as hooks for code that finds the element.
+
+
+
 
 import { cn } from 'cn';
 
-/**
- * The card's row of decisions. Deleting stands apart from what moves the card on; beside the two-line
- * Start agent button the other buttons take its height. As the last part of the unfolded card it is
- * its foot (`panel-foot` in tailwind.css): in view while a long text scrolls under it.
- */
+
+
+
+
+
 export const actionsClass =
   'actions flex flex-wrap gap-2 mt-4 items-center [&>[data-slot=button][data-variant=danger]]:ml-auto has-[>.start-agent]:items-stretch [&:has(>.start-agent)>.snooze-box>[data-slot=button]]:flex-1 [.next-step+&]:mt-3 [.question.queue_&]:mt-2.5 [#panel_.content>&:last-child]:panel-foot phone:[&_[data-slot=button]]:min-h-[42px]';
 
-/** What a framed box on the card is about: each in the colour of what it is. */
+
 export type QuestionKind =
   | 'ask'
   | 'brief'
@@ -26,7 +26,7 @@ export type QuestionKind =
   | 'superseded';
 
 const kinds: Record<QuestionKind, string> = {
-  // an agent's questions, one after the other; in the conversation a turn of its own
+  
   ask: '[&_.ask-q+.ask-q]:mt-3 [&_.ask-q+.ask-q]:pt-2.5 [&_.ask-q+.ask-q]:border-t [&_.ask-q+.ask-q]:border-waiting/30 [&.flash]:animate-[msg-flash_2.4s_ease-out] [.talk_&]:m-0 [.talk_&]:max-w-[92%] [.talk_&]:py-2.5 [.talk_&]:px-3 [.talk_&]:text-base [.talk_&]:flex-none [.talk_&]:bg-waiting/9',
   brief: 'border-idea bg-idea/6 [&_.p-lead]:text-base [&_.p-list]:mt-1',
   'duplicate-notice': 'max-w-none border-proposal bg-proposal/7 [&_h4]:mb-1 [&_h4]:text-proposal [&>p]:m-0 [&_.duplicate-preview]:mt-3.5',
@@ -35,7 +35,7 @@ const kinds: Record<QuestionKind, string> = {
   proposal: 'border-dashed border-proposal',
   queue: 'border-planned bg-muted [--button-bg:var(--card)]',
   'repo-down': 'border-warning bg-warning/6',
-  // the settled part "Split off a task" builds, folded under the brief
+  
   settled: 'border-idea bg-idea/6 mt-2.5 [&>[data-slot=collapsible-trigger]]:font-semibold [&>[data-slot=collapsible-trigger]]:text-base',
   superseded: 'border-proposal bg-proposal/6',
 };
@@ -48,41 +48,41 @@ export const questionClass = (kind?: QuestionKind, className?: string) =>
     className,
   );
 
-/** The card's title, as text or as the field that edits it; smaller on the phone, over the phone's 16px for every field there. */
+
 export const titleClass =
   'p-title text-display mt-0.5 mb-1.5 leading-[1.12] [font-family:var(--font)] font-[650] tracking-[-.018em] phone:text-2xl!';
 
-/** The title's field: one line that wraps, clear of the panel's ✕. */
+
 export const titleFieldClass = cn(titleClass, 'text-display! block w-[calc(100%-40px)] resize-none overflow-hidden placeholder:font-normal placeholder:italic');
 
-/** The card's state line under its title, in the state's colour (`--c`, set per state with the card faces' rules). */
+
 export const stateClass =
   'p-state text-sm font-semibold text-c-strong [&_:is(.merge-mark,.restart-mark,.question-mark)]:align-[-1px] [&+.p-src]:mt-1';
 
-/** What the state line adds after it (who snoozed it, the agent's status line), quieter. */
+
 export const statusClass = 'p-status text-muted-foreground font-medium [&.conflict]:text-waiting-strong [&.conflict]:italic';
 
-/**
- * The task's text with its linked cards as pills in the line: it wraps as a text box does, grows with its
- * text and then scrolls; a proposal's grows with the text (detail.tsx) and leaves the reason below it in view.
- */
+
+
+
+
 export const bodyClass =
   'p-body block box-border w-full max-w-[76ch] min-h-[180px] mt-4 py-3 px-3.5 border border-border rounded-xs bg-card text-base leading-normal outline-none focus:border-muted-foreground resize-none whitespace-pre-wrap break-words max-h-[70vh] overflow-y-auto cursor-text [&.blank]:before:content-[attr(data-placeholder)] [&.blank]:before:text-muted-foreground [&.blank]:before:pointer-events-none [&.blank]:before:absolute [&_.smart-link]:cursor-default [&_.smart-link]:select-all [&_.smart-link]:align-[1px] [.split-main_&]:max-w-none [.c-field_&]:pr-10 [.dropping_&]:border-working [.dropping_&]:border-dashed [.dropping_&]:bg-working/6 [.proposal-grid_&]:min-h-[min(360px,calc(100vh-440px))] [.proposal-grid_&]:max-h-[calc(100vh-440px)] phone:[.proposal-grid_&]:min-h-[160px] phone:[.proposal-grid_&]:max-h-[50vh]';
 
-/** A small heading over a part of the card (the conversation, the plan's text, the findings). */
+
 export const headClass =
   'p-h mt-6 mb-1.5 text-2xs uppercase tracking-[.08em] text-muted-foreground [.split-talk_&]:mt-0 [.split-main_.p-plan_&]:mt-0';
 
-/**
- * The box around a conversation's messages (`Scroll`'s frame, `conversationList` inside it): under a
- * card's demo and pull request, scrolled to its end. In the card's column it takes the column's height;
- * the lane of a scrollbar that takes room stays whether it scrolls or not, else WebKit laid the text out
- * anew with each key typed, and the field jumped.
- */
+
+
+
+
+
+
 export const conversationBox =
   'conv flex flex-col max-h-[min(520px,60vh)] max-w-[100ch] [.split-talk_&]:flex-1 [.split-talk_&]:min-h-0 [.split-talk_&]:max-h-none [.split-talk_&]:max-w-none max-[760px]:[.split-talk_&]:min-h-[240px] max-[760px]:[.split-talk_&]:max-h-[min(520px,60vh)]';
 
-/** The messages in it, one under the other. */
+
 export const conversationList = 'talk py-1 px-1 flex flex-col gap-2';
 
 /** The options an agent's question offers (`single` as radio buttons, `multiple` as checkboxes), the owner's own answer last. */
@@ -103,6 +103,6 @@ export const choiceClass = ({ on, picked, other, alone }: { on?: boolean; picked
     alone && 'alone before:content-none',
   );
 
-/** The tag on the option the asking agent would pick. */
+
 export const pickTag = 'pick-tag inline-block ml-1.5 px-2 rounded-xs text-2xs font-bold leading-[18px] whitespace-nowrap text-idea-strong bg-idea/10';
 

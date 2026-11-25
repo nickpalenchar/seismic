@@ -65,7 +65,7 @@ test('a kill waits for the snapshot of a track queued before it, and ends what t
   const tracked = tracker.track();
   const killed = tracker.kill();
   await Bun.sleep(20);
-  expect(calls).toBe(2); // the kill has not taken its snapshot yet
+  expect(calls).toBe(2); 
   const spy = spyOnKill();
   try {
     release();
@@ -95,8 +95,8 @@ test('sessions that observe on the same tick share one snapshot; one asked durin
   release();
   await first;
   expect(a.observed()).toEqual([{ pid: 90001, born: 'a' }]);
-  // The roots were established in one snapshot; both tracks and the late caller share the next,
-  // in which only the caller that needs the unreadable process is refused.
+  
+  
   await expect(late).rejects.toThrow('denied');
   expect(asked).toEqual([[90001, 90002], [90001, 90002, 90003]]);
 });
@@ -118,7 +118,7 @@ test('snapshot timeouts are skipped until they last the whole window; other fail
   now = 30_000;
   await expect(observed(Promise.reject(timeout()))).rejects.toThrow('timed out');
   await observed(Promise.resolve());
-  await observed(Promise.reject(timeout())); // a snapshot that succeeded starts the window afresh
+  await observed(Promise.reject(timeout())); 
   await expect(observed(Promise.reject(new Error('Cannot inspect agent process ownership')))).rejects.toThrow('Cannot inspect');
 });
 
@@ -157,7 +157,7 @@ test('a reported descendant retains its verified intermediate ancestors', async 
 
 test('a supervisor\'s reported identities are adopted only while their creation identity holds', async () => {
   const supervisor = { pid: 90001, parent: process.pid, group: 90001, born: 'supervisor' };
-  const agent = { pid: 90002, parent: 1, group: 90002, born: 'agent' }; // reparented: no ancestry left
+  const agent = { pid: 90002, parent: 1, group: 90002, born: 'agent' }; 
   const reused = { pid: 90003, parent: 1, group: 90003, born: 'someone else' };
   const tracker = new AgentProcesses(supervisor.pid, () => [supervisor, agent, reused]);
   await tracker.adopt([{ pid: agent.pid, born: 'agent' }, { pid: reused.pid, born: 'leaf' }, { pid: supervisor.pid, born: 'supervisor' }]);
@@ -250,7 +250,7 @@ process.stdin.on('end',()=>{});process.on('SIGTERM',()=>{});setInterval(()=>{},1
     pid = await c.request<number>('spawn', {});
     await until(() => beat(file) > 2);
     await c.trackProcesses!([pid]);
-    // A second stop can arrive after ordinary shutdown has already closed the session.
+    
     c.close();
     const start = Date.now();
     await endSessionsHere(true);
@@ -308,7 +308,7 @@ test.skipIf(process.platform === 'win32')('a refused signal does not leave the o
   try {
     await expect(tracker.kill()).rejects.toThrow('not permitted');
     expect(spy.calls.map(([pid]) => pid).sort()).toEqual([-90003, -90002].sort());
-    // only the refused one is still owed a signal
+    
     expect(tracker.observed().map((p) => p.pid)).toEqual([root.pid, b.pid]);
   } finally { spy.restore(); }
 });
@@ -324,7 +324,7 @@ test.skipIf(process.platform === 'win32')('after the app-server has exited, its 
     await Bun.sleep(100);
     c.close();
     await c.done;
-    // the escalation timers (1 s, 2 s) must not fire at a group number that may be reused by now
+    
     await Bun.sleep(2300);
     expect(seen).toEqual([[group, 'SIGKILL']]);
   } finally { process.kill = real; spy.restore(); }

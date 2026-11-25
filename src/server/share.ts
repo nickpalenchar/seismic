@@ -1,13 +1,13 @@
-// Sharing a card's demo with colleagues, a video or an HTML artifact: a page outside Seismic, on the
-// static site Seismic keeps itself (the demo site its project chose, under the project's path, site.ts). Seismic writes
-// the page's text when the worker did not. A page keeps the newest page change (page-changes.ts) it
-// was published after: one that lacks a change since is offered to share again ("Erneut teilen"),
-// with what that brings, on its card, or many at once from the Koordinator's sheet.
-// Once the card has a pull request, its description links the page and the page links it; work that
-// lands without one links the page in its commit's trailer, and the page links the commit. A
-// project without a site (or with one not initialized, or whose credentials are not on this machine)
-// exports the demo instead: the same page as a ZIP with its files, or as one HTML file.
-// Pages of one target are on one site, so each publish names the others.
+
+
+
+
+
+
+
+
+
+
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
@@ -37,139 +37,139 @@ import { originOf } from './forgejo';
 import { zip } from './zip';
 import { messageOf } from '../core/text';
 
-/** A later demo version on a page, below the first as an addendum. */
+
 export interface PageDemo {
   title: string;
   text: string;
   kind: DemoKind;
   chapters: [number, string][];
   dir: string;
-  /** When it was handed over, which its section is headed with. */
+  
   at?: string;
 }
 
-/** What a page on the site is made of: the first demo version shared, and the later ones below it. */
+
 export interface SharePage {
-  /** Stays the same for a card, so a shared link keeps working when the page is published again. */
+  
   slug: string;
   title: string;
   text: string;
-  /** A video, or an HTML artifact. */
+  
   kind: DemoKind;
-  /** Seconds and title of each scene; none for an artifact. */
+  
   chapters: [number, string][];
-  /** The card's pull request, once it has one. */
+  
   pr: string | null;
-  /** Without a pull request: where the card's work landed on the default branch, once it has. */
+  
   commit?: PageCommit | null;
-  /** The demo's language, for the page's own words (`language` of the page templates). */
+  
   language: PageLanguage;
-  /** The demo's directory: `demo.mp4`, `poster.jpg`, `captions.vtt`; an artifact's `index.html` and the files it loads. */
+  
   dir: string;
-  /** The slugs of the other pages Seismic has stored as shared on this site: the site must still hold them. */
+  
   shared: string[];
-  /** The later demo versions on the page, in order of handover. */
+  
   more?: PageDemo[];
-  /** The page's tags from the site's vocabulary, by dimension (`tagsOf`); none where the site has none. */
+  
   tags?: PageTags;
-  /** The theme of the card's repository (theme.ts); none where it has none. */
+  
   theme?: Theme;
 }
 
-/** A project's demo site as sharing uses it: the site with the project's title, tags and choices, its path there, and an unlisted site's secret. */
+
 export interface ShareSite {
   site: DemoSite;
   path: string;
   secret?: string;
 }
 
-/**
- * Where a card's demos may go: its project's demo site, once its path is initialized (none
- * meanwhile, and without one), its repository's checkout, and the project's name, the title of a page
- * that stays on a site the project no longer uses.
- */
+
+
+
+
+
 export interface ShareSource {
   site: ShareSite | null;
   repo: string;
   title: string;
-  /** Its theme for the pages (`.seismic/theme.css`, theme.ts), asked for once a page goes out; none where it has none. */
+  
   theme?: () => Theme | null;
-  /**
-   * The demo site the project names, as its settings say, though this machine no longer has it
-   * (`site` is null then): its address, and when its demos go out.
-   */
+  
+
+
+
   chosen?: { url: string; publish?: DemoSite['publish'] };
 }
 
-/**
- * Where a card's pages go. Pages whose targets have the same key are on one site: a publish or
- * withdrawal names the others as shared. Keys are not stored, so they only need to stay the same
- * across a restart.
- */
+
+
+
+
+
 export interface ShareTarget {
   key: string;
-  /** An unlisted site: a page's place on it is `<path>/<token>/<slug>`. */
+  
   unlisted?: true;
-  /** The card's repository checkout. */
+  
   repo: string;
-  /**
-   * The page's URL, or why it did not go out; what the target said on the way goes into the card's
-   * log, and what it says while it goes on (`log`). `gone`: pages another machine withdrew, found
-   * on the way.
-   */
+  
+
+
+
+
   publish(page: SharePage, log?: (text: string) => void): Promise<({ url: string; said: string } | { why: string; said: string }) & { gone?: Gone[]; merge?: string }>;
   withdraw(slug: string, shared: string[], log?: (text: string) => void): Promise<{ why?: string; said: string; gone?: Gone[]; merge?: string }>;
-  /** The site collects its changes in a rolling pull request: a page is online once it is merged (`merge` of what a publish returns). */
+  
   prMode?: true;
-  /** A pull request's state, for a page waiting for its merge. */
+  
   prState?(url: string): Promise<'open' | 'merged' | 'closed' | null>;
-  /** The site's rolling pull request open now, if any. */
+  
   openPr?(): Promise<string | null>;
-  /**
-   * The pages another machine withdrew (their cards here lose their link), and the pages shared
-   * from here (`shared`) that the live site lacks or has older, taken offline by another machine's
-   * deployment that came in between.
-   */
+  
+
+
+
+
   audit(shared: string[]): Promise<{ gone: Gone[]; missing: string[] }>;
-  /** Where the page of `slug` is, before it is published. */
+  
   pageUrl(slug: string): string;
-  /** Deploys again what this machine has, for the pages `audit` found missing. */
+  
   repair(shared: string[], log?: (text: string) => void): Promise<{ why?: string; said: string; gone?: Gone[] }>;
-  /** "Initialize": puts the project's path on the site, with its empty overview, and deploys. */
+  
   init?(shared: string[], log?: (text: string) => void): Promise<{ why?: string; said: string; gone?: Gone[] }>;
 }
 
-/**
- * Where a site's deploy runs, under Seismic's home: not in the checkout, which is often a workstation
- * of the pool too, and a file a command leaves in its working directory (`wrangler pages deploy`
- * writes its cache there) would keep the workstation from being leased until someone cleans up.
- */
+
+
+
+
+
 export const SHARE_CWD = 'share';
 
 export interface SharingOptions {
   board: Board;
   runtime: AgentRuntime;
-  /** Where the card's demos may go; null while its repository does not run. */
+  
   sourceFor: (card: Item) => ShareSource | null;
-  /** This machine's demo sites; read from Seismic's home without it. */
+  
   sites?: () => DemoSiteEntry[];
-  /** The language the card's repository names for its demos (`demo.language` of its settings); none where it names none. */
+  
   languageFor?: (card: Item) => PageLanguage | undefined;
-  /** Seismic's data directory, passed to a site's deploy as `SEISMIC_HOME`; the deploy runs in a directory of it (`SHARE_CWD`). */
+  
   home: string;
-  /** Where the card's pull request is, for the page's link in its description. */
+  
   forge: Forge;
-  /**
-   * A page went out (`url`: where it is) or did not (`why`); without either, the page is at rest as
-   * the card's share says. Landed work's worker may wait for its address.
-   */
+  
+
+
+
   onPage?: (cardId: string, r?: { url: string } | { why: string }) => void;
 }
 
-/** A site's deploy that has not finished by then is stopped (an upload of a few files takes seconds). */
+
 export const COMMAND_TIMEOUT = 15 * 60_000;
 
-/** The pages of all projects go out one at a time: a site directory takes one change at a time. */
+
 let chain: Promise<unknown> = Promise.resolve();
 export const serial = <T>(fn: () => Promise<T>): Promise<T> => {
   const next = chain.then(fn, fn);
@@ -178,13 +178,13 @@ export const serial = <T>(fn: () => Promise<T>): Promise<T> => {
 };
 
 export class Sharing {
-  /** Comments linking a review card's page under way, by card and page: one at a time. */
+  
   private commenting = new Set<string>();
-  /** When the versions were last asked for because the owner came back. */
+  
   private checked = 0;
-  /** A page of the run sharing many again is waiting for its turn, or going out. */
+  
   private resharing = false;
-  /** Cards whose latest demo goes on their page after the share under way: what that share settles is not the end. */
+  
   private after = new Set<string>();
 
   constructor(private o: SharingOptions) {}
@@ -205,7 +205,7 @@ export class Sharing {
     const now: DemoRef[] = s?.url ? sharedDemos(s) : [];
     const ref = refOf(demo);
     const on = now.some((d) => sameDemo(d, ref));
-    // with no page yet or beside the versions there, it takes along the demos it supplements
+    
     const next = on ? now : add || !now.length ? this.beside(cardId, now, ref) : [ref];
     this.set(cardId, { ...this.fresh(card, s), state: 'publishing', next: next.map(refOf) });
     const t = this.o.board.t.share;
@@ -226,7 +226,7 @@ export class Sharing {
   approved(cardId: string): string | null {
     try {
       const trailer = this.publishApproved(cardId);
-      // a review card's page, online already with its latest demo: its link goes onto the PR now
+      
       const s = this.stored(cardId);
       const pr = this.prOf(cardId);
       const card = this.find(cardId);
@@ -237,7 +237,7 @@ export class Sharing {
       }
       return trailer;
     } catch (e) {
-      // the work lands all the same
+      
       this.o.board.log(cardId, 'error', 'seismic', `${this.o.board.t.share.notShared}: ${messageOf(e)}`);
       return null;
     }
@@ -250,15 +250,15 @@ export class Sharing {
     const declined = declinesApproval(card, this.stored(cardId));
     if (target && this.publishesOnApproval(card)) {
       const s = this.stored(cardId);
-      // only a switch the owner unticked is said in the log; a plan's or wontfix card never had it ticked
+      
       if (declined) { if (s?.notOnApproval) this.notOnPage(cardId); }
-      // a share under way (one the owner chose) goes out first; the latest demo after it
+      
       else if (s?.state === 'publishing') {
         this.after.add(cardId);
         void serial(async () => {
           this.after.delete(cardId);
           this.onPage(cardId);
-          // on the page already after all: the page is where it is
+          
           if (this.stored(cardId)?.state !== 'publishing') this.settled(cardId);
         });
       }
@@ -267,11 +267,11 @@ export class Sharing {
       const gone = this.siteGone(card);
       if (gone) this.o.board.log(cardId, 'error', 'seismic', `${this.o.board.t.share.notShared}: ${gone}`);
     }
-    // the page as it is about to be, or as it is
+    
     const page = this.stored(cardId);
     if (!page || page.state === 'withdrawing') return null;
     const first = page.state === 'publishing' && page.next ? page.next[0] : page.url ? sharedDemos(page)[0] : undefined;
-    // a page going out is where the site has it then; one at rest where it was published
+    
     const url = page.state === 'publishing' && target ? target.pageUrl(pathOf(page)) : page.url;
     if (!first || !url) return null;
     const kind = this.cardDemo(cardId, first)?.kind ?? sharedDemos(page).find((d) => sameDemo(d, first))?.shown.kind;
@@ -296,7 +296,7 @@ export class Sharing {
     const card = this.card(cardId);
     if (card.idea?.prototypeOf) throw new BadRequest('noShare', 'prototypes are not shared');
     const { notOnApproval: _, onApproval: __, ...s } = this.stored(cardId) ?? { slug: slugOf(card) };
-    // a plan's or wontfix card shares only when asked to: ticking is remembered, and so is unticking afterwards, which the log then says
+    
     this.set(cardId, on ? (optIn(card) ? { ...s, onApproval: true } : s) : { ...s, notOnApproval: true });
   }
 
@@ -411,7 +411,7 @@ export class Sharing {
   resume() {
     this.convert();
     for (const { r, s } of this.shares()) {
-      // one of many shared again goes on with the rest of them
+      
       if (s.state === 'publishing' && s.again && this.o.board.reshareRun()?.queue[0] === r.id) continue;
       if (s.state === 'publishing') void serial(() => this.publish(r.id));
       else if (s.state === 'withdrawing') void serial(() => this.withdraw(r.id));
@@ -440,8 +440,8 @@ export class Sharing {
       const { outdated: _, ...rest } = s as StoredShare & { outdated?: true };
       this.set(r.id, { ...rest, version });
     }
-    // pages from before several versions (until 2026-10-16) showed one demo: a list of one, the
-    // card's demo in that directory (the latest one rendered there) named by its handover
+    
+    
     for (const { r, s } of this.shares()) {
       if (s.demos || !s.dir || !s.shown) continue;
       const { dir: _, shown: __, ...rest } = s;
@@ -465,7 +465,7 @@ export class Sharing {
       .map((r) => ({ r, s: r.demo!.share! }));
     if (!rows.length) throw new BadRequest('nothingOutdated', tags ? 'no shared page lacks tags' : 'no shared page is outdated');
     const made = (dir?: string) => (dir ? (statOr(join(dir, 'demo.mp4')) ?? statOr(join(dir, 'index.html')) ?? statOr(dir) ?? 0) : 0);
-    // newest by the newest version on the page
+    
     const queue = rows
       .map(({ r, s }) => ({ id: r.id, at: Math.max(0, ...sharedDemos(s).map((d) => made(d.dir))) }))
       .sort((a, b) => b.at - a.at)
@@ -487,7 +487,7 @@ export class Sharing {
   dismissResharing() {
     const run = this.o.board.reshareRun();
     if (run?.queue.length) throw new BadRequest('reshareBusy', 'pages are being shared again');
-    // a run tagging pages leaves the notice of outdated pages as it is
+    
     if (run?.tags) this.o.board.setReshareRun(null);
     else this.o.board.dismissOutdated();
   }
@@ -511,7 +511,7 @@ export class Sharing {
     if (s?.state === 'publishing' && s.again) ok = await this.publish(id);
     else {
       const row = this.find(id) && this.o.board.row(id);
-      // one that got its tags meanwhile, or is up to date, no longer counts
+      
       const still = row && (tags ? this.o.board.untaggedRows().some((r) => r.id === id) : this.o.board.outdatedBy(row).length > 0);
       if (s && still) {
         this.set(id, { ...s, state: 'publishing', refresh: true, again: true });
@@ -519,7 +519,7 @@ export class Sharing {
         ok = await this.publish(id);
       }
     }
-    // shared again meanwhile on its own, withdrawn or gone: it no longer counts
+    
     const run = this.o.board.reshareRun();
     if (!run) return;
     const next: StoredReshare = { ...run, queue: run.queue.filter((x) => x !== id) };
@@ -555,7 +555,7 @@ export class Sharing {
         if (!states.has(s.merge)) states.set(s.merge, target.prState?.(s.merge).catch(() => null) ?? Promise.resolve(null));
         const state = await states.get(s.merge)!;
         if (state === 'merged') next = null;
-        else if (state !== 'closed') continue; // retain the original evidence when GitHub cannot answer
+        else if (state !== 'closed') continue; 
       }
       const now = this.stored(r.id);
       if (!now || now.merge !== s.merge || now.state) continue;
@@ -600,8 +600,8 @@ export class Sharing {
     const targets = new Map<string, ShareTarget>();
     for (const { r, s } of this.shares()) {
       const card = this.find(r.id);
-      // Keep auditing a PR site after its last withdrawal: its description may still need
-      // reconciliation. Retain the old site's identity even if the project now uses another.
+      
+      
       const target = card ? (!s.url && s.site ? this.storedTarget(card, s) : this.target(card)) : null;
       if (target && (s.url || target.prState)) targets.set(target.key, target);
     }
@@ -610,7 +610,7 @@ export class Sharing {
       const shared = this.others('', target.key);
       const { gone, missing } = await target.audit(shared);
       this.lost(target.key, gone);
-      // a page waiting for a pull request (open or closed) was never online, whatever the site's mode is now
+      
       const offline = missing.filter((slug) => !this.shares().some(({ s }) => s.merge && pathOf(s) === slug));
       if (offline.length) await this.repair(target, shared, offline);
     }
@@ -630,7 +630,7 @@ export class Sharing {
     log('state', t.restored);
   }
 
-  /** Pages withdrawn on another machine: their cards here lose their link. */
+  
   /**
    * "Initialize": puts a project's path on its site, with the empty overview, and deploys, after
    * any share under way (one site directory takes one change at a time). Why it failed, where it did.
@@ -695,7 +695,7 @@ export class Sharing {
     const target = this.target(card);
     let demos: SharedDemo[];
     if (s.refresh) {
-      // the page as it is: a newer demo on the card waits for "Replace on the page" or "Add to the page"
+      
       demos = sharedDemos(s);
       if (!demos.length || !target) {
         const gone = target ? null : this.siteGone(card);
@@ -706,7 +706,7 @@ export class Sharing {
         this.settled(cardId, s.url ? { url: s.url } : { why: t.noDemo });
         return null;
       }
-      // an update of the page alone (its pull request's link, its commit) is no share: it does not put out pages waiting for a pull request
+      
       if (!s.again && !s.retag && (await this.putsOutWaiting(target))) {
         this.set(cardId, atRest(this.currentChoice(cardId, s)));
         this.o.board.log(cardId, 'activity', 'seismic', t.linkLater);
@@ -714,7 +714,7 @@ export class Sharing {
         return null;
       }
     } else {
-      // the versions the owner chose; a share from before them (until 2026-10-16) meant the latest demo
+      
       const latest = this.demo(cardId);
       const want = s.next ?? (latest ? [refOf(latest)] : []);
       if (!want.length || !target) return back((!target && this.siteGone(card)) || t.noDemo);
@@ -727,7 +727,7 @@ export class Sharing {
         }
         const demo = this.cardDemo(cardId, ref);
         if (!demo) return back(t.noDemo);
-        // a page written now chooses the tags the card's page lacks along with its text
+        
         const page = await this.page(card, demo, this.missingTags(card));
         demos.push({ ...refOf(demo), ...(demo.at ? { at: demo.at } : {}), shown: { title: page.title, text: page.text, chapters: demo.chapters, kind: demo.kind } });
       }
@@ -763,7 +763,7 @@ export class Sharing {
     await this.pendingIn(target, r.merge ?? null, cardId);
     this.settled(cardId, { url });
     if (pr) await this.linkPr(cardId, pr, url, target.repo, first.shown.kind);
-    // the pull request was opened or the work landed while the page went out, or the owner changed its tags: once more, with them
+    
     const now = this.prOf(cardId);
     const landed = !now && (await this.commitOf(card))?.url;
     const retag = JSON.stringify(tagsOf(pageTagsOf(this.o.board.row(cardId)), vocabulary)) !== JSON.stringify(tags);
@@ -780,10 +780,10 @@ export class Sharing {
     const row = this.o.board.row(cardId);
     const review = contributionOf(row);
     if (review) {
-      // a review card's PR is the contributor's: its description stays theirs, and the link comes as a comment, once the owner approved
+      
       const key = `${cardId}\n${url}`;
       if (!review.approved || review.linked === url || this.commenting.has(key)) return;
-      // marked once the comment is there: a restart before then comments at the next approval
+      
       this.commenting.add(key);
       const t = MESSAGES[this.languageOf(this.demo(cardId)?.dir ?? '', this.card(cardId))].share;
       try {
@@ -865,7 +865,7 @@ export class Sharing {
       tabTitle: page.title,
       language,
       ...this.themeOf(card),
-      // a page opened from disk may not load a caption file
+      
       captions: { vtt: captions ? new TextDecoder().decode(captions) : 'WEBVTT\n' },
     };
     let out: { name: string; type: string; data: Uint8Array<ArrayBuffer> };
@@ -944,7 +944,7 @@ export class Sharing {
    * session writes it from the worker's summary. Without one, the card's title and the summary's start stand in.
    */
   private async writePage(card: Item, demo: Demo, language: PageLanguage, lacking: PageTags | null): Promise<DemoPage> {
-    // a card's summary goes with its approval; the log keeps every handover
+    
     const summary = this.o.board.summary(card.id) ?? this.o.board.events(card.id).filter((e) => e.kind === 'review' && e.author === 'worker').at(-1)?.text ?? '';
     return writeDemoPage({ runtime: this.o.runtime, cwd: this.target(card)?.repo ?? this.o.home, card, demo, summary, language, lacking });
   }
@@ -1006,7 +1006,7 @@ export class Sharing {
    */
   private target(card: Item): ShareTarget | null {
     const s = this.stored(card.id);
-    // one going out since before pages named their site (until 2026-11-06) goes to the project's
+    
     if (s?.url || (s?.site && s.state)) return this.storedTarget(card, s);
     return this.ownTarget(card);
   }
@@ -1114,7 +1114,7 @@ export class Sharing {
     if (!shipped?.commit || shipped.pr || this.prOf(card.id) || !repo) return null;
     const remote = await originOf(repo);
     if (!remote) return null;
-    // the checkout may not have them (pushed from the card's clone): then the last commit stands for them
+    
     const count = shipped.base ? Number(await gitAsync(repo, 'rev-list', '--count', `${shipped.base}..${shipped.commit}`).catch(() => '1')) : 1;
     const url = landedUrl(remote, shipped.commit, count > 1 ? shipped.base : undefined);
     return url ? { url, ...(count > 1 ? { several: true as const } : {}) } : null;
@@ -1138,7 +1138,7 @@ export class Sharing {
     return this.o.languageFor?.(card) ?? readDemoSettings(this.o.home).language;
   }
 
-  /** One of the card's demos a page may show (`cardDemos`), by its handover, else by its directory. */
+  
   /** The versions on the page, the demo and the ones it supplements (`withSupplemented`), in order of handover. */
   private beside(cardId: string, now: DemoRef[], ref: DemoRef): DemoRef[] {
     const all = cardDemos(this.o.board.row(cardId));
@@ -1227,9 +1227,9 @@ function statOr(path: string): number | null {
   }
 }
 
-/** Marks the line Seismic put into a pull request's description, so it is found again. */
+
 export const DEMO_MARKER = '<!-- seismic:demo -->';
-/** The marker of descriptions written before the rename, found and replaced as well (migration shim). */
+
 const OLD_DEMO_MARKER = '<!-- obeya:demo -->';
 
 /** The description with a line linking the demo's page; null when it links the page already. */
@@ -1258,7 +1258,7 @@ export const commandWords = (line: string): string[] => [...line.matchAll(/"([^"
 export function scriptArgv(words: string[], repoPath: string): string[] {
   if (!words.length) return [];
   let [program, ...rest] = words as [string, ...string[]];
-  // bunx is Seismic's own Bun too: an installation of Seismic may have no bunx on the PATH
+  
   if (program === 'bunx') return [process.execPath, 'x', ...rest];
   program = expandHome(program);
   const script = /\.(m?[jt]sx?|cjs)$/.test(program);
@@ -1282,13 +1282,13 @@ export function siteProblem(site: DemoSite, home: string): string | null {
   const incomplete = siteIncomplete(site);
   if (incomplete) return incomplete;
   const words = commandWords(site.deploy);
-  // the deploy Seismic builds in: a GitHub repository, pushed to with gh's login
+  
   if (words[0] === GITHUB_PAGES || words[0] === GITHUB_FOLDER) {
     if (!/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/.test(words[1] ?? '')) return `deploy command: ${words[0]} expects <owner>/<repository>`;
     if (words[0] === GITHUB_FOLDER && !site.git) return `deploy command: ${GITHUB_FOLDER} needs the site's folder and branch`;
     return Bun.which('gh') ? null : `deploy command: ${words[0]} needs gh, which is not on the PATH`;
   }
-  // bunx runs as Seismic's own Bun
+  
   if (words[0] === 'bunx') return words.length > 1 ? null : 'deploy command: bunx without a package';
   const argv = scriptArgv(words, home);
   const program = argv[0] === process.execPath ? argv[1] : argv[0];

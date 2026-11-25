@@ -1,9 +1,9 @@
-/**
- * Drafts a wish or a bug for Seismic's makers: a small job writes what the owner wrote or said
- * (and, for a request Seismic could not do, its answer) up as a GitHub issue in English, the
- * repository's language, with a line about the Seismic it came from. The owner checks and edits it,
- * then opens it on GitHub (`src/core/wish.ts`); nothing goes out from here.
- */
+
+
+
+
+
+
 
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -16,11 +16,11 @@ import type { SessionOptions } from '../types';
 import { writeWishSystem } from '../../prompts/writeWishSystem';
 
 export interface WishInput {
-  /** What the owner wrote or said now. */
+  
   said: string;
-  /** Seismic's answer that it cannot do what they asked, when the draft starts from one. */
+  
   answer?: string;
-  /** The draft so far, as the owner may have edited it: the new words rework it. */
+  
   title?: string;
   body?: string;
 }
@@ -28,13 +28,13 @@ export interface WishInput {
 export interface WishDraft {
   title: string;
   body: string;
-  /** The job wrote nothing (not logged in, say): the owner's own words stand in the draft. */
+  
   raw?: true;
-  /** With `raw`: the account's usage limit kept the job from writing, until then (ISO time); it can write the draft after. */
+  
   limitedUntil?: string;
 }
 
-/** How long the job may take before the owner's words stand as they are. */
+
 const WRITE_MS = 90_000;
 
 function brief(w: WishInput, shots: number): string {
@@ -58,7 +58,7 @@ class WriteWishJob extends SeismicJob<WishDraft> {
       w: WishInput;
       footer: string;
       imageCount: number;
-      /** The owner's own words as the draft. */
+      
       fallback: () => WishDraft;
     },
   ) {
@@ -77,7 +77,7 @@ class WriteWishJob extends SeismicJob<WishDraft> {
     return brief(this.o.w, this.o.imageCount);
   }
 
-  // the owner is waiting for the draft: their words stand in it, and the draft says when the job can write it
+  
   override getSessionOptions(): SessionOptions {
     return {
       onLimit: (until) => {
@@ -115,7 +115,7 @@ export async function writeWish(runtime: AgentRuntime, w: WishInput, footer: str
     const title = w.title?.trim() || said.replace(/\s+/g, ' ').slice(0, 70);
     return { title, body: `${own}\n\n${footer}`, raw: true };
   };
-  // Antigravity keeps its tool bridge configuration in the working directory.
+  
   const cwd = mkdtempSync(join(tmpdir(), 'seismic-wish-'));
   const job = new WriteWishJob({ w: { ...w, said }, footer, imageCount: images.length, fallback });
   const timer = setTimeout(() => job.cancel(), WRITE_MS);
@@ -126,7 +126,7 @@ export async function writeWish(runtime: AgentRuntime, w: WishInput, footer: str
     return fallback();
   } finally {
     clearTimeout(timer);
-    try { rmSync(cwd, { recursive: true, force: true }); } catch { /* the temporary directory can be cleaned later */ }
+    try { rmSync(cwd, { recursive: true, force: true }); } catch {  }
   }
 }
 

@@ -1,11 +1,11 @@
-// The field the owner writes in under a conversation, the same on a card and in Seismic's sheet: one
-// frame with the text, the screenshot button, the microphone and Send (an arrow, as in chat apps) in
-// a footer row, as wide as the conversation above it. The text grows with what is written (or
-// with its placeholder, which shows in full), up to a part of the window.
-// Screenshot and microphone stand at the left of the footer, Send at the right. A replied-to
-// message stands above the text as a quote. With the cursor in the field, speaking dictates into it: hold its microphone, the one at
-// the bottom, or Space. Under a card's conversation, `/` at the start of a word opens the menu of the
-// skills of the card's agent (`skills.ts`).
+
+
+
+
+
+
+
+
 
 import { ArrowUp } from 'lucide-react';
 import { type MouseEvent, type ReactNode, useContext, useEffect, useId, useRef, useState } from 'react';
@@ -23,13 +23,13 @@ import { HoldToTalk, MicIcon, TAP_MS, useHeldByTouch } from './voice';
 import { PromptInput, PromptInputBody, PromptInputButton, PromptInputHint, PromptInputSubmit, PromptInputTextarea, PromptInputTools } from './components/ai/prompt-input';
 import { Tooltip } from './components/tooltip';
 
-/**
- * How long Space stays down before it is held to speak rather than typed. Typing presses it for
- * well under this, and a key pressed meanwhile (fast typing overlaps keys) makes it a typed space at once.
- */
+
+
+
+
 const HOLD_MS = 250;
 
-/** Whether Enter sends what is written (Shift+Enter breaks the line), as at the desk. */
+
 let enterSends = true;
 
 /**
@@ -71,14 +71,14 @@ export function Composer({
   action?: string;
   allowEmpty?: boolean;
   noImages?: boolean;
-  /** Seismic reads what is typed: it gets ready while the owner types; a text here says so under the field. */
+  
   seismic?: true | string;
-  /** Clear on Send while the caller completes delivery and restores the draft on failure. */
+  
   optimistic?: boolean;
-  /** Hears the text as it is typed. */
+  
   onText?: (text: string) => void;
   className?: string;
-  /** What else the words go out with, above them beside the quote (a place in the demo video). */
+  
   chip?: ReactNode;
   skills?: string;
 }) {
@@ -92,7 +92,7 @@ export function Composer({
   const images = shots.images;
   const field = useRef<HTMLTextAreaElement>(null);
   useDraftField(key, () => field.current, !noImages);
-  // as high as the text; the stylesheet caps it, and beyond that it scrolls
+  
   useFitHeight(field, text);
   const listen = useRef(onText);
   listen.current = onText;
@@ -100,7 +100,7 @@ export function Composer({
   const reply = useReply(key);
   const [focused, setFocused] = useState(false);
   const skillList = useSkills(skills, focused);
-  // the `/` word at the cursor, the skill marked in the menu, and where Escape closed the menu
+  
   const [slash, setSlash] = useState<Slash | null>(null);
   const [dismissed, setDismissed] = useState<number | null>(null);
   const atCursor = () => {
@@ -110,10 +110,10 @@ export function Composer({
     if (!at) setDismissed(null);
   };
   useEffect(atCursor, [text]);
-  // the menu: undefined while the skills are asked, else those that fit (none: no menu)
+  
   const menu = skills && focused && slash && dismissed !== slash.start ? (skillList ? matching(skillList, slash.query) : undefined) : [];
   const menuOn = menu === undefined || menu.length > 0;
-  // typed into the field, as if by hand: the cursor stays after it, and undo takes it back
+  
   const pickSkill = (name: string) => {
     const el = field.current;
     if (!el || !slash) return;
@@ -132,10 +132,10 @@ export function Composer({
     resetOn: slash?.query,
     onPick: (i) => pickSkill(menu![i]!.name),
     onNavigate: usedSkills,
-    // while the menu is open, Escape closes it, not the card
+    
     onEscape: () => slash && setDismissed(slash.start),
   });
-  // replying to a message is writing to it: the field takes the focus (not for a reply kept from before)
+  
   const quoted = useRef(reply?.quote.ev);
   useEffect(() => {
     if (reply && reply.quote.ev !== quoted.current) field.current?.focus();
@@ -143,11 +143,11 @@ export function Composer({
   }, [reply?.quote.ev]);
   const talk = useContext(HoldToTalk);
   const mic = useHeldByTouch<HTMLButtonElement>();
-  // Space pressed in the field: typed, or held to speak once it stays down (`held`)
+  
   const space = useRef<number | 'held' | null>(null);
   const spaceDown = useRef(0);
-  // While Space is down the field is read-only: the browser on the Mac hides the pointer at every key
-  // pressed into a text field, so the key repeating while held made it flicker as the mouse moved.
+  
+  
   const spaceUp = () => {
     space.current = null;
     if (field.current) field.current.readOnly = false;
@@ -178,7 +178,7 @@ export function Composer({
     setBusy(false);
     setText('');
     shots.clear();
-    // a reply chosen meanwhile stays for the next words
+    
     if (reply && replyOn(key) === reply) setReply(key, null);
   };
   /**
@@ -213,14 +213,14 @@ export function Composer({
           }}
           onKeyUp={(e) => {
             if (e.code !== 'Space') return;
-            // a held Space ends the recording wherever it is let go (App); too short for one, it was typed
+            
             if (space.current !== 'held') return typeSpace();
             spaceUp();
             if (e.timeStamp - spaceDown.current < HOLD_MS + TAP_MS && field.current) typeInto(field.current, ' ');
           }}
           onKeyDown={(e) => {
             if (talk && e.code === 'Space' && !e.metaKey && !e.ctrlKey && !e.altKey && !e.nativeEvent.isComposing) {
-              // the key repeating while held types nothing
+              
               if (space.current !== null) return e.preventDefault();
               if (!e.repeat) {
                 e.preventDefault();
@@ -233,10 +233,10 @@ export function Composer({
               }
               return;
             }
-            // another key while Space is down: Space was typed, before it
+            
             typeSpace();
             if (list.onKeyDown(e)) return;
-            // Enter confirming an IME candidate is the IME's (Safari reports it as keyCode 229)
+            
             if (enterSends && e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) {
               e.preventDefault();
               send();
@@ -253,7 +253,7 @@ export function Composer({
               active={dictation === 'listening'}
               className="rounded-full touch-none"
               onPointerDown={(e) => {
-                // the cursor stays in the field, or goes there: what is said is written into it
+                
                 e.preventDefault();
                 field.current?.focus();
                 talk();

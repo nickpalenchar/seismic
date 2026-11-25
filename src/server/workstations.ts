@@ -1,10 +1,10 @@
-// Where a card's worker works, and how approved work lands.
-//
-// `clones`: a pool of full clones per project, leased one card at a time (for repositories with tools
-// that break in worktrees, or one app per clone), here and on other machines; a new card
-// takes a clone on the first machine whose busy workers leave it a slot. `worktrees`: one worktree of the Seismic checkout per card,
-// created on start, as many in parallel as there are cards unless the repository has slots; kept
-// across stop and restart until the card's work has landed.
+
+
+
+
+
+
+
 
 import { existsSync, mkdirSync, readdirSync, realpathSync, renameSync, statSync } from 'node:fs';
 import { lstat, readlink, rm, writeFile } from 'node:fs/promises';
@@ -33,28 +33,28 @@ export class WorkstationError extends Error {
 
 export interface LandProblem {
   code: 'landDirty' | 'landConflict' | 'landEmpty' | 'landCheckout' | 'landMerge' | 'landPush' | 'land';
-  /** Whether the worker can fix it; otherwise it is the owner's (local changes in the Seismic checkout in the way, a push turned away). */
+  
   worker: boolean;
   detail: string;
   files?: string[];
 }
 
-/**
- * Work that landed: the default branch (of the Seismic checkout, or of `origin` when pushed) moved
- * from `from` to `to`. `switched` says where the Seismic checkout stood before Seismic put it back on
- * the default branch for the landing (on `branch`, or a detached `HEAD` at `commit`), and how many
- * commits there the default branch still lacks after it.
- */
+
+
+
+
+
+
 export interface Landed {
   from: string;
   to: string;
   switched?: { branch: string | null; commit: string; commits: number };
 }
 
-/**
- * Where pulling the remote's default branch into the checkout stops on a conflict: at `commit`
- * (with its `subject`) of the local default branch's `unpushed` commits, in `files`.
- */
+
+
+
+
 export interface PullClash {
   commit: string;
   subject: string;
@@ -62,16 +62,16 @@ export interface PullClash {
   unpushed: number;
 }
 
-/** A pull that stopped on a conflict, taken back: where the local default branch stood (`main`) and the remote's commit it was to go onto (`upstream`). */
+
 export interface PullStopped extends PullClash {
   main: string;
   upstream: string;
 }
 
-/**
- * The git binary. On macOS `/usr/bin/git` is a shim that asks xcrun for the real one on every
- * call, which more than doubles what a call costs; Seismic calls git often, so it asks once.
- */
+
+
+
+
 export const GIT = gitBinary();
 
 function gitBinary(): string {
@@ -140,7 +140,7 @@ export async function gitAsync(cwd: string, ...args: string[]): Promise<string> 
   return r.stdout.trim();
 }
 
-/** Per repository, the change of its shared files (worktree entries, config) running now and those after it. */
+
 const repositoryChanges = new Map<string, Promise<unknown>>();
 
 /**
@@ -178,13 +178,13 @@ async function gitRun(cwd: string, args: string[], env?: Record<string, string>)
   return spawnOutput([GIT, '-C', cwd, ...args], env ? { env: { ...process.env, ...env } } : {});
 }
 
-/** `git diff` as Seismic shows it to the owner: plain, with renames found and file names unquoted. */
+
 const DIFF = ['-c', 'core.quotePath=false', 'diff', '--no-color', '--no-ext-diff', '-M'];
 
-/** How many new files not yet added a branch's diff shows; a worker's stray build output should not flood it. */
+
 const NEW_FILES_SHOWN = 200;
 
-/** How many of a branch's changed files the Koordinator learns the changed lines of (`changes`). */
+
 const CHANGES_LISTED = 200;
 
 /**
@@ -207,7 +207,7 @@ export function gitDiff(cwd: string, base: string, to?: string): Promise<string>
   return gitAsync(cwd, ...DIFF, base, ...(to ? [to] : []));
 }
 
-/** The landing under way per Seismic checkout: landings of one repository run one after the other. */
+
 const landings = new LandingQueue<string>();
 
 export interface LandingNotice {
@@ -225,13 +225,13 @@ const landingListeners = new Map<string, Set<(notice: LandingNotice) => Promise<
 async function squashOnto(ws: string, upstream: string): Promise<boolean> {
   let tree: string;
   try {
-    // exits non-zero on a conflict
+    
     tree = (await gitAsync(ws, 'merge-tree', '--write-tree', upstream, 'HEAD')).split('\n')[0]!;
   } catch {
     return false;
   }
   const trailers: string[] = [];
-  // without the commits the rebase drops, whose change is upstream already
+  
   const bodies = (await gitAsync(ws, 'log', '--reverse', '--cherry-pick', '--right-only', '--format=%B%x00', `${upstream}...HEAD`))
     .split('\0')
     .map((m) =>
@@ -259,7 +259,7 @@ async function rebaseOnto(ws: string, upstream: string, base: string): Promise<L
   } catch (e) {
     const files = (await gitAsync(ws, 'diff', '--name-only', '--diff-filter=U')).split('\n').filter(Boolean);
     await gitAsync(ws, 'rebase', '--abort');
-    // replayed one by one, the commits may conflict where the change as a whole does not
+    
     if (await squashOnto(ws, upstream)) return null;
     return {
       code: 'landConflict',
@@ -295,7 +295,7 @@ async function inTheWay(repo: string, head: string, tip: string): Promise<string
   const [changed, tracked, staged, untracked] = await Promise.all([
     gitPaths(repo, 'diff', '--name-only', '-z', '--no-renames', `${head}...${tip}`),
     gitPaths(repo, 'diff', '--name-only', '-z', '--no-renames', 'HEAD'),
-    // staged, also where the file on disk is back as it was in HEAD: git still refuses to overwrite the index
+    
     gitPaths(repo, 'diff', '--name-only', '-z', '--no-renames', '--cached', 'HEAD'),
     gitPaths(repo, 'ls-files', '-z', '--others', '--exclude-standard'),
   ]);
@@ -314,7 +314,7 @@ export function namedInRefusal(message: string): string[] {
   for (const line of message.split('\n')) {
     const entry = /Entry '(.+)' (?:not uptodate|would be)/.exec(line);
     if (entry) named.add(entry[1]!);
-    // a name listed after a tab, as it is: blanks at its start or end are part of it
+    
     if (listing && /^\t/.test(line)) {
       named.add(line.slice(1).replace(/\r$/, ''));
       continue;
@@ -332,7 +332,7 @@ export function namedInRefusal(message: string): string[] {
  * holds the owner's change: a staged edit comes as staged, a staged deletion goes.
  */
 async function commitOf(repo: string, parent: string, files: string[], message: string): Promise<string> {
-  // `<mode> <object> <stage>\t<path>`, `<mode> blob <object>\t<path>`: the path after the tab, as it is
+  
   const entries = (listed: string[]) => new Map(listed.map((e) => [e.slice(e.indexOf('\t') + 1), e.slice(0, e.indexOf('\t')).split(' ')] as const));
   const [indexed, unstaged, inParent] = await Promise.all([
     gitPaths(repo, '--literal-pathspecs', 'ls-files', '-s', '-z', '--', ...files).then(entries),
@@ -348,8 +348,8 @@ async function commitOf(repo: string, parent: string, files: string[], message: 
   };
   try {
     await git('read-tree', parent);
-    // the path on disk, as git would record it: gone, back as in `parent` (where it holds no change of the owner's), or another
-    // version; a symbolic link is its own entry (its target, also one that does not exist), never what it points to
+    
+    
     const onDisk = async (f: string): Promise<'gone' | 'asInParent' | 'other'> => {
       const at = join(repo, f);
       const stat = await lstat(at).catch(() => null);
@@ -358,7 +358,7 @@ async function commitOf(repo: string, parent: string, files: string[], message: 
       const mode = link ? '120000' : fileMode && stat.mode & 0o111 ? '100755' : '100644';
       const hashed = link
         ? await spawnOutput([GIT, '-C', repo, 'hash-object', '--stdin'], { stdin: new Blob([await readlink(at)]) })
-        : // through the path's clean filters and line-ending conversion, as git stores it (named outright with --path)
+        : 
           await spawnOutput([GIT, '-C', repo, '--literal-pathspecs', 'hash-object', `--path=${f}`, '--', f]);
       const was = inParent.get(f);
       return hashed.code === 0 && was && hashed.stdout.trim() === was[2] && (mode === was[0] || (!fileMode && !link && was[0] !== '120000')) ? 'asInParent' : 'other';
@@ -367,18 +367,18 @@ async function commitOf(repo: string, parent: string, files: string[], message: 
     const gone: string[] = [];
     for (const f of files) {
       const staged = indexed.get(f);
-      // on disk as staged: the staged version
+      
       if (staged && !unstaged.has(f)) {
         await git('update-index', '--add', '--cacheinfo', `${staged[0]},${staged[1]},${f}`);
         continue;
       }
       const disk = await onDisk(f);
-      // deleted on disk, after an edit was staged or with its deletion staged: the deletion; a new file staged and then deleted: nothing
+      
       if (disk === 'gone') gone.push(f);
-      // back on disk as in `parent`: what the index holds, the staged edit or the staged deletion
+      
       else if (disk === 'asInParent' && staged) await git('update-index', '--add', '--cacheinfo', `${staged[0]},${staged[1]},${f}`);
       else if (disk === 'asInParent') gone.push(f);
-      // edited on disk beyond what is staged, or new and untracked: as on disk
+      
       else fromDisk.push(f);
     }
     if (gone.length) await git('rm', '-q', '--cached', '--ignore-unmatch', '--', ...gone);
@@ -416,7 +416,7 @@ async function backOnBase(repo: string, base: string, on: string): Promise<LandP
   });
   const busy = await underway(repo);
   if (busy) return blocked(`a ${busy} is under way there`);
-  // untrimmed: a line's first column may be a space
+  
   const status = await gitRun(repo, ['-c', 'core.quotePath=false', 'status', '--porcelain']);
   if (status.code !== 0) throw new WorkstationError(`git status in ${repo}: ${status.stderr.trim()}`);
   const files = status.stdout.split('\n').filter(Boolean).map((l) => l.slice(3));
@@ -480,7 +480,7 @@ async function rewrites(repo: string, old: string, upstream: string, tip: string
  */
 async function replayClash(repo: string, base: string, upstream: string, onto: string): Promise<PullClash | null> {
   const local = `refs/heads/${base}`;
-  // as the rebase does, without the commits whose change is upstream already (cherry-picked there)
+  
   const own = (await gitAsync(repo, 'rev-list', '--reverse', '--no-merges', '--cherry-pick', '--right-only', `${upstream}...${local}`)).split('\n').filter(Boolean);
   if (!own.length) return null;
   const merge = async (args: string[]) => {
@@ -493,7 +493,7 @@ async function replayClash(repo: string, base: string, upstream: string, onto: s
   if ((await pullSet(repo, base)) === 'merge') {
     const { files } = await merge([`--merge-base=${await gitAsync(repo, 'merge-base', local, upstream)}`, local, onto]);
     if (!files) return null;
-    // the first of them to touch what conflicts
+    
     const first = (await gitAsync(repo, 'log', '--reverse', '--no-merges', '--cherry-pick', '--right-only', '--format=%H', `${upstream}...${local}`, '--', ...files)).split('\n')[0];
     return clash(first || own[0]!, files);
   }
@@ -515,11 +515,11 @@ async function withTrailer(ws: string, trailer: string | undefined) {
   if (!trailer) return;
   const message = await gitAsync(ws, 'log', '-1', '--format=%B');
   if (message.split('\n').includes(trailer)) return;
-  // the worker's commit as it was, its author kept; its hooks ran when it was made
+  
   try {
     await gitAsync(ws, 'commit', '--amend', '--quiet', '--no-verify', '--allow-empty', '--cleanup=verbatim', '-m', addTrailer(message, trailer));
   } catch (e) {
-    // the link is a convenience: the work lands without it
+    
     console.error(`landing without ${trailer}:`, messageOf(e));
   }
 }
@@ -533,47 +533,47 @@ export function addTrailer(message: string, trailer: string): string {
   return `${text}${trailers ? '\n' : '\n\n'}${trailer}\n`;
 }
 
-/** How long what a look at a free clone found (clean, dirty, not there) stands before it is looked at again. */
+
 export const RECHECK_MS = 60_000;
 
 export interface WorkstationOptions {
   mode: 'clones' | 'worktrees';
-  /** The checkout Seismic runs on. */
+  
   repoPath: string;
-  /** Where worktrees and created clones go. */
+  
   dir: string;
-  /** The repository on the project these workstations belong to; null is its home repository. */
+  
   repo?: string | null;
-  /**
-   * The machines its clones are on, in the order a new card looks for room (`host` null: this one),
-   * each with how many of the repository's workers may be busy there at once (none: as many as
-   * there are clones). Without it, this machine alone.
-   */
+  
+
+
+
+
   machines?: { host: string | null; slots?: number }[];
-  /** How many of the repository's workers are in a turn on a machine now (null: this one). */
+  
   busy?: (host: string | null) => number;
-  /** The repository's command that stops its app (`app.stop`), run in a clone of Seismic's own before its folder goes. */
+  
   stop?: string;
-  /** What its clones are clones of (its remote, its checkout): a folder whose `origin` is none of them is not one of its clones, and stays. */
+  
   origins?: string[];
-  /** Called when what the pool shows changes outside a card's lease: a clone's folder kept or gone. */
+  
   changed?: () => void;
-  /** The plan whose baseline this card's branch shares; absent when disabled or outside a plan. */
+  
   planOf?: (cardId: string) => string | undefined;
   baselineConfigured?: (cardId: string, tag: string, commit: string) => void;
 }
 
-/**
- * The folders of Seismic's own clones that left the pool and stay on disk since something in them
- * would be lost, by path (`ssh://<host>/…` on a host): what lies in them. Kept across a
- * repository's restarts, which make its `Workstations` afresh; looked at again at each start.
- */
+
+
+
+
+
 const kept = new Map<string, string>();
-/** The clones whose folders are being looked at or removed now, settling once that is through. */
+
 const retiring = new Map<string, Promise<void>>();
-/** Clones registered again while their folders were looked at: those stay. */
+
 const claimed = new Set<string>();
-/** What runs on a clone's folder now, by path: `ensureHostClones` making it, `clearAway` removing it; each waits for the other. */
+
 const busyPaths = new Map<string, Promise<unknown>>();
 
 /** Runs `fn` once what runs on `path` (`busyPaths`) is through, and keeps others off it meanwhile. */
@@ -586,15 +586,15 @@ function onPath<T>(path: string, fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
-/**
- * The trailer of the commit in which Seismic keeps the work a card had not committed when its
- * workstation was taken from it (`evict`); the card's next lease takes that commit apart again.
- */
+
+
+
+
 const SAVED = 'Seismic-Kept: uncommitted work';
 
-/** The name of a clone Seismic makes, its number (`ensureClones`); a card's worktree is named by the card's id, 8 characters. */
+
 const CLONE_NAME = /^\d{1,4}$/;
-/** The name of a clone's folder moved aside to be removed (`clearAway`). */
+
 const TRASH_NAME = /^\d{1,4}\.removing-\d+$/;
 
 /** The path of a workstation on its machine, without `ssh://<host>`. */
@@ -603,20 +603,20 @@ const pathThere = (path: string) => {
   return host === null ? path : path.slice(`ssh://${host}`.length) || '/';
 };
 
-/** The name of the machine Seismic runs on, as the Workstations pill shows it. */
+
 export const HERE = hostname().split('.')[0] || 'localhost';
 
-/** The code `lease` refuses with for each reason it finds no workstation. */
+
 const SHORT_CODE = { none: 'noWorkstation', dirty: 'dirtyWorkstations', slots: 'noSlot' } as const;
 /** Why `lease` found no workstation, by the code it refused with; none for any other refusal. */
 export const shortageOf = (code: string) => (Object.keys(SHORT_CODE) as WorkstationShortage[]).find((s) => SHORT_CODE[s] === code);
 const SHORT_TEXT = { none: 'no workstation registered or all are leased', dirty: 'every free workstation has uncommitted changes', slots: 'every machine with a free workstation has as many busy workers as it has slots' };
 
-/**
- * Where a repository's cards work, as the workers, the Koordinator and the project use it: clones or
- * worktrees of a git repository (`Workstations`), or the folder itself where it has no git
- * (`FolderWorkstations` in `folder.ts`, which has no branches and lands nothing).
- */
+
+
+
+
+
 export interface CardWorkstations {
   readonly mode: 'clones' | 'worktrees' | 'folder';
   readonly dir: string;
@@ -651,32 +651,32 @@ export interface CardWorkstations {
   changedFiles(cardId: string, landed?: { base: string; commit: string }, includeDeleted?: boolean): Promise<string[]>;
 }
 
-/**
- * A workstation given to a card: where it is, taken at once, and git making it ready there (a worktree
- * added, a clone fetched and on the card's branch), which runs without blocking the server; null
- * when it is ready already. `ready` settles with where the workstation is: another clone than `path`
- * where that one turned out to have uncommitted changes. A failure rejects, the workstation then given
- * back; with a `WorkstationError` whose code `shortageOf` knows where no clean clone was left.
- */
+
+
+
+
+
+
+
 export interface Lease {
   path: string;
   ready: Promise<string> | null;
 }
 
-/** A file of a card's work: where it lies on this machine, or what it holds (read from a commit). */
+
 export type FileAt = { path: string } | { data: Uint8Array<ArrayBuffer> };
 
-/**
- * The file at `path` in `root` itself, null where it is a link (or lies in a linked directory): a
- * link the card made could otherwise stand for any file of the root it did not change.
- */
-/** A text file of a card's change before and after it (null: none then, or not text, or too big to show). */
+
+
+
+
+
 export interface FileVersions {
   old: string | null;
   new: string | null;
 }
 
-/** The most a file's version may hold to be shown whole next to its diff. */
+
 export const VERSION_LIMIT = 2_000_000;
 
 /** A version's text; null for bytes that are no text (a NUL in them) or too many. */
@@ -734,30 +734,30 @@ export function ownFile(root: string, path: string): FileAt | null {
 }
 
 export class Workstations implements CardWorkstations {
-  /**
-   * What the last look at each free clone found (`look`), and when: whether it is clean, has
-   * uncommitted changes, or is not there (its machine unreachable, say). `place` chooses by it
-   * without asking git; the clone chosen is looked at again before a card works in it.
-   */
+  
+
+
+
+
   private looks = new Map<string, Seen & { at: number }>();
-  /** The looks at free clones under way, by path. */
+  
   private looking = new Map<string, Promise<Seen>>();
-  /** Clones the configuration no longer names that a card still holds: they leave the pool once it gives them back (`keepOnly`). */
+  
   private leaving = new Set<string>();
-  /** The directory Seismic makes its clones in on each host, once it has made sure they are there (`ensureHostClones`). */
+  
   private hostDirs = new Map<string, string>();
-  /** The workstations git is making ready, by the card they are leased to (`Lease.ready`). */
+  
   private preparing = new Map<string, Promise<string>>();
-  /** Cards that gave back their workstation while git was still making it ready: it is free once git is done. */
+  
   private releasing = new Set<string>();
-  /** Free clones git failed to make ready for a card, when and why: not taken again before RECHECK_MS (a fetch that fails would fail again at once). */
+  
   private failed = new Map<string, { at: number; error: string }>();
-  /** Follow-ups' temporary worktrees git is adding, by path: removing one waits for it. */
+  
   private trees = new Map<string, Promise<void>>();
-  /**
-   * What git does now to a card's workstation as it is freed, discarded or handed over, by path
-   * (`clearing`): in the background, one after the other on the same workstation.
-   */
+  
+
+
+
   private clears = new Map<string, Promise<unknown>>();
 
   constructor(
@@ -787,7 +787,7 @@ export class Workstations implements CardWorkstations {
     }
     this.store.workstations.add(this.projectId, path, this.o.repo ?? null);
     if (retiring.has(path)) claimed.add(path);
-    // a folder that stayed is back in the pool
+    
     if (kept.delete(path)) this.o.changed?.();
   }
 
@@ -858,7 +858,7 @@ export class Workstations implements CardWorkstations {
     const pool = new Set(this.list().map((w) => w.path));
     for (const name of names) {
       if (CLONE_NAME.test(name) && !pool.has(join(this.o.dir, name))) this.retire(join(this.o.dir, name));
-      // one whose removal a stop of Seismic cut off
+      
       if (TRASH_NAME.test(name) && !this.store.workstations.has(join(this.o.dir, name))) void rm(join(this.o.dir, name), { recursive: true, force: true }).catch(() => {});
     }
   }
@@ -907,13 +907,13 @@ export class Workstations implements CardWorkstations {
   }
 
   private async clearAway(path: string) {
-    // registered again, on any project, while it was looked at: it is a workstation again
+    
     const taken = () => claimed.has(path) || this.store.workstations.has(path);
     const o = { origins: this.o.origins ?? [], main: branchSetting(this.o.repoPath) || undefined };
-    // what the stop command leaves behind (a snapshot it writes, say) counts too: looked at again after it
+    
     for (const after of [false, true]) {
       const lost = await unlanded(path, o);
-      // the host does not answer, origin cannot be asked, or it is not a clone of the repository: next time
+      
       if (lost === null || taken()) return;
       if (lost === 'gone') {
         if (kept.delete(path)) this.o.changed?.();
@@ -933,8 +933,8 @@ export class Workstations implements CardWorkstations {
       if (!stopped.ok) console.error(`clone ${path}: ${this.o.stop} failed: ${stopped.output}`);
       if (taken()) return;
     }
-    // moved aside before it goes: once moved, nothing registers or leases the folder (here at once, on a host
-    // `ensureHostClones` waits for it), and making the clone again makes a fresh one
+    
+    
     const trash = `${pathThere(path)}.removing-${Date.now()}`;
     const there = remote(path);
     if (there) {
@@ -963,13 +963,13 @@ export class Workstations implements CardWorkstations {
       host.tokenFor(dir, token);
       for (let i = 1; i <= n; i++) {
         const path = `${dir}/${i}`;
-        // a folder being removed is made afresh once it is gone; one being made is not removed meanwhile
+        
         await onPath(onHost(host.name, path), async () => {
           if ((await host.run(['test', '-d', `${path}/.git`])).code !== 0) {
             const r = await host.run(['git', ...TOKEN_HELPER_ARGS, 'clone', '--quiet', source, path], { cwd: dir });
             if (r.code !== 0) throw new HostError(`cloning ${source} on ${host.name}: ${(r.stderr || r.stdout).trim()}`);
           }
-          // the worker's own push and gh go through the same login
+          
           const helper = `git config --unset-all credential.helper; ${TOKEN_HELPER.map((h) => `git config --add credential.helper ${shWord(h)}`).join(' && ')}`;
           const c = await host.run(helper, { cwd: path });
           if (c.code !== 0) throw new HostError(`${host.name}: ${c.stderr.trim()}`);
@@ -978,10 +978,10 @@ export class Workstations implements CardWorkstations {
           kept.delete(onHost(host.name, path));
         });
       }
-      // those of fewer clones there, or under another directory, leave the pool
+      
       const named = Array.from({ length: n }, (_, i) => onHost(host.name, `${dir}/${i + 1}`));
       this.keepOnly(host.name, named);
-      // and the folders of those that left it earlier go once nothing in them would be lost
+      
       const ls = await host.run(['ls', '-1', dir]);
       if (ls.code === 0)
         for (const name of ls.stdout.split('\n')) {
@@ -1011,10 +1011,10 @@ export class Workstations implements CardWorkstations {
    */
   lease(cardId: string, branch: string, o: { overSlots?: boolean; from?: string | null } = {}): Lease {
     const own = this.leasedBy(cardId);
-    // a worktree git is removing (its card deleted and brought back meanwhile) is added again once git is done
+    
     if (own && !this.cloned(own) && this.clears.has(own)) return this.leaseWorktree(cardId, branch);
     if (own) {
-      // given back while git was making it ready, and taken again before git was done: it stays the card's
+      
       this.releasing.delete(cardId);
       const ready = this.preparing.get(cardId);
       if (ready) return { path: own, ready };
@@ -1058,7 +1058,7 @@ export class Workstations implements CardWorkstations {
   private async configurePlanBaseline(cardId: string, ws: string): Promise<void> {
     const plan = this.o.planOf?.(cardId);
     if (!plan) return;
-    // a plan whose baseline was tagged before the rename keeps that tag
+    
     const oldTag = oldPlanBaselineTag(plan);
     const tag = (await gitAsync(this.o.repoPath, 'rev-parse', '--verify', '--quiet', `refs/tags/${oldTag}`).catch(() => '')) ? oldTag : planBaselineTag(plan);
     const ref = `refs/tags/${tag}`;
@@ -1070,7 +1070,7 @@ export class Workstations implements CardWorkstations {
     if (!commit) {
       const start = await gitAsync(ws, 'rev-parse', await this.upstreamAsync(ws));
       await hasCommit(this.o.repoPath, start);
-      // Compare-and-swap: concurrent first workstreams keep the winner's tag, never move it.
+      
       await gitAsync(this.o.repoPath, 'update-ref', ref, start, '').catch(async (error) => {
         if (!(await read(this.o.repoPath))) throw error;
       });
@@ -1082,7 +1082,7 @@ export class Workstations implements CardWorkstations {
     if (!existing) await gitAsync(ws, 'update-ref', ref, commit, '');
     const branch = await gitAsync(ws, 'branch', '--show-current');
     if (!branch) throw new WorkstationError(`Cannot configure plan baseline on a detached HEAD in ${ws}`);
-    // a worktree's config is its repository's, written by every workstream of the plan
+    
     await inTurn(this.o.mode === 'worktrees' ? this.o.repoPath : ws, () => gitAsync(ws, 'config', '--local', `branch.${branch}.seismic-project-baseline`, tag));
     this.o.baselineConfigured?.(cardId, tag, commit);
   }
@@ -1156,7 +1156,7 @@ export class Workstations implements CardWorkstations {
       for (const w of here) {
         const look = this.looks.get(w.path);
         if (stale(look)) void this.look(w.path);
-        // an unreachable machine's clones count as missing, not as dirty, and so do those git just failed on
+        
         if (this.justFailed(w.path) || look?.found === 'missing' || look?.found === 'unreachable') continue;
         if (look?.found === 'dirty' || look?.found === 'broken') dirty = true;
         else if (look?.found === 'clean') {
@@ -1182,10 +1182,10 @@ export class Workstations implements CardWorkstations {
     looking = cloneState(path).then((seen) => {
       this.looking.delete(path);
       const before = this.looks.get(path);
-      // taken meanwhile: the card it went to looks again before it works in it
+      
       if (!this.list().some((w) => w.path === path && !w.card_id)) return seen;
       this.looks.set(path, { ...seen, at: Date.now() });
-      // the pill names what it found, the files in a dirty clone too
+      
       if (!before || !sameSeen(before, seen)) this.o.changed?.();
       return seen;
     });
@@ -1228,12 +1228,12 @@ export class Workstations implements CardWorkstations {
    */
   pool(busy: string[], turnAt?: (cardId: string) => { host: string | null; path: string | null } | undefined): PoolHost[] {
     const all = this.list();
-    // the busy cards that work outside the pool, by their machine
+    
     const outside = busy.flatMap((c) => {
       const at = all.some((w) => w.card_id === c) ? undefined : turnAt?.(c);
       return at ? [{ card: c, ...at }] : [];
     });
-    // in the order of the workstations, then those outside the pool
+    
     const busyOn = (host: string | null) => [
       ...all.flatMap((w) => (w.card_id && busy.includes(w.card_id) && hostName(w.path) === host ? [w.card_id] : [])),
       ...outside.filter((o) => o.host === host).map((o) => o.card),
@@ -1250,7 +1250,7 @@ export class Workstations implements CardWorkstations {
       const slots = this.slots(null);
       const cards = all.flatMap((w) => (w.card_id && busy.includes(w.card_id) ? [w.card_id] : []));
       const at = busyOn(null);
-      // without slots nothing caps them: the pill shows the cards in worktrees alone
+      
       if (!Number.isFinite(slots)) return [{ name: HERE, here: true, worktrees: true, uncapped: true, slots: 0, total: 0, cards, busy: at, workstations: held(all, null), ...keptOn(null) }];
       return [{ name: HERE, here: true, worktrees: true, slots, total: slots, cards, busy: at, workstations: held(all, null), ...keptOn(null) }];
     }
@@ -1279,14 +1279,14 @@ export class Workstations implements CardWorkstations {
    */
   async hasWork(cardId: string): Promise<boolean> {
     const ws = this.leasedBy(cardId);
-    // one git is still making ready holds nothing of the card's yet
+    
     if (!ws || this.preparing.has(cardId)) return false;
     try {
       if (!(await existsAsync(ws))) return false;
       if (await gitAsync(ws, 'status', '--porcelain')) return true;
       const up = await this.upstreamAsync(ws);
       if ((await gitAsync(ws, 'rev-list', '--count', `${up}..HEAD`)) === '0') return false;
-      // commits main holds as copies of its own (its unpushed commits rebased by a pull) are not the card's: a landing drops them
+      
       return (await gitAsync(ws, 'rev-list', '--count', '--cherry-pick', '--right-only', `${up}...HEAD`)) !== '0';
     } catch {
       return true;
@@ -1310,7 +1310,7 @@ export class Workstations implements CardWorkstations {
     if (this.cloned(path) || !this.ownTree(path)) return this.free(path);
     void this.abandon(path).then(
       (removed) => {
-        // uncommitted changes, or git failed to remove it: the folder stays, as before, and the card lets go of it
+        
         if (!removed && this.leasedBy(cardId) === path) this.free(path);
       },
       () => {
@@ -1341,13 +1341,13 @@ export class Workstations implements CardWorkstations {
       return Promise.resolve(null);
     }
     return this.clearing(path, async () => {
-      // given back while git was busy with it before
+      
       if (this.leasedBy(cardId) !== path) return null;
       if (await gitAsync(path, 'status', '--porcelain')) {
         await gitAsync(path, 'add', '--all');
         await gitAsync(path, '-c', 'user.name=Seismic', '-c', 'user.email=seismic@localhost', '-c', 'core.hooksPath=/dev/null', 'commit', '--quiet', '--no-verify', '-m', `Uncommitted work, kept by Seismic as the card's workstation went to another card\n\n${SAVED}`);
       }
-      // given back meanwhile (a stop that had asked git before) and perhaps taken by another card, which waits for this
+      
       if (this.leasedBy(cardId) === path) this.free(path);
       return path;
     });
@@ -1361,7 +1361,7 @@ export class Workstations implements CardWorkstations {
   private dropCopy(from: string, branch: string, base: string): Promise<unknown> {
     return this.clearing(from, async () => {
       if ((await gitAsync(from, 'branch', '--show-current')) === branch) {
-        // only a free clone leaves the branch; one a card took meanwhile is on that card's own
+        
         if (!this.list().some((w) => w.path === from && !w.card_id)) return;
         await gitAsync(from, 'checkout', '--quiet', '--detach', `origin/${base}`);
       }
@@ -1373,7 +1373,7 @@ export class Workstations implements CardWorkstations {
   private free(path: string) {
     if (!this.leaving.delete(path)) {
       this.store.workstations.lease(path, null);
-      // what the card left in it decides whether the next one takes it
+      
       if (this.cloned(path) && !this.looks.has(path)) void this.look(path);
       return;
     }
@@ -1394,7 +1394,7 @@ export class Workstations implements CardWorkstations {
     return this.clearing(path, async () => {
       const by = this.list().find((w) => w.path === path)?.card_id;
       if (!by) return true;
-      // one git is still making ready is freed once git is done
+      
       if (this.preparing.has(by)) return false;
       if (this.cloned(path)) {
         this.free(path);
@@ -1479,7 +1479,7 @@ export class Workstations implements CardWorkstations {
     const cwd = this.leasedBy(cardId);
     if (!cwd) return;
     try {
-      // A squash or merge made on the forge may not be in the workstation yet.
+      
       if ((await gitRun(cwd, ['cat-file', '-e', `${commit}^{commit}`])).code !== 0) await gitAsync(cwd, 'fetch', '--quiet', 'origin');
       await this.announceRange(cardId, cwd, { from: `${commit}^`, to: commit });
     } catch (e) {
@@ -1490,7 +1490,7 @@ export class Workstations implements CardWorkstations {
   private async announceLanding(cardId: string, land: () => Promise<LandProblem | Landed>): Promise<LandProblem | Landed> {
     const result = await land();
     if (!('code' in result)) {
-      // Direct pushes hold the commits in the card's workstation; the checkout need not have them.
+      
       const cwd = this.leasedBy(cardId);
       if (cwd) await this.announceRange(cardId, cwd, result);
     }
@@ -1505,7 +1505,7 @@ export class Workstations implements CardWorkstations {
         gitAsync(cwd, 'log', '--format=%s', `${result.from}..${result.to}`),
       ]);
       const notice = { cardId, commit: result.to, subjects: subjects.split('\n').filter(Boolean), files: names.split('\0').filter(Boolean) };
-      // A notice cannot turn a successful merge into a failed approval.
+      
       await Promise.allSettled([...(landingListeners.get(this.o.repoPath) ?? [])].map((listener) => listener(notice)));
     } catch (e) {
       console.error('reading landed changes:', messageOf(e));
@@ -1520,7 +1520,7 @@ export class Workstations implements CardWorkstations {
     for (let attempt = 0; ; attempt++) {
       try {
         const base = await this.mainAsync(ws);
-        // a clone goes onto main as the checkout has it: its origin may be the remote, which lacks what landed here since
+        
         const onto = this.cloned(ws) ? () => gitAsync(ws, 'fetch', '--quiet', repo, `refs/heads/${base}`).then(() => gitAsync(ws, 'rev-parse', 'FETCH_HEAD')) : async () => base;
         const problem = await rebased(ws, base, onto);
         if (problem) return problem;
@@ -1547,11 +1547,11 @@ export class Workstations implements CardWorkstations {
         const commits = Number(await gitAsync(repo, 'rev-list', '--count', `HEAD..${switched.branch ?? switched.commit}`).catch(() => '0'));
         return { from, to, switched: { ...switched, commits } };
       } catch (e) {
-        // main moved while the branch was rebased (a commit made in the checkout by hand): once more onto it
+        
         const moved = (await gitRun(repo, ['merge-base', '--is-ancestor', 'HEAD', tip])).code === 1;
         if (moved && attempt === 0) continue;
         if (moved) return { code: 'land', worker: false, detail: messageOf(e) };
-        // else typically local changes in the Seismic checkout that the fast-forward would overwrite: which, so that the owner may fold them into the card
+        
         const seen = await inTheWay(repo, 'HEAD', tip).catch(() => []);
         const files = [...new Set([...seen, ...namedInRefusal(messageOf(e))])].sort();
         return { code: 'landMerge', worker: false, detail: messageOf(e), ...(files.length ? { files } : {}) };
@@ -1582,7 +1582,7 @@ export class Workstations implements CardWorkstations {
           await gitAsync(repo, 'fetch', '--quiet', ws, branch);
           tip = await gitAsync(repo, 'rev-parse', 'FETCH_HEAD');
         }
-        // what git named in its refusal goes too, where the checkout still has a change to it
+        
         const changed = (...args: string[]) => gitPaths(repo, '--literal-pathspecs', ...args, '--', ...named);
         const still = named.length ? [...(await changed('diff', '--name-only', '-z', '--no-renames', 'HEAD')), ...(await changed('diff', '--name-only', '-z', '--no-renames', '--cached', 'HEAD')), ...(await changed('ls-files', '-z', '--others'))] : [];
         const files = [...new Set([...(await inTheWay(repo, 'HEAD', tip)), ...still])].sort();
@@ -1591,25 +1591,25 @@ export class Workstations implements CardWorkstations {
         const commit = await commitOf(repo, head, files, 'Uncommitted changes from the main checkout, folded into this card');
         const ref = `refs/seismic/folded/${cardId}`;
         await gitAsync(repo, 'update-ref', ref, commit);
-        // what the owner staged is kept too, for a file staged in one version and edited on to another
+        
         const staged = await gitAsync(repo, 'commit-tree', await gitAsync(repo, 'write-tree'), '-p', head, '-m', 'The main checkout\'s index when its changes were folded into this card');
         await gitAsync(repo, 'update-ref', `${ref}-index`, staged);
         if (this.cloned(ws)) await gitAsync(ws, 'fetch', '--quiet', repo, ref);
         const picked = await gitRun(ws, ['cherry-pick', '--allow-empty', commit]);
         let conflict = picked.code !== 0;
-        // a pick that failed without a conflict to resolve leaves the checkout's changes where they are
+        
         if (conflict && (await gitRun(ws, ['rev-parse', '-q', '--verify', 'CHERRY_PICK_HEAD'])).code !== 0)
           return { code: 'land', worker: false, detail: `git cherry-pick in ${ws}: ${(picked.stderr || picked.stdout).trim()}` };
-        // the branch has those changes already: nothing to pick
+        
         if (conflict && !(await gitAsync(ws, 'diff', '--name-only', '--diff-filter=U'))) {
           await gitAsync(ws, 'cherry-pick', '--skip');
           conflict = false;
         }
-        // files edited once more while git picked keep the checkout's copies: nothing the commit lacks is lost
+        
         const now = await commitOf(repo, head, files, 'check');
         if ((await gitAsync(repo, 'rev-parse', `${now}^{tree}`)) !== (await gitAsync(repo, 'rev-parse', `${commit}^{tree}`)))
           return { files, commit, ...(conflict ? { conflict } : {}), kept: true };
-        // the checkout's copies go back to HEAD: tracked files restored, new ones removed
+        
         const tracked = await gitPaths(repo, '--literal-pathspecs', 'ls-tree', '-r', '-z', '--name-only', 'HEAD', '--', ...files);
         const added = files.filter((f) => !tracked.includes(f));
         if (tracked.length) await gitAsync(repo, '--literal-pathspecs', 'restore', '--source=HEAD', '--staged', '--worktree', '--', ...tracked);
@@ -1641,7 +1641,7 @@ export class Workstations implements CardWorkstations {
       const base = await this.checkoutBase();
       if ((await gitAsync(repo, 'branch', '--show-current')) !== base) return { problem: `the checkout is not on ${base}` };
       const from = await gitAsync(repo, 'rev-parse', 'HEAD');
-      // a merge or rebase of the owner's under way is theirs: nothing is pulled into it, nor undone
+      
       const busy = await underway(repo);
       if (busy) return { problem: `the checkout is in the middle of a ${busy}` };
       await gitAsync(repo, 'fetch', '--quiet', 'origin', base);
@@ -1653,7 +1653,7 @@ export class Workstations implements CardWorkstations {
       try {
         await gitAsync(repo, '-c', 'core.editor=true', 'pull', '--quiet', '--no-edit', ...(await pullMode(repo, base, upstream)), 'origin', base);
       } catch (e) {
-        // a rebase or merge that stopped on a conflict is taken back: the checkout stays as it was
+        
         await gitAsync(repo, 'rebase', '--abort').catch(() => gitAsync(repo, 'merge', '--abort')).catch(() => {});
         return { problem: messageOf(e) };
       }
@@ -1702,7 +1702,7 @@ export class Workstations implements CardWorkstations {
       const repo = this.o.repoPath;
       const base = await this.checkoutBase();
       const known = async () => (await gitRun(repo, ['cat-file', '-e', `${head}^{commit}`])).code === 0;
-      // a clone's commits are not the checkout's: the review card's workstation holds the head it reviewed
+      
       const ws = this.leasedBy(cardId);
       if (!(await known()) && ws) await gitRun(repo, ['fetch', '--quiet', '--no-write-fetch-head', ws, head]);
       if (!(await known())) return null;
@@ -1746,7 +1746,7 @@ export class Workstations implements CardWorkstations {
         if (!(await contains(ws, at.upstream, own)))
           return { code: 'landConflict', worker: true, detail: `your HEAD (${own.slice(0, 7)}) does not build on ${at.upstream.slice(0, 7)}, origin's ${base} with the merge: rebase the local ${base}'s commits onto it` };
         if (now !== at.main) {
-          // what landed on the local main while the worker resolved goes on top of its work
+          
           try {
             await gitAsync(ws, 'cherry-pick', '--quiet', '--allow-empty', `${at.main}..${now}`);
           } catch (e) {
@@ -1756,11 +1756,11 @@ export class Workstations implements CardWorkstations {
         }
         const tip = await gitAsync(ws, 'rev-parse', 'HEAD');
         if (cloned) await gitAsync(repo, 'fetch', '--quiet', '--no-write-fetch-head', ws, tip);
-        // a commit made in the checkout by hand meanwhile would be lost with the reset: it goes on top first, at the next handover
+        
         if ((await gitAsync(repo, 'rev-parse', 'HEAD')) !== now || (await gitAsync(repo, 'branch', '--show-current')) !== base)
           return { code: 'landConflict', worker: true, main: now, detail: `the local ${base} moved on once more while Seismic landed your branch, which holds what landed on it up to ${now.slice(0, 7)} now: call ready_for_review again` };
         try {
-          // never pushed, so moving the local main there rewrites no published history; the owner's uncommitted changes are kept, or it stops
+          
           await gitAsync(repo, 'reset', '--quiet', '--keep', tip);
         } catch (e) {
           return { code: 'landMerge', worker: false, detail: messageOf(e) };
@@ -1821,7 +1821,7 @@ export class Workstations implements CardWorkstations {
         return { from, to: await gitAsync(ws, 'rev-parse', 'HEAD') };
       } catch (e) {
         const detail = messageOf(e);
-        // the default branch moved since the fetch, or while pushing; anything else (a protected branch, say) is the owner's
+        
         if (attempt === 0 && /non-fast-forward|fetch first|\[rejected\]|cannot lock ref|failed to update ref/.test(detail)) continue;
         return { code: 'landPush', worker: false, detail };
       }
@@ -1864,7 +1864,7 @@ export class Workstations implements CardWorkstations {
       });
     }
     await this.clearing(ws, async () => {
-      // handed over or given back while git was busy with it before
+      
       if (this.leasedBy(cardId) !== ws) return;
       if (await existsAsync(ws)) {
         await gitAsync(ws, 'reset', '--quiet', '--hard');
@@ -1886,18 +1886,18 @@ export class Workstations implements CardWorkstations {
     const path = this.leasedBy(from);
     if (!path) throw new WorkstationError('the card has no workstation', 'noWorkstation');
     return this.clearing(path, async () => {
-      // handed over or given back while git was busy with it before
+      
       if (this.leasedBy(from) !== path) throw new WorkstationError('the card has no workstation', 'noWorkstation');
       if (this.preparing.has(from)) throw new WorkstationError('git is still preparing the workstation of the card it comes from');
       if (this.leasedBy(to)) throw new WorkstationError('the card it goes to has a workstation of its own');
-      // in a worktree the branch lives in the Seismic checkout, in a clone in the clone
+      
       const repo = this.cloned(path) ? path : this.o.repoPath;
       let now = branch;
       if (rename && rename !== branch && !(await gitAsync(repo, 'branch', '--list', rename))) {
         await gitAsync(repo, 'branch', '-m', branch, rename);
         now = rename;
       }
-      // either card moved on while git renamed the branch (the one it comes from discarded, the one it goes to started): back as it was
+      
       const moved = this.leasedBy(from) !== path ? 'the card it comes from gave its workstation up meanwhile' : this.leasedBy(to) ? 'the card it goes to took a workstation of its own meanwhile' : null;
       if (moved) {
         if (now !== branch) await gitAsync(repo, 'branch', '-m', now, branch).catch(() => {});
@@ -1943,7 +1943,7 @@ export class Workstations implements CardWorkstations {
       const tracked = await gitDiff(ws, base);
       const untracked = (await gitAsync(ws, 'ls-files', '-z', '--others', '--exclude-standard')).split('\0').filter(Boolean);
       const added: string[] = [];
-      // a new file against nothing; git answers 1 when there is a difference
+      
       for (const file of untracked.slice(0, NEW_FILES_SHOWN)) {
         const r = await gitRun(ws, [...DIFF, '--no-index', '--', '/dev/null', file]);
         if (r.code === 1) added.push(r.stdout.trim());
@@ -1976,7 +1976,7 @@ export class Workstations implements CardWorkstations {
       const there = remoteWorkstation(ws);
       const base = landed ? landed.base : await this.base(ws);
       const to = landed?.commit;
-      // a renamed file's earlier name
+      
       const status = await gitRun(ws, ['-c', 'core.quotePath=false', 'diff', '--name-status', '-z', '-M', base, ...(to ? [to] : [])]);
       const parts = status.stdout.split('\0');
       let from = path;
@@ -1994,7 +1994,7 @@ export class Workstations implements CardWorkstations {
         return (await p.exited) === 0 && data ? textOf(data) : null;
       };
       const here = async (name: string) => {
-        // on another machine: a plain file that stays inside the workstation
+        
         if (there) return remoteText(there, `f=${shWord(name)}; [ -f "$f" ] && [ ! -L "$f" ] && case "$(realpath "$f")" in "$(pwd -P)"/*) true;; *) false;; esac && [ "$(wc -c < "$f")" -le ${VERSION_LIMIT} ]`, 'cat "$f"');
         const f = ownFile(ws, name);
         return f && 'path' in f ? boundedFileText(f.path) : null;
@@ -2058,7 +2058,7 @@ export class Workstations implements CardWorkstations {
     const up = await this.upstreamAsync(ws);
     const [main, at] = await Promise.all([gitAsync(ws, 'merge-base', 'HEAD', up), gitAsync(ws, 'rev-parse', 'HEAD', '--abbrev-ref', 'HEAD')]);
     const [head, branch] = at.split('\n');
-    // the card's branch here and in remotes, whatever its name
+    
     const cards = [...CARD_BRANCHES.map((p) => `${p}*`), ...(branch && branch !== 'HEAD' ? [branch] : [])];
     const own = (
       await gitAsync(ws, 'rev-list', '--first-parent', '--parents', 'HEAD', '--not', main, ...cards.map((b) => `--exclude=${b}`), '--branches', ...cards.map((b) => `--exclude=*/${b}`), '--remotes')
@@ -2078,10 +2078,10 @@ export class Workstations implements CardWorkstations {
     const fork = own.at(-1)!.split(' ')[1];
     if (!fork || fork === main) return main;
     const before = async (a: string, b: string) => (await gitRun(ws, ['merge-base', '--is-ancestor', a, b])).code === 0;
-    // the main branch merged into the card's branch since it left it
+    
     if (await before(fork, main)) return main;
     if (await before(main, fork)) return fork;
-    // a card on a long-lived branch with the main branch merged in since: both, as one tree
+    
     try {
       return (await gitAsync(ws, 'merge-tree', '--write-tree', fork, main)).split('\n')[0]!;
     } catch {
@@ -2119,10 +2119,10 @@ export class Workstations implements CardWorkstations {
       found.path,
       async () => {
         let path = found.path;
-        // what git still does there for the card that held it before (its work kept, `evict`) is through first
+        
         await this.clears.get(path)?.catch(() => {});
         for (let seen = await cloneState(path); seen.found !== 'clean'; seen = await cloneState(path)) {
-          // given back first: the shortage, where no other is left, counts it as the dirty clone it is
+          
           this.free(path);
           this.looks.set(path, { ...seen, at: Date.now() });
           const next = this.place(overSlots, from);
@@ -2132,22 +2132,22 @@ export class Workstations implements CardWorkstations {
         }
         const base = await this.mainAsync(path);
         await gitAsync(path, 'fetch', '--quiet', 'origin');
-        // the branch as the clone it was kept in holds it, which may be newer than a copy here
+        
         if (from && from !== path) {
           await gitAsync(path, 'checkout', '--quiet', '--detach');
           await gitAsync(path, 'fetch', '--quiet', pathThere(from), `+refs/heads/${branch}:refs/heads/${branch}`);
         }
-        // a branch that already exists holds work: check it out, never reset it
+        
         if (await gitAsync(path, 'branch', '--list', branch)) await gitAsync(path, 'checkout', '--quiet', branch);
         else await gitAsync(path, 'checkout', '--quiet', '-b', branch, `origin/${base}`);
-        // the work it had not committed when its workstation was taken is uncommitted again, unless the
-        // card was stopped meanwhile: then the clone goes back clean and the one that kept the branch keeps it
+        
+        
         if (from && !this.releasing.has(cardId) && (await gitAsync(path, 'log', '-1', '--format=%B')).includes(SAVED)) await gitAsync(path, 'reset', '--quiet', 'HEAD~1');
         if (from && from !== path && !this.releasing.has(cardId)) void this.dropCopy(from, branch, base);
         return path;
       },
       (path, e) => {
-        // a clone git failed on is not taken again at once; one found dirty is known as such already
+        
         if (!shortageOf(e.code)) this.failed.set(path, { at: Date.now(), error: e.message });
         this.free(path);
       },
@@ -2197,7 +2197,7 @@ export class Workstations implements CardWorkstations {
 
   /** Removes a follow-up's temporary worktree (`followUpTree`) and its entry in the clone it was made from. */
   async removeFollowUpTree(path: string) {
-    // one git is still adding goes once it is there
+    
     await this.trees.get(path)?.catch(() => {});
     await removeTree(path);
   }
@@ -2217,7 +2217,7 @@ export class Workstations implements CardWorkstations {
       path,
       async () => {
         await removing;
-        // the card's again, where git removed it from the pool meanwhile; one git failed to remove is as it was
+        
         this.store.workstations.add(this.projectId, path, this.o.repo ?? null);
         this.store.workstations.lease(path, cardId);
         if (existsSync(path)) return path;
@@ -2250,7 +2250,7 @@ export function leavingClones(
     const n = CLONE_NAME.test(basename(there)) ? Number(basename(there)) : undefined;
     const made = host !== null ? n : dirname(w.path) === o.dir ? n : undefined;
     if (host === null) {
-      // a card's worktree is no clone
+      
       let clone = true;
       try {
         clone = statSync(join(w.path, '.git')).isDirectory();
@@ -2322,7 +2322,7 @@ export async function unlanded(path: string, o: { origins?: string[]; main?: str
   const landedOn = async (main: string, ref: string) => {
     const base = await run('merge-base', main, ref);
     if (base === null) return false;
-    // the names as they are, NUL-separated: a name with a tab or a space at its end is no other file's
+    
     const listed = await gitRun(path, ['diff', '-z', '--no-ext-diff', '--no-textconv', '--name-only', '--no-renames', base, ref]);
     const files = listed.stdout.split('\0').filter(Boolean);
     if (listed.code !== 0 || files.length > 1000) return false;
@@ -2332,21 +2332,21 @@ export async function unlanded(path: string, o: { origins?: string[]; main?: str
     const n = await run('rev-list', '--count', ref, '--not', '--remotes=origin');
     if (n === null) return null;
     if (n === '0') continue;
-    // its changes are on the main branch already (squashed, rebased): each file it changed is there as it has it
+    
     if (onMain && (await landedOn(main, ref))) continue;
     const name = ref === 'HEAD' ? 'a detached HEAD' : ref.startsWith('refs/heads/') ? `branch ${ref.slice(11)}` : ref.replace(/^refs\//, '');
     lost.push(`${name} with ${n} commit(s) not on origin`);
   }
   return lost;
 }
-/** How many of a dirty clone's files a look keeps, for the pill to name. */
+
 const SEEN_FILES = 5;
 
-/**
- * What a look at a clone finds (`Workstations.look`): clean; uncommitted changes (`files`, the first
- * SEEN_FILES of them, `more` beyond); git failing in it (`broken`, its `error`); its folder not there;
- * or its machine not answering.
- */
+
+
+
+
+
 interface Seen {
   found: 'clean' | 'dirty' | 'broken' | 'missing' | 'unreachable';
   files?: string[];
@@ -2392,8 +2392,8 @@ export async function workingChanges(path: string): Promise<{ files: string[]; d
   const index = (await run(['rev-parse', '--path-format=absolute', '--git-path', `seismic-capture-${crypto.randomUUID()}`])).trim();
   const env = { GIT_INDEX_FILE: index };
   try {
-    // Parent patches contain only gitlinks, never a submodule's files or its local commits.
-    // Refuse the whole capture rather than offer a task that cannot recover all of its work.
+    
+    
     const checkSubmodules = async (env?: Record<string, string>) => {
       const modules = (await run(['ls-files', '--stage', '-z'], env)).split('\0')
         .filter((e) => e.startsWith('160000 ')).map((e) => e.slice(e.indexOf('\t') + 1));
@@ -2401,12 +2401,12 @@ export async function workingChanges(path: string): Promise<{ files: string[]; d
         throw new WorkstationError('Working changes include a submodule; its contents cannot be captured in a parent-repository patch');
     };
     await checkSubmodules();
-    // Staging runs a path's clean filter, so the patch would hold what the filter made of the file: a
-    // Git LFS pointer to an object only this checkout's store has, say. Refuse, before any filter runs,
-    // where a changed file still on disk has a filter driver; line-ending and encoding conversions are
-    // git's own, and `git apply` reverses them. A deletion carries no contents.
+    
+    
+    
+    
     const drivers = new Set((await gitRun(path, ['config', '-z', '--get-regexp', '^filter\\..*\\.(clean|process)$'])).stdout.split('\0')
-      // `key\nvalue`; git runs any command but an empty one, also one spanning lines
+      
       .filter((e) => e.includes('\n') && e.slice(e.indexOf('\n') + 1) !== '')
       .map((e) => e.slice(0, e.indexOf('\n')).replace(/^filter\./, '').replace(/\.(clean|process)$/, '')));
     for (const driver of drivers) {
@@ -2434,11 +2434,11 @@ export async function workingChanges(path: string): Promise<{ files: string[]; d
   }
 }
 
-/**
- * The file a card's captured working changes are put in, in its workstation's git directory: outside
- * the files git tracks, so the clone stays clean, and on the machine its worker runs on. Too large
- * for a prompt, the patch reaches the worker as this file (`git rev-parse --git-path` names it there).
- */
+
+
+
+
+
 export const CAPTURED_CHANGES = 'seismic-captured-changes.patch';
 
 /** Writes `text` into the git directory of the workstation at `path` as `name`, on its machine; returns the file's absolute path there. */
@@ -2465,11 +2465,11 @@ async function cloneState(path: string): Promise<Seen> {
       if (r.code === LOST) return { found: 'unreachable' };
       if (r.code !== 0) return { found: 'missing' };
     } else if (!existsSync(path)) return { found: 'missing' };
-    // not `gitAsync`, which trims the first entry's status letters
+    
     const r = await gitRun(path, ['status', '--porcelain', '-z']);
     if (r.code !== 0) return { found: 'broken', error: (r.stderr || r.stdout).trim() || `exit code ${r.code}` };
     if (r.stdout === '') return { found: 'clean' };
-    // `XY path`, unquoted, each ended by NUL; a rename or copy is followed by the path it came from
+    
     const files = porcelainFiles(r.stdout);
     return { found: 'dirty', files: files.slice(0, SEEN_FILES), ...(files.length > SEEN_FILES ? { more: files.length - SEEN_FILES } : {}) };
   } catch (e) {
@@ -2493,7 +2493,7 @@ export const detachedTree = (path: string, commit: string) => ['-c', 'core.hooks
 
 export interface Change {
   file: string;
-  /** Changed ranges in the new file, as git's hunk header has them: "120-134 in function decide". */
+  
   regions: string[];
 }
 
@@ -2509,7 +2509,7 @@ export function parseChanges(diff: string): Change[] {
     }
     const cur = out.at(-1);
     if (!cur) continue;
-    // the file names come before the first hunk; later lines like these are content
+    
     if (header && line.startsWith('--- a/')) cur.file = line.slice(6);
     else if (header && line.startsWith('+++ b/')) cur.file = line.slice(6);
     else if (header && line === '+++ /dev/null') cur.regions.push('deleted');
@@ -2525,10 +2525,10 @@ export function parseChanges(diff: string): Change[] {
   return out.filter((c) => c.file);
 }
 
-/**
- * The main branches the owner set for repositories on this machine (`RepoSettings.branch`), by
- * the repository's path, each read when it is asked for: a running project registers its own.
- */
+
+
+
+
 const branchSettings = new Map<string, () => string | undefined>();
 
 /** Registers where the main branch the owner set for the repository at `repoPath` is read; returns what takes it back. */
@@ -2555,11 +2555,11 @@ export async function defaultBranchAsync(path: string): Promise<string> {
   return branchSetting(path) || (await gitSteps(path, detectingBranch()));
 }
 
-/**
- * The folders without git in the configuration (`RepoConfig.git` false), by path: they have no
- * branch, and what Seismic reads of them (`.seismic/settings.json`, plan docs) it reads as the folder has
- * it. Marked whenever a configuration is resolved.
- */
+
+
+
+
+
 const folders = new Set<string>();
 
 /** Marks the path as a folder without git, or as a repository again. */
@@ -2594,13 +2594,13 @@ export function* detectingBranch(branches?: Branches | null): GitSteps<string> {
   return init || 'main';
 }
 
-/** A repository's branches, what its main branch and that branch's commit are read from. */
+
 export interface Branches {
-  /** The branch `origin`'s HEAD names, where the checkout knows one. */
+  
   originHead?: string;
-  /** The local branches and their commits. */
+  
   local: Map<string, string>;
-  /** `origin`'s branches as the checkout last fetched them, and their commits. */
+  
   remote: Map<string, string>;
 }
 
@@ -2623,11 +2623,11 @@ export function* readingBranches(): GitSteps<Branches | null> {
   return b;
 }
 
-/**
- * What Seismic reads of a repository with git, written once for both ways it runs: batches of git
- * calls (their arguments) that do not depend on one another, each answered with the calls' output
- * (trimmed; null where git failed) before the next batch is asked.
- */
+
+
+
+
+
 export type GitSteps<T> = Generator<string[][], T, (string | null)[]>;
 
 /** Runs git steps in `cwd` one call after the other, the server waiting: for code that cannot wait otherwise. */
@@ -2662,9 +2662,9 @@ export function* gitCalls(...calls: string[][]): GitSteps<(string | null)[]> {
   return yield calls;
 }
 
-/** What every new card's branch begins with. */
+
 export const CARD_BRANCH = 'seismic/';
-/** What a card's branch began with before the rename; cards in flight keep theirs (migration shim: both are recognised). */
+
 export const OLD_CARD_BRANCH = 'obeya/';
 export const CARD_BRANCHES = [CARD_BRANCH, OLD_CARD_BRANCH];
 /** Whether `name` is a card's branch, under either prefix (`refs/heads/` or a remote's name in front of it does not count). */

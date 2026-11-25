@@ -30,7 +30,7 @@ test('an Seismic that ended for the app to take it over leaves its entry marked,
   expect(recorded(dir)?.takenOver).toBeUndefined();
   takenOver(dir, 4242);
   expect(recorded(dir)).toEqual({ ...entry(4242, 4417), app: true, takenOver: true });
-  // its process is gone: a start serves the home
+  
   expect(await running(dir, process.pid, 100)).toBeNull();
 });
 
@@ -40,10 +40,10 @@ test('runs: a live process whose URL answers; not a dead one, not this one, nor 
   try {
     claim(dir, entry(other.pid, server.port!));
     expect(await running(dir)).toMatchObject({ pid: other.pid });
-    // the server itself finds its own entry, which is no other Seismic
+    
     expect(await running(dir, other.pid)).toBeNull();
     server.stop(true);
-    // alive but silent past the grace, as when another program got the pid of an Seismic long gone
+    
     expect(await running(dir, process.pid, 300)).toBeNull();
     other.kill();
     await other.exited;
@@ -61,17 +61,17 @@ test('an Seismic starting again is waited for past the grace, until its server a
   try {
     claim(dir, entry(other.pid, 1));
     restarting(dir, 1);
-    // only the supervisor that wrote the entry marks it
+    
     expect(recorded(dir)?.restarting).toBeUndefined();
     restarting(dir, other.pid);
     expect(recorded(dir)?.restarting).toBe(true);
     const found = running(dir, process.pid, 100, 5000);
     await Bun.sleep(400);
-    // the restarted server answers on another port and writes its own entry
+    
     server = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch: () => Response.json([]) });
     claim(dir, entry(other.pid, server.port!));
     expect(await found).toMatchObject({ pid: other.pid, port: server.port });
-    // one that does not come back counts as gone once the longer grace is over
+    
     server.stop(true);
     restarting(dir, other.pid);
     expect(await running(dir, process.pid, 100, 300)).toBeNull();
@@ -90,9 +90,9 @@ test('a second Seismic on the same home ends and says where the first runs; the 
   try {
     await until(() => recorded(home), 20_000);
     const i = recorded(home)!;
-    // the supervisor, which stays across restarts
+    
     expect(i.pid).toBe(first.pid);
-    // only with the owner's key from its home (owner.ts)
+    
     expect((await fetch(`${i.url}/api/projects`)).status).toBe(401);
     expect((await fetch(`${i.url}/api/projects`, { headers: ownerHeaders(home) })).ok).toBe(true);
 
@@ -100,7 +100,7 @@ test('a second Seismic on the same home ends and says where the first runs; the 
     expect(await second.exited).toBe(1);
     const said = await new Response(second.stderr).text();
     expect(said).toContain(`already runs on ${home}, at ${i.url}`);
-    // with a new link that signs a browser in
+    
     const link = said.match(/Open it signed in: (\S+)/)![1]!;
     const signed = await fetch(link, { redirect: 'manual' });
     expect(signed.status).toBe(200);

@@ -1,6 +1,6 @@
-// Seismic's chats, in the head of its conversation (the sheet, the phone's panel): the button at the
-// left slides out the earlier chats, this project's or every project's, the one at the right starts
-// a new chat. What the owner says goes into the chat open now; the Koordinator remembers that one.
+
+
+
 
 import { Menu, SquarePen, X } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
@@ -17,19 +17,19 @@ import { Tooltip } from './components/tooltip';
 import { Button } from './components/button';
 
 interface Props {
-  /** The heading between the two buttons. */
+  
   title: ReactNode;
   project: string;
-  /** The project's name, on the switch to its own chats. */
+  
   projectName: string;
-  /** The chat open now, the project's chats with something said in them, and what the sheet holds (answers unread in other chats among it). */
+  
   chat: number;
   chats: Chat[];
   talk: Talk[];
   disabled?: boolean;
-  /** A chat of another project was opened there: show that project's conversation. */
+  
   onProject: (project: string) => void;
-  /** The sheet's close button, at the head's right end. */
+  
   onClose?: () => void;
 }
 
@@ -40,7 +40,7 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, disa
   const [error, setError] = useState('');
   const drawer = useRef<HTMLDivElement>(null);
   const head = useRef<HTMLDivElement>(null);
-  // nothing said in the chat open now: a new one would be the same
+  
   const fresh = !talk.some((x) => x.chat === chat) && !chats.some((c) => c.id === chat);
   const waiting = talk.filter((x) => x.unread && x.chat !== chat).length;
 
@@ -56,7 +56,7 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, disa
   useEffect(() => {
     if (!open) return;
     setError('');
-    // the sheet may have scrolled down to its sections: the list stands over all of it from its top
+    
     drawer.current?.closest('.sheet')?.scrollTo({ top: 0 });
     drawer.current?.querySelector<HTMLElement>('.chat-row.on, .chat-row')?.focus({ preventScroll: true });
     const key = (e: KeyboardEvent) => {
@@ -86,7 +86,7 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, disa
   const shown: (Chat & { projectName?: string })[] = all ? (every ?? []) : chats;
 
   return (
-    // on the phone the head is the panel's grip: a press on it drags the panel, one on its buttons does not
+    
     <div className={headClass} ref={head}>
       <Tooltip content={waiting ? `${t.koordinator.chatsOpen} · ${t.koordinator.unreadCount(waiting)}` : t.koordinator.chatsOpen}>
         <button
@@ -114,7 +114,7 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, disa
       {open &&
         head.current?.closest('.sheet, .ph-panel') &&
         createPortal(
-          // a portal's events bubble through the head to the panel's grip: a press in the list is no drag
+          
           <div className="chats-layer contents" onPointerDown={(e) => e.stopPropagation()}>
             <div className="chats-scrim absolute inset-0 z-30 bg-scrim animate-[fade_.2s_ease-out]" onClick={() => setOpen(false)} />
             <div className={drawerClass} ref={drawer} role="dialog" aria-label={t.koordinator.chats}>
@@ -224,19 +224,19 @@ export function RecentChats({ project, draft, chats }: { project: string; draft:
   );
 }
 
-/**
- * The head: in the sheet over the conversation, with the sheet's title between the buttons; on the phone the
- * panel's bar, with the word between them and larger buttons for a finger.
- */
+
+
+
+
 const headClass =
   'chats-head flex items-center gap-1.5 [.sheet>&]:mt-0 [.sheet>&]:mx-0 [.sheet>&]:mb-2 [.sheet>&_h2]:m-0 [.sheet>&_h2]:flex-1 [.sheet>&_h2]:min-w-0 [.ph-bar_&]:flex-1 [.ph-bar_&]:min-w-0 [.ph-bar_&]:gap-2 [.ph-bar_&_.ph-word]:flex-1 [.ph-bar_&_.ph-word]:min-w-0';
-/** Its buttons, the icon alone; with a dot while an answer waits in another chat. */
+
 const btnClass =
   'chats-btn inline-flex items-center justify-center relative size-8 flex-none p-0 [border:0] rounded-xs bg-transparent text-muted-foreground cursor-pointer hover:not-disabled:bg-muted hover:not-disabled:text-foreground disabled:opacity-40 disabled:cursor-default [.ph-bar_&]:size-10';
-/** The earlier chats, slid out from the left over the sheet or the panel. */
+
 const drawerClass =
   'chats-drawer absolute top-0 bottom-0 left-0 z-31 w-[min(320px,86%)] flex flex-col gap-2.5 pt-4 px-3 pb-[calc(16px+env(safe-area-inset-bottom))] bg-surface border-r border-r-border [box-shadow:var(--lift)] overflow-y-auto overscroll-contain animate-[chats-in_.25s_cubic-bezier(.3,.9,.3,1)] text-base [&_.hint]:my-1 [&_.hint]:mx-1.5';
-/** A chat in the list; the one open now tinted. */
+
 const rowClass = 'chat-row flex flex-col items-stretch gap-1 w-full py-2 px-2.5 [border:0] rounded-sm bg-transparent text-foreground text-left cursor-pointer hover:bg-muted';
 const onClass = 'on bg-working/14!';
 const titleClass = 'chat-title overflow-hidden text-ellipsis whitespace-nowrap';

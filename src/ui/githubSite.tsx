@@ -1,9 +1,9 @@
-// A demo site at GitHub, in Configuration → Demos → "Configure publishing site": the repositories
-// gh's login can push to, searchable and grouped by owner, with "+ Create repository" on top (a
-// repository just for demos, today's whole-repository site); an existing one takes the site in a
-// folder ("Folder in the repository"), whose address its Pages give. "Initialize demo site" confirms
-// the first commit (a pull request, or a push to the default branch where one goes through), then
-// asks how later demos go in (`PublishMode`), which a folder site's entry in Demo sites shows too.
+
+
+
+
+
+
 
 import { cn } from 'cn';
 import { Check } from 'lucide-react';
@@ -22,12 +22,12 @@ import * as K from './configClasses';
 import { pathClass } from './setupClasses';
 import { failText, t } from './strings';
 
-/** What the owner picked and typed, not sent yet: it survives closing the dialog. */
+
 const PICKED_KEY = 'seismic-site-github-repo';
 const FOLDER_KEY = 'seismic-site-github-folder';
 const NAME_KEY = 'seismic-site-github-name';
 const PRIVATE_KEY = 'seismic-site-github-private';
-/** The list item that creates a repository. */
+
 export const CREATE = '+';
 
 const linkClass = 'text-primary underline decoration-1 underline-offset-[.18em]';
@@ -36,10 +36,10 @@ const linkClass = 'text-primary underline decoration-1 underline-offset-[.18em]'
 const tidy = (folder: string) => folder.trim().replace(/^\/+|\/+$/g, '');
 const folderOk = (folder: string) => /^[A-Za-z0-9-][A-Za-z0-9._-]{0,80}(\/[A-Za-z0-9-][A-Za-z0-9._-]{0,80}){0,5}$/.test(folder) && !folder.split('/').includes('..');
 
-/** Above this the entry warns of the repository's size (as the server's `SIZE_WARNING`). */
+
 const SIZE_WARNING = 800 * 1000 * 1000;
 
-/** The repositories gh's login can push to, read once per page. */
+
 let reposNow: GithubRepoList | null = null;
 
 export type GithubAdd = { create: { name: string; private: boolean } } | { repo: string; folder: string; via: 'pr' | 'push' };
@@ -48,7 +48,7 @@ export type GithubAdd = { create: { name: string; private: boolean } } | { repo:
  * The GitHub part of adding a site: the repository list, and below it what the choice needs (a
  * name and the public/private switch; a folder, its address and "Initialize demo site").
  */
-export function GithubSetup({ running, onAdd, cancel }: { running: boolean; onAdd: (how: GithubAdd) => void; /** The way back, beside the step's button. */ cancel?: ReactNode }) {
+export function GithubSetup({ running, onAdd, cancel }: { running: boolean; onAdd: (how: GithubAdd) => void;  cancel?: ReactNode }) {
   const g = t.config.sites.github;
   const p = t.config.sites;
   const [list, setList] = useState<GithubRepoList | null>(reposNow);
@@ -162,7 +162,7 @@ export function GithubSetup({ running, onAdd, cancel }: { running: boolean; onAd
                   variant="primary"
                   disabled={running || !view.address}
                   onClick={() => {
-                    // a change made at GitHub meanwhile shows in the dialog
+                    
                     setConfirmBranch(view.branch);
                     recheck();
                     setConfirming(true);
@@ -285,7 +285,7 @@ export function PublishMode({ url, repo, git, onChanged, title = true }: { url: 
   useEffect(() => recheck(), [url]);
   const view = info && info !== 'loading' && typeof info !== 'string' ? info : null;
   const blocked = !!view && !view.push.allowed;
-  // the default branch as GitHub has it now, which the check is about and shares go to; the setup's until it is read
+  
   const branch = view?.branch ?? git.branch;
   const choose = async (mode: string) => {
     if (mode !== 'direct' && mode !== 'pr') return;

@@ -1,5 +1,5 @@
-// Every UI string, in English. `t` is the one in effect, set once before the first render
-// (`setLanguage`). Dates and numbers follow the language, in the browser's own variant of it.
+
+
 
 import { clientExtensions as extensions } from '../extensions/client';
 import { ApiError } from './api';
@@ -52,7 +52,7 @@ const en = {
   },
   proposalBySeismic: 'Proposed by Seismic',
   capturedChanges: 'Captured working changes',
-  /** A card's state in a word or two, where the smallest card face says it (`stateLabel(i, true)`); a state not named here keeps its own words. */
+  
   stateShort: {
     working: 'Working',
     waiting: 'Waiting',
@@ -75,7 +75,7 @@ const en = {
   },
   need: { demo: 'Demo ready', question: 'Question for you', review: 'Ready for review' },
   demoWithQuestion: 'Demo ready, with a question',
-  /** Approved work that could not land, since main's checkout has uncommitted changes to files the card changes too: the card offers to fold them in. */
+  
   notLandedConflict: 'Not landed (file conflict)',
   /** The ready line of the `n`th demo of a card (the second on). */
   demoNth: (n: number, withQuestion: boolean) => `${ordinal(n)} demo ready${withQuestion ? ', with a question' : ''}`,
@@ -175,7 +175,7 @@ const en = {
           { keys: [['Drag'], ['Scroll']], text: 'Move the view' },
           { keys: [['⌘ / Ctrl', 'Scroll'], ['Pinch']], text: 'Zoom' },
           { keys: [['0']], text: 'Overview of everything' },
-          // the key this system's switcher takes, not both: Ctrl+P on a Mac stays the system's
+          
           { get keys() { return [switcherCombo()]; }, text: 'Switch to another project' },
           { keys: [['Drag a card']], text: 'Move a card' },
           { keys: [['Shift', 'Click'], ['Shift', 'Drag']], text: 'Mark several cards' },
@@ -310,7 +310,7 @@ const en = {
   start: 'Start agent',
   startHint: 'An agent starts on a branch of its own and shows a demo at the end.',
   stoppedState: 'Stopped',
-  /** Before the state a stopped card was in: "Stopped at Demo ready". */
+  
   stoppedAt: 'Stopped at',
   startAgain: 'Start again',
   startAgainHint: 'A new agent starts with a new session on the task’s branch; committed work there stays.',
@@ -469,7 +469,7 @@ const en = {
   },
   limitPaused: 'Usage limit · paused after 3 attempts',
   limitTryAgain: 'Try again now',
-  /** A card whose model has no usage left (HTTP 429): its callout, and what the owner can do about it. */
+  
   usageOut: {
     title: (model: string) => `${model} has no usage left`,
     reviewTitle: (model: string) => `${model} has no usage left for the code review`,
@@ -853,7 +853,7 @@ const en = {
     notReady: 'The microphone was not ready yet; please try again.',
     flat: 'The microphone gives no sound.',
     failed: 'That did not work; please try again.',
-    /** The connection broke before Seismic's answer, but Seismic has the command. */
+    
     answerLost: 'Seismic has it; only its answer did not come through.',
     typePlaceholder: 'Write to Seismic, e.g. “New task: …”',
     tooLate: 'Too late: that has happened already.',
@@ -957,7 +957,7 @@ const en = {
     hint: 'Tip: “Review PR #5” reviews someone else’s pull request on a card.',
     hideHint: 'Hide the tip',
   },
-  /** The code review of a card's work that lands on main: its tab, its findings, its button at the handover. */
+  
   codeReview: {
     tab: 'Review',
     running: (model?: string) => model ? `Reviewing with ${model} …` : 'Reviewing …',
@@ -1042,7 +1042,7 @@ const en = {
     agent: 'Agent',
     onForge: 'In the pull request',
     edited: (time: string) => `revised ${time}`,
-    /** On the project: what the PR waits for first, after what the line names already (a red check, a conflict). */
+    
     waitShort: {
       conflict: 'Conflict',
       behind: 'behind its base',
@@ -1221,7 +1221,7 @@ const en = {
     doneHint: 'Puts the card into the archive; it can come back from there.',
   },
   koordinator: {
-    /** Above the cover of a card Seismic's actions created, in its chat. */
+    
     madeTask: 'Created a task',
     madeIdea: 'Created an idea',
     button: 'Seismic',
@@ -1385,9 +1385,9 @@ const en = {
     first: 'For your phone to reach Seismic:',
     toSection: 'Devices and settings',
   },
-  /** The pages the desktop shell bundles (desktop/ui/), which load before any server answers: they read
-   * these from desktop/ui/strings.js, which `bun scripts/desktop-strings.ts` writes from here. A
-   * function here takes strings only and puts each in its text unchanged. */
+  
+
+
   desktopPages: {
     title: 'Seismic',
     starting: 'Seismic is starting …',
@@ -1501,7 +1501,7 @@ const en = {
     notAnswering: (since: string) => `Seismic is not answering · since ${since}`,
     notAnsweringWhy: 'The computer may be asleep, or Seismic is not running there. The page connects again as soon as it answers.',
     gone: 'This card no longer exists.',
-    /** The phone view that shows one project at a time (`?view=phone`). */
+    
     next: {
       menu: 'Menu',
       switchProject: 'Switch project',
@@ -2945,14 +2945,14 @@ const en = {
     pasteHint: (k: { paste: string; grab?: string }) =>
       `You can also paste screenshots from the clipboard with ${k.paste}, without saving them as a file first.${k.grab ? ` ${k.grab} puts a screenshot straight there.` : ''}`,
   },
-  /** The menu of the agent's skills that `/` opens in a field whose words go to a card's agent. */
+  
   cardRefs: {
     menu: 'Cards in the project',
     hint: 'Type “/” and words of a card’s title to link it.',
   },
   canvases: {
     strip: "This project's canvases",
-    /** Under the drawer while the keyboard is on the strip. */
+    
     drawerKey: '↑ moves into this list',
     newCanvas: 'New canvas',
     waiting: (n: number) => (n === 1 ? '1 card waiting for you' : `${n} cards waiting for you`),
@@ -3019,7 +3019,7 @@ const en = {
     placeholder: 'Search projects …',
     none: 'No project matches.',
     current: 'open now',
-    /** Under the projects in the bar's switcher, so the shortcut is found. */
+    
     hint: 'searches the projects',
   },
   skills: {
@@ -3041,9 +3041,9 @@ function withExtensionStrings(core: Strings, language: Language): Strings {
   return Object.keys(extra).length ? Object.assign({}, core, extra) : core;
 }
 const tables: Record<Language, Strings> = { en: withExtensionStrings(en, 'en') };
-/** The strings in effect. */
+
 export let t: Strings = tables.en;
-/** The locale dates and numbers are written in. */
+
 let locale = 'en-US';
 
 /**
@@ -3244,7 +3244,7 @@ const stoppedTone = (at: StoppedAt) =>
 /** A stopped card that remembers where it stood: "Stopped at" in grey, then that state in its own colour (`tone`, a class). */
 export const stoppedAtOf = (i: Pick<Item, 'state' | 'agent' | 'queue' | 'hold'>) => {
   const at = i.agent?.stoppedAt;
-  // queued to start again or in the parking lot, its state line says that instead
+  
   return at && stopped(i) && !i.queue && !inParkingLot(i) ? { prefix: t.stoppedAt, status: stateLabel(stoppedFrom(at)), tone: stoppedTone(at) } : undefined;
 };
 

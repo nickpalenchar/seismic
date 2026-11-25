@@ -1,6 +1,6 @@
-// A card's branch, with the size of its change beside it: a click shows the whole diff over the
-// page. Where the branch is checked out is copied with another click, and the app running there
-// opens with a third. All stay quiet: the owner rarely reads the code or tries the app by hand.
+
+
+
 
 import { cn } from 'cn';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
@@ -17,17 +17,17 @@ import { CloseButton, LinkButton } from './components/button';
 import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { SegmentedControl } from './components/segmented';
 
-/** Lines added and removed, in green and red, their digits in columns. */
+
 export const addedClass = 'd-add text-approved tabular-nums';
 export const removedClass = 'd-del text-destructive tabular-nums';
 
-/** A count of lines as a link in a line of text: in the text's size. */
+
 export const diffSizeClass = 'diff-size text-[length:inherit]';
 
-/** A file's note on what discarding would leave of it, quieter. */
+
 const leftClass = 'f-left text-muted-foreground italic';
 
-/** A file with more lines than this starts folded, so a generated file does not bury the rest. */
+
 const FOLD_LINES = 1500;
 
 /**
@@ -37,7 +37,7 @@ const FOLD_LINES = 1500;
 export function Branch({ item, sizeBelow }: { item: Item; sizeBelow?: boolean }) {
   const [diff, setDiff] = useState<CardDiff | null>(null);
   const [open, setOpen] = useState(false);
-  // read again when the work moves on; the line keeps the last size meanwhile
+  
   useEffect(() => {
     let gone = false;
     api.diff(item.id).then((d) => !gone && setDiff(d), () => {});
@@ -73,7 +73,7 @@ export function Branch({ item, sizeBelow }: { item: Item; sizeBelow?: boolean })
   );
 }
 
-/** How often an open card looks whether its app answers, while its worker says it runs. */
+
 const APP_LOOK_MS = 10_000;
 
 /**
@@ -100,7 +100,7 @@ function AppLink({ item }: { item: Item }) {
   try {
     where = new URL(app).host;
   } catch {}
-  // on another machine, reached here through a forward of that port
+  
   const host = /^([^/:\\]{2,}):\//.exec(item.agent?.workstation ?? '')?.[1];
   if (host) where = `${host}, ${where}`;
   return (
@@ -146,14 +146,14 @@ export function DiffView({ item, file, onClose, onRead }: { item: Item; file?: s
   }, [item.id]);
   const got = diff === 'failed' ? null : diff;
   const folder = got?.folder;
-  // split once per patch text, so a file's diff keeps what the owner expanded across re-renders
+  
   const patch = got?.patch;
   const split = useMemo(() => (patch === undefined ? [] : splitDiff(patch)), [patch]);
   const all = got ? split : [];
-  // A selected file never falls back to unrelated changes when its patch was cut off.
+  
   const one = only ? all.find((p) => p.file === only) : undefined;
   const parts = only ? (one ? [one] : []) : all;
-  // one file's size stands in its own header
+  
   const size = !one && got && diffSize(got.files);
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -217,7 +217,7 @@ export function Lines({ n }: { n: { added: number; removed: number } }) {
   );
 }
 
-/** The diff's code, loaded when the first diff opens: it brings the highlighter and its languages. */
+
 const CodeDiff = lazy(() => import('./diff-code'));
 
 /** The switch between a diff's two layouts, on the desktop only. */
@@ -267,7 +267,7 @@ export function FileDiff({ part, card }: { part: DiffPart; card: string }) {
   );
 }
 
-/** The sign of what happened to a file: moved, added, changed, deleted. */
+
 export const MARK: Record<FolderChange['kind'], string> = { moved: '↪', added: '＋', modified: '✎', deleted: '✕' };
 
 /** What else the folder's change list says of a file: that the card also changed one it moved, and what discarding would leave. */
@@ -285,7 +285,7 @@ export function ChangeNote({ c }: { c: Pick<FolderChange, 'changed' | 'undo'> })
   );
 }
 
-/** A column of the change table's line counts, apart from the path. */
+
 const changeCount = 'pl-2.5! whitespace-nowrap text-right';
 
 /** The folder's changes over its whole diff: what happened to which path, the lines in columns of their own; a path `diffed` names goes to its diff. */

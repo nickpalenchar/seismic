@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { alive, sessionPid, stateFile } from './browser.ts';
 
-// Real browsers, run with plain Node as the skill's commands are; each start takes about a second.
+
 const SCRIPT = join(import.meta.dir, 'browser.ts');
 
 let dir: string;
@@ -29,9 +29,9 @@ function session(): number {
 
 /** The skill's command in a session, with the temp directory of this test for its state. */
 async function browser(pid: number | null, ...args: string[]): Promise<string> {
-  // SEISMIC_AGENT_PID of the worker running these tests (a Codex worker sets it) would take precedence over this session's CLAUDE_PID
+  
   const env: Record<string, string | undefined> = { ...process.env, TMPDIR: dir, TEMP: dir, TMP: dir, SEISMIC_AGENT_PID: undefined, OBEYA_AGENT_PID: undefined, CLAUDE_PID: pid ? String(pid) : undefined };
-  // not spawnSync: a page this test serves has to be answered while the command waits for it
+  
   const p = Bun.spawn(['node', SCRIPT, ...args], { env, stdout: 'pipe', stderr: 'pipe' });
   const [out, err, code] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text(), p.exited]);
   if (code !== 0) throw new Error(`${args[0]} failed: ${err}${out}`);
@@ -99,20 +99,20 @@ describe('browser skill', () => {
     expect(await browser(pid, 'start', '--window-size', '1000,700')).toContain('muted');
     const { port, pid: holder } = readState(pid);
     expect(browserCommand(holder)).toContain('--mute-audio');
-    // start again in the same session: the same browser
+    
     expect(await browser(pid, 'start')).toContain(`Already running on CDP port ${port}`);
 
     const tab = await browser(pid, 'open', PAGE);
     expect(await browser(pid, 'tabs')).toContain(tab);
     expect(await browser(pid, 'eval', 'innerWidth')).toBe('1000');
-    // a key held with down: stays down until up:, across steps of one input
+    
     const shot = join(dir, 'shot.png');
     const steps = await browser(pid, 'input', 'click:@#b', 'down:Space', 'wait:100', 'eval:document.title', 'up:Space', 'eval:document.title', `shot:${shot}`, '--tab', tab.slice(0, 6));
     expect(steps.split('\n')).toEqual(['down Space', 'up Space', `Screenshot saved to ${shot}.`]);
     expect(await browser(pid, 'text')).toBe('clicked true');
     expect(readFileSync(shot).subarray(1, 4).toString()).toBe('PNG');
 
-    // the session ends: its browser goes with it
+    
     sessions[0]!.kill();
     await until(() => !alive(holder));
     expect(await answers(port)).toBe(false);
@@ -136,7 +136,7 @@ describe('browser skill', () => {
     expect(alive(sa.pid)).toBe(false);
     expect(await answers(sa.port)).toBe(false);
     await expect(browser(a, 'text')).rejects.toThrow("Browser session not initialized");
-    // before any start: the whole sequence is named
+    
     const fresh = session();
     for (const command of [['nav', PAGE], ['eval', '1'], ['input', 'wait:1']]) {
       const failure = await browser(fresh, ...command).catch((error: Error) => error.message);
@@ -145,7 +145,7 @@ describe('browser skill', () => {
       expect(failure).toContain('`open <url>`');
       expect(failure).toContain('retry your command');
     }
-    // started but no tab: only open is asked for
+    
     await browser(fresh, 'start');
     const noTab = await browser(fresh, 'eval', '1').catch((error: Error) => error.message);
     expect(noTab).toContain('no open tab');
@@ -158,7 +158,7 @@ describe('browser skill', () => {
   test("a page's speechSynthesis speaks nothing, from its first script on, in its frames too", async () => {
     const pid = session();
     await browser(pid, 'start');
-    // the frame from another site (localhost, not 127.0.0.1) runs in a process of its own
+    
     const server = Bun.serve({
       port: 0,
       fetch: (req) =>
@@ -172,7 +172,7 @@ describe('browser skill', () => {
     const tab = await browser(pid, 'open', `http://127.0.0.1:${server.port}/`);
     await until(async () => (await browser(pid, 'eval', 'log.length')) === '2');
     expect(JSON.parse(await browser(pid, 'eval', 'log'))).toEqual(['first true', 'frame true']);
-    // spoken after a trusted click, it goes on as if said
+    
     const said = await browser(pid, 'input', 'click:@button', `eval:await new Promise((r) => { const u = new SpeechSynthesisUtterance('Lena'); u.onend = () => r('said'); u.onerror = (e) => r(e.error); speechSynthesis.speak(u) })`, '--tab', tab);
     expect(said).toBe('said');
     await browser(pid, 'nav', 'data:text/html,<p>next</p>', '--tab', tab);
@@ -186,10 +186,10 @@ describe('browser skill', () => {
     const wav = join(dir, 'tone.wav');
     tone(wav);
     await browser(pid, 'start', '--fake-mic', wav);
-    // the microphone is only there for a secure context, such as a page from localhost
+    
     const server = Bun.serve({ port: 0, fetch: () => new Response('<p>mic</p>', { headers: { 'content-type': 'text/html' } }) });
     await browser(pid, 'open', `http://127.0.0.1:${server.port}/`);
-    // the loudest frequency the page hears: the WAV's tone, not the fake device's own beep
+    
     const heard = await browser(
       pid,
       'eval',
@@ -212,7 +212,7 @@ describe('browser skill', () => {
     const out = (await browser(null, 'playwright')).split('\n');
     expect(out[0]).toMatch(/^import \{ chromium, firefox, webkit \} from "file:\/\/.+playwright-core\/index\.mjs";$/);
     expect(out.slice(1).map((l) => l.split(':')[0])).toEqual(['webkit', 'firefox']);
-    // a script outside any project with node_modules (the test's temp directory)
+    
     const script = join(dir, 'probe.mjs');
     writeFileSync(script, `${out[0]}\nconsole.log(typeof webkit.launch, typeof chromium.connectOverCDP);\n`);
     const p = Bun.spawnSync(['node', script], { cwd: dir, stdout: 'pipe', stderr: 'pipe' });

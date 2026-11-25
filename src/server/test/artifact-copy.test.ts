@@ -64,7 +64,7 @@ describe('artifactCopy', () => {
     const index = copy.get('index.html')!;
     expect(index).not.toContain('src="app.js"');
     expect(index).toMatch(/<script type="module">var label = "from the module";[\s\S]*document\.body\.append\(label, "<\\\/script>"\);\n<\/script>/);
-    // an import from elsewhere stays one; an inline module that imports a file beside it is bundled, one that imports none stays as it is
+    
     expect(index).toContain('import * as d3 from "https://cdn.example/d3.js"');
     expect(index).toMatch(/<script type="module">var label = "from the module";\s*document\.title = label;/);
     expect(index).toContain(`<script type="module">document.title = 'alone';</script>`);
@@ -72,7 +72,7 @@ describe('artifactCopy', () => {
     expect(index).not.toContain(dir);
     expect(index).not.toMatch(/^\/\/ .*label\.js$/m);
     expect(index).toContain('seismicHeight');
-    // scripts and stylesheets load without CORS: no table of files to fetch
+    
     expect(index).not.toContain('const files');
     expect([...copy.keys()]).toEqual(['index.html']);
   });
@@ -149,7 +149,7 @@ describe('artifactCopy', () => {
     const shot = 'data:image/png;base64,c2hvdA==';
     expect(index).toContain(`src: url("data:font/woff2;base64,d09GMg==") format("woff2")`);
     expect(index).toContain(`body { background: url(${png}); }`);
-    // a stylesheet with what it names, the stylesheets it imports too, but not one that imports itself again
+    
     const css = /<link rel="stylesheet" href="data:text\/css;charset=utf-8;base64,([^"]+)" media="print">/.exec(index)![1]!;
     const site = Buffer.from(css, 'base64').toString();
     expect(site).toEndWith("@font-face { font-family: U; src: url('data:font/woff2;base64,d09GMg=='); }");
@@ -160,9 +160,9 @@ describe('artifactCopy', () => {
     expect(index).toContain(`<div style="background: url('${png}')"></div><svg><image xlink:href="${png}" /></svg>`);
     expect(index).toContain(`<video src="data:video/mp4;base64,bXA0" poster="${png}"></video><script src="data:text/javascript;charset=utf-8;base64,dmFyIGNsYXNzaWMgPSAxOw==" defer></script>`);
     expect(index).toContain(`<script>el.style.background = 'url(${png})';</script>`);
-    // a link navigates the frame, which carries the login's cookie
+    
     expect(index).toContain('<a href="bg.png">full size</a>');
-    // another page names its files from where it sits
+    
     expect(copy.get('more/second.html')).toContain(`<img src="${png}"><img src="data:image/png;base64,bW9yZQ==">`);
     expect(copy.has('css/site.css')).toBe(false);
   });
@@ -209,7 +209,7 @@ describe('artifactCopy', () => {
       'chart.png': 'png',
     });
     const index = copy.get('index.html')!;
-    // before any script of the page
+    
     expect(index.indexOf('const files')).toBeLessThan(index.indexOf('first()'));
     expect(index).toContain('<!doctype html><html lang="en"><head><script>');
     expect(index).not.toContain('chart.png');
@@ -219,7 +219,7 @@ describe('artifactCopy', () => {
     expect([csv.headers.get('content-type'), await csv.text()]).toEqual(['text/csv', 'a,b\n1,2\n']);
     page.xhr().open('GET', './data.json');
     expect(page.opened[0]).toStartWith('blob:');
-    // anything else goes to the site: another file, another directory, a POST
+    
     for (const [url, init] of [['chart.png'], ['../index.html'], ['https://other.example/page-1/artifact/data.json'], ['data.json', { method: 'POST' }]] as const)
       expect(await (await page.fetch(url, init)).text()).toBe('from the site');
     expect(page.asked).toEqual(['chart.png', '../index.html', 'https://other.example/page-1/artifact/data.json', 'data.json']);
@@ -343,7 +343,7 @@ describe('artifactCopy', () => {
       );
       expect(copy.get('index.html')).toContain('src: url("t.woff2")');
       expect(copy.has('css/site.css')).toBe(false);
-      // a list of files that names a link anyway
+      
       symlinkSync(secret, join(dir, 'secret.json'));
       const index = (await artifactCopy(dir, [...artifactFiles(dir), 'secret.json'], 'https://demos.example.com')).get('index.html')!;
       expect(index).toContain('"data.json"');

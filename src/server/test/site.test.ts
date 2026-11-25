@@ -20,10 +20,10 @@ let repo: string;
 let demo: string;
 let target: ShareTarget;
 
-// the deploy line's stand-in, a script in the repository: copies the site's directory to `deployed/`
-// (a host's snapshot), records it with the env file's TOKEN, and fails while the file `fail` exists.
-// While `lag` exists the host keeps serving the deployment before; each line of `race` is another
-// machine's snapshot, deployed right after this one (one per deploy)
+
+
+
+
 const DEPLOY = `
 const { appendFileSync, cpSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } = require('node:fs');
 const [site, out] = process.argv.slice(2);
@@ -42,10 +42,10 @@ if (existsSync(out + '/race')) {
 }
 `;
 
-// the host: serves what was deployed last; `down` answers 503, `token` sends a request without it to a login;
-// `onManifest` runs before a read of the manifest is answered; `fallback` answers a missing file with the
-// root's index.html (as Cloudflare Pages does for a site without a 404.html), `garbled` the manifest with it;
-// `pretty`: as Cloudflare Pages, `…/index.html` redirects (308) to `…/`
+
+
+
+
 const host: { down?: boolean; token?: string; onManifest?: () => void; fallback?: boolean; garbled?: boolean; pretty?: boolean } = {};
 const server = Bun.serve({
   port: 0,
@@ -74,8 +74,8 @@ const SITE = (extra: Partial<DemoSite> = {}): DemoSite => ({
   ...extra,
 });
 
-// the overview in the language the repository names for its demos (`demo.language`)
-// the one who shares: git's name on that machine
+
+
 const make = (site: DemoSite, at = home, machine = 'a', language: 'en' = 'en', by = 'Ada Lovelace') =>
   siteTarget({ ...site, deploy: site.deploy.replace('__OUT__', dir) }, repo, at, MESSAGES.en.share, { machine, checkWaits: [0, 10, 10], language, by });
 const siteDir = (at = home) => join(at, 'sites', siteKey(URL_), 'site');
@@ -127,7 +127,7 @@ const meta = (slug: string) => JSON.parse(readFileSync(join(siteDir(), slug, 'me
 const overview = () => readFileSync(join(siteDir(), 'index.html'), 'utf8');
 const CREDIT_EN = '<footer class="credit">Recorded with <a href="https://seismic.im">Seismic</a></footer>\n';
 
-/** An element of a parsed XML document: its name, attributes, child elements and text. */
+
 interface XmlNode {
   name: string;
   attrs: Record<string, string>;
@@ -196,16 +196,16 @@ describe('a site Seismic keeps', () => {
     expect(html).toContain('<title>Title csv-export-abc123 · Team demos</title>');
     expect(html).toContain('href="../">All demos');
     expect(html).toMatch(/Shared by Ada Lovelace on [A-Z][a-z]+ \d+, \d{4}/);
-    // a host without byte ranges: the page loads the video whole to seek in it
+    
     expect(html).toContain("Range: 'bytes=0-'");
     expect(html).toContain('href="https://github.com/o/r/pull/7"');
-    // every page ends in a line saying what made it, linking Seismic's site
+    
     expect(html).toContain(`${CREDIT_EN}</main>`);
     expect(deploys()).toEqual(['_headers csv-export-abc123 feed.xml index.html obeya-site.json token=secret-1']);
     expect(readFileSync(join(deployed(), 'csv-export-abc123/demo.mp4'), 'utf8')).toBe('video');
 
     expect('url' in (await target.publish(page('zweite-def456', { shared: ['csv-export-abc123'] })))).toBe(true);
-    // the most recently shared first
+    
     expect(overview().indexOf('Title zweite-def456')).toBeLessThan(overview().indexOf('Title csv-export-abc123'));
     expect(overview()).toContain('<h1>Team demos</h1>');
     expect(overview()).toContain(`${CREDIT_EN}</main>`);
@@ -243,21 +243,21 @@ describe('a site Seismic keeps', () => {
     ]);
     expect(child(feed, 'author')?.children.map((c) => c.text)).toEqual(['Team demos']);
     const entries = feed.children.filter((c) => c.name === 'entry');
-    // the newest first, dated as the overview dates them; the feed as new as its newest
+    
     expect(entries.map((e) => child(e, 'id')?.text)).toEqual([`${URL_}b-222222/`, `${URL_}a-111111/`]);
     expect(entries.map((e) => child(e, 'link')?.attrs.href)).toEqual([`${URL_}b-222222/`, `${URL_}a-111111/`]);
     expect(entries.map((e) => child(e, 'updated')?.text)).toEqual([meta('b-222222').at, meta('a-111111').at]);
     expect(child(feed, 'updated')?.text).toBe(meta('b-222222').at);
     for (const e of [feed, ...entries]) expect(new Date(child(e, 'updated')!.text).toISOString()).toBe(child(e, 'updated')!.text);
     expect(entries.map((e) => e.attrs['xml:lang'])).toEqual(['en', 'en']);
-    // the title and text come out as they went in, without what XML does not allow
+    
     const [, a] = entries as [XmlNode, XmlNode];
     expect(child(a, 'title')?.text).toBe('Fish & <Chips> "quoted"');
     expect(child(a, 'summary')?.text).toBe('First <b>bold</b> & more.');
     expect(child(a, 'content')?.attrs.type).toBe('html');
     expect(child(a, 'content')?.text).toBe('<p>First &lt;b&gt;bold&lt;/b&gt; &amp; more.</p>\n<p>Second paragraph.</p>');
     expect(text).not.toContain('\u0007');
-    // withdrawn, a page leaves the feed too
+    
     await empty.withdraw('a-111111', ['b-222222']);
     expect(parseXml(readFileSync(join(siteDir(), 'feed.xml'), 'utf8')).children.filter((c) => c.name === 'entry')).toHaveLength(1);
   });
@@ -273,7 +273,7 @@ describe('a site Seismic keeps', () => {
     expect(readFileSync(join(siteDir(), 'c-333333', 'index.html'), 'utf8')).not.toContain('class="tags"');
     expect(meta('a-111111')).toMatchObject({ tags: { Area: ['Billing', 'Reports'], 'Who & why': [] } });
     expect(meta('c-333333')).not.toHaveProperty('tags');
-    // the overview offers the values some page has, in the vocabulary's order; each page carries its tags and what the search reads
+    
     const o = overview();
     expect(o).toContain('<div class="dim" role="group" aria-label="Area"><span>Area</span><button class="chip" data-d="Area" data-v="Billing" aria-pressed="false">Billing</button><button class="chip" data-d="Area" data-v="Reports" aria-pressed="false">Reports</button></div>');
     expect(o).toContain('data-v="Customers"');
@@ -295,7 +295,7 @@ describe('a site Seismic keeps', () => {
         { term: 'Reports', label: 'Area: Reports' },
       ],
     ]);
-    // without a vocabulary the overview has no chips, and still its search and its links to copy
+    
     await make(SITE()).publish(page('d-444444', { shared: ['a-111111', 'b-222222', 'c-333333'] }));
     expect(overview()).not.toContain('class="chip"');
     expect(overview()).toContain('<input type="search" id="q"');
@@ -313,11 +313,11 @@ describe('a site Seismic keeps', () => {
     expect(readFileSync(join(at, 'artifact/data/chart.js'), 'utf8')).toBe('draw()');
     const copy = readFileSync(join(at, 'artifact/index.html'), 'utf8');
     expect(copy).toContain('seismicHeight');
-    // it loads its own files and nothing from elsewhere, its policy first, the site named for Safari
+    
     const origin = new URL(URL_).origin;
     expect(copy).toStartWith(`<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self' ${origin} data: blob:;`);
     expect(copy).toContain('<meta http-equiv="x-dns-prefetch-control" content="off"><html><body><h2>Graph</h2>');
-    // the host sends that again with its files, with the sandbox, and keeps their connections to the site
+    
     expect(readFileSync(join(siteDir(), '_headers'), 'utf8')).toBe(
       ['/:slug/artifact/*', '/:slug/:n/artifact/*']
         .map(
@@ -327,25 +327,25 @@ describe('a site Seismic keeps', () => {
         .join(''),
     );
     const html = readFileSync(join(at, 'index.html'), 'utf8');
-    // the frame opens no window, and the page lets it show nothing but the site's own files
+    
     expect(html).toContain('<iframe src="artifact/index.html" sandbox="allow-scripts" ');
     expect(html).toContain(`<meta http-equiv="Content-Security-Policy" content="default-src 'self' file: data: blob:;`);
-    // alone in its window it stays in the frame: its own file would run in the site's origin
+    
     expect(html).toContain('<a href="?alone" target="_blank"');
     expect(html).not.toContain('escape-sandbox');
     expect(html).not.toContain('<video');
     expect(html).toContain(`${CREDIT_EN}</main>`);
     expect(overview()).toContain('Title auswertung-abc123');
-    // published again unchanged it keeps its date; an artifact without its page is refused
+    
     const first = meta('auswertung-abc123');
     expect(first.kind).toBe('html');
     await target.publish(artifact({ pr: 'https://github.com/o/r/pull/3' }));
     expect(meta('auswertung-abc123').at).toBe(first.at);
-    // the page Seismic wraps around the artifact is not its content: written by an earlier template, it keeps its date
+    
     earlier('auswertung-abc123/artifact/index.html', 'written by an earlier template');
     await target.publish(artifact());
     expect(meta('auswertung-abc123').at).toBe(first.at);
-    // a changed file of the artifact shares it anew
+    
     writeFileSync(join(art, 'data/chart.js'), 'draw(more)');
     await target.publish(artifact());
     expect(meta('auswertung-abc123').at > first.at).toBe(true);
@@ -370,7 +370,7 @@ describe('a site Seismic keeps', () => {
     await target.publish(page('a-111111', { shared: ['b-222222'], pr: 'https://github.com/o/r/pull/7' }));
     expect(meta('a-111111').at).toBe(at);
     expect(overview().indexOf('Title b-222222')).toBeLessThan(overview().indexOf('Title a-111111'));
-    // a new video is shared anew
+    
     writeFileSync(join(demo, 'demo.mp4'), 'another video');
     await target.publish(page('a-111111', { shared: ['b-222222'] }));
     expect(meta('a-111111').at > at).toBe(true);
@@ -426,10 +426,10 @@ describe('a site Seismic keeps', () => {
   test('a theme: each page carries its card’s repository’s, the overview the one of the repository publishing', async () => {
     const theme = { css: 'h1 { color: navy; } /* </style><script>alert(1)</script> */', hash: '0123456789abcdef' };
     await target.publish(page('ohne-theme-abc123'));
-    // a site that carries no theme for its overview (the personal one): Seismic's look there, the page its repository's
+    
     await target.publish(page('mit-theme-def456', { theme, shared: ['ohne-theme-abc123'] }));
     const html = readFileSync(join(siteDir(), 'mit-theme-def456/index.html'), 'utf8');
-    // nothing in it ends its element early
+    
     expect(html).toContain(String.raw`<style>h1 { color: navy; } /* <\/style><script>alert(1)</script> */</style></head>`);
     expect(html).toContain('<meta http-equiv="Content-Security-Policy"');
     expect(readFileSync(join(siteDir(), 'ohne-theme-abc123/index.html'), 'utf8')).not.toContain('navy');
@@ -442,9 +442,9 @@ describe('a site Seismic keeps', () => {
   });
 
   test('its pages are the ones the page changes account for', () => {
-    // a different hash: the pages come out different. Where a viewer sees the difference, add an
-    // entry to PAGE_CHANGES (src/core/page-changes.ts) with its words in the UI's strings
-    // (`pageChanges`); where nobody does, none. Then PAGES_HASH takes the new hash.
+    
+    
+    
     expect(pagesHash()).toEqual(PAGES_HASH);
   });
 
@@ -476,19 +476,19 @@ describe('a site Seismic keeps', () => {
     expect(html).toContain('poster="poster.jpg"');
     expect(html).not.toContain('poster="3/poster.jpg"');
     expect(html).toContain(`${CREDIT_EN}</main>`);
-    // the page lets its frames show nothing but its own files, as an artifact's page does
+    
     expect(html).toContain(`<meta http-equiv="Content-Security-Policy" content="default-src 'self' file: data: blob:;`);
     const meta = JSON.parse(readFileSync(join(at, 'meta.json'), 'utf8'));
     expect(meta.more).toMatchObject([
       { kind: 'html', title: 'The table', dir: '2', handed: '2026-10-16T11:37:00.000Z' },
       { title: 'The reset', dir: '3', chapters: [[0, 'Reset']] },
     ]);
-    // published again with the same files, each version keeps its date
+    
     const before = meta.more.map((m: { at: string }) => m.at);
     await Bun.sleep(5);
     await target.publish(page('filter', { more }));
     expect(JSON.parse(readFileSync(join(at, 'meta.json'), 'utf8')).more.map((m: { at: string }) => m.at)).toEqual(before);
-    // one version again: the page as before, without the later ones' directories
+    
     await target.publish(page('filter'));
     expect(existsSync(join(deployed(), 'filter', '2'))).toBe(false);
     expect(readFileSync(join(deployed(), 'filter', 'index.html'), 'utf8')).not.toContain('class="sections"');
@@ -512,7 +512,7 @@ describe('several machines publishing to one site', () => {
     b = make(SITE(), other, 'b', 'en', 'Grace Hopper');
   });
   const live = () => manifest(deployed());
-  // a snapshot of what the site shows now, as another machine's deployment that lacks what comes next
+  
   const snapshot = (name: string) => {
     const to = join(dir, name);
     cpSync(deployed(), to, { recursive: true });
@@ -525,7 +525,7 @@ describe('several machines publishing to one site', () => {
   };
 
   test('each pulls the pages the other published before it deploys, so neither takes the other’s offline', async () => {
-    // a site that serves a page's index.html only under its directory, as Cloudflare Pages does
+    
     host.pretty = true;
     await target.publish(page('a-111111'));
     const said: string[] = [];
@@ -534,13 +534,13 @@ describe('several machines publishing to one site', () => {
     expect(readFileSync(join(siteDir(other), 'a-111111/demo.mp4'), 'utf8')).toBe('video');
     expect(readdirSync(deployed()).sort()).toEqual(['_headers', 'a-111111', 'b-222222', 'feed.xml', 'index.html', MANIFEST]);
     expect(live().pages).toMatchObject({ 'a-111111': { rev: 1, machine: 'a' }, 'b-222222': { rev: 1, machine: 'b' } });
-    // the first machine gets the second one's page with its next share, and nothing it has already
+    
     const again: string[] = [];
     await target.publish(page('c-333333'), (l) => again.push(l));
     expect(again).toEqual([expect.stringContaining('Downloading a page')]);
     expect(readdirSync(deployed()).sort()).toEqual(['_headers', 'a-111111', 'b-222222', 'c-333333', 'feed.xml', 'index.html', MANIFEST]);
     expect(readFileSync(join(deployed(), 'index.html'), 'utf8')).toContain('Title b-222222');
-    // a page published again comes over with its new revision
+    
     writeFileSync(join(demo, 'demo.mp4'), 'another video');
     await target.publish(page('a-111111'));
     await b.publish(page('b-222222'));
@@ -559,7 +559,7 @@ describe('several machines publishing to one site', () => {
     expect(shown).toMatch(/<span>[A-Z][a-z]+ \d+, \d{4} · by Ada Lovelace · First sentence/);
     const entries = parseXml(readFileSync(join(deployed(), 'feed.xml'), 'utf8')).children.filter((c) => c.name === 'entry');
     expect(entries.map((e) => child(e, 'author')?.children.map((c) => c.text))).toEqual([['Grace Hopper'], ['Ada Lovelace']]);
-    // a machine whose git has no name names nobody
+    
     await make(SITE(), other, 'b', 'en', '').publish(page('c-333333', { shared: ['a-111111', 'b-222222'] }));
     expect(readFileSync(join(deployed(), 'index.html'), 'utf8')).toMatch(/<a href="c-333333\/"><b>Title c-333333<\/b><span>[A-Z][a-z]+ \d+, \d{4} · First sentence/);
     expect(html('c-333333')).toMatch(/<div class="when">Shared on [A-Z][a-z]+ \d+, \d{4}<\/div>/);
@@ -570,7 +570,7 @@ describe('several machines publishing to one site', () => {
     await b.publish(page('b-222222'));
     expect(await target.withdraw('a-111111', [])).toMatchObject({ gone: [] });
     expect(live().pages['a-111111']).toMatchObject({ withdrawn: true, rev: 2, machine: 'a' });
-    // the other machine still has its files: they do not come back, and its card would lose its link
+    
     expect(existsSync(join(siteDir(other), 'a-111111'))).toBe(true);
     expect(await b.audit!(['a-111111'])).toEqual({ gone: [{ slug: 'a-111111', machine: 'a' }], missing: [] });
     expect(await b.publish(page('b-222222', { shared: ['a-111111'] }))).toMatchObject({ url: `${URL_}b-222222/`, gone: [{ slug: 'a-111111', machine: 'a' }] });
@@ -578,7 +578,7 @@ describe('several machines publishing to one site', () => {
     expect(readdirSync(deployed()).sort()).toEqual(['_headers', 'b-222222', 'feed.xml', 'index.html', MANIFEST]);
     expect(live().pages['a-111111']).toMatchObject({ withdrawn: true });
     expect(await b.audit!([])).toEqual({ gone: [], missing: [] });
-    // shared again, it is back for both
+    
     await target.publish(page('a-111111', { shared: [] }));
     expect(live().pages['a-111111']).toMatchObject({ rev: 3, machine: 'a' });
     await b.publish(page('b-222222'));
@@ -591,7 +591,7 @@ describe('several machines publishing to one site', () => {
     expect(existsSync(join(dir, 'deploys'))).toBe(false);
     expect(existsSync(join(siteDir(), 'a-111111'))).toBe(false);
     delete host.down;
-    // behind a login: read with the site's headers, their values from the env file
+    
     host.token = 'secret-1';
     expect(await target.publish(page('a-111111'))).toMatchObject({ why: expect.stringContaining('HTTP 302, a redirect to login.example.dev: a login there means the site’s headers are missing or wrong; if the site moved there') });
     expect(await make(SITE({ headers: { 'X-Token': '${NOPE}' } })).publish(page('a-111111'))).toMatchObject({ why: 'The site’s header X-Token needs NOPE, which the site’s env file lacks.' });
@@ -604,10 +604,10 @@ describe('several machines publishing to one site', () => {
   test('a read follows a redirect within the site, or to https on its host; one to another host stays where it is', () => {
     const at = (u: string) => new URL(u);
     expect(withinSite(at('https://demos.example.dev/a/index.html'), at('https://demos.example.dev/a/'))).toBe(true);
-    // a site entered as http, once its host serves https (GitHub Pages on a domain of its own)
+    
     expect(withinSite(at('http://demos.example.dev/obeya-site.json'), at('https://demos.example.dev/obeya-site.json'))).toBe(true);
     expect(withinSite(at('https://demos.example.dev/x'), at('http://demos.example.dev/x'))).toBe(false);
-    // a site moved to a domain of its own, or a login, is somewhere else
+    
     expect(withinSite(at('https://ada.github.io/demos/obeya-site.json'), at('http://demos.example.dev/obeya-site.json'))).toBe(false);
     expect(withinSite(at('http://demos.example.dev/x'), at('https://login.example.dev/x'))).toBe(false);
   });
@@ -619,7 +619,7 @@ describe('several machines publishing to one site', () => {
     expect(await target.publish(page('a-111111'))).toMatchObject({ url: `${URL_}a-111111/` });
     expect(live().pages['a-111111']).toMatchObject({ rev: 1, machine: 'a' });
     expect(await b.publish(page('b-222222'))).toMatchObject({ url: `${URL_}b-222222/` });
-    // a manifest answered with something else than the missing files get is still refused
+    
     host.fallback = false;
     host.garbled = true;
     expect(await target.publish(page('c-333333'))).toMatchObject({ why: `The site’s manifest could not be read (${URL_}${MANIFEST}: not a manifest). Without it a deploy might take pages other machines shared offline.` });
@@ -639,7 +639,7 @@ describe('several machines publishing to one site', () => {
     expect(await target.publish(page('d-444444', { shared: ['a-111111', 'c-333333'] }))).toMatchObject({
       why: 'Another machine’s deploy came in between twice; the site does not show the change. Please try again.',
     });
-    // undone here, as it is on the site
+    
     expect(existsSync(join(siteDir(), 'd-444444'))).toBe(false);
     expect(manifest().pages['d-444444']).toBeUndefined();
     expect(overview()).not.toContain('Title d-444444');
@@ -652,7 +652,7 @@ describe('several machines publishing to one site', () => {
     await b.publish(page('b2-222222'));
     const theirs = snapshot('theirs');
     lands(before);
-    // this machine pulls the site without b2; the other machine's deployment with it lands right after
+    
     let reads = 0;
     host.onManifest = () => {
       if (++reads === 1) lands(theirs);
@@ -667,7 +667,7 @@ describe('several machines publishing to one site', () => {
     await target.publish(page('a-111111'));
     const pulled = snapshot('pulled');
     await target.publish(page('c-333333', { shared: ['a-111111'] }));
-    // the other machine pulled before c and deployed after this machine had checked
+    
     lands(pulled);
     expect(await target.audit!(['a-111111', 'c-333333'])).toEqual({ gone: [], missing: ['c-333333'] });
     expect(await target.repair!(['a-111111', 'c-333333'])).toMatchObject({ said: 'Uploaded 6 entries', gone: [] });
@@ -753,7 +753,7 @@ describe('sharing to a site', () => {
       await settled(id, 'shared');
     }
     const slug = board.item(two)!.demo!.share!.url!.split('/').at(-2)!;
-    // another machine's deployment that pulled before the second page went out
+    
     const m = manifest(deployed());
     delete m.pages[slug];
     rmSync(join(deployed(), slug), { recursive: true });
@@ -785,7 +785,7 @@ test("a project's demo site: Initialize puts its path on it, and the project say
     for (let i = 0; i < 300 && project.board.project.demoSite?.init?.running; i++) await Bun.sleep(10);
     expect(project.board.project.demoSite).toEqual({ url, path: 'laden', ready: true, init: { running: false } });
     expect(project.board.project.repos[0]!.share).toBe(true);
-    // the project's empty overview, titled with its name; the root lists none
+    
     expect(readFileSync(join(deployed(), 'laden/index.html'), 'utf8')).toContain('<h1>Laden</h1>');
     expect(readFileSync(join(deployed(), 'index.html'), 'utf8')).not.toContain('Laden');
     rmSync(join(home, 'sites/demos/deploy.env'));

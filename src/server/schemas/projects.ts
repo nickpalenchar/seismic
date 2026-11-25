@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { type Db, now } from './common';
 
-/** A project: the repositories and cards the owner directs together; its name as last stored. */
+
 export const projects = sqliteTable('projects', {
   id: text().primaryKey(),
   name: text().notNull(),

@@ -133,7 +133,7 @@ test('an agy worker routes to Antigravity with portable skills; its sessions are
   expect(agy.last.spec).toMatchObject({ model: 'agy-test', effort: 'low', setting: agySetting });
   expect(agy.last.spec.plugins).toBeUndefined();
   expect(agy.last.spec.system).toContain(join(SEISMIC_PLUGIN, 'skills', 'browser', 'SKILL.md'));
-  // a session belongs to its harness, both ways
+  
   for (const extra of [{ resume: 'claude-id' }, { resume: 'codex:t' }, { cwd: 'ssh://host/repo' }, { setting: { ...agySetting, harness: 'claude' as const }, resume: 'agy:c' }]) {
     const before = events.length;
     await runtime.start({ ...spec, ...extra }, 'build').done;
@@ -147,7 +147,7 @@ test('an agy worker routes to Antigravity with portable skills; its sessions are
 test('names the harnesses installed and signed in on this machine, Antigravity included; the asking one where none answers', async () => {
   const on = (...hs: string[]) => ({ claude: async () => hs.includes('claude'), codex: async () => hs.includes('codex'), agy: async () => hs.includes('agy') });
   expect(await connectedHarnesses(on('agy', 'codex'))).toEqual(['codex', 'agy']);
-  // a check that fails counts as not signed in
+  
   expect(await connectedHarnesses({ ...on('codex'), claude: () => Promise.reject(new Error('gone')) })).toEqual(['codex']);
   expect(harnessNames('codex', await connectedHarnesses(on('codex', 'agy')))).toEqual(['Codex', 'Antigravity']);
   expect(harnessNames('claude', await connectedHarnesses(on('claude', 'codex', 'agy')))).toEqual(['Claude Code', 'Codex', 'Antigravity']);
@@ -159,7 +159,7 @@ test('the harness check never keeps a caller waiting: it answers with what the l
   let calls = 0;
   let answer: (found: Harness[]) => void = () => {};
   const check = new HarnessCheck(() => (calls++, new Promise<Harness[]>((r) => (answer = r))), 60_000, () => clock);
-  // nothing known yet: an answer at once, the check under way
+  
   expect(check.current()).toEqual([]);
   expect(check.current()).toEqual([]);
   expect(calls).toBe(1);
@@ -168,13 +168,13 @@ test('the harness check never keeps a caller waiting: it answers with what the l
   await first;
   expect(check.current()).toEqual(['codex']);
   expect(calls).toBe(1);
-  // the setup assistant's check counts as fresh
+  
   clock = 50_000;
   check.set(['claude', 'codex']);
   clock = 100_000;
   expect(check.current()).toEqual(['claude', 'codex']);
   const before = calls;
-  // stale: the last finding still answers while the next runs
+  
   clock = 200_000;
   expect(check.current()).toEqual(['claude', 'codex']);
   expect(calls).toBe(before + 1);
@@ -189,7 +189,7 @@ test('what is known waits only for the first finding of every harness, then answ
   let calls = 0;
   let answer: (found: Harness[]) => void = () => {};
   const check = new HarnessCheck(() => (calls++, new Promise<Harness[]>((r) => (answer = r))), 60_000, () => clock);
-  // the setup assistant found Codex alone: the others are not known yet, so the caller waits for a check of all
+  
   check.set(['codex'], check.begin(), ['codex']);
   let first: Harness[] | undefined;
   const pending = check.known().then((found) => (first = found));
@@ -198,7 +198,7 @@ test('what is known waits only for the first finding of every harness, then answ
   answer(['claude', 'codex']);
   await pending;
   expect(first).toEqual(['claude', 'codex']);
-  // stale: the last finding at once, with a check started behind it that it does not wait for
+  
   clock = 200_000;
   expect(await check.known()).toEqual(['claude', 'codex']);
   expect(calls).toBe(2);
@@ -208,17 +208,17 @@ test('what is known waits only for the first finding of every harness, then answ
 });
 
 test('a check that started earlier but answers later does not overwrite a newer finding, also within the same millisecond', async () => {
-  // a clock that stands still: only the order the checks began in tells them apart
+  
   let answer: (found: Harness[]) => void = () => {};
   const check = new HarnessCheck(() => new Promise<Harness[]>((r) => (answer = r)), 60_000, () => 0);
-  // the background check begins, then the setup assistant's begins and answers first: Codex was just signed in
+  
   const background = check.refresh();
   const setup = check.begin();
   check.set(['claude', 'codex'], setup);
   answer(['claude']);
   await background;
   expect(check.current()).toEqual(['claude', 'codex']);
-  // two setup checks the other way round: the earlier one answering last changes nothing
+  
   const earlier = check.begin();
   const later = check.begin();
   check.set(['codex'], later);
@@ -233,7 +233,7 @@ test('a setup check that began before the background check never overwrites its 
   const background = check.refresh();
   answer(['claude']);
   await background;
-  // the setup check answers last, with what was true when it began
+  
   expect(check.set(['claude', 'codex'], setup)).toEqual(['claude']);
   expect(check.current()).toEqual(['claude']);
 });
@@ -252,19 +252,19 @@ test('a failed check changes nothing, whichever check it was', async () => {
   let fail: (e: Error) => void = () => {};
   const check = new HarnessCheck(() => new Promise<Harness[]>((_, r) => (fail = r)), 60_000, () => 0);
   check.set(['claude']);
-  // a background check that fails after a setup check began keeps the setup check's finding
+  
   const background = check.refresh();
   const setup = check.begin();
   check.set(['codex'], setup);
   fail(new Error('no network'));
   expect(await background).toEqual(['codex']);
-  // a setup check that never reports (it threw) leaves the finding, and a later one still places itself
+  
   check.begin();
   expect(check.current()).toEqual(['codex']);
   const later = check.begin();
   check.set(['agy'], later);
   expect(check.current()).toEqual(['agy']);
-  // a failed background check does not block the next
+  
   const failing = check.refresh();
   fail(new Error('boom'));
   expect(await failing).toEqual(['agy']);
@@ -285,16 +285,16 @@ test('overlapping setup checks answering in every order leave the one that began
 test('a check of some harnesses places only those, each by the check that began last for it', () => {
   const check = new HarnessCheck(async () => [], 60_000, () => 0);
   check.set(['claude', 'agy']);
-  // the setup assistant checks Codex alone: Claude Code and Antigravity stay as they were
+  
   check.set(['codex'], check.begin(), ['codex']);
   expect(check.current()).toEqual(['claude', 'codex', 'agy']);
-  // Claude Code's check began before Antigravity's but answers after it: both stand
+  
   const claude = check.begin();
   const agy = check.begin();
   check.set([], agy, ['agy']);
   check.set([], claude, ['claude']);
   expect(check.current()).toEqual(['codex']);
-  // a full check that began before them changes neither, only Codex
+  
   const full = { order: 0, at: 0 };
   check.set(['claude', 'agy'], full);
   expect(check.current()).toEqual(['codex']);

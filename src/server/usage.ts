@@ -1,32 +1,32 @@
-// The usage limits of the Claude plan Claude Code is logged in with on this machine (the five-hour
-// session, the week, a model's week), for the bar while the owner has it show them (the settings'
-// `usageMeter`) and a page of Seismic's is open; Codex's, beside them, come from its app-server
-// (`codexUsage` in codex.ts) and Antigravity's from `agy -p /usage` (`agyUsage` in agy.ts), each on a
-// meter of its own. Claude's come from the data behind Claude Code's
-// `/usage`, which asks the plan's usage endpoint: one idle Claude Code session is asked about every
-// minute and sends no prompt, so it uses none of what it reports. The session keeps an answer for a
-// minute, so the rounds are a little longer apart and each gets a fresh one. A login without plan
-// limits (an API key, a cloud provider) and a Claude Code too old to answer show nothing.
+
+
+
+
+
+
+
+
+
 
 import { query, type SDKControlGetUsageResponse } from '@anthropic-ai/claude-agent-sdk';
 import type { Usage, UsageLimit } from '../core/types';
 import { cleanEnv, spawnHere } from './runtime';
 import { claudeExecutable } from './llms/harnesses/claude';
 
-/** How often the limits are fetched while the bar shows them: just over the minute Claude Code keeps an answer. */
+
 export const USAGE_EVERY_MS = 65_000;
-/** A fetch that has not answered after this long is given up, its session with it. */
+
 const FETCH_TIMEOUT_MS = 30_000;
-/** The most rounds left out after failures one after the other: a try every quarter of an hour or so. */
+
 const MAX_SKIPPED = 14;
-/** Limits not fetched again for this long (Claude Code failing meanwhile) are no longer shown. */
+
 const STALE_MS = 5 * 60_000;
-/** How long the session and its numbers outlast the last page: a reload or a switch to another project opens the next one sooner. */
+
 export const USAGE_LINGER_MS = 30_000;
 
-/** Where the limits come from: asked again each round, closed once the bar no longer shows them. */
+
 export interface UsageSource {
-  /** The limits now; `null` where the login has none. Throws when it could not ask. */
+  
   fetch(): Promise<Usage | null>;
   close(): void;
 }
@@ -48,10 +48,10 @@ export class UsageMeter {
   private source: UsageSource | null = null;
   private timer: ReturnType<typeof setInterval> | undefined;
   private fetching = false;
-  /** Rounds failed one after the other, and how many rounds to leave out before the next try. */
+  
   private failures = 0;
   private skip = 0;
-  /** Pages closed less than `lingerMs` ago, each still counted among the watchers. */
+  
   private leaving = new Set<ReturnType<typeof setTimeout>>();
   private readonly everyMs: number;
   private readonly lingerMs: number;
@@ -110,12 +110,12 @@ export class UsageMeter {
       if (this.source === source) this.set(usage);
       this.failures = 0;
     } catch (e) {
-      // closed meanwhile (the bar hidden, the last page gone): its fetch was ended, not failed
+      
       if (this.source !== source) return;
       this.failures++;
       this.skip = Math.min(2 ** (this.failures - 1) - 1, MAX_SKIPPED);
       console.warn(`Seismic: the usage limits could not be fetched: ${e instanceof Error ? e.message : e}`);
-      // a new session next round; what was fetched last stands a little longer
+      
       this.source = null;
       source.close();
       if (this.last && Date.now() - Date.parse(this.last.at) > STALE_MS) this.set(null);
@@ -148,7 +148,7 @@ export class UsageMeter {
     this.timer = undefined;
     this.source?.close();
     this.source = null;
-    // numbers from before would show as now once a page opens again
+    
     this.set(null);
   }
 
@@ -175,7 +175,7 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
  */
 export function claudeUsage(cwd: string): UsageSource {
   const abort = new AbortController();
-  // the session waits for a prompt that never comes, until it is closed
+  
   const idle = (async function* () {
     await new Promise((resolve) => abort.signal.addEventListener('abort', resolve, { once: true }));
   })();
@@ -191,7 +191,7 @@ export function claudeUsage(cwd: string): UsageSource {
       spawnClaudeCodeProcess: spawnHere(() => {}),
     },
   });
-  // what the session says unasked (its start, say) is not needed
+  
   void (async () => {
     try {
       for await (const _ of q);
@@ -204,7 +204,7 @@ export function claudeUsage(cwd: string): UsageSource {
 }
 
 type Window = { utilization: number | null; resets_at: string | null } | null | undefined;
-/** A meter of the endpoint's `limits`, as Claude Code passes it on. */
+
 type Row = { kind?: unknown; group?: unknown; percent?: unknown; resets_at?: unknown; severity?: unknown; scope?: { model?: { display_name?: unknown } | null; surface?: { display_name?: unknown } | null } | null };
 
 /**

@@ -1,15 +1,15 @@
-// A wish or a bug for Seismic's makers, as a GitHub issue the owner opens prefilled in the browser
-// and submits there under their own account: Seismic holds no token. The repository is fixed, since
-// the app runs without a checkout whose `origin` could say otherwise.
 
-/** Where the issue goes. */
+
+
+
+
 export const ISSUES_REPO = 'nickpalenchar/seismic';
 const NEW_ISSUE = `https://github.com/${ISSUES_REPO}/issues/new`;
 
-/** How long the link may get: GitHub and browsers take about 8 KB. */
+
 export const MAX_ISSUE_URL = 8000;
 
-/** What a draft starts from: the owner's words, and Seismic's answer when it said it cannot do what they asked. */
+
 export interface Wish {
   said: string;
   answer?: string;
@@ -33,9 +33,9 @@ export function issueUrl(title: string, body: string, note: string): { url: stri
   const url = (b: string) => `${NEW_ISSUE}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(b)}`;
   if (url(body).length <= MAX_ISSUE_URL) return { url: url(body), trimmed: false };
   const tail = `\n\n${note}`;
-  // never half a character: a lone surrogate cannot be encoded
+  
   const cut = (n: number) => body.slice(0, n).replace(/[\uD800-\uDBFF]$/, '');
-  // the longest start of the body that fits, found by halving
+  
   let lo = 0;
   let hi = body.length;
   while (lo < hi) {

@@ -1,8 +1,8 @@
-/**
- * Reworks a proposal by what the owner said about it: one read-only session rewrites its text, reason
- * and questions, sees the screenshots the owner showed and picks those that go with the card's task. It
- * passes on what asks Seismic for something (`to_seismic`) instead.
- */
+
+
+
+
+
 import { z } from 'zod';
 import { ownersLanguage } from '../../../../core/locale';
 import type { Item, Revising } from '../../../../core/types';
@@ -14,20 +14,20 @@ import { workerConfig } from '../../../worker-config';
 import { reviseProposalSystem, toSeismicNote } from '../../prompts/reviseProposalSystem';
 import { type JobRun, SeismicJob } from '../seismicJob';
 
-/** A proposal as the agent writes it back. */
+
 export interface Revised {
   title: string;
   task: string;
   reason?: string;
   idea?: boolean;
   questions: { question: string; options?: string[]; multiple?: boolean }[];
-  /** The screenshots that go with the card's task, by file name; none given: those that go with it now. */
+  
   images?: string[];
-  /** Its turn in the conversation: the answer to what the owner asked, and what changed. */
+  
   reply?: string;
 }
 
-/** The screenshots the agent sees, by id: with the owner's words (`said`), with the task now (`kept`), shown `earlier`; `all` of them. */
+
 export interface Shots {
   all: string[];
   said: string[];
@@ -38,16 +38,16 @@ export interface Shots {
 export interface ReviseProposalRun {
   runtime: AgentRuntime;
   board: Board;
-  /** Where the session reads: the card's repository. */
+  
   cwd: string;
   card: Item;
   said: Revising;
   shots: Shots;
-  /** The owner's standing preferences, added to the instructions. */
+  
   preferences?: string;
-  /** Passes on to Seismic what the owner's words ask of it; without it the session has no such tool. */
+  
   toSeismic?: (request: string) => Promise<string>;
-  /** The files of the screenshots shown. */
+  
   images?: string[];
   onLimit?: JobRun['onLimit'];
 }

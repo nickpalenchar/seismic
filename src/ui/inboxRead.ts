@@ -1,10 +1,10 @@
-// Which inbox entries the owner has read, in this browser: an entry they clicked on or whose card
-// they opened. One mark per entry and wait (`readMark`), so a card that waits anew is unread again.
+
+
 import { useCallback, useEffect, useState } from 'react';
 import { type InboxEntry, readMark } from '../core/inbox';
 
 const READ = 'seismic-inbox-read';
-/** The marks kept, the latest last; older ones belong to waits long over. */
+
 const KEEP = 500;
 
 function load(): string[] {
@@ -28,7 +28,7 @@ export function useInboxRead(): { isRead: (e: InboxEntry) => boolean; read: (mar
     const mark = readMark(e);
     const kept = load();
     if (kept.at(-1) === mark) return;
-    // written at once: "Go to card" on another project leaves the page right after
+    
     const list = [...kept.filter((x) => x !== mark), mark].slice(-KEEP);
     try {
       localStorage.setItem(READ, JSON.stringify(list));

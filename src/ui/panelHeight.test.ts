@@ -25,9 +25,9 @@ test('the speed of a finger let go comes from its last moves, and is none once i
     { t: 140, y: 400 },
   ];
   expect(speed(trail, 140)).toBeCloseTo(-2);
-  // the finger lifts a moment after its last move
+  
   expect(speed(trail, 170)).toBeCloseTo(-2);
-  // held still before it lifts
+  
   expect(speed(trail, 300)).toBe(0);
   expect(speed([{ t: 0, y: 0 }], 10)).toBe(0);
 });
@@ -35,11 +35,11 @@ test('the speed of a finger let go comes from its last moves, and is none once i
 test('a top let go with a still finger stays where it is, a thrown one glides on in its direction', () => {
   expect(thrown(0.5, 0.1, 800)).toBe(0.5);
   expect(thrown(0.5, -0.1, 800)).toBe(0.5);
-  // a short swipe up from the middle carries the top past the edge, so the panel takes the full height
+  
   expect(settle(thrown(0.5, -2, 800))).toBe(1);
-  // and one down closes it
+  
   expect(settle(thrown(0.5, 2, 800))).toBe('close');
-  // a gentle push moves it on a little and leaves it in between
+  
   const gentle = thrown(0.5, -0.8, 800);
   expect(gentle).toBeLessThan(0.5);
   expect(settle(gentle)).toBeCloseTo(1 - gentle);
@@ -50,6 +50,6 @@ test('a glide starts at the speed of the finger and stops within bounds', () => 
   expect(g.ms).toBe(300);
   expect(g.ease).toBe('cubic-bezier(.333, 0.667, .667, 1)');
   expect(glide(2000, 0.5).ms).toBe(500);
-  // a short way at high speed would start faster than the curve can without overshooting
+  
   expect(glide(20, 4)).toEqual({ ms: 150, ease: 'cubic-bezier(.333, 1.000, .667, 1)' });
 });

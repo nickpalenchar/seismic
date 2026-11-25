@@ -23,7 +23,7 @@ test('working rows keep their activity and separate description after releasing 
     expect(assigned).toContain('doing');
     expect(assigned).toContain('block truncate text-muted-foreground">Checking the checkout.</span>');
     expect(assigned).not.toContain(item.body);
-    // No pool snapshot, an empty pool, and a released clone all use the same face.
+    
     expect(face(render([]))).toBe(assigned);
     expect(face(render([{ repo: 'shop', hosts: [] }]))).toBe(assigned);
     pools[0]!.hosts[0]!.workstations[0] = { path: '/shop/checkout' };
@@ -38,6 +38,6 @@ test("an idea whose agent is at work pulses in the phone's list as its dot does 
     pools={[{ repo: 'shop', hosts: [{ name: 'local', here: true, slots: 1, total: 1, cards: [], busy: [], workstations: [{ path: '/shop/1' }], ...(exploring ? { exploring } : {}) }] }]}
   />);
   expect(render(['gift'])).toContain('animate-[ws-pulse');
-  // its agent done with the reply, the idea stands still
+  
   expect(render()).not.toContain('animate-[ws-pulse');
 });

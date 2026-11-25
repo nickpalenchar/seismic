@@ -16,7 +16,7 @@ describe('territories', () => {
     const [t] = new Territories().compute([a1, a2, far, stranger], ['A']);
     expect(t!.group).toBe('A');
     for (const c of [a1, a2, far]) expect(within(t!, mid(c))).toBe(true);
-    // the two near cards share a piece, the far one has its own
+    
     expect(within(t!, { x: 330, y: 70 })).toBe(true);
     expect(within(t!, { x: 1000, y: 70 })).toBe(false);
     expect(t!.pieces).toHaveLength(2);
@@ -53,7 +53,7 @@ describe('territories', () => {
     expect(t.last).toMatchObject({ fields: 2, contours: 2 });
     expect(t.compute(claims, ['A', 'B'])).toEqual(first);
     expect(t.last).toMatchObject({ fields: 0, contours: 0 });
-    // moving a card of B leaves A as it was
+    
     claims[3] = card('b2', 3360, 60, { B: 1 });
     const second = t.compute(claims, ['A', 'B']);
     expect(t.last).toMatchObject({ fields: 1, contours: 1 });
@@ -62,7 +62,7 @@ describe('territories', () => {
 
   test('run straight past the gap between cards side by side, round at the corners', () => {
     const [t] = new Territories().compute([card('a1', 0, 0, { A: 1 }), card('a2', 330, 0, { A: 1 })], ['A']);
-    // the territory's top edge above x
+    
     const top = (x: number) => {
       let y = -150;
       while (!within(t!, { x, y })) y++;
@@ -71,7 +71,7 @@ describe('territories', () => {
     const overCard = top(150);
     expect(Math.abs(top(315) - overCard)).toBeLessThanOrEqual(1);
     expect(Math.abs(top(480) - overCard)).toBeLessThanOrEqual(1);
-    // the corner is a curve that the edge leaves evenly on both sides: as far in from the left as from the top
+    
     const left = (y: number) => {
       let x = -150;
       while (!within(t!, { x, y })) x++;
@@ -83,7 +83,7 @@ describe('territories', () => {
 });
 
 describe('beside a stranger', () => {
-  // how far down (or up, with dir -1) from y the territory reaches above x
+  
   const edge = (t: Parameters<typeof within>[0], x: number, y: number, dir: 1 | -1) => {
     while (within(t, { x, y: y + dir })) y += dir;
     return y;
@@ -92,12 +92,12 @@ describe('beside a stranger', () => {
   test('a stranger below closes the territory with a round corner, not a tip beside it', () => {
     const below = card('s', 0, 170);
     const [t] = new Territories().compute([card('a1', 0, 0, { A: 1 }), card('a2', 330, 0, { A: 1 }), card('a3', 660, 0, { A: 1 }), below], ['A']);
-    // the edge runs along the middle of the gap, beside the stranger too
+    
     const gap = (140 + 170) / 2;
     expect(Math.abs(edge(t!, 150, 70, 1) - gap)).toBeLessThanOrEqual(6);
     expect(edge(t!, -10, 70, 1)).toBeLessThanOrEqual(gap);
     expect(within(t!, { x: -20, y: below.b.y + 5 })).toBe(false);
-    // and turns round: the left side is where it is elsewhere, the corner in between
+    
     const left = (y: number) => {
       let x = 150;
       while (within(t!, { x: x - 1, y })) x--;
@@ -113,7 +113,7 @@ describe('beside a stranger', () => {
     const gap = (140 + 170) / 2;
     expect(edge(t!, -10, 240, -1)).toBeGreaterThanOrEqual(gap);
     expect(within(t!, { x: -20, y: above.b.y + above.b.h - 5 })).toBe(false);
-    // beside it, a3's left side runs along the middle of that gap up to its top
+    
     expect(within(t!, { x: 310, y: -20 })).toBe(false);
     expect(within(t!, { x: 320, y: 20 })).toBe(true);
   });

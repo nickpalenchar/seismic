@@ -34,7 +34,7 @@ describe('the frames of old demos', () => {
     expect(readdirSync(old).sort()).toEqual(['abc.wav']);
     expect(existsSync(join(demos, 'old', 'demo.mp4'))).toBe(true);
     expect(readdirSync(join(fresh, 'frames'))).toHaveLength(3);
-    // nothing left to delete the next time
+    
     expect(await sweep(demos, 14)).toEqual({ demos: 0, bytes: 0 });
   });
 
@@ -55,7 +55,7 @@ describe('the frames of old demos', () => {
   });
 
   test('behind a link are not touched', async () => {
-    // a work directory that is a link, and frames that are one, both to a render outside the demo directory
+    
     const outside = mkdtempSync(join(tmpdir(), 'seismic-demo-space-outside-'));
     try {
       const kept = render(join(outside, 'kept'), 30);
@@ -180,21 +180,21 @@ test('what was counted in another directory is not shown', async () => {
   expect(space.view().used!.bytes).toBeGreaterThan(0);
   directory = join(demos, 'none');
   expect(space.view().used).toBeUndefined();
-  // a sweep that deletes nothing still counts a directory it has no count of
+  
   await space.sweepSoon();
   expect(space.view().used).toMatchObject({ bytes: 0, work: 0 });
 });
 
 test('looking through a large demo directory holds the server up for no noticeable time', async () => {
-  // a thousand demos, as in a demo directory used for months, each with its frames, rendered
-  // recently enough that they are kept: the sweep every few hours has nothing to delete
+  
+  
   for (let i = 0; i < 1000; i++) {
     const work = join(demos, `demo-${i}`, '.work');
     mkdirSync(join(work, 'frames'), { recursive: true });
     for (const f of ['frames.txt', ...Array.from({ length: 5 }, (_, c) => `clip-${c}.wav`)]) writeFileSync(join(work, f), '');
   }
-  // how often the event loop turned meanwhile, and the longest it went without a turn, which the
-  // server would log as a stall
+  
+  
   let turns = 0;
   let longest = 0;
   let last = performance.now();
@@ -209,7 +209,7 @@ test('looking through a large demo directory holds the server up for no noticeab
   setImmediate(turn);
   try {
     expect(await sweep(demos, 14)).toEqual({ demos: 0, bytes: 0 });
-    // work that never lets the loop turn ends before it turns once
+    
     turn();
     expect(turns).toBeGreaterThan(100);
     await usage(demos);

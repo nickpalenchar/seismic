@@ -7,7 +7,7 @@ import { gitRepo } from './helpers/testing';
 import { git } from '../workstations';
 
 let dir: string;
-/** Where Seismic's repository is published (`origin`), and the clone Seismic runs from. */
+
 let up: string;
 let clone: string;
 
@@ -47,7 +47,7 @@ test('new commits that change code wait upstream: fetched, counted and named, ne
   expect(u.commits[0]!.date).toBeGreaterThan(Date.now() - 60_000);
   expect(u.blocked).toBeUndefined();
   expect(changes).toHaveLength(1);
-  // the same again tells no one
+  
   await s.check();
   expect(changes).toHaveLength(1);
 });
@@ -115,7 +115,7 @@ test('uncommitted changes to a file the pull changes stand in the way; others do
 
 test('what git refuses stays on the update for the bar, until a pull goes', async () => {
   const head = commit(up, 'src/new.ts', 'theirs\n');
-  // an untracked file the pull would overwrite: only git finds it
+  
   writeFileSync(join(clone, 'src/new.ts'), 'mine\n');
   const s = new SourceUpdates(clone);
   await s.check();

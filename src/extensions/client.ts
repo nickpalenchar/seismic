@@ -1,4 +1,4 @@
-/** Browser implementations of the extensions enabled in the registry. */
+
 import type { ComponentType } from 'react';
 import type { Item } from '../core/types';
 import type { Language } from '../core/locale';
@@ -9,6 +9,6 @@ export interface ClientExtension {
   strings?: Record<Language, Record<string, unknown>>;
 }
 
-// Add an enabled extension's browser implementation here, without importing its server module.
+
 const implementations: Record<string, ClientExtension> = {};
 export const clientExtensions: readonly ClientExtension[] = enabled.flatMap((name) => implementations[name] ? [implementations[name]!] : []);

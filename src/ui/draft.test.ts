@@ -6,7 +6,7 @@ const store = () => {
   return { m, getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) };
 };
 
-// `keepDrafts` holds its store for the rest of the page
+
 const s = store();
 
 test("a card's draft outlives the page: written down per project as it changes, taken back by the next page", () => {
@@ -16,10 +16,10 @@ test("a card's draft outlives the page: written down per project as it changes, 
   s.setItem('seismic-markups-shop', JSON.stringify({ img1: markup }));
   keepDrafts(s, 'shop');
   expect(draftOf(cardDraft('c9'))).toMatchObject({ text: 'vom letzten Mal', images: ['img1'], uploading: 0, dictation: '' });
-  // the marks on its screenshot come back too, apart from the original
+  
   expect(markupOf('img1')).toEqual(markup as never);
   setMarkup('img1', null);
-  // the options picked come back too, also without words beside them
+  
   expect(draftOf(cardDraft('c5')).picks).toEqual(picks);
   updateDraft(cardDraft('c5'), { picks: { of: picks.of, picks: [[]] } });
 
@@ -31,7 +31,7 @@ test("a card's draft outlives the page: written down per project as it changes, 
     [cardDraft('c1')]: { text: 'Bitte den Knopf blau', images: [] },
   });
 
-  // sent: the field is empty again, and nothing is kept
+  
   updateDraft(cardDraft('c1'), { text: '' });
   dropDraft(cardDraft('c9'));
   expect(s.getItem('seismic-drafts-shop')).toBeNull();
@@ -101,15 +101,15 @@ test('a path with a space goes in quotes and stays one word', () => {
 
 test("the paths of dropped files go back beside the microphone when Seismic's field closes, the words around them stay", () => {
   const spaced = pathWord('/o/John Doe/Plan.pdf');
-  // dropped on the microphone, then the sidebar opened
+  
   updateDraft(MIC_DRAFT, { text: `/o/a/Rechnung.pdf ${spaced}` });
   updateDraft(SEISMIC_DRAFT, { text: 'Schau mal' });
   insertFiles(SEISMIC_DRAFT, wordsOf(draftOf(MIC_DRAFT).text));
   updateDraft(MIC_DRAFT, { text: '' });
   expect(draftOf(SEISMIC_DRAFT).text).toBe(`Schau mal /o/a/Rechnung.pdf ${spaced}`);
-  // the owner writes on and takes one path out by hand: it stays gone
+  
   updateDraft(SEISMIC_DRAFT, (d) => ({ text: `${d.text.replace('/o/a/Rechnung.pdf ', '')} und sag was dazu` }));
-  // the written-down draft keeps only the path still in it, so it goes back after a reload too
+  
   expect(JSON.parse(s.getItem('seismic-drafts-shop')!)[SEISMIC_DRAFT].files).toEqual([spaced]);
   moveFiles(SEISMIC_DRAFT, MIC_DRAFT);
   expect(draftOf(SEISMIC_DRAFT)).toMatchObject({ text: 'Schau mal und sag was dazu', files: [] });
@@ -123,7 +123,7 @@ test('a word taken out of a text takes the space after it, or at the end of a li
   expect(withoutWords('Schau /a.pdf an', ['/a.pdf'])).toBe('Schau an');
   expect(withoutWords('Schau an /a.pdf', ['/a.pdf'])).toBe('Schau an');
   expect(withoutWords('Schau /a.pdf\nund das', ['/a.pdf'])).toBe('Schau\nund das');
-  // only as a word of its own
+  
   expect(withoutWords('/a.pdfx /a.pdf', ['/a.pdf'])).toBe('/a.pdfx');
 });
 
@@ -154,7 +154,7 @@ test('switching to another project within the page puts its drafts in place of t
   expect(draftOf(cardDraft('a1')).text).toBe('');
   updateDraft(cardDraft('b1'), { text: 'on blog' });
   expect(Object.keys(JSON.parse(s.getItem('seismic-drafts-blog')!))).toEqual([SEISMIC_DRAFT, cardDraft('b1')]);
-  // and back: the first project's drafts are there as it left them
+  
   keepDrafts(s, 'shop');
   expect(draftOf(SEISMIC_DRAFT).text).toBe('to Seismic on shop');
   expect(draftOf(cardDraft('a1')).text).toBe('on shop');

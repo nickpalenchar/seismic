@@ -1,12 +1,12 @@
-// Selects (shadcn/ui's Select, on Radix Select): a field that shows the current choice and opens a list
-// of options, with arrow keys, typeahead, Esc and an outside click handled by Radix. The list is
-// portaled into `uiPortal()` so the theme applies.
-//
-// `Select` is the whole control: `value` and `onValueChange`, the options as `SelectItem` children
-// (`SelectGroup` with a `SelectLabel` for a titled set), `aria-label` for the closed field, `className`
-// for its size (width belongs to the container). An option whose value is the empty string (the
-// "default" or "all" of a setting) works as in a native select: Radix refuses an empty item value, so
-// it is carried as a sentinel.
+
+
+
+
+
+
+
+
+
 
 import { cn } from 'cn';
 import { Select as SelectPrimitive } from 'radix-ui';

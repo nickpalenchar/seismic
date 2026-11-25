@@ -1,7 +1,7 @@
-/**
- * What the sessions that propose rules to the owner (the learner and the retrospective) share: the
- * context they read the rules with, and the repositories a rule may name.
- */
+
+
+
+
 import type { Item, Preference } from '../../../../core/types';
 import type { Board } from '../../../board';
 

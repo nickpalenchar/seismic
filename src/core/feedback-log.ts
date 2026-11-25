@@ -1,7 +1,7 @@
-// The Agent Feedback Log: every response the owner gave on agents' work, by time, the newest first,
-// filtered by the dashboard's filters and by whom a response credits and how it rated, and grouped
-// by configuration, plan, repository, project, week or month. Its state lives in the page's query,
-// so the dashboard can open it with its own filters and a reload keeps it.
+
+
+
+
 import { configKey, filterFeedback, type PerformanceFilter, stars } from './performance';
 import { AGENT_EFFORTS, type Feedback, type WorkConfig } from './types';
 
@@ -10,11 +10,11 @@ export const PERIODS: Period[] = ['all', '90', '30'];
 
 export interface LogFilter extends Omit<PerformanceFilter, 'since'> {
   period?: Period;
-  /** Of the credited configuration: work credited to no one configuration matches none of these. */
+  
   harness?: string;
   model?: string;
   effort?: string;
-  /** Whole stars from 1 to 5, or `none` for a response with a comment only. */
+  
   rating?: string;
 }
 
@@ -83,11 +83,11 @@ export function weekOf(iso: string): string {
 }
 
 export interface LogSection {
-  /** What the responses share: a configuration's key (`harness|model|effort`, `mixed`, `missing`), a plan's id, a repository, a project, a week's Monday or a month (`2026-11`); empty where they have none. */
+  
   key: string;
-  /** The credited configuration, in a section by configuration. */
+  
   config?: WorkConfig;
-  /** The plan's title as it was, in a section by plan. */
+  
   title?: string;
   responses: Feedback[];
   ratings: number;
@@ -166,7 +166,7 @@ export function groupLog(list: Feedback[], by: LogGroup): LogSection[] {
 }
 
 const FILTER_KEYS = ['project', 'repo', 'plan', 'period', 'harness', 'model', 'effort', 'rating'] as const;
-/** The names the log's state takes in a query, and `performance`, which opens the dashboard with them. */
+
 export const LOG_KEYS = [...FILTER_KEYS, 'canvas', 'group', 'performance'];
 
 /** The log's state from its query (`?plan=…&group=month`); what it does not know it leaves out. */

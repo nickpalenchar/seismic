@@ -1,4 +1,4 @@
-// Run in a fresh process: the production registry stays empty in the rest of the suite.
+
 import { strict as assert } from 'node:assert';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -68,7 +68,7 @@ const fixture = await import('../../server/test/helpers/workerSupervisor');
 const { git } = await import('../../server/workstations');
 fixture.setup({ ...generic, land: 'main', workstations: 'clones', ...{ example: 'worker value' } });
 try {
-  // A runtime that cannot start must not tell extensions that a worker started.
+  
   const start = fixture.runtime.start.bind(fixture.runtime);
   fixture.runtime.start = () => { throw new Error('Example runtime unavailable'); };
   const failed = fixture.manual();
@@ -82,10 +82,10 @@ try {
 
   const card = fixture.manual();
   await fixture.workers.start(card.id);
-  // start() already waits for workstation preparation and the runtime launch.
+  
   assert.equal(fixture.runtime.sessions.length, 1);
   assert.deepEqual(events, [{ type: 'workerStarted', project: 'c', card: card.id, settings: { example: 'worker value' } }]);
-  // a permission question carries the extension's option; picked, the call runs with its updates
+  
   const permitted = fixture.runtime.last.spec.askOwner!({ name: 'Bash', input: { command: 'make' } }, new AbortController().signal);
   await fixture.flush();
   const question = fixture.board.item(card.id)!.question!;

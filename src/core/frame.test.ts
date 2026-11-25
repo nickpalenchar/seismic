@@ -41,7 +41,7 @@ test("Seismic's page frames only its own addresses", () => {
 });
 
 test('what a published page tells the page around it carries the name from before the rename too', () => {
-  // a page shared before the rename listens for `obeya…` alone: each message names both, closing an image as much as opening it
+  
   const sent = [...withImageViewer(withHeightReport('<body></body>')).matchAll(/parent\.postMessage\(\{([^}]*)\}/g)].map((m) => m[1]!);
   expect(sent.length).toBeGreaterThanOrEqual(4);
   for (const message of sent) for (const [, name] of message.matchAll(/seismic(\w+):/g)) expect(message).toContain(`obeya${name}:`);

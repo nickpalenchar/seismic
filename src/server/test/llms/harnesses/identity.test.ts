@@ -77,11 +77,11 @@ test('a session shows its identity where it works: at its start, once it resolve
   const s = fake.last;
   expect(heard.map(([at, agent]) => [at, agent])).toEqual([[{ card: 'a' }, { harness: 'claude' }]]);
   s.emit({ type: 'session', id: 's-1', model: 'claude-opus-5-5' });
-  // the same model again changes nothing
+  
   s.emit({ type: 'session', id: 's-1', model: 'claude-opus-5-5' });
   expect(heard.map(([, agent]) => agent)).toEqual([{ harness: 'claude' }, { harness: 'claude', model: 'claude-opus-5-5' }]);
   const second = start({ card: 'a' });
-  // a session without a place shows nowhere
+  
   start().close();
   first.close();
   await first.done;

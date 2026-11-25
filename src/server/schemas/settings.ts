@@ -3,7 +3,7 @@ import { primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import type { Db } from './common';
 import { projects } from './projects';
 
-/** A project's settings, a value by key. */
+
 export const settings = sqliteTable(
   'settings',
   {

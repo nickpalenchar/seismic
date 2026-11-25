@@ -1,4 +1,4 @@
-// The languages Seismic speaks: the demo skill's, which runs without Seismic and so holds them.
+
 import { type Language, LANGUAGE_NAMES } from '../../plugin/skills/demo/lib/locale.ts';
 
 export { FALLBACK_LANGUAGE, LANGUAGE_NAMES, LANGUAGES, type Language, languageOf } from '../../plugin/skills/demo/lib/locale.ts';

@@ -1,9 +1,9 @@
 import { expect, test } from 'bun:test';
 import { Glob } from 'bun';
 
-// Every animation the UI names in its classes (`animate-[name_…]`) has its keyframes in a stylesheet the page
-// links (index.html), outside comments: a missing one makes no error anywhere, the element just stands still (the
-// working bar's `flow` went that way).
+
+
+
 
 const dir = new URL('.', import.meta.url).pathname;
 const uncommented = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, '');
@@ -43,9 +43,9 @@ test('a keyframe commented out counts as missing', () => {
   expect(keyframes(uncommented('/* @keyframes flow { to { opacity: 0; } } */')).has('flow')).toBe(false);
 });
 
-// docs/design.md: an animation that repaints a card every frame makes zoomed-out cards shimmer. The endless ones
-// (the working bar, the moving line of a card at work, a workstation's dot at work, the pin) move transform and
-// opacity alone, which the compositor does without repainting.
+
+
+
 test.each(['flow', 'draw', 'ws-pulse', 'pulse'])('the endless animation %s moves only transform and opacity', async (name) => {
   const body = keyframes(await linkedCss()).get(name);
   expect(body).toBeDefined();

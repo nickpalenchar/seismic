@@ -5,13 +5,13 @@ import { basename, dirname, join } from 'node:path';
 import { type Db, SHORT } from './schemas/common';
 import * as schema from './schemas/schema';
 
-// The database: its connection and the migrations that bring it up to date. What is stored in it is
-// queried through the schemas (`schemas/`), which `Store` (store.ts) puts together.
+
+
 
 export { SHORT };
 export type { Db };
 
-/** The schema Seismic was released with. */
+
 const SCHEMA = `
   CREATE TABLE canvases (
     id TEXT PRIMARY KEY,
@@ -182,19 +182,19 @@ const SCHEMA = `
     decided_at TEXT
   );`;
 
-/**
- * The `user_version` of a database at `SCHEMA`: the steps its schema took before the release. One
- * that took fewer is from an Seismic before it (`OlderDatabase`).
- */
+
+
+
+
 export const RELEASED = 40;
 
-// Append only; each entry runs once on a database at `SCHEMA`, tracked in `PRAGMA user_version` after `RELEASED`.
+
 export const MIGRATIONS = [
-  // what an Seismic before the release kept in shapes that changed since, in today's: demos and
-  // shared pages without a kind are videos; a share held for undo publishes; `answering` moves out
-  // of the demo; a demo's question goes with the last handover before the owner answered it (else
-  // the last one); a project whose doc went before Seismic kept it gets an empty one; the pause line
-  // loses its second sentence; a repository with retrospectives before they were counted is past the ramp
+  
+  
+  
+  
+  
   `UPDATE cards SET demo = json_set(demo, '$.kind', 'video') WHERE demo IS NOT NULL AND json_extract(demo, '$.kind') IS NULL;
    UPDATE cards SET share = json_set(share, '$.shown.kind', 'video') WHERE json_extract(share, '$.shown') IS NOT NULL AND json_extract(share, '$.shown.kind') IS NULL;
    UPDATE cards SET share = json_set(share, '$.state', 'publishing') WHERE json_extract(share, '$.state') = 'pending';
@@ -212,11 +212,11 @@ export const MIGRATIONS = [
    INSERT INTO settings (canvas_id, key, value)
      SELECT canvas_id, 'work_retro_runs:' || substr(key, 18), '3' FROM settings s WHERE key LIKE 'work_retro_since:%'
         AND NOT EXISTS (SELECT 1 FROM settings r WHERE r.canvas_id = s.canvas_id AND r.key = 'work_retro_runs:' || substr(s.key, 18));`,
-  // the message of the sheet the owner's words reply to (JSON `TalkRef`)
+  
   'ALTER TABLE talk ADD COLUMN reply_to TEXT;',
-  // where the app in a card's workstation runs, for the owner to try it by hand
+  
   'ALTER TABLE cards ADD COLUMN app TEXT;',
-  // devices paired to reach Seismic from another machine: the hash of each one's cookie
+  
   `CREATE TABLE devices (
     id TEXT PRIMARY KEY,
     token_hash TEXT NOT NULL UNIQUE,
@@ -224,84 +224,84 @@ export const MIGRATIONS = [
     paired_at TEXT NOT NULL,
     last_seen TEXT NOT NULL
   );`,
-  // Seismic's reply says it cannot do what the owner asked, or the owner asked to tell its makers: what a draft for them starts from (JSON `Wish`)
+  
   'ALTER TABLE talk ADD COLUMN wish TEXT; ALTER TABLE events ADD COLUMN wish TEXT;',
-  // the demos of earlier handovers a later one replaced
+  
   'ALTER TABLE cards ADD COLUMN demos TEXT;',
-  // since when a card waits for the owner, for the phone view's "Needs you"
+  
   'ALTER TABLE cards ADD COLUMN waiting_since TEXT;',
-  // a repository's commands as the owner last confirmed them, by its path (JSON `RepoCommands`)
+  
   `CREATE TABLE trusted_commands (
     repo TEXT PRIMARY KEY,
     commands TEXT NOT NULL,
     at TEXT NOT NULL
   );`,
-  // a paired device's push subscription (JSON `Subscription`), where it turned notifications on
+  
   'ALTER TABLE devices ADD COLUMN push TEXT;',
-  // words the usage limit kept the Koordinator from reading, until it lifts (JSON `HeldTalk`)
+  
   'ALTER TABLE talk ADD COLUMN held TEXT;',
-  // a card set aside until a point in time, by its worker or the owner (JSON `Snooze`)
+  
   'ALTER TABLE cards ADD COLUMN snoozed TEXT;',
-  // cards the Koordinator waits on to take a step then (JSON `TalkWaitRow[]`), and the exchange it took that step up in (JSON `TalkAfter`)
+  
   'ALTER TABLE talk ADD COLUMN waits TEXT; ALTER TABLE talk ADD COLUMN after_wait TEXT;',
-  // what a card changed in a folder without git, and the undo it has there (JSON `FolderCard`, folder.ts)
+  
   `CREATE TABLE folder_cards (
     card_id TEXT PRIMARY KEY,
     folder TEXT NOT NULL,
     state TEXT NOT NULL
   );`,
-  // the files a card's worker named as its result at its handover (JSON `CardFile[]`)
+  
   'ALTER TABLE cards ADD COLUMN files TEXT;',
-  // which workstream of a plan builds on which, read from its plan doc to arrange them (JSON `StoredDeps`)
+  
   'ALTER TABLE cards ADD COLUMN deps TEXT;',
-  // a plan the owner folded to its head
+  
   'ALTER TABLE cards ADD COLUMN collapsed INTEGER NOT NULL DEFAULT 0;',
-  // words the owner wrote in a plan's sheet, which went straight to its plan agent: that plan
+  
   'ALTER TABLE talk ADD COLUMN asked_in TEXT;',
-  // Seismic's reply on a card that answers the owner's words without acting on them: it stands in the conversation
+  
   'ALTER TABLE events ADD COLUMN reply INTEGER;',
-  // the clone holding a card's branch since the owner took its workstation from it
+  
   'ALTER TABLE cards ADD COLUMN kept_in TEXT;',
-  // a review card: the pull request of someone outside it reviews (JSON `StoredContribution`)
+  
   'ALTER TABLE cards ADD COLUMN contribution TEXT;',
-  // a repository to create for a card before work begins, and that Seismic made it (JSON `StoredNewRepo` in board.ts);
-  // an exchange of no one's in the sheet that says a card moved to another canvas (JSON `TalkMoved`)
+  
+  
   'ALTER TABLE cards ADD COLUMN new_repo TEXT; ALTER TABLE talk ADD COLUMN moved TEXT;',
-  // what a card's worker last heard of its demo's page (JSON `PageHeard` in workerSupervisor/workerSupervisor.ts)
+  
   'ALTER TABLE cards ADD COLUMN page_heard TEXT;',
-  // Seismic's reply on a card to what its agent passed on from the owner's words (`to_seismic`)
+  
   'ALTER TABLE events ADD COLUMN forwarded INTEGER;',
-  // since when the owner asked the card's agent to pause at a safe point, until it has (ISO)
+  
   'ALTER TABLE cards ADD COLUMN pausing TEXT;',
-  // a question looked up for an action that needs its answer: the step the Koordinator takes then, and
-  // the exchange of no one's it took that step up in (the id of the exchange whose answer came in)
+  
+  
   'ALTER TABLE talk ADD COLUMN then_step TEXT; ALTER TABLE talk ADD COLUMN after_answer INTEGER;',
-  // harness, model and effort of a worker run; old unqualified session ids belong to Claude
+  
   'ALTER TABLE cards ADD COLUMN agent_setting TEXT;',
-  // Attribution belongs to each utterance, not mutable role defaults or a card's later runs.
+  
   'ALTER TABLE events ADD COLUMN agent TEXT; ALTER TABLE talk ADD COLUMN reply_agent TEXT; ALTER TABLE talk ADD COLUMN answer_agent TEXT;',
-  // a card's code in addresses: the first `SHORT` hex digits of its id, one more for each card that shares them
+  
   `ALTER TABLE cards ADD COLUMN short TEXT;
    UPDATE cards SET short = substr(replace(id, '-', ''), 1, ${SHORT});
    ${Array.from({ length: 32 - SHORT }, (_, k) => `UPDATE cards SET short = substr(replace(id, '-', ''), 1, ${SHORT + 1 + k}) WHERE short IN (SELECT short FROM cards GROUP BY short HAVING count(*) > 1);`).join('\n   ')}
    CREATE UNIQUE INDEX cards_short ON cards (short);`,
-  // an error of a session that signed in with a token rather than this machine's account
+  
   'ALTER TABLE events ADD COLUMN token INTEGER;',
-  // the cards each change of a canvas reads, without going through its archive
+  
   `CREATE INDEX cards_open ON cards (canvas_id) WHERE deleted_at IS NULL AND archived_at IS NULL;
    CREATE INDEX cards_plan_docs ON cards (canvas_id) WHERE deleted_at IS NULL AND plan_docs IS NOT NULL;
    CREATE INDEX cards_prototypes ON cards (canvas_id, created_at) WHERE deleted_at IS NULL AND prototype_of IS NOT NULL;
    CREATE INDEX cards_waiting ON cards (canvas_id) WHERE waiting_since IS NOT NULL;
    CREATE INDEX cards_shared ON cards (canvas_id) WHERE deleted_at IS NULL AND share IS NOT NULL;`,
-  // where the owner was on the canvas when they asked for a step that needed looking up first (JSON `Place`): its new cards go there
+  
   'ALTER TABLE talk ADD COLUMN then_place TEXT;',
-  // a line that Seismic made a follow-up card of the card: that card (JSON `CardEvent['made']`)
+  
   'ALTER TABLE events ADD COLUMN made TEXT;',
-  // each session that worked on a card, with the configuration it ran on (`WorkConfig`, null where
-  // unknown), and the owner's responses on approved work with whom they credit as at their handover.
-  // Cards from before take their last session as its pinned setting has it, from their last start, and one run for each
-  // other identity their agents' messages carry; the model only where those messages name it, or a
-  // Codex setting names it (a Codex model chosen by name is the one it runs).
+  
+  
+  
+  
+  
   `CREATE TABLE agent_runs (
     card_id TEXT NOT NULL REFERENCES cards(id),
     session_id TEXT NOT NULL,
@@ -349,18 +349,18 @@ export const MIGRATIONS = [
        CASE WHEN x.own THEN json_extract(c.s, CASE c.h WHEN 'codex' THEN '$.codex.model' ELSE '$.model' END) END, x.at
        FROM (SELECT i.*, n.k = 1 AND i.h = c.h AND c.session_id IS NOT NULL AS own FROM i JOIN n USING (card_id) JOIN c ON c.id = i.card_id) x
        JOIN c ON c.id = x.card_id;`,
-  // the priority the owner gave a card (`Priority`), a label only
+  
   'ALTER TABLE cards ADD COLUMN priority TEXT;',
-  // the card's other labels beside its priority, which of them are Seismic's suggestion, and which the owner has set
+  
   `ALTER TABLE cards ADD COLUMN category TEXT;
    ALTER TABLE cards ADD COLUMN subcategory TEXT;
    ALTER TABLE cards ADD COLUMN complexity INTEGER;
    ALTER TABLE cards ADD COLUMN suggested_labels TEXT;
    ALTER TABLE cards ADD COLUMN owner_labels TEXT;`,
-  // the code review of a card's work that lands on main: its mode, the handover it is for, its findings
+  
   'ALTER TABLE cards ADD COLUMN code_review TEXT;',
-  // the owner's chats with Seismic on a canvas, each exchange in one; new words go into the one opened
-  // last. What was said before is one chat per canvas.
+  
+  
   `CREATE TABLE chats (id INTEGER PRIMARY KEY, canvas_id TEXT NOT NULL REFERENCES canvases(id), at TEXT NOT NULL, opened TEXT NOT NULL);
    CREATE INDEX chats_canvas ON chats (canvas_id, opened);
    ALTER TABLE talk ADD COLUMN chat INTEGER REFERENCES chats(id);
@@ -368,8 +368,8 @@ export const MIGRATIONS = [
    UPDATE talk SET chat = (SELECT id FROM chats WHERE chats.canvas_id = talk.canvas_id);
    CREATE INDEX talk_chat ON talk (chat, id);`,
   'ALTER TABLE chats ADD COLUMN model TEXT;',
-  // a plan was a "project" before the word went to the app level: the card kind, the plan agent's answers and its
-  // messages, the columns that name it, and the plan on a response's context (JSON `Feedback`)
+  
+  
   `UPDATE cards SET kind = 'plan' WHERE kind = 'project';
    UPDATE events SET author = 'plan' WHERE author = 'project';
    UPDATE talk SET answer_by = 'plan' WHERE answer_by = 'project';
@@ -377,16 +377,16 @@ export const MIGRATIONS = [
    UPDATE feedback SET context = json_set(json_remove(context, '$.project'), '$.plan', json_extract(context, '$.project')) WHERE json_extract(context, '$.project') IS NOT NULL;
    ALTER TABLE cards RENAME COLUMN becomes_project TO becomes_plan;
    ALTER TABLE decisions RENAME COLUMN project_id TO plan_id;`,
-  // a workstation was a "workspace" before the word went to the instance level: the table, the
-  // card's column, and a card's wait for a free one (JSON `Queue`)
+  
+  
   `ALTER TABLE workspaces RENAME TO workstations;
    ALTER TABLE cards RENAME COLUMN workspace TO workstation;
    UPDATE cards SET queue = json_set(json_remove(queue, '$.workspace'), '$.workstation', json_extract(queue, '$.workspace'))
     WHERE json_extract(queue, '$.workspace') IS NOT NULL;`,
-  // a project was a "canvas" before the word went to the container of cards inside a project: the
-  // table, every table's column pointing to it, the one index named after it, and the stored JSON
-  // that names it (a card moved to another project, a repository made with its own project, a card
-  // made on another project)
+  
+  
+  
+  
   `ALTER TABLE canvases RENAME TO projects;
    ALTER TABLE groups RENAME COLUMN canvas_id TO project_id;
    ALTER TABLE cards RENAME COLUMN canvas_id TO project_id;
@@ -408,8 +408,8 @@ export const MIGRATIONS = [
     WHERE json_extract(new_repo, '$.canvas') IS NOT NULL;
    UPDATE events SET made = json_set(json_remove(made, '$.canvas'), '$.project', json_extract(made, '$.canvas'))
     WHERE json_extract(made, '$.canvas') IS NOT NULL;`,
-  // a project holds its cards on canvases: each gets "main", which holds every card and group it had
-  // (`canvas_id` carries no foreign key, which would keep it from ever being dropped; the store keeps it valid)
+  
+  
   `CREATE TABLE canvases (
      id TEXT PRIMARY KEY,
      project_id TEXT NOT NULL REFERENCES projects(id),
@@ -425,9 +425,9 @@ export const MIGRATIONS = [
    UPDATE cards SET canvas_id = (SELECT c.id FROM canvases c WHERE c.project_id = cards.project_id);
    UPDATE groups SET canvas_id = (SELECT c.id FROM canvases c WHERE c.project_id = groups.project_id);
    CREATE INDEX cards_canvas ON cards (canvas_id);`,
-  // a card parked off the canvas, since when (ISO)
+  
   'ALTER TABLE cards ADD COLUMN parking_lot TEXT;',
-  // the Activity log: what happened on a card, typed (`ActivityCode`), by whom, with the card it waits for, the harness whose limit stopped it, or the title of a card it deleted
+  
   `CREATE TABLE activity (
      id INTEGER PRIMARY KEY,
      at TEXT NOT NULL,
@@ -439,10 +439,10 @@ export const MIGRATIONS = [
      title TEXT
    );
    CREATE INDEX activity_card ON activity (card_id, id);`,
-  // one hold (`Hold`) in place of the pause, the pause at a safe point, the usage limit's pause, the
-  // snooze and the parking lot, which never hold together: a snooze of the owner's kept what it held
-  // for the worker in the pause, which moves into it; a pause or snooze that kept no time of its own
-  // counts from now. The old columns stay until the moved columns are dropped.
+  
+  
+  
+  
   `ALTER TABLE \`cards\` ADD \`hold\` text;
    UPDATE cards SET hold = CASE
      WHEN snoozed IS NOT NULL THEN json_patch(
@@ -458,8 +458,8 @@ export const MIGRATIONS = [
      WHEN parking_lot IS NOT NULL THEN json_object('reason', 'parkingLot', 'since', parking_lot)
    END
    WHERE snoozed IS NOT NULL OR paused IS NOT NULL OR pausing IS NOT NULL OR parking_lot IS NOT NULL;`,
-  // a card's idea part in a table of its own (`card_ideas`), for the cards that have any of it; the
-  // idea's own column is its discussion there. The old columns stay until the moved columns are dropped.
+  
+  
   `CREATE TABLE \`card_ideas\` (
      \`card_id\` text PRIMARY KEY NOT NULL,
      \`discussion\` text,
@@ -478,10 +478,10 @@ export const MIGRATIONS = [
      SELECT id, idea, prototype_of, prototype, proposal, built_on, becomes_plan, new_repo FROM cards
      WHERE idea IS NOT NULL OR prototype_of IS NOT NULL OR prototype IS NOT NULL OR proposal IS NOT NULL
        OR built_on IS NOT NULL OR becomes_plan != 0 OR new_repo IS NOT NULL;`,
-  // a card's review, demo and plan parts, its labels and its hold in tables of their own, for the
-  // cards that have any of them: the earlier demos and the labels a row each, a label with who set
-  // it (a suggestion of a label since cleared is gone). The old columns stay until the moved columns
-  // are dropped; their indexes go.
+  
+  
+  
+  
   `DROP INDEX \`cards_plan_docs\`;
    DROP INDEX \`cards_shared\`;
    CREATE TABLE \`card_reviews\` (
@@ -560,11 +560,11 @@ export const MIGRATIONS = [
    INSERT INTO card_holds (card_id, reason, since, detail)
      SELECT id, json_extract(hold, '$.reason'), coalesce(json_extract(hold, '$.since'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
        nullif(json_remove(hold, '$.reason', '$.since'), '{}') FROM cards WHERE hold IS NOT NULL;`,
-  // the columns of `cards` whose values moved into the tables of its parts (the steps above), dropped:
-  // the table is built anew without them, since two of them are foreign keys, which SQLite cannot
-  // drop; each card keeps its rowid, which the Koordinator's marks count cards by. The unique index
-  // comes before the others, as it did: where two indexes serve a query alike, SQLite takes the one
-  // made later, and reading a project's cards is to go through `cards_open`, not the archive too
+  
+  
+  
+  
+  
   `PRAGMA foreign_keys=OFF;
    CREATE TABLE \`__new_cards\` (
      \`id\` text PRIMARY KEY NOT NULL,
@@ -625,11 +625,11 @@ export const MIGRATIONS = [
    CREATE INDEX \`cards_waiting\` ON \`cards\` (\`project_id\`) WHERE waiting_since IS NOT NULL;
    CREATE INDEX \`cards_canvas\` ON \`cards\` (\`canvas_id\`);
    PRAGMA foreign_keys=ON;`,
-  // the code review of a card's work as one running list: its items (`card_review_items`, numbered per
-  // card across all review runs) and the log of their status changes (`card_review_item_events`). The
-  // findings of the latest completed run become items (open: raised, decided to fix: fixing, fixed:
-  // under review, dropped: closed, later or decided for later: follow-up); the findings the owner
-  // ignored in earlier runs become closed items after them; earlier runs' snapshots are dropped.
+  
+  
+  
+  
+  
   `CREATE TABLE \`card_review_items\` (
      \`card_id\` text NOT NULL,
      \`number\` integer NOT NULL,
@@ -686,13 +686,13 @@ export const MIGRATIONS = [
      FROM card_review_items i JOIN review_source s ON s.card_id = i.card_id WHERE i.status != 'raised';
    DROP TABLE review_source;
    UPDATE card_reviews SET code_review = json_remove(code_review, '$.previous', '$.ignored', '$.review.findings') WHERE code_review IS NOT NULL;`,
-  // what a card was at when the owner stopped it, to say "Stopped at …" (JSON `StoppedAt`)
+  
   'ALTER TABLE cards ADD COLUMN stopped_at TEXT;',
-  // "Needs you" as a table of its own: one row per wait for the owner, on a card, a proposed rule, a
-  // setting proposal or the Koordinator's answer (exactly one), with when it began, when what it waits
-  // on last changed and when it ended (ms). The cards' open waits move over, their kind guessed from
-  // the card's need and their digest unknown (null): the first reconcile takes both as they are, without
-  // counting it as a change; `cards.waiting_since` goes
+  
+  
+  
+  
+  
   `CREATE TABLE \`needs_you\` (
      \`id\` integer PRIMARY KEY NOT NULL,
      \`project_id\` text NOT NULL,
@@ -723,26 +723,26 @@ export const MIGRATIONS = [
      FROM cards WHERE waiting_since IS NOT NULL AND julianday(waiting_since) IS NOT NULL ORDER BY waiting_since;
    DROP INDEX \`cards_waiting\`;
    ALTER TABLE cards DROP COLUMN waiting_since;`,
-  // the order the Koordinator's replies and answers were written in, one place for each exchange (null on those from before)
+  
   'ALTER TABLE talk ADD COLUMN arrived INTEGER;',
-  // the cards an exchange's actions created, which the conversation shows each with its cover
+  
   'ALTER TABLE talk ADD COLUMN made TEXT;',
   'ALTER TABLE talk ADD COLUMN request_id TEXT;',
-  // a workstream is on its plan's canvas: repairs the rows that hold another
+  
   `UPDATE cards SET canvas_id = (SELECT p.canvas_id FROM cards p WHERE p.id = cards.parent_id)
     WHERE parent_id IS NOT NULL AND canvas_id IS NOT (SELECT p.canvas_id FROM cards p WHERE p.id = cards.parent_id)
       AND (SELECT p.canvas_id FROM cards p WHERE p.id = cards.parent_id) IS NOT NULL;`,
-  // the author and the actor of what Seismic itself did were `obeya` before the rename
+  
   `UPDATE events SET author = 'seismic' WHERE author = 'obeya';
    UPDATE activity SET who = 'seismic' WHERE who = 'obeya';`,
   'ALTER TABLE talk ADD COLUMN agent_setting TEXT;',
-  // Device credential renewals (unused; databases already carry this step).
+  
   `CREATE TABLE IF NOT EXISTS device_renewals (
     device_id TEXT PRIMARY KEY NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
     nonce TEXT NOT NULL,
     token_hash TEXT NOT NULL UNIQUE
   );`,
-  // Every credential a device was given once paired again, in order; presenting one retires those before it.
+  
   `CREATE TABLE IF NOT EXISTS device_tokens (
     token_hash TEXT PRIMARY KEY NOT NULL,
     device_id TEXT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
@@ -758,11 +758,11 @@ export const MIGRATIONS = [
    UPDATE devices SET enrollment_order = rowid;`,
 ];
 
-/**
- * How drizzle-kit opens a step that builds a table anew: dropping the old table others refer to is
- * what foreign keys refuse. The runner turns them off around such a step, and the step fails if it
- * leaves a reference to a row that is gone where there was none before.
- */
+
+
+
+
+
 const FOREIGN_KEYS_OFF = 'PRAGMA foreign_keys=OFF;';
 
 /** A database this Seismic cannot open as it is: it leaves it alone. */
@@ -784,13 +784,13 @@ export class OlderDatabase extends UnusableDatabase {
   }
 }
 
-/** How many `<db>.before-<version>` backups stay beside the database. */
+
 export const BACKUPS_KEPT = 3;
 
 /** A consistent copy of the database as it is before migrating to `target`, with only the newest backups kept. */
 function backUpBefore(db: Database, path: string, target: number) {
   const copy = `${path}.before-${target}`;
-  // a retry after a step failed halfway finds the copy of the first attempt, the state before the upgrade: it stays
+  
   if (!existsSync(copy)) db.run('VACUUM INTO ?', [copy]);
   const prefix = `${basename(path)}.before-`;
   const old = readdirSync(dirname(path))
@@ -820,10 +820,10 @@ export function openDatabase(path: string): { client: Database; orm: Db } {
   if (user_version >= RELEASED && user_version < latest && path !== ':memory:') backUpBefore(client, path, latest);
   for (let v = Math.max(user_version, RELEASED); v < latest; v++) {
     const step = MIGRATIONS[v - RELEASED]!;
-    // foreign keys can only be turned off outside a transaction (inside, drizzle-kit's pragma does nothing)
+    
     const unchecked = step.startsWith(FOREIGN_KEYS_OFF);
     if (unchecked) client.run('PRAGMA foreign_keys = OFF');
-    // each reference to a row that is gone: its table, row, the table it refers to and the value it refers by
+    
     const dangling = () =>
       unchecked
         ? (client.query('PRAGMA foreign_key_check').all() as { table: string; rowid: number | null; parent: string; fkid: number }[]).map((r) => {

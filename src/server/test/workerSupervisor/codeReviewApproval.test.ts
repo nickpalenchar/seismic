@@ -1,6 +1,6 @@
-/**
- * Exercise the real detail buttons and portal dialogs, then the PR card's approval API.
- */
+
+
+
 import { afterAll, beforeAll, expect, test } from 'bun:test';
 import tailwind from 'bun-plugin-tailwind';
 import { writeFileSync } from 'node:fs';
@@ -127,7 +127,7 @@ for (const scenario of ['running', 'fixing', 'verifying', 'unsent', 'unsentDurin
         expect(actions).toEqual([]);
         await dialog.getByRole('button', { name: open ? 'Go back' : 'Continue review', exact: true }).click();
         await dialog.waitFor({ state: 'hidden' });
-        // Cancelling leaves the real server card, its review and origin/main untouched.
+        
         expect(actions).toEqual([]);
         expect(state(id)).toBe('waiting:demo');
         expect(board.item(id)!.review?.codeReview).toEqual(before);

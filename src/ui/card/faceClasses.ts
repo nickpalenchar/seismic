@@ -1,20 +1,20 @@
-// A card's look in Tailwind on frost's tokens: the card on the
-// project (its glass, the state's tab at its top edge, the frame of the owner's turn, its stock) and the
-// parts of its face at every size. The classes come from the card's state, worked out here once; the
-// class names before the utilities (`card`, `ttl`, `state` …) stay as hooks for code that finds them.
-//
-// The card's states combine (a snoozed card waiting for the owner, a failed one zoomed out, a dragged
-// one under the pointer), and which look wins where they meet is the order the stylesheet had: each look
-// a rule with its weight, the heavier winning, the later at equal weight (`pick`). Where a look depends
-// on the pointer or the zoom, as the card's shadow does, its values for each go to custom properties
-// the card's static utilities read (`cardLook`'s `style`).
+
+
+
+
+
+
+
+
+
+
 
 import type { CSSProperties } from 'react';
 import { agentFailed, answering, finishingUp, isPaused, type Item, merging, needsYou, snoozeOf, reviewLimited } from '../../core/types';
 import { mergeProposed } from '../strings';
 import { asksYou } from './summary';
 
-/** What of a card's state its look depends on. */
+
 export interface CardFlags {
   state: Item['state'] | '';
   waiting: boolean;
@@ -43,7 +43,7 @@ export interface CardFlags {
   mergedPair: boolean;
 }
 
-/** A card of no state: the cover of one that is gone. */
+
 export const NO_FLAGS: CardFlags = {
   state: '', waiting: false, doneLive: false, idea: false, proposal: false, q: false, reviewing: false, parkedOrDropped: false, dropped: false, thinking: false,
   yourTurn: false, failed: false, underway: false, answering: false, asking: false, finishing: false, paused: false, restartPaused: false, resolving: false,
@@ -109,14 +109,14 @@ const stateHooks = (f: CardFlags, item: Item) =>
     f.restartQueued && 'restart-queued',
   ].filter((c): c is string => !!c);
 
-/** Where the pointer and the zoom stand, for the looks that depend on them. */
+
 interface At {
   hover: boolean;
   far: boolean;
 }
 const REST: At = { hover: false, far: false };
 
-/** A look of the stylesheet's cascade: its weight (the classes its selector counts), whether it applies, its value. */
+
 type Rule<T> = readonly [weight: number, applies: boolean | ((at: At) => boolean), value: T];
 
 /** The look that wins among `rules` (in the stylesheet's order): the heaviest that applies, the later at equal weight. */
@@ -128,28 +128,28 @@ function pick<T>(rules: readonly Rule<T>[], at: At = REST): T | undefined {
 
 const hovered = (at: At) => at.hover;
 
-/** Where a card shows: on the project, a row of the phone's lists, a line of the Activity tab, else a cover (in a conversation, the queue). */
+
 export type CardPlace = 'canvas' | 'phone' | 'activity' | 'cover';
 
 export interface CardLookOptions {
   underway?: string;
   place?: CardPlace;
-  /** On the project: a task, or a chip (a delivered workstream). */
+  
   shape?: string;
-  /** While the pointer is on a card with waits: this card (`self`), one it waits for (`before`), one waiting for it (`after`). */
+  
   dep?: 'self' | 'before' | 'after';
-  /** Picked up: the card left on the project while it is dragged, and the one in the hand. */
+  
   lifted?: boolean;
   dragging?: boolean;
-  /** Just put on the project. */
+  
   pop?: boolean;
-  /** Activity: the card open beside the list. */
+  
   on?: boolean;
-  /** Activity: a card since deleted. */
+  
   gone?: boolean;
 }
 
-// the card's shadows: the glass's rim and the shadow, lifted under the pointer, the frames of the owner's turn
+
 const GLASS = 'inset 0 1px 0 var(--glass-hi), var(--shadow)';
 const GLASS_LIFT = 'inset 0 1px 0 var(--glass-hi), var(--lift)';
 const frame = (ink: string, width: string, shadow: string) => `0 0 0 ${width} var(--${ink}), var(--${shadow})`;
@@ -166,12 +166,12 @@ function shadows(f: CardFlags, o: CardLookOptions): Rule<string>[] {
     [3, turn, TURN],
     [3, (at) => at.hover && f.waiting, TURN_LIFT],
     [4, (at) => at.hover && turn, TURN_LIFT],
-    // approved and landing, or its worker taking in the owner's answer: no longer the owner's turn
+    
     [3, f.waiting && f.underway, GLASS],
     [3, f.waiting && f.answering, GLASS],
     [3, f.waiting && f.failed, frame('destructive', '2px', 'shadow')],
     [4, (at) => at.hover && f.waiting && f.failed, frame('destructive', '2px', 'lift')],
-    // snoozed: pushed back, no frame of the owner's turn
+    
     [2, f.snoozed, GLASS],
     [3, f.snoozed && f.waiting, 'var(--shadow)'],
     [4, f.snoozed && turn, 'var(--shadow)'],
@@ -184,11 +184,11 @@ function shadows(f: CardFlags, o: CardLookOptions): Rule<string>[] {
     [3, f.waiting && f.reviewing, frame('reviewing', '2px', 'shadow')],
     [4, (at) => at.hover && f.waiting && f.reviewing, frame('reviewing', '2px', 'lift')],
     [2, !!o.dragging, GLASS_LIFT],
-    // zoomed out, the owner's turn framed wider
+    
     [5, (at) => at.far && f.waiting && !f.underway && !f.answering, frame('waiting', '5px', 'shadow')],
     [4, (at) => at.far && turn, frame('waiting', '5px', 'shadow')],
     [4, (at) => at.far && f.waiting && f.failed, frame('destructive', '5px', 'shadow')],
-    // the cards around the one under the pointer, over every state but the frames of the owner's turn
+    
     [2, !!o.dep, '0 0 0 2.5px var(--proposal), var(--lift)'],
     [5, f.snoozed && !!o.dep, '0 0 0 2.5px var(--proposal), var(--lift)'],
     [2, o.dep === 'before', '0 0 0 2.5px var(--waiting), var(--lift)'],
@@ -209,7 +209,7 @@ const tints = (f: CardFlags): Rule<string>[] => [
   [1, f.idea, 'c-idea'],
   [2, f.q, 'c-question'],
   [3, f.q && f.doneLive, 'c-question'],
-  // done: muted green
+  
   [2, f.doneLive, 'c-approved'],
   [3, f.waiting && f.underway, 'c-approved'],
   [3, f.waiting && f.answering, 'c-working'],
@@ -251,7 +251,7 @@ const opacities = (f: CardFlags, o: CardLookOptions): Rule<string>[] => [
 const borders = (f: CardFlags, o: CardLookOptions): Rule<string>[] => [
   [1, true, '[border:1px_solid_var(--glass-edge)]'],
   [1, o.place === 'phone', '[border:0]'],
-  // a proposal is only pencilled in: a dashed outline
+  
   [2, f.proposal, '[border:1.5px_dashed_var(--proposal)]'],
   [2, f.mergedPair, '[border:0]'],
   [2, o.place === 'activity', '[border:0]'],
@@ -277,14 +277,14 @@ const tabs = (f: CardFlags): Rule<string>[] => [
   [2, f.limitPaused, 'before:bg-info/30'],
 ];
 
-// what every card is: a pane of glass with soft corners, the state a glowing tab at its top edge (`--c`)
+
 const CARD =
   "group/card rounded-xl overflow-visible cursor-pointer select-none [font-family:var(--font)] [box-shadow:var(--sh)] hover:[box-shadow:var(--sh-hover)] far:[box-shadow:var(--sh-far)] far:hover:[box-shadow:var(--sh-far-hover)] reduced:hover:[transform:none] before:content-[''] before:absolute before:left-[14px] before:top-[-1px] before:h-[3px] before:pointer-events-none before:rounded-b-xs before:[box-shadow:0_0_10px_var(--c)] far:before:h-2 has-[>.state.subtle]:before:hidden";
 
 /** A card's own classes and style: its hooks, its look in its state, where it shows, under the pointer and zoomed out. */
 export function cardLook(item: Item | null, o: CardLookOptions = {}): { className: string; style: CSSProperties } {
   const known = item ? cardFlags(item, o.underway) : NO_FLAGS;
-  // a merged pair is one on the project; elsewhere the card shows as itself
+  
   const f = { ...known, mergedPair: known.mergedPair && o.place === 'canvas' };
   const at = (hover: boolean, far: boolean) => pick(shadows(f, o), { hover, far });
   const hoverLift = o.place !== 'phone' && o.place !== 'activity' && !f.proposal && !o.dragging;
@@ -295,10 +295,10 @@ export function cardLook(item: Item | null, o: CardLookOptions = {}): { classNam
     pick(tints(f)),
     pick(stocks(f)),
     f.proposal && !f.mergedPair && 'hover:bg-proposal/5',
-    // zoomed far out or moving (frost.ts), and under reduced motion, no blur behind the card: each blurred card is a
-    // layer the GPU re-samples on every frame of a move, and with ~100 on screen that drops frames (a fifth with a
-    // GPU, more than half without one); many small ones shimmer zoomed out. --unblurred stands in for the blur's
-    // saturate, a tint that keeps the card the colour it has at rest (dark: bluer; light: none needed)
+    
+    
+    
+    
     !f.proposal && 'moving:bg-[linear-gradient(var(--unblurred),var(--unblurred))] reduced:bg-[linear-gradient(var(--unblurred),var(--unblurred))]',
     pick(opacities(f, o)),
     pick(borders(f, o)),
@@ -322,16 +322,16 @@ export function cardLook(item: Item | null, o: CardLookOptions = {}): { classNam
   return { className, style: { '--sh': at(false, false), '--sh-hover': at(true, false), '--sh-far': at(false, true), '--sh-far-hover': at(true, true) } as CSSProperties };
 }
 
-/** The tag over a card that names how it stands to the card under the pointer ("Waits for", "Comes first"), in the colour of its wait. */
+
 export const depTagClass =
   'dep-tag absolute left-[14px] top-[-10px] py-px px-2 rounded-xs text-2xs font-semibold bg-[var(--dep,var(--proposal))] text-[var(--dep-fg,var(--proposal-foreground))] whitespace-nowrap pointer-events-none';
 
-/** Where the card's face is drawn (M): which card's look it wears, where, and as which half of a merge. */
+
 export interface FaceMPlace {
   place?: CardPlace;
-  /** On the project, a delivered workstream: only its title. */
+  
   chip?: boolean;
-  /** One of the two cards of a merge: the first (the card itself) or its partner, which wears the pair's look. */
+  
   half?: 'first' | 'partner';
   subtle?: boolean;
 }
@@ -344,7 +344,7 @@ export function kindClass(f: CardFlags, p: FaceMPlace, labels: { any: boolean; c
     p.place === 'activity' ? 'text-2xs' : f.q ? 'text-2xs' : p.place === 'phone' ? 'text-sm' : 'text-xs',
     labels.chips && 'mb-1',
     p.chip && 'hidden',
-    // zoomed out, only the labels stay, drawn 1.7 times as large so they still read
+    
     'far:w-[calc(100%/1.7)] far:mb-2.5 far:h-[17px] far:flex-wrap far:content-start far:[transform:scale(1.7)] far:origin-[0_0]',
     !labels.any && 'far:hidden',
   ]
@@ -371,14 +371,14 @@ export function ttlClass(f: CardFlags, p: FaceMPlace & { untitled?: boolean; lab
     p.place === 'activity' ? '[-webkit-line-clamp:2]' : p.chip || p.place === 'phone' ? '[-webkit-line-clamp:3]' : '[-webkit-line-clamp:2]',
     p.untitled && 'text-muted-foreground italic',
     f.dropped && 'line-through decoration-idea decoration-[1.5px]',
-    // zoomed out, the title fills the card
+    
     onCanvas && (p.chip ? 'far:text-xl far:leading-[1.1] far:[-webkit-line-clamp:2]' : p.labels ? 'far:text-2xl far:leading-[1.1] far:[-webkit-line-clamp:2]' : 'far:text-2xl far:leading-[1.1] far:[-webkit-line-clamp:2]'),
   ]
     .filter(Boolean)
     .join(' ');
 }
 
-/** M, a delivered workstream: its label before its title. */
+
 export const chipLabelClass = 'ws-no [font-family:var(--font)] text-sm font-semibold tracking-[.01em] text-muted-foreground mr-1.5';
 
 /** M: the line under the title. */
@@ -419,11 +419,11 @@ export function stateClass(f: CardFlags, p: FaceMPlace & { doingNow?: boolean })
     ]),
     f.queued && 'italic',
     p.chip && 'hidden',
-    // zoomed out, drawn 1.7 times as large from its foot
+    
     'far:right-auto far:w-[calc((100%-28px)/1.7)] far:[transform:scale(1.7)] far:origin-[0_100%]',
-    // where nothing hovers, the pause stands at the card's foot beside it
+    
     'no-hover:[.card:has(>.play.turn)_&]:right-11',
-    // what its worker is doing, in italics (a stage of its demo in green)
+    
     p.subtle
       ? '[&_.doing]:text-muted-foreground [&_.doing]:not-italic [&_.doing]:font-normal'
       : '[&_.doing]:italic [&_.doing]:font-medium [&_.doing]:text-muted-foreground [&_.doing.demo]:text-approved [&_.doing.demo]:font-semibold [&_.doing.conflict]:text-waiting-strong',
@@ -447,7 +447,7 @@ export function stateLineClass(f: CardFlags, p: FaceMPlace & { doingNow?: boolea
     (f.q && f.thinking) || (f.idea && f.thinking) || (f.proposal && f.thinking) || f.underway || f.state === 'working' || (f.waiting && f.answering) || f.finishing || f.reviewing;
   const still = f.paused || f.snoozed || f.restartPaused || f.restartQueued || f.limitPaused || p.subtle || p.half === 'partner';
   if (!line || still) return undefined;
-  // the thinking ones weigh more than the line run thin under a state line
+  
   const thick = (f.q && f.thinking) || (f.idea && f.thinking) || (f.proposal && f.thinking) || (f.waiting && f.answering);
   return [
     'mr-[100%]',
@@ -466,7 +466,7 @@ export const stateTextClass = (p: FaceMPlace) => (p.place === 'phone' ? 'state-t
 export const pinClass = (f: CardFlags, p: FaceMPlace) =>
   [f.proposal ? '[--pin:var(--proposal)] [--pin-fg:var(--proposal-foreground)] w-6 px-0' : f.failed ? '[--pin:var(--destructive)] [--pin-fg:var(--destructive-foreground)]' : f.asking && '[--pin:var(--asking)] [--pin-fg:var(--asking-foreground)]', (p.half || p.place === 'phone') && 'hidden'].filter(Boolean).join(' ') || undefined;
 
-// ---------- the faces in lists, S and XS (their state's colour comes as --c on the face)
+
 
 const LIST_TITLE = 'f-ttl flex min-w-0 [font-family:var(--font)] font-semibold text-foreground [overflow-wrap:anywhere] [.inbox-entry.unread_&]:font-bold [.inbox-entry.read_&]:font-normal';
 
@@ -493,13 +493,13 @@ export const listStateClass = (subtle?: boolean) =>
     subtle ? `text-muted-foreground font-normal ${LIST_DOING_SUBTLE}` : `text-c-strong font-semibold ${LIST_DOING}`,
   ].join(' ');
 export const listStateTextClass = 'state-text flex-[0_1_auto] min-w-0 overflow-hidden text-ellipsis whitespace-nowrap';
-/** S: the line under the title, in at most two lines. */
+
 export const listTextClass =
   'f-text mt-1 text-sm leading-[1.4] text-muted-foreground [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden [overflow-wrap:anywhere]';
 
-/** XS: a workstream's label before its title. */
+
 export const wsLabelClass = 'ws-no flex-none [font-family:var(--font)] text-xs font-semibold text-muted-foreground tabular-nums';
-/** XS: the second line, after the dot of its state. */
+
 export const lineClass = 'f-line flex items-center gap-1.5 min-w-0 text-xs leading-[1.35] text-muted-foreground';
 export const dotClass = (proposal: boolean, subtle?: boolean) =>
   proposal

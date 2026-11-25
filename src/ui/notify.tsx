@@ -1,15 +1,15 @@
-// Notifications on the phone. On iOS a web page gets pushes only once it is on the
-// home screen and opened from there: Safari's phone view says how until it runs that way. There a
-// button asks for the permission (iOS asks only after a tap) and stays until it is granted or
-// refused. Granted, the page subscribes with Seismic's key and hands the subscription to the server,
-// at every load, so a new key or a subscription the push service renewed reaches it.
+
+
+
+
+
 
 import { useEffect, useState } from 'react';
 import { api } from './api';
 import { failText, t } from './strings';
 import { Button } from './components/button';
 
-/** The hint on the phone's list, a frosted box under its bar. */
+
 const notifyClass =
   'ph-notify mt-3.5 mx-0 mb-0 py-2.5 px-3 rounded-md border border-glass-edge bg-card shadow-[inset_0_1px_0_var(--glass-hi),var(--shadow)] backdrop-blur-glass text-base flex flex-col items-start gap-2';
 
@@ -19,7 +19,7 @@ const ios = () => /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.userA
 const standalone = () => matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true;
 
 function stateNow(): State {
-  // a phone's browser allows pushes only over HTTPS: on another VPN's address there are none
+  
   if (!isSecureContext) return 'none';
   if (ios() && !standalone()) return 'install';
   if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return 'none';
@@ -37,7 +37,7 @@ const same = (a: ArrayBuffer | null, b: Uint8Array) => !!a && a.byteLength === b
 /** Subscribes with Seismic's key (anew where the one before was another's) and gives the server the subscription. */
 async function subscribe() {
   await navigator.serviceWorker.register('/sw.js');
-  // subscribing needs the worker active, not only registered
+  
   const reg = await navigator.serviceWorker.ready;
   const { key } = await api.push();
   const wanted = bytes(key);
@@ -54,7 +54,7 @@ async function subscribe() {
 export function Notify() {
   const [state, setState] = useState(stateNow);
   const [failed, setFailed] = useState<string | null>(null);
-  // turned on at an earlier visit: the server gets the subscription as it is now (when it answers)
+  
   useEffect(() => {
     if (state === 'on') subscribe().catch((e) => console.warn('push subscription', e));
   }, []);
@@ -68,7 +68,7 @@ export function Notify() {
       <Button
         variant="primary"
         onClick={async () => {
-          // iOS asks only from a tap, and only once
+          
           const p = await Notification.requestPermission();
           if (p === 'granted') await subscribe().then(() => setFailed(null), (e) => setFailed(failText(e, { offline: (e as Error).message })));
           setState(p === 'granted' ? 'on' : p === 'default' ? 'ask' : 'none');

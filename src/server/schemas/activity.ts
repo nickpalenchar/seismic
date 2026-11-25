@@ -4,7 +4,7 @@ import type { ActivityCode, ActivityWho } from '../../core/types';
 import { cards } from './cards/cards';
 import { type Db, now } from './common';
 
-/** The Activity log: what happened on a card, by whom, with the card it waits for, the harness whose limit stopped it, or the title of a card it deleted. */
+
 export const activity = sqliteTable(
   'activity',
   {
@@ -20,7 +20,7 @@ export const activity = sqliteTable(
   (t) => [index('activity_card').on(t.cardId, t.id)],
 );
 
-/** A line of the Activity log as stored, with the project of its card and the title of the card it waits for. */
+
 export interface ActivityRow {
   id: number;
   at: string;
@@ -30,7 +30,7 @@ export interface ActivityRow {
   otherId: string | null;
   otherTitle: string | null;
   harness: string | null;
-  /** The card's title when it was deleted, on a `deleted` line. */
+  
   title: string | null;
   projectId: string;
 }

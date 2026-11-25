@@ -1,4 +1,4 @@
-// The owner's answer to an agent's questions: the options picked and their own words, as one text.
+
 
 import type { Question } from '../core/types';
 
@@ -34,7 +34,7 @@ export function readAnswer(text: string, questions: Pick<Question, 'text' | 'opt
 
 /** The answers `answerText` joined into `s`: options in any order, then maybe the owner's own answer in quotes; undefined if `s` is not made of them. */
 function given(s: string, options: string[]): string[] | undefined {
-  // an option is read as such first, even one in quotes itself
+  
   if (options.includes(s)) return [s];
   const own = /^“(.+)”$/.exec(s);
   if (own) return [own[1]!];
@@ -52,7 +52,7 @@ export function toggle(q: Pick<Question, 'options' | 'multiple'>, picked: string
   return q.multiple ? q.options.filter((o) => o === option || picked.includes(o)) : [option];
 }
 
-/** The last choice of every question with options, picked like the others: the owner's own answer, written beside it. */
+
 export const OTHER = '\u0000other';
 
 /** Picks the owner's own answer like an option (`OTHER`), after the question's options. */

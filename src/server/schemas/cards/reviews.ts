@@ -6,28 +6,28 @@ import { atomic, type Db } from '../common';
 import { cards } from './cards';
 import { setPart } from './part';
 
-/**
- * A card's review part (`Item.review`): the pull request its work goes out as or that it reviews,
- * a contributor's pull request it reviews, and the code review of its work (its runs; the items
- * they raised are rows of `cardReviewItems`). A card has a row here once any of it is set, and none
- * again once all of it is cleared.
- */
+
+
+
+
+
+
 export const cardReviews = sqliteTable('card_reviews', {
   cardId: text('card_id')
     .primaryKey()
     .references(() => cards.id),
-  /** The card's pull request once approval opened the PR phase; on a review card, the one it reviews from the start. */
+  
   pr: text({ mode: 'json' }).$type<PrState>(),
-  /** Review cards only: the contributor's pull request the card reviews. */
+  
   contribution: text({ mode: 'json' }).$type<StoredContribution>(),
-  /** The code review of the card's work, where its project reviews work that lands on main: its mode, its handover and its latest run's metadata. */
+  
   codeReview: text('code_review', { mode: 'json' }).$type<StoredCodeReview>(),
 });
 
-/**
- * The one running list of a card's code review: an item per row, numbered per card across all review
- * runs, with its status, the follow-up task made of it and what the owner wrote on it.
- */
+
+
+
+
 export const cardReviewItems = sqliteTable(
   'card_review_items',
   {
@@ -41,18 +41,18 @@ export const cardReviewItems = sqliteTable(
     file: text(),
     line: integer(),
     security: integer({ mode: 'boolean' }).notNull().default(false),
-    /** The numbers of the other items fixed, or made one follow-up task, with it. */
+    
     bundle: text({ mode: 'json' }).$type<number[]>(),
     status: text().notNull().$type<ReviewItemStatus>(),
-    /** The follow-up task the worker made of it. */
+    
     followUp: text('follow_up'),
-    /** What the owner wrote on it. */
+    
     context: text(),
   },
   (t) => [primaryKey({ columns: [t.cardId, t.number] })],
 );
 
-/** Every status change of a review item, in order (`position`, the oldest is 0). */
+
 export const cardReviewItemEvents = sqliteTable(
   'card_review_item_events',
   {
@@ -64,9 +64,9 @@ export const cardReviewItemEvents = sqliteTable(
     from: text().$type<ReviewItemStatus>(),
     to: text().notNull().$type<ReviewItemStatus>(),
     note: text(),
-    /** The handover (its event) the change came with. */
+    
     handover: integer(),
-    /** The review run (its start time) the change came with. */
+    
     run: text(),
   },
   (t) => [primaryKey({ columns: [t.cardId, t.number, t.position] }), index('card_review_item_events_card').on(t.cardId)],
@@ -74,9 +74,9 @@ export const cardReviewItemEvents = sqliteTable(
 
 export const cardReviewsRelations = relations(cardReviews, ({ one }) => ({ card: one(cards, { fields: [cardReviews.cardId], references: [cards.id] }) }));
 
-/** A card's review part as read with it (`CardRow.review`), JSON parsed, with the items of its code review. */
+
 export type CardReview = Omit<typeof cardReviews.$inferSelect, 'cardId'> & { items: ReviewItem[] };
-/** Fields of a card's review part to set; `null` clears one, `items` replaces the whole list. */
+
 export type ReviewUpdate = Partial<CardReview>;
 
 const EMPTY: Omit<CardReview, 'items'> = { pr: null, contribution: null, codeReview: null };

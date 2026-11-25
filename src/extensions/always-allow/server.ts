@@ -1,8 +1,8 @@
-// "Always allow" (see README.md): a permission question offers the rule that would
-// let the call through from now on, and picked, the rule goes into the repository's allow list.
 
-// The core's modules this imports at once stay light ones: the registry loads it while the core's
-// settings schema waits for it, so the git side comes in only once the owner picks the option.
+
+
+
+
 
 import { plainCommands } from '../../server/allow-rules';
 import { messageOf } from '../../core/text';
@@ -48,7 +48,7 @@ export const alwaysAllow: ServerExtension = {
           },
           (e: unknown) => context.log(t.failed(shown, messageOf(e))),
         );
-      // the asking Claude session takes the rules at once; Codex workers go by the list
+      
       return context.harness === 'claude' ? { permissions: [{ type: 'addRules', rules: rules.map(ruleValue), behavior: 'allow', destination: 'session' }] } : undefined;
     },
   },

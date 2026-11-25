@@ -1,18 +1,18 @@
-// The on-screen keyboard of an iPhone or iPad. Safari leaves the page its height and only shrinks
-// the visual viewport, then pans the page up until the field with the cursor is in view: the bar
-// went off the top of the screen, and whatever is fixed to the screen's bottom stood under the
-// keyboard. While the keyboard is up the page is pinned to the part of the screen the keyboard
-// leaves instead (`kb-pin` on the root): the body is moved to where that part begins and given its
-// height, and as the containing block of everything fixed to the screen (its transform) it takes
-// them along. Chrome on Android makes the page itself shorter (`keyboardResizes`), so the page and
-// the visual viewport stay of a height and nothing is pinned.
 
-/** How much shorter than the page the visible part gets with the keyboard up; a browser's bars sliding in and out take less. */
+
+
+
+
+
+
+
+
+
 export const KEYBOARD_PX = 150;
 
-/** What the visual viewport reports, and the height of the page (the layout viewport). */
+
 export interface Screen {
-  /** The visual viewport's top from the page's top, scrolled or panned. */
+  
   pageTop: number;
   height: number;
   scale: number;

@@ -1,13 +1,13 @@
-// Adding demo sites to this machine's list from the configuration (Configuration → Demos, and a
-// project's "Add a demo site …"): set up at a host (Cloudflare Pages, GitHub Pages), entered by hand,
-// or connected with another machine's code. A site goes on the list only once Seismic has published to
-// it: it reads the live site's manifest, takes over what is there and deploys it again unchanged
-// (a new site's blank page, an existing one's pages), so a site whose deploy line or credentials do
-// not work never shows as a choice. At GitHub the setup lists the repositories gh's login can push
-// to: a repository it creates is the whole site, pushed without history; an existing one takes the
-// site in a folder of its default branch (github-folder.ts), its first commit pushed there or in the
-// rolling pull request, as the owner confirms, with Pages turned on where it is off. Each runs in the background, since a login in the browser or a
-// first deploy may take minutes; the dialog follows its lines.
+
+
+
+
+
+
+
+
+
+
 
 import { randomUUID } from 'node:crypto';
 import { MESSAGES } from '../core/messages';
@@ -23,28 +23,28 @@ import { messageOf } from '../core/text';
 
 export interface SiteSetupOptions {
   home: string;
-  /** The list changed: every project tells its cards where they share now. */
+  
   changed: () => void;
-  /** Who runs Seismic here, for a new site's name at Cloudflare. */
+  
   user?: string;
-  /** Runs wrangler, gh and git; a stand-in in tests. */
+  
   x?: Exec;
-  /** How long to wait (ms, step by step) for a new site's address to answer; a stand-in in tests. */
+  
   wait?: number[];
-  /** Publishes to a site to prove this machine can: why it could not, or null. A deploy through the site's own line without it. */
+  
   check?: (site: DemoSiteEntry) => Promise<string | null>;
-  /** The repository a folder site's clone fetches from and pushes to, in place of GitHub's; tests name a local one. */
+  
   gitRemote?: string;
 }
 
-/** What "Add a demo site" takes: a host Seismic sets the site up at, or a site entered by hand. */
+
 type AddInput =
   | { host: SiteHost; public?: boolean; unlisted?: boolean; account?: string; token?: string; accountId?: string; name?: string }
   | { host: 'github'; repo: string; folder: string; via: 'pr' | 'push' }
   | { manual: { url: string; deploy: string; env?: string; headers?: Record<string, string>; maxFile?: number } };
 
 export class SiteSetup {
-  /** The site being added, as far as it got; one at a time. */
+  
   private job: SiteSetupJob | null = null;
 
   constructor(private o: SiteSetupOptions) {}
@@ -91,7 +91,7 @@ export class SiteSetup {
     const host = hostOf(given);
     const account = accountOf(given);
     const token = tokenOf(given);
-    // a public repository: any GitHub account, and a listed site, since anyone can list its files
+    
     const open = host === 'github' && given.public === true;
     const unlisted = host === 'github' ? !open : given.unlisted !== false;
     this.run(host, async (log) => {
@@ -146,7 +146,7 @@ export class SiteSetup {
         maxFile: GITHUB_PAGES_MAX,
         git: { branch: info.branch, folder, mode: via === 'push' ? 'direct' : 'pr' },
       };
-      // a private repository's file list is nobody else's: its site is unlisted
+      
       return info.private ? { ...entry, secret: newToken(128) } : entry;
     });
     return this.view();
@@ -173,7 +173,7 @@ export class SiteSetup {
     if (!site?.git || !site.project) throw new BadRequest('invalid', 'no such site in a repository’s folder on this machine');
     if (mode !== 'direct' && mode !== 'pr') throw new BadRequest('invalid', 'expected { mode: "direct" | "pr" }');
     if (mode === 'direct') {
-      // the repository as it is now: its default branch and Pages may have changed since the setup
+      
       const info = await this.repo(site.project, site.git.folder);
       if (!info.address) throw new BadRequest('invalid', info.outside ?? `GitHub Pages does not serve ${site.git.folder} of ${site.project}`);
       if (!info.push.allowed) throw new BadRequest('invalid', `a push straight to ${info.branch} of ${site.project} does not go through`);

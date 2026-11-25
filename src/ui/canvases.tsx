@@ -1,7 +1,7 @@
-// The project's canvases in the page: the tab strip at the bottom right and the drawer it slides
-// out (switching, waiting counts, rename, icon, order, delete, "+ New canvas"), the dialog that names
-// a canvas and picks its icon, a card's "Move to canvas" menu, and the stubs of waits whose other
-// card lies on another canvas.
+
+
+
+
 
 import { createContext, type PointerEvent as ReactPointerEvent, useContext, useEffect, useRef, useState } from 'react';
 import { cn } from 'cn';
@@ -30,12 +30,12 @@ import { Input } from './components/input';
 import { Select, SelectItem } from './components/select';
 import { Spinner } from './components/spinner';
 
-/** What the page knows of the project's canvases, for what shows a card (its menu, search). */
+
 export interface CanvasesView {
   canvases: Canvas[];
-  /** The canvas shown. */
+  
   shown?: string;
-  /** Puts the card on another canvas. */
+  
   move: (card: Item, to: Canvas) => void;
 }
 
@@ -44,10 +44,10 @@ export const Canvases = createContext<CanvasesView>({ canvases: [], move: () => 
 /** The canvas a card is on (one the server has not placed yet counts as on the first). */
 export const canvasOf = (canvases: Canvas[], i: Pick<Item, 'canvas'>) => canvases.find((c) => c.id === i.canvas) ?? canvases[0];
 
-/** Set once the owner has made a canvas or opened the drawer: the "+" stops naming what it does. */
+
 const KNOWN = 'seismic-canvases-known';
 
-/** How long the drawer stays out after the pointer left it, so a path across its edge does not close it. */
+
 const LEAVE_MS = 260;
 
 /**
@@ -60,12 +60,12 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow, o
   project: string;
   canvases: Canvas[];
   shown?: string;
-  /** Per canvas, how many of its cards wait for the owner. */
+  
   waiting: Record<string, number>;
-  /** The canvases without cards, which can be deleted (but `main`). */
+  
   empty: Set<string>;
   onShow: (c: Canvas) => void;
-  /** The canvas shown has a new name or icon: the owner picked nothing. */
+  
   onRename: (c: Canvas) => void;
   onDeleteError: (err: unknown) => void;
 }) {
@@ -81,11 +81,11 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow, o
     know(KNOWN);
     setKnown(true);
   };
-  // ↑ from the strip moves the focus into the drawer; opened by the pointer or by keyboard focus on the strip, it leaves the focus where it was
+  
   const byKey = useRef(false);
-  // Restore only for an explicit dismissal/selection, never after focus leaves or a dialog opens.
+  
   const restoreFocus = useRef(false);
-  // the keyboard is on the strip: the drawer says how to reach it
+  
   const [keyed, setKeyed] = useState(false);
   const open = (on: boolean, key = false, restore = false) => {
     restoreFocus.current = !on && restore;
@@ -96,7 +96,7 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow, o
     setDrawer(on && several);
   };
   const inDrawer = (n: unknown) => n instanceof Element && !!n.closest('#canvas-drawer');
-  // the focus coming back from the drawer to its tab does not open the drawer again
+  
   const back = useRef(false);
   useEffect(() => () => clearTimeout(leave.current), []);
   const startNew = () => {
@@ -125,7 +125,7 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow, o
           ref={box}
           className={cn('fixed right-[calc(var(--side,0px)+14px)] bottom-11 z-22 flex flex-col items-end gap-1.5 [transition:right_.45s_cubic-bezier(.3,.9,.3,1)]', drawer && 'out')}
           {...hover}
-          // keyboard focus on the strip shows the drawer as the pointer does; ↑ moves into it
+          
           onFocus={(e) => {
             if (back.current) return void (back.current = false);
             if (!several || !e.target.matches(':focus-visible')) return;
@@ -143,7 +143,7 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow, o
             document.querySelector<HTMLElement>('#canvas-drawer button')?.focus();
           }}
         >
-          {/* a tab picks its canvas by its own click, which tells a finger's first tap from the rest; Enter and Space click, the arrow keys move focus */}
+          { }
           <Tabs value={shown ?? ''} onValueChange={() => {}} activationMode="manual" className="contents">
             <TabsList className="flex items-center gap-0.5 rounded-full border border-glass-edge bg-card px-1 py-0.5 shadow-[inset_0_1px_0_var(--glass-hi),var(--shadow)] backdrop-blur-[12px] backdrop-saturate-[1.4]" aria-label={t.canvases.strip}>
               {several &&
@@ -155,7 +155,7 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow, o
                     className={ctabClass(c.id === shown ? 'on' : 'off')}
                     title={c.name}
                     onClick={(e) => {
-                      // a finger has no hover: its first tap brings the drawer, where the canvas is picked by name
+                      
                       if ((e.nativeEvent as PointerEvent).pointerType === 'touch' && !drawer) return open(true);
                       pick(c);
                     }}
@@ -183,7 +183,7 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow, o
         aria-label={t.canvases.strip}
         className="w-[260px] max-h-[min(60vh,520px)] origin-bottom-right animate-[drawer-out_.18s_cubic-bezier(.3,.9,.3,1)] p-1.5 text-sm"
         {...hover}
-        // a press on the strip is no press beside the drawer: a tab picks its canvas, "+" makes one
+        
         onInteractOutside={(e) => box.current?.contains(e.target as Node) && e.preventDefault()}
         onOpenAutoFocus={(e) => byKey.current || e.preventDefault()}
         onCloseAutoFocus={(e) => {
@@ -193,7 +193,7 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow, o
           back.current = true;
           box.current?.querySelector<HTMLElement>('.ctab.on')?.focus();
         }}
-        // This non-modal drawer follows the page's Tab order, rather than Radix's focus loop.
+        
         onKeyDownCapture={(e) => { if (e.key === 'Tab') e.stopPropagation(); }}
         onEscapeKeyDown={() => { restoreFocus.current = byKey.current; }}
         onFocus={(e) => {
@@ -232,7 +232,7 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow, o
           onClose={() => setDialog(null)}
           onDone={(c) => {
             setDialog(null);
-            // a new canvas is shown at once; the one shown keeps showing, under its new name
+            
             if (!editing) onShow(c);
             else if (editing.id === shown) onRename(c);
           }}
@@ -384,7 +384,7 @@ function DeleteCanvasDialog({ target, canvas, others, onClose }: { target: Pick<
   );
 }
 
-/** A canvas's rename and delete in the drawer. */
+
 const tool = 'grid size-[26px] cursor-pointer place-items-center rounded-sm bg-transparent text-muted-foreground hover:bg-surface hover:text-foreground focus-visible:bg-surface focus-visible:text-foreground outline-none';
 
 /** The canvas dialog's parts. */
@@ -402,7 +402,7 @@ export function nameProblem(name: string, canvases: Canvas[], self?: string): st
   return undefined;
 }
 
-/** What the canvas dialog holds until it is saved or cancelled: the name and icon, and how far the owner got picking one. */
+
 interface CanvasDraft extends IconPickerView {
   name: string;
   icon: string | null;
@@ -418,7 +418,7 @@ interface CanvasDraft extends IconPickerView {
 export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { project: string; canvases: Canvas[]; canvas?: Canvas; onClose: () => void; onDone: (c: Canvas) => void }) {
   const [draft, setDraft] = useStoredState<CanvasDraft | null>(`seismic-canvas-draft-${project}-${canvas?.id ?? 'new'}`, null);
   const name = draft?.name ?? canvas?.name ?? '';
-  // a new canvas starts with a random icon, kept while the dialog is open; "No icon" still takes it away
+  
   const [randomIcon] = useState(() => (canvas ? null : randomCanvasIcon()));
   const icon = draft ? draft.icon : (canvas?.icon ?? randomIcon);
   const set = (p: Partial<CanvasDraft>) => setDraft({ ...draft, name, icon, ...p });
@@ -458,7 +458,7 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
         glass
         className={cn(
           'box-border flex w-[600px] flex-col overflow-hidden px-6 pt-6 pb-5 short:overflow-y-auto [&>:not(.cd-icons)]:shrink-0',
-          // a short window: the icon grid and the emoji picker's list grow to its full height, so the dialog is the one thing that scrolls (also when searching or switching tabs with the keyboard up)
+          
           'short:[&_[data-slot=icon-grid]]:flex-none short:[&_[data-slot=icon-grid]]:overflow-visible short:[&_[data-slot=icon-grid]>*]:scroll-mt-2 short:[&_[data-slot=icon-grid]>*]:scroll-mb-20 short:[&_[data-slot=emoji-picker-viewport]]:flex-none short:[&_[data-slot=emoji-picker-viewport]]:!overflow-visible short:[&_[data-slot=emoji-picker-viewport]]:![contain:none] short:[&_[data-slot=emoji-picker-emoji]]:scroll-mt-2 short:[&_[data-slot=emoji-picker-emoji]]:scroll-mb-20',
         )}
         layerClassName="items-start pt-[8vh]"
@@ -529,7 +529,7 @@ export function CardMore({ item, floating, onClose }: { item: Item; floating?: b
   const button = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!open || !floating) return;
-    // the camera moving (a pan, a zoom, a flight) moves the button away from the menu
+    
     const from = button.current?.getBoundingClientRect();
     let frame = requestAnimationFrame(function watch() {
       const b = button.current?.getBoundingClientRect();
@@ -614,13 +614,13 @@ export function CardMore({ item, floating, onClose }: { item: Item; floating?: b
   );
 }
 
-/** A wait one of whose cards lies on another canvas: the card here, the other one, and which way it waits. */
+
 export interface Stub {
   here: string;
   other: Item;
-  /** The canvas the other card lies on; none for a card off the canvas (snoozed or parked), which a marker for "Parked" stands for. */
+  
   canvas?: Canvas;
-  /** The card here waits for the other (`before`), or the other waits for it (`after`). */
+  
   dir: 'before' | 'after';
 }
 
@@ -659,7 +659,7 @@ export function stubsOf(waits: [string, string][], placed: Set<string>, byId: (i
 export function parkedStubsOf(waits: [string, string][], placed: Set<string>, byId: (id: string) => Item | undefined, standsFor: (id: string) => string): Stub[] {
   const seen = new Set<string>();
   return waits.flatMap(([from, to]): Stub[] => {
-    // the end that is off the canvas itself (not through the plan standing for it) and the card of the other end shown here
+    
     const end = hiddenCard(from, byId) && placed.has(standsFor(to)) && !hiddenCard(to, byId) ? { here: standsFor(to), away: from, dir: 'before' as const } : hiddenCard(to, byId) && placed.has(standsFor(from)) && !hiddenCard(from, byId) ? { here: standsFor(from), away: to, dir: 'after' as const } : undefined;
     const other = end && byId(end.away);
     if (!end || !other || other.archivedAt) return [];
@@ -690,7 +690,7 @@ export function CanvasStubs({ stubs, boundsOf, s, onOpen }: { stubs: Stub[]; bou
           const y = b.y + b.h / 2 + (k - (row.length - 1) / 2) * (2 * r + 6 / s);
           const edge = x.dir === 'before' ? b.x : b.x + b.w;
           const chip = x.dir === 'before' ? edge - len : edge + len;
-          // into the card from the chip, or out of the card to the chip; the line stops at its head's base
+          
           const [x0, x1] = x.dir === 'before' ? [chip + r, edge - head] : [edge, chip - r - head];
           const title = x.canvas
             ? (x.dir === 'before' ? t.canvases.stubBefore : t.canvases.stubAfter)(plain(x.other.title), canvasText(x.canvas))
@@ -706,7 +706,7 @@ export function CanvasStubs({ stubs, boundsOf, s, onOpen }: { stubs: Stub[]; bou
                     </button>
                   </Tooltip>
                 ) : (
-                  // shown only while the pointer is on the card, so it is a mark, not a button: the card opens from "Parked"
+                  
                   <div className="box-border grid size-full place-items-center rounded-full border border-[var(--dep-line)] bg-card text-foreground" role="img" aria-label={title}>
                     <Clock size={14 / s} strokeWidth={2} />
                   </div>
@@ -739,7 +739,7 @@ export function OtherCanvas({ item, named = false }: { item: Item; named?: boole
   );
 }
 
-// ------------------------------------------------------------------ canvas ring
+
 
 const RING_RADIUS = 84;
 const RING_LABEL_RADIUS = 124;
@@ -759,7 +759,7 @@ export function CanvasRing({ at: pointer, count, canvases, shown, onPick, onClos
   const angle = (k: number) => -Math.PI / 2 + (k * 2 * Math.PI) / canvases.length;
   useEffect(() => {
     const frame = requestAnimationFrame(() => setOpen(true));
-    // Escape closes the ring before anything else hears it
+    
     const key = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       e.stopImmediatePropagation();

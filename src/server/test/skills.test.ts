@@ -14,7 +14,7 @@ describe('skillsOf', () => {
       ],
       new Set(['code-review', 'review', 'seismic:demo', 'changelog']),
     );
-    // the repository's first, then the user's, the plugins', Claude Code's own; descriptions on one line
+    
     expect(skills).toEqual([
       { name: 'review', description: 'Reviews the branch (project)', hint: '<branch>' },
       { name: 'changelog', description: 'Writes the changelog entry,' },
@@ -47,7 +47,7 @@ describe('Skills', () => {
     now = 60_000;
     await skills.of(place);
     expect(l.asked).toHaveLength(1);
-    // another place is asked of its own
+    
     await skills.of({ ...place, untrusted: true });
     expect(l.asked).toHaveLength(2);
   });

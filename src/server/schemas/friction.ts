@@ -4,7 +4,7 @@ import { cards } from './cards/cards';
 import { atomic, type Db, now } from './common';
 import { projects } from './projects';
 
-/** The work retrospective: friction noted on a card's run, per repository. */
+
 export const friction = sqliteTable(
   'friction',
   {
@@ -20,7 +20,7 @@ export const friction = sqliteTable(
   (t) => [index('friction_repo').on(t.projectId, t.repo, t.at)],
 );
 
-/** One piece of friction in a worker's run: what went wrong, what it cost, what would have prevented it. */
+
 export interface FrictionNote {
   what: string;
   cost: string;
@@ -28,7 +28,7 @@ export interface FrictionNote {
 }
 export interface Friction extends FrictionNote {
   cardId: string;
-  /** The card's title. */
+  
   title: string;
   at: string;
 }

@@ -92,7 +92,7 @@ describe('the files a card shows as its result', () => {
       'added Finanzen/__pycache__/Modell.cpython-314.pyc -',
       'deleted Alt.md -',
     ]);
-    // the lines stay with the file, and a moved one says where it was
+    
     expect(rows[0]).toMatchObject({ added: 69, removed: 0 });
     expect(rows[4]).toMatchObject({ from: 'a.pdf' });
   });
@@ -112,7 +112,7 @@ describe('the files a card shows as its result', () => {
 
   test('how a file is shown, by its name', () => {
     expect(['a.md', 'a.PDF', 'a.svg', 'a.html', 'a.py', 'a.docx', 'a.bin'].map((f) => fileKind(f))).toEqual(['markdown', 'pdf', 'image', 'page', 'text', 'other', 'other']);
-    // read as text or not, a spreadsheet is no text to show
+    
     expect(fileKind('a.xlsx', true)).toBe('other');
     expect(fileKind('Makefile', true)).toBe('text');
   });

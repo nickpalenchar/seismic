@@ -1,8 +1,8 @@
-/**
- * The setup step that confirms Seismic's own agent (the `koordinator` role): the harness, model and
- * effort that coordinate the work of every other agent. Only the harnesses picked in the first step are
- * offered. Confirming saves the shown choice explicitly, so the owner's decision is on record.
- */
+
+
+
+
+
 
 import { useEffect, useRef, useState } from 'react';
 import { agyBaseChoice, AGENT_DEFAULTS, AGENT_EFFORTS, catalogModel, harnessChoice, modelEffort, modelEfforts, type AgentEffort, type AgentModel, type AgentSetting, type ModelInfo, type Harness } from '../../../core/types';
@@ -41,7 +41,7 @@ export function SeismicAgentStep({ harnesses, onConfirm, onBack }: { harnesses: 
     return () => { live = false; };
   }, [settingsAttempt]);
   const setting = { ...(saved ?? AGENT_DEFAULTS[ROLE]), ...draft };
-  // a role whose harness was not picked here takes the first picked one, as the first project does
+  
   const harness: Harness = harnesses.includes(setting.harness ?? 'claude') ? setting.harness ?? 'claude' : harnesses[0] ?? 'claude';
   const other = saved && (harness === 'codex' || harness === 'agy') ? harness : null;
   const catalogKey = `${other}:${attempt}`;
@@ -71,7 +71,7 @@ export function SeismicAgentStep({ harnesses, onConfirm, onBack }: { harnesses: 
   };
   const confirm = async () => {
     if (busy || !canConfirm) return;
-    // Commit only the choice shown for the active harness, in one write.
+    
     let own: Partial<AgentSetting> = { model: setting.model, effort: setting.effort };
     if (other === 'agy') own = { agy: { model: choice.model, effort: choice.effort === undefined ? undefined : effort } };
     if (other === 'codex' && effort) own = { codex: { model: choice.model, effort } };

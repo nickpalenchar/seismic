@@ -1,12 +1,12 @@
-/**
- * The background tasks of an `agy` conversation. `agy` turns a command that outlives its wait into a
- * task of its own (`<conversation id>/task-N`) and holds the conversation's turn open until it ends; its
- * stream-json frames say nothing of it (the step stays active, and the frames behind it wait). What does
- * say so is the conversation's transcript, a JSON line per step that grows while the session runs
- * (`brain/<conversation id>/.system_generated/logs/transcript.jsonl`, measured 2026-11-14): a task starts
- * with a step "Tool is running as a background task with task id: X / Task Description: <command>" and
- * ends with a system message `Task id "X" finished`.
- */
+
+
+
+
+
+
+
+
+
 import { closeSync, existsSync, fstatSync, openSync, readSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -21,7 +21,7 @@ export function agyBrainDir(): string {
 
 export const agyTranscriptLog = (brain: string, conversation: string) => join(brain, conversation, '.system_generated', 'logs', 'transcript.jsonl');
 
-// Match the last complete logs/instructions footer: a command can quote that footer too.
+
 const STARTED = /^Created At: [^\n]+\nTool is running as a background task with task id: (\S+)\nTask Description: ([\s\S]*)\nTask logs are available at: [^\n]+\nYOU MUST TAKE ONE OF THE FOLLOWING TWO ACTIONS\b/;
 const FINISHED = /^<SYSTEM_MESSAGE>\n\[Message\] sender=(\S+) content=Task id "\1" finished/;
 
@@ -49,7 +49,7 @@ export class TranscriptTail {
   private running = new Map<string, AgyTask>();
   private discardPartial = false;
   constructor(private file: string, skip = false) {
-    // Snapshot history now, before agy can resume. A missing file has an empty history too.
+    
     if (skip && existsSync(file)) {
       const fd = openSync(file, 'r');
       try {
@@ -85,7 +85,7 @@ export class TranscriptTail {
       const cut = text.lastIndexOf('\n');
       this.partial = cut < 0 ? text : text.slice(cut + 1);
       const added = cut < 0 ? [] : text.slice(0, cut).split('\n');
-      // The rest of a line already present at the resume boundary belongs to history.
+      
       if (this.discardPartial && cut >= 0) { added.shift(); this.discardPartial = false; }
       return added.filter(Boolean);
     } finally { closeSync(fd); }

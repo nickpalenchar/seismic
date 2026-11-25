@@ -22,7 +22,7 @@ const PNG = Buffer.from('89504e470d0a1a0a', 'hex');
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'seismic-new-repo-'));
-  // git's name and e-mail, which the first commit of a new repository is made under
+  
   globalConfig = process.env.GIT_CONFIG_GLOBAL;
   process.env.GIT_CONFIG_GLOBAL = join(dir, 'gitconfig');
   writeFileSync(join(dir, 'gitconfig'), '[user]\n\tname = Ada Lovelace\n\temail = ada@example.com\n');
@@ -79,18 +79,18 @@ describe('building an idea in a new repository', () => {
     const follower = docsProject().board.create({ title: 'Invite the parents', x: 600, y: 0, from: card.id });
     docsProject().board.createGroup('School', [card.id, follower.id]);
     docsProject().act(card.id, { action: 'build' });
-    // held for the owner to take it back: nothing made yet
+    
     expect(docsProject().board.item(card.id)!.idea?.newRepo).toMatchObject({ path, project: true, due: expect.any(String) });
     expect(existsSync(path)).toBe(false);
     await until(() => set.get('super59'));
     const there = set.get('super59')!;
-    // a local repository with its first commit, under git's name, and no remote
+    
     expect(git(path, 'log', '--format=%an %s')).toBe('Ada Lovelace First commit');
     expect(existsSync(join(path, '.gitignore'))).toBe(true);
     expect(git(path, 'remote')).toBe('');
     expect(JSON.parse(readFileSync(join(dir, 'projects.json'), 'utf8')).at(-1)).toEqual({ planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: true, priority: true }, suggestLabels: true, suggestCards: true, suggestMerges: true, codeReviews: { on: false, mode: 'auto' }, repos: [{ path }] });
     expect(there.board.project.name).toBe('super59');
-    // the card is there, decided as „So bauen“ decides it, with its conversation, decisions and screenshot, out of its group
+    
     await until(() => there.board.item(card.id)?.queue || there.board.item(card.id)?.state === 'working');
     const moved = there.board.item(card.id)!;
     expect(moved.body).toBe('**Goal** A schedule for the class.');
@@ -102,11 +102,11 @@ describe('building an idea in a new repository', () => {
     );
     expect(there.board.decisions(null).map((d) => d.answer)).toEqual(expect.arrayContaining(['A repository of its own.', expect.stringContaining(path)]));
     expect(there.images.path(moved.images![0]!)).toBeTruthy();
-    // nothing of it stays on Docs: its sheet says where it went, and a page that has it open follows it
+    
     expect(docsProject().board.item(card.id)).toBeUndefined();
     expect(docsProject().board.snapshot().talk.at(-1)).toMatchObject({ moved: { card: card.id, title: 'Class schedule', project: 'super59', projectName: 'super59' } });
     expect(notices).toContainEqual(expect.objectContaining({ cardId: card.id, movedTo: 'super59' }));
-    // the card that stayed still names it, on the other project
+    
     expect(docsProject().board.item(follower.id)).toMatchObject({ from: card.id, fromElsewhere: { project: 'super59', projectName: 'super59', title: 'Class schedule' } });
     expect(docsProject().board.snapshot().groups.map((g) => g.name)).toEqual(['School']);
   });
@@ -138,7 +138,7 @@ describe('building an idea in a new repository', () => {
   });
 
   test('a step that fails takes back those before it, and the card says why', async () => {
-    // a repository named like the project it would leave: its project would have the same id
+    
     const path = join(dir, 'elsewhere', 'docs');
     const card = idea(path);
     docsProject().act(card.id, { action: 'build' });
@@ -194,7 +194,7 @@ describe('building an idea in a new repository', () => {
     mkdirSync(join(dir, 'parent'));
     const sibling = join(dir, 'parent', 'beta');
     mkdirSync(sibling);
-    // named like the project it would leave: the configuration refuses it
+    
     const card = idea(join(dir, 'parent', 'new', 'docs'));
     docsProject().act(card.id, { action: 'build' });
     await until(() => docsProject().board.events(card.id).some((e) => e.kind === 'error'));
@@ -226,7 +226,7 @@ describe('building an idea in a new repository', () => {
     expect(c.board.item(card.id)!.idea?.newRepo).toEqual({ path: '~/dev/b', project: false, by: 'owner' });
     c.board.patch(card.id, { repo: 'docs' });
     expect(c.board.item(card.id)!.idea?.newRepo).toBeUndefined();
-    // and stands too
+    
     expect(c.board.setNewRepo(card.id, { path: '~/dev/d', project: true, by: 'agent' }, 'agent')).toBe(false);
   });
 });
@@ -246,7 +246,7 @@ describe('the Koordinator across projects', () => {
     const from = docs.board.create({ title: 'Plan the shop', x: 0, y: 0 });
     const follow = docs.run({ do: 'newCard', title: 'Payment', body: 'Payment.', start: false, project: 'shop', from: from.id }) as string;
     expect(shop.board.item(follow)).toMatchObject({ from: from.id, fromElsewhere: { project: 'docs', projectName: 'Docs', title: 'Plan the shop' } });
-    // the card it follows up on shows it in its conversation, with the project it went onto
+    
     expect(docs.board.events(from.id).at(-1)).toMatchObject({ kind: 'state', author: 'seismic', made: { card: follow, title: 'Payment', project: 'shop' } });
   });
 });

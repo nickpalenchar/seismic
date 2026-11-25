@@ -1,7 +1,7 @@
-// The repository a card is built in, picked before work on it begins: one of the project's, or a
-// new one Seismic creates for it (its folder, and whether it gets a project of its own). Built once
-// for every kind of card that has a task before it starts (a planned task, an idea); the button
-// that starts or builds the card names a new one, so what the click does is clear before it.
+
+
+
+
 
 import { useEffect, useRef, useState } from 'react';
 import { type CardPatch, type Item, newRepoName, type RepoRef } from '../core/types';
@@ -11,10 +11,10 @@ import { CheckLabel } from './components/check-label';
 import { Switch } from './components/switch';
 import { Input } from './components/input';
 
-/** The option that stands for a repository still to be created, among the ids of the existing ones. */
+
 const NEW = '\0new';
 
-/** A new repository as the owner picks it on the card. */
+
 export interface FreshRepo {
   path: string;
   project: boolean;
@@ -23,7 +23,7 @@ export interface FreshRepo {
 export interface RepoChoice {
   repo: string;
   fresh: FreshRepo | null;
-  /** Its name, from the folder; empty while no folder is named. */
+  
   name: string;
   pickRepo: (id: string) => void;
   pickNew: (start: string) => void;
@@ -39,7 +39,7 @@ export function useRepoChoice(item: Item, onEdit: (p: CardPatch) => void): RepoC
   const newRepo = item.idea?.newRepo;
   const [repo, setRepo] = useState(item.repo);
   const [fresh, setFreshState] = useState<FreshRepo | null>(newRepo ? { path: newRepo.path, project: newRepo.project } : null);
-  // what the owner picked here and the server does not have yet: until it does, the card keeps showing it
+  
   const mine = useRef<string | null>(null);
   const key = (r: string, f: FreshRepo | null) => JSON.stringify([r, f?.path.trim() ?? null, f?.project ?? null]);
   const stored = key(item.repo, newRepo ? { path: newRepo.path, project: newRepo.project } : null);
@@ -91,7 +91,7 @@ export function RepoPick({ choice, repos, fresh = true }: { choice: RepoChoice; 
   }, [focusPath]);
   const n = choice.fresh;
   if (repos.length < 2 && !n) return null;
-  // the repository a card is built in, with a new one's folder and whether it gets a project of its own
+  
   return (
     <div className="repo-pick flex flex-wrap items-center gap-x-3.5 gap-y-1">
       <SegmentedControl

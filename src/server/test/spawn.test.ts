@@ -10,7 +10,7 @@ test('dozens of processes asked for at once start a few at a time, with turns of
   }) as typeof Bun.spawn;
   try {
     const all = Array.from({ length: 20 }, () => spawnOutput([process.execPath, '--version']));
-    // the first ones at once, as a caller expects of a process it started
+    
     expect(started).toBe(4);
     await new Promise((go) => setImmediate(go));
     expect(started).toBeLessThanOrEqual(8);
@@ -26,7 +26,7 @@ test('programs started on Windows run without a window, unless the call asks for
   expect(hidden([['git', 'status'], { cwd: '/repo' }])).toEqual([['git', 'status'], { cwd: '/repo', windowsHide: true }]);
   expect(hidden([['git', 'status']])).toEqual([['git', 'status'], { windowsHide: true }]);
   expect(hidden([{ cmd: ['git'], stdout: 'pipe' }])).toEqual([{ cmd: ['git'], stdout: 'pipe', windowsHide: true }]);
-  // node's child_process says false itself where its caller gave nothing: Explorer, a terminal to log in
+  
   expect(hidden([['explorer.exe'], { windowsHide: false }])).toEqual([['explorer.exe'], { windowsHide: false }]);
 
   const { spawn, spawnSync } = Bun;

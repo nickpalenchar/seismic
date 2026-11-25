@@ -1,17 +1,17 @@
-// Dialogs (shadcn/ui's Dialog and AlertDialog, on Radix Dialog and AlertDialog): a box over the dimmed
-// page that takes the focus, traps Tab, closes on Esc and on a press on the dim around it (an alert
-// dialog does not: it is answered), and hands the focus back when it closes. The layer is portaled
-// into `uiPortal()` so the theme applies, and `layerOpen` finds it so App's Esc handler leaves the
-// key alone.
-//
-// `Dialog` is the root (`open` and `onOpenChange`), `DialogContent` the box with the dim around it as
-// its layer (`id` names that layer for the stylesheet and lookups; `className` is the box's, which
-// sets its size, `layerClassName` places it: centred by default), `DialogTitle` and
-// `DialogDescription` the heading and text screen readers announce. `keepMounted` on a dialog whose
-// inside holds state that must survive closing (a configuration under edit, a form half written):
-// its children stay mounted, parked out of sight while it is closed, and move into the box each time
-// it opens. `ConfirmDialog` is the one confirm: a title, a text, the confirming button and the way
-// back, which has the focus.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { cn } from 'cn';
 import { AlertDialog as AlertDialogPrimitive, Dialog as DialogPrimitive } from 'radix-ui';
@@ -23,7 +23,7 @@ import { uiPortal, useOpenerFocus } from './ui';
 const layer =
   'fixed inset-0 z-60 flex items-center justify-center bg-scrim p-6 backdrop-blur-[3px] data-[state=open]:animate-[fade_.15s_ease-out]';
 const box = 'relative box-border max-h-full max-w-full text-foreground outline-none';
-/** The box's surface: solid, or (`glass`) frost's pane, the page blurred behind it. */
+
 const surface = { solid: 'bg-surface shadow-lift', glass: 'frost-pane' };
 
 export function Dialog(props: ComponentProps<typeof DialogPrimitive.Root>) {
@@ -51,15 +51,15 @@ export function DialogContent({
   ...props
 }: ComponentProps<typeof DialogPrimitive.Content> & { layerClassName?: string; keepMounted?: boolean; glass?: boolean }) {
   const opener = useOpenerFocus();
-  // the parked children: a detached element they render into for good, moved into the box while it is open
+  
   const [parked] = useState(() => {
     const el = document.createElement('div');
     el.style.display = 'contents';
     return el;
   });
-  // Reattaching an already mounted subtree makes the browser reset its scroll and focus.
-  // Keep the ref stable across updates (including late API responses); only a newly opened
-  // dialog needs to move the parked children into its new host.
+  
+  
+  
   const mountParked = useCallback((el: HTMLDivElement | null) => {
     if (el && parked.parentNode !== el) el.appendChild(parked);
   }, [parked]);
@@ -75,7 +75,7 @@ export function DialogContent({
             onOpenAutoFocus={(e) => {
               opener.onOpenAutoFocus();
               onOpenAutoFocus?.(e);
-              // the box itself takes the focus, not its first button: that one would open its tooltip, which would take the first Esc
+              
               if (e.defaultPrevented) return;
               e.preventDefault();
               (e.currentTarget as HTMLElement).focus();
@@ -86,7 +86,7 @@ export function DialogContent({
             }}
             onInteractOutside={(e) => {
               onInteractOutside?.(e);
-              // a toast or the notification ask stands over the dialog without being part of it: pressing in them does not close it
+              
               if (e.target instanceof Element && e.target.closest('.toast, .notify-ask')) e.preventDefault();
             }}
           >
@@ -125,10 +125,10 @@ export function ConfirmDialog({
   also?: { label: ReactNode; onClick: () => void; variant?: ButtonVariant; className?: string; disabled?: boolean };
   cancel: ReactNode;
   busy?: boolean;
-  /** For unbounded content, keep the title and actions visible while the description scrolls. */
+  
   scrollBody?: boolean;
   className?: string;
-  /** Over a layer higher than a dialog's own (the setup's first-start page). */
+  
   layerClassName?: string;
 }) {
   const opener = useOpenerFocus();

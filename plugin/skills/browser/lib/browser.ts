@@ -1,38 +1,38 @@
-// A headless Chromium of the session's own, driven from the shell over the Chrome DevTools Protocol
-// (CDP). Plain Node with type stripping, like the demo skill; on macOS, Linux and Windows.
-//
-// Usage: node browser.ts <command> [args]
-//   start [--window-size 1280,900] [--fake-mic <file.wav>]
-//                                    launch the session's browser (muted); --fake-mic grants the
-//                                    microphone and plays the WAV (looped) as its input
-//   stop                             close it
-//   status                           show port/pid and open tabs
-//   open <url> [--no-wait]           open url in a new tab, print tab id
-//   nav <url> [--tab id] [--no-wait] navigate an existing tab
-//   tabs                             list open tabs (id, url, title)
-//   close <tabId>                    close a tab
-//   eval <js> [--tab id]             run JS in page, print JSON result
-//   text [--tab id]                  print document.body.innerText
-//   html [--tab id]                  print full page HTML
-//   screenshot <file.png> [--tab id] [--full]
-//   pdf <file.pdf> [--tab id]
-//   input <step>… [--tab id]         trusted mouse/keyboard input, steps run in order on one
-//                                    connection (a key held with down: stays down until up:):
-//     click:X,Y  dbl:X,Y  drag:X1,Y1,X2,Y2  wheel:X,Y,DX,DY[,ctrl]
-//     key:NAME  down:NAME  up:NAME   (NAME: a character, Enter, Escape, Tab, Space, Backspace,
-//                                     ArrowUp/Down/Left/Right)
-//     type:TEXT  wait:MS  shot:FILE.png  eval:JS
-//     X,Y may be @<css selector> instead: the centre of the first matching element
-//   playwright                       print the import of the Playwright it is launched with, for a
-//                                    script of one's own, and whether Playwright's WebKit and Firefox are installed
-//   playwright install <browser>…    install Playwright's own webkit or firefox (--with-deps: with the
-//                                    system libraries they need on Linux)
-//
-// Each agent session has a browser of its own: its state (port, pid) is in a file named by
-// the session's process (`SEISMIC_AGENT_PID`, or Claude Code's `CLAUDE_PID`), and the process holding
-// the browser (`serve`, started by `start`) closes it once that process has ended. In a terminal there is one
-// browser per user, until `stop`. Playwright launches it (`plugin/lib/chromium.ts`), so it is the
-// Chromium the demo skill records with, with a fresh profile that goes with it.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -75,9 +75,9 @@ const logFile = (state: string) => state.replace(/\.json$/, '.log');
 
 interface State {
   port: number;
-  /** The process holding the browser (`serve`). */
+  
   pid: number;
-  /** The session's process, the browser closes when it ends; null: only at `stop`. */
+  
   owner: number | null;
 }
 
@@ -210,7 +210,7 @@ async function waitForLoad(port: number, tabId: string, timeoutMs = 20_000): Pro
       const tab = (await pageTabs(port)).find((t) => t.id === tabId);
       if (tab && (await evalInTab(tab, 'document.readyState')) === 'complete') return;
     } catch {
-      // page mid-navigation; retry
+      
     }
     await sleep(250);
   }
@@ -232,7 +232,7 @@ const KEYS: Record<string, { code: string; key: string; vk: number }> = {
   Alt: { code: 'AltLeft', key: 'Alt', vk: 18 },
   Meta: { code: 'MetaLeft', key: 'Meta', vk: 91 },
 };
-/** The CDP modifier bit of each modifier key: held with `down:`, it goes with the mouse and key events until `up:`. */
+
 const MODIFIERS: Record<string, number> = { Alt: 1, Control: 2, Meta: 4, Shift: 8 };
 
 function keyOf(name: string) {
@@ -293,9 +293,9 @@ async function runInput(tab: Tab, steps: string[]) {
         break;
       }
       case 'drag': {
-        // `@selector,X2,Y2` or `X1,Y1,X2,Y2[,X3,Y3…]`
+        
         const parts = arg.startsWith('@') ? [...(await coords(arg.slice(0, arg.lastIndexOf(',', arg.lastIndexOf(',') - 1)))), ...arg.split(',').slice(-2).map(Number)] : arg.split(',').map(Number);
-        // more points after the end draw a path through them (a lasso), each leg in 10 steps
+        
         const [x1, y1] = parts as [number, number];
         let at = [x1, y1];
         await mouse('mousePressed', x1, y1);
@@ -385,7 +385,7 @@ async function serve(spec: ServeSpec) {
     handleSIGINT: false,
     handleSIGTERM: false,
     handleSIGHUP: false,
-    // a headless browser plays sound through the machine's speakers: a page's videos stay silent
+    
     args: [`--remote-debugging-port=${port}`, `--window-size=${spec.windowSize}`, '--mute-audio', ...micFlags],
   });
   let ending = false;
@@ -430,7 +430,7 @@ async function silenceSpeech(port: number, source: string) {
     if (msg.method !== 'Target.attachedToTarget') return;
     const { sessionId, targetInfo } = msg.params;
     if (targetInfo.type === 'page' || targetInfo.type === 'iframe') {
-      // without Page.enable, the script ran only in the document the target opened with
+      
       send('Page.enable', {}, sessionId);
       send('Page.addScriptToEvaluateOnNewDocument', { source, runImmediately: true }, sessionId);
       autoAttach(sessionId);
@@ -561,8 +561,8 @@ async function main([command, ...args]: string[]) {
       const noWait = takeBoolFlag(args, '--no-wait');
       const url = args[0] ?? fail('Usage: open <url> [--no-wait]');
       const state = await loadState();
-      // /json/new URL-decodes its query inconsistently across versions; opening
-      // about:blank and navigating via CDP sidesteps that.
+      
+      
       const tab: Tab = await http(state.port, '/json/new', 'PUT');
       await cdp(tab.webSocketDebuggerUrl, 'Page.navigate', { url });
       if (!noWait) await waitForLoad(state.port, tab.id);

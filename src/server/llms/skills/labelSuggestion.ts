@@ -1,7 +1,7 @@
-/**
- * Seismic's suggestion of a card's labels: the plugin's labels skill guides the
- * short session that judges them, as part of the naming call or a call of its own at the start.
- */
+
+
+
+
 
 import { z } from 'zod';
 import {

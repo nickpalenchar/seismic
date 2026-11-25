@@ -1,8 +1,8 @@
-// Seismic on its own checkout: work that lands there changes the code this very process runs. The
-// supervisor in main.ts starts the server again when it exits with RESTART; this module tells
-// when that is due, and installs what the new code depends on before it goes. Stopping Seismic
-// (Ctrl-C, SIGTERM) waits for the workers the same way, and then nothing starts again; so does
-// installing a new version of the app, after which the app's shell starts it again (UPDATE).
+
+
+
+
+
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -12,16 +12,16 @@ import { gitDirs } from './read-tree';
 import { COMPILED } from './resources';
 import { gitAsync, gitOrNull } from './workstations';
 
-/** The exit code that asks the supervisor for a fresh server. */
+
 export const RESTART = 75;
-/** The same, and from now on with the configuration file rather than the command line's repositories. */
+
 export const RESTART_FROM_FILE = 76;
-/** The server ended for the app's shell to install a new version of the app and start it again (desktop/src/update.rs). */
+
 export const UPDATE = 77;
-/** The server ended for the app's shell to start it again under itself (desktop/src/main.rs, `orphaned`). */
+
 export const TAKEOVER = 78;
 
-/** How long a restart waits for workers to finish their turns before it cuts them off. */
+
 export const RESTART_PATIENCE_MS = 15 * 60_000;
 
 /**
@@ -31,7 +31,7 @@ export const RESTART_PATIENCE_MS = 15 * 60_000;
 export function whenIdle(busy: () => boolean, fn: () => void, patienceMs = RESTART_PATIENCE_MS, intervalMs = 2000, held: () => boolean = () => false): () => void {
   const deadline = Date.now() + patienceMs;
   const check = () => {
-    // both are asked every time: `busy` and `held` keep what the restart shows current
+    
     const b = busy();
     if (held() || (b && Date.now() < deadline)) return;
     clearInterval(timer);
@@ -42,13 +42,13 @@ export function whenIdle(busy: () => boolean, fn: () => void, patienceMs = RESTA
   return () => clearInterval(timer);
 }
 
-/** A worker a restart waits for. */
+
 export interface Busy {
   project: string;
   card: string;
 }
 
-/** A restart that is due and waits for the workers it would cut off, and for the owner. */
+
 export interface Due {
   reason: RestartReason;
   since: number;
@@ -58,11 +58,11 @@ export interface Due {
 }
 
 export interface RestarterOptions {
-  /** The workers in the middle of a turn. */
+  
   busy: () => Busy[];
-  /** Stops the server so that it starts again, or for good when the reason is `stop`, or for the app to be updated. */
+  
   go: (reason: RestartReason, forced: boolean) => void;
-  /** What the owner did that the server itself finishes first, whether or not a page is open: commands in their undo window. */
+  
   held?: () => OwnerHold[];
   patienceMs?: number;
   intervalMs?: number;
@@ -82,7 +82,7 @@ export class Restarter {
   private gone = false;
   private stopWaiting = () => {};
   private listeners = new Set<() => void>();
-  /** What the owner does in each open page (by connection), as the page last said, and in each request the server answers. */
+  
   private holds = new Map<string, OwnerHold[]>();
 
   constructor(private o: RestarterOptions) {}
@@ -180,8 +180,8 @@ export class Restarter {
   }
 }
 
-/** Which reason a restart that is due turns into when asked for another: the one that ends more of this server. */
-// a rebuild outranks a plain restart, so the owner's asking for one is not lost to a restart that waits already
+
+
 const OUTRANKS: Record<RestartReason, number> = { code: 0, config: 0, repository: 0, owner: 0, rebuild: 1, takeover: 2, update: 3, stop: 4 };
 
 const key = (b: Busy[]) => b.map((x) => `${x.project}/${x.card}`).join(' ');
@@ -197,7 +197,7 @@ export function headOf(checkout: string): string | null {
   return gitOrNull(checkout, 'rev-parse', 'HEAD');
 }
 
-/** What installing the dependencies before a restart came to. */
+
 export type Install = { ran: false } | { ran: true; ok: boolean; output: string };
 
 const INSTALL = [process.execPath, 'install', '--frozen-lockfile'];
@@ -238,12 +238,12 @@ export function ownCheckout(): string | null {
  * every two seconds that held up every request it answers. `afterRound` hears of each round ended.
  */
 export function watchOwnCode(checkout: string, start: string, fn: (from: string, to: string) => void, intervalMs = 2000, afterRound?: () => void): () => void {
-  // HEAD as last read, and the seal it was read under; none yet, so the first round asks git: HEAD
-  // may have moved since the server started
+  
+  
   let read: { seal: string | null; head: string } = { seal: null, head: start };
   /** HEAD now: as last read while its seal holds, else from git (null where git failed). */
   const look = async (): Promise<string | null> => {
-    // the seal is taken before git is asked, so a move between the two is seen next round
+    
     const seal = headSeal(checkout);
     if (seal !== null && seal === read.seal) return read.head;
     const head = await gitAsync(checkout, 'rev-parse', 'HEAD').catch(() => null);
@@ -254,8 +254,8 @@ export function watchOwnCode(checkout: string, start: string, fn: (from: string,
   let base = start;
   let stopped = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  // the next round starts an interval after this one ended, so two never run at once; whatever
-  // a round throws, the next one comes all the same
+  
+  
   const round = async () => {
     let done = false;
     try {
@@ -264,10 +264,10 @@ export function watchOwnCode(checkout: string, start: string, fn: (from: string,
       if (head && head !== seen) seen = head;
       else if (head && head !== base) {
         const code = await changesCode(checkout, base, head);
-        // a commit while git diffed has not held still for a round (it may be a landing under way): the next round tells
+        
         const still = code && (await look()) === head;
         if ((done = stopped)) return;
-        // done once fn went through: one that threw restarted nothing, so the next round calls it again
+        
         if (still) {
           fn(base, head);
           done = true;
@@ -289,7 +289,7 @@ export function watchOwnCode(checkout: string, start: string, fn: (from: string,
   };
 }
 
-/** The refs each worktree keeps of its own, in its own git directory; the others are in the one they share. */
+
 const OWN_REFS = ['refs/worktree/', 'refs/bisect/', 'refs/rewritten/'];
 
 /**
@@ -311,20 +311,20 @@ export function headSeal(checkout: string): string | null {
   try {
     at(join(dirs.common, 'packed-refs'));
     let ref = 'HEAD';
-    // a few steps at most: refs that name each other in a circle stop git as well
+    
     for (let step = 0; step < 5; step++) {
       const path = join(ref === 'HEAD' || OWN_REFS.some((r) => ref.startsWith(r)) ? dirs.own : dirs.common, ref);
-      // a ref without a file of its own is in the packed refs, or has no commit yet
+      
       if (!at(path)) return seal.join('\n');
       const text = readFileSync(path, 'utf8');
-      // a commit, or what git would not take for a ref either
+      
       if (!text.startsWith('ref:')) return seal.join('\n');
       const target = symbolicTarget(text);
       if (!target) return null;
       ref = target;
     }
   } catch {
-    // a ref that cannot be read (a directory in its place, say)
+    
   }
   return null;
 }
@@ -338,7 +338,7 @@ export function headSeal(checkout: string): string | null {
 export function symbolicTarget(text: string): string | null {
   const target = text.slice('ref:'.length).replace(/^[ \t\n\r]+|[ \t\n\r]+$/g, '');
   if (!target.startsWith('refs/') || target.includes('\uFFFD')) return null;
-  // control characters, space and ~^:?*[\ ; "..", "@{", "//"; a part starting with "." or ending in ".lock"; a "." or "/" at the end
+  
   if (/[\x00-\x20\x7f~^:?*[\\]|\.\.|@\{|\/\/|(^|\/)\.|\.lock(\/|$)|[./]$/.test(target)) return null;
   return target;
 }

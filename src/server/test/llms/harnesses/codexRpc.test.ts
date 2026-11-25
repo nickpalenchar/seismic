@@ -101,7 +101,7 @@ lines.on('line', line => {
       const deadline = Date.now() + 1000;
       while (alive() && Date.now() < deadline) await Bun.sleep(10);
       expect(alive()).toBe(false);
-    } finally { try { process.kill(pid, 'SIGKILL'); } catch { /* already stopped */ } }
+    } finally { try { process.kill(pid, 'SIGKILL'); } catch {  } }
   }
 });
 

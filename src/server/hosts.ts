@@ -1,8 +1,8 @@
-// Other machines that workers run on, reached over SSH. A workstation on one is
-// named `ssh://<host>/<path there>`: git, the stack commands of the repository's settings and the worker's Claude Code
-// run there through `ssh`, and files cross at fixed points (the plugin before a session, the owner's
-// screenshots with a message, a demo directory at a handover). Nothing secret is stored there:
-// the Claude login and the repository's GitHub token travel on stdin at each start.
+
+
+
+
+
 
 import { bothNames, seismicEnv } from '../core/env';
 import { type ChildProcess, spawn } from 'node:child_process';
@@ -17,7 +17,7 @@ import { resource } from './resources';
 import { OWN_GROUP, spawnOutput } from './spawn';
 import { expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
 
-/** Where a workstation on another machine says which machine it is on. */
+
 const PREFIX = 'ssh://';
 
 /** The workstation `path` on the host `name`, as Seismic names it. */
@@ -40,23 +40,23 @@ export function hostName(path: string | null | undefined): string | null {
 
 export class HostError extends Error {}
 
-/** A host's exit code for "the connection failed" (ssh's own), whatever the command there did. */
+
 export const LOST = 255;
 
-/**
- * How long a host whose connection failed counts as unreachable for the commands the server waits
- * for, before one of them has it asked again in the background.
- */
+
+
+
+
 export const RECHECK_DOWN_MS = 30_000;
 
-/** Directories that come first on the host's PATH: where the official installers put Claude Code and Bun. */
+
 const PATH_PREFIX = '$HOME/.local/bin:$HOME/.bun/bin';
 
-/** Seismic's directory on a host, in its home: the plugin, the demo settings, the owner's screenshots, voices. */
+
 export const HOST_DIR = '.seismic/remote';
-/** `HOST_DIR` before the rename: only its pid files are still read (migration shim). */
+
 export const OLD_HOST_DIR = '.obeya/remote';
-/** The variable that marks a session's process on a host as that session (its pid file names the mark). */
+
 const SESSION_MARK = 'SEISMIC_REMOTE_SESSION';
 
 /** A string as one word for a POSIX shell. */
@@ -91,24 +91,24 @@ function socketDir(): string | null {
 
 export interface HostOptions {
   name: string;
-  /** What `ssh` connects to: `user@machine`, or a name from `~/.ssh/config`. */
+  
   ssh: string;
-  /** Seismic's home on this machine: copies of the host's demo directories go there. */
+  
   home: string;
-  /** The Claude login the host's sessions run on (`claude setup-token`); without it they run on the host's own. */
+  
   claudeToken?: () => string | undefined;
-  /** The program that is `ssh` (tests run the commands on this machine with a stand-in). */
+  
   program?: string;
 }
 
 /** A machine reached over SSH. */
 export class SshHost {
   private prepared?: Promise<string>;
-  /** Tokens by the workstation root they are for (a repository's clones there): its GitHub login. */
+  
   private tokens: { root: string; token: () => string | undefined }[] = [];
-  /** When the connection last failed, while the host has not answered since; whether it is being asked again. */
+  
   private down?: { at: number; asking?: boolean };
-  /** Who hears that the host answers again after it did not. */
+  
   private back: (() => void)[] = [];
 
   constructor(readonly o: HostOptions) {}
@@ -151,7 +151,7 @@ export class SshHost {
     ]
       .filter(Boolean)
       .join(' ');
-    // a forward from here goes on a connection of its own, which ends with it rather than with the shared one
+    
     const forwards = [...(o.forward ? ['-R', o.forward] : []), ...(o.local ? ['-o', 'ExitOnForwardFailure=yes', '-L', o.local] : [])];
     return [this.o.program ?? 'ssh', ...this.options(!!o.local), ...forwards, this.o.ssh, `exec sh -c ${sh(script)}`];
   }
@@ -245,7 +245,7 @@ export class SshHost {
 
   /** Copies the directory `from` there into `to` here, replacing what was here. */
   async copyFrom(from: string, to: string): Promise<void> {
-    // it replaces what is at `to`: only ever a copy of this host's
+    
     if (!resolve(to).startsWith(resolve(this.copies()) + sep)) throw new HostError(`${to} is no place for a copy of ${this.name}'s files`);
     rmSync(to, { recursive: true, force: true });
     mkdirSync(to, { recursive: true });
@@ -283,7 +283,7 @@ export class SshHost {
     const projects = (config.projects ??= {});
     if (projects[dir]?.hasTrustDialogAccepted) return;
     projects[dir] = { ...projects[dir], hasTrustDialogAccepted: true };
-    // written whole and moved into place, so a session reading it meanwhile sees the old or the new file
+    
     const w = await this.run('cat > "$HOME/.claude.json.seismic" && mv "$HOME/.claude.json.seismic" "$HOME/.claude.json"', { input: JSON.stringify(config, null, 2) });
     if (w.code !== 0) throw new HostError(`${this.name}: ${w.stderr.trim()}`);
   }
@@ -371,7 +371,7 @@ export class SshHost {
       });
       void child.exited.then(() => (alive = false));
       void new Response(child.stderr as ReadableStream).text().then((text) => text.trim() && console.error(`${this.name}: ${text.trim()}`));
-      // the port takes connections once ssh logged in and listens; ssh gives up on its own (ConnectTimeout)
+      
       while (alive && !closed) {
         if (await accepts(local)) return local;
         await Bun.sleep(50);
@@ -410,25 +410,25 @@ export class SshHost {
           const hit = local.find(([, from]) => a === from);
           return hit ? `${dir}/${hit[0]}` : a;
         });
-        // only the narration's port: whoever is on that machine reaches the forward too
+        
         const narration = seismicEnv('NARRATION_URL', s.env);
         const here = narration ? Number(new URL(narration).port) : 0;
-        // a port of its own per session, so that sessions ending do not take another's forward along
+        
         const there = here ? 30_000 + Math.floor(Math.random() * 30_000) : 0;
-        // a session cut off by a dropped connection may still run there: the one that resumes it ends it first.
-        // Recover only a process carrying this session's unique mark, never by a rounded start time.
-        // A small supervisor carries the same mark in argv for hosts where ps cannot read environments.
+        
+        
+        
         const pidFile = `sessions/${o.cwd.replace(/[^\w.-]+/g, '-')}.pid`;
         const pid = sh(`${dir}/${pidFile}`);
         const mark = randomUUID();
         let previous = [
           `mkdir -p ${sh(`${dir}/sessions`)};`,
           `seismic_ours() { if [ -r "/proc/$1/environ" ]; then tr "\\000" "\\n" < "/proc/$1/environ" | grep -Fxq -- "${SESSION_MARK}=$2"; else ps -ww -p "$1" -o command= 2>/dev/null | tr ' ' '\\n' | grep -Fxq -- "seismic-session-$2"; fi; };`,
-          // Bare PIDs are accepted only for one-time migration of pre-rename records.
+          
           `seismic_recover() { old=; mark=; stamp=; read -r old mark stamp 2>/dev/null < "$1"; case "$old" in ''|*[!0-9]*) return;; esac; [ "$old" -gt 1 ] && [ "$old" != $$ ] || return; if [ -n "$mark" ]; then seismic_ours "$old" "$mark" && kill "$old"; elif [ "$2" = 1 ]; then ps -p "$old" -o command= 2>/dev/null | grep -q claude && kill "$old"; fi; };`,
         ].join(' ');
-        // An alias may contain a pre-rename bare PID or an already marked record. Inspect it once,
-        // before writing the replacement. Distinct legacy files are consumed even if recovery fails.
+        
+        
         if (dir.endsWith(HOST_DIR)) {
           const legacy = sh(`${dir.slice(0, -HOST_DIR.length)}${OLD_HOST_DIR}/${pidFile}`);
           previous += ` if [ ${legacy} -ef ${pid} ]; then seismic_recover ${pid} 1; else seismic_recover ${pid} 0; if [ -f ${legacy} ]; then seismic_recover ${legacy} 1; rm -f ${legacy}; fi; fi;`;
@@ -436,8 +436,8 @@ export class SshHost {
           previous += ` seismic_recover ${pid} 0;`;
         }
         previous += ` export ${SESSION_MARK}=${mark}; echo $$ ${mark} > ${pid};`;
-        // Keep stdin attached for SDK messages even though the child runs asynchronously. The
-        // supervisor forwards termination and returns Claude's exit code, while retaining its argv mark.
+        
+        
         const supervise = `exec 3<&0; ${[s.command, ...args].map(sh).join(' ')} <&3 3<&- & child=$!; trap 'kill "$child" 2>/dev/null' TERM INT HUP; wait "$child"; code=$?; exit "$code"`;
         const argv = this.argv(`${previous} exec sh -c ${sh(supervise)} ${sh(`seismic-session-${mark}`)}`, {
           cwd: o.cwd,
@@ -445,29 +445,29 @@ export class SshHost {
           ...(here ? { forward: `127.0.0.1:${there}:127.0.0.1:${here}` } : {}),
         });
         const child = spawn(argv[0]!, argv.slice(1), { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, detached: OWN_GROUP });
-        // with Seismic reachable, a voice it holds loaded narrates from Seismic's machine (SEISMIC_HOLDS_VOICE: no need to install it here)
+        
         const { OBEYA_URL: _, OBEYA_NARRATION_URL: __, SEISMIC_URL: ___, SEISMIC_NARRATION_URL: ____, ...own } = s.env;
         const env = { ...own, ...bothNames({ HOME: dir }), ...(here ? bothNames({ URL: `http://127.0.0.1:${there}`, HOLDS_VOICE: '1' }) : {}), ...(token ? { CLAUDE_CODE_OAUTH_TOKEN: token } : {}) };
         child.stdin!.write(this.envLine(o.cwd, env));
-        // ssh's own complaints (a forward refused, the connection dropped) are no session output
+        
         child.stderr!.on('data', (d: Buffer) => {
           const text = d.toString().trim();
           if (text) console.error(`${this.name}: ${text}`);
         });
         return child;
       });
-      // the process's exit, not ssh's: a host that could not be made ready never started it
+      
       p.on('exit', (code: number | null) => o.onExit?.(code));
       return p;
     };
   }
 }
 
-/** A port here forwarded to one a host reaches (`SshHost.forward`). */
+
 export interface Forward {
-  /** The port here once it takes connections; null when the forward failed or was closed first. */
+  
   ready: Promise<number | null>;
-  /** False once the forward ended: closed, failed, or gone with its connection. */
+  
   readonly alive: boolean;
   close(): void;
 }
@@ -495,11 +495,11 @@ async function accepts(port: number): Promise<boolean> {
   }
 }
 
-/** What a host gets before a session, by the path it has in Seismic's directory there. */
+
 export interface HostFiles {
-  /** Directories here. */
+  
   dirs: Record<string, string>;
-  /** Files by their content; none removes one there. */
+  
   files?: Record<string, () => string | undefined>;
 }
 
@@ -600,7 +600,7 @@ export function sessionFiles(home: string, plugins: string[]): HostFiles {
   };
 }
 
-/** The hosts of the configuration, by name. */
+
 const hosts = new Map<string, SshHost>();
 
 /** Makes a host known under its name; the configuration's hosts are registered at start. */
@@ -634,17 +634,17 @@ export function saveClaudeToken(home: string, token: string, env: Record<string,
   if (env.CLAUDE_CODE_OAUTH_TOKEN) env.CLAUDE_CODE_OAUTH_TOKEN = token;
 }
 
-/**
- * git's credential helper for a host's clones: the GitHub login comes from `GH_TOKEN`, which Seismic
- * passes with each command and session, and is stored nowhere (the empty helper before it drops the
- * system's, macOS's keychain, which would keep it).
- */
+
+
+
+
+
 export const TOKEN_HELPER = ['', '!f() { test "$1" = get && test -n "$GH_TOKEN" && echo username=x-access-token && echo "password=$GH_TOKEN"; }; f'];
 
-/** git's options that make a command there use `TOKEN_HELPER`. */
+
 export const TOKEN_HELPER_ARGS = TOKEN_HELPER.flatMap((h) => ['-c', `credential.helper=${h}`]);
 
-/** How long a repository's GitHub login is asked again after it was read. */
+
 const TOKEN_TTL = 10 * 60_000;
 
 /**

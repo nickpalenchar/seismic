@@ -227,10 +227,10 @@ describe('the lines of commands', () => {
     await command(null).reply({ confirm: 'In view', token: 'u', undoMs: 5000 });
     expect(s.list().map((x) => x.text)).toEqual(['In view']);
     expect(s.list()[0]!.undo).toBeDefined();
-    // a token without an undo window offers no "Undo": the open conversation shows it
+    
     await command('Reading …').reply({ confirm: 'In view', token: 'v' });
     expect(s.list().map((x) => x.text)).toEqual(['In view']);
-    // a quiet reply with an undo window keeps its line, which alone offers "Undo"
+    
     await command('Reading …').reply({ confirm: 'Quiet', quiet: true, token: 'q', undoMs: 5000 });
     expect(s.list().map((x) => x.text)).toEqual(['In view', 'Quiet']);
     expect(s.list()[1]!.undo).toBeDefined();
@@ -244,7 +244,7 @@ describe('the lines of commands', () => {
     await a.reply({ confirm: 'Late' });
     expect(texts()).toEqual([]);
 
-    // a typed command's line was never there: nothing to dismiss, it gets its line
+    
     const b = command(null);
     await b.reply({ confirm: 'On time' });
     expect(texts()).toEqual(['On time']);

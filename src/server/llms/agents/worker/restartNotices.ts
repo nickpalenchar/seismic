@@ -1,15 +1,15 @@
-/**
- * What a worker is told about a restart Seismic waits for, or a pause the owner asks for: the
- * notices, and how long the wait is.
- */
+
+
+
+
 import type { Pause } from '../../../../core/messages';
 import type { RestartReason } from '../../../../core/types';
 
-/** A restart that waits for workers to finish their turns: why, and when it goes ahead at the latest. */
+
 export interface DueRestart {
   reason: RestartReason;
   deadline: number;
-  /** Only the agents of these workers' repository restart, for a change to its configuration; Seismic runs on. */
+  
   repo?: boolean;
 }
 
@@ -27,7 +27,7 @@ const DUE_WHY: Record<RestartReason, string> = {
   takeover: 'restart (the app takes over this Seismic, which ran without it)',
 };
 
-/** Why Seismic restarts the agents of one repository alone: where they work changed, which they start again with. */
+
 const REPO_WHY: Partial<Record<RestartReason, string>> = {
   config: 'the owner changed its configuration',
   repository: 'its settings changed on its default branch',
@@ -72,6 +72,6 @@ export const restartWaits = (due: DueRestart) =>
 export const stillDue = (due: DueRestart) =>
   `Seismic still waits for the ${dueText(due).thing} you paused for, ${minutesLeft(due)}, and this turn keeps it waiting. Take in what started it (a background command that finished, a message), leave the work it leads to until Seismic resumes you, and end your turn.`;
 
-/** Tells a worker that paused for the owner, and was woken by its background work before it could, that they still wait for it. */
+
 export const PAUSE_STILL =
   'The owner still waits for you to pause, and this turn keeps them waiting. Take in what started it (a background command that finished), leave the work it leads to until the owner lets you go on, and end your turn.';

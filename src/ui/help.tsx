@@ -1,4 +1,4 @@
-// The legend of mouse and keys: a box over the greyed page, opened by `?` or the button in the bar.
+
 
 import { Fragment } from 'react';
 import { t } from './strings';
@@ -12,7 +12,7 @@ import { Tooltip } from './components/tooltip';
 export function HelpButton({ on, onClick }: { on: boolean; onClick: () => void }) {
   return (
     <Tooltip content={t.help.button}>
-      {/* the bar gives it up before the search field shrinks to its icon (barFit.ts) */}
+      { }
       <PillButton
         size="bar"
         on={on}
@@ -66,7 +66,7 @@ export function Help({ onClose, note }: { onClose: () => void; note?: 'button' |
             </section>
           ))}
         </div>
-        {/* what the owner misses goes to Seismic's makers; the legend closes for the draft */}
+        { }
         <p className="m-0 mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t border-t-border pt-3">
           <WishLink className="text-sm" onOpen={onClose} />
           <span className="text-xs text-muted-foreground">{t.wish.legend}</span>
@@ -77,8 +77,8 @@ export function Help({ onClose, note }: { onClose: () => void; note?: 'button' |
   );
 }
 
-/** The legend's quiet words between keys ("or", "+"). */
+
 const quiet = 'text-xs text-muted-foreground';
 
-/** Set once the owner opened the legend with `?`: the bar's `?` button goes. */
+
 export const HELP_KEY_KNOWN = 'seismic-help-key-known';

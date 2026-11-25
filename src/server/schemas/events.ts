@@ -6,7 +6,7 @@ import type { Wish } from '../../core/wish';
 import { cards } from './cards/cards';
 import { atomic, type Db, now } from './common';
 
-/** A card's history: its conversation and what happened to it (`CardEvent`). */
+
 export const events = sqliteTable(
   'events',
   {
@@ -61,7 +61,7 @@ export class Events {
   /** A line in a card's log, said now or (`at`) earlier: a thread copied onto its Question card keeps its times. */
   add(e: Omit<CardEvent, 'id' | 'at'> & { at?: string }): CardEvent {
     const at = e.at ?? now();
-    // An explicitly absent identity keeps copied historical messages unknown, even inside another agent's context.
+    
     const agent = 'agent' in e ? e.agent : e.author !== 'owner' && e.author !== 'seismic' ? currentAgent() : undefined;
     const { id } = this.db
       .insert(events)

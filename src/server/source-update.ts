@@ -1,10 +1,10 @@
-// Seismic from a clone of its repository (README: From source): the clone's upstream, `origin/main`
-// as a rule, gets new commits that the clone has only once its owner pulls them. This fetches the
-// upstream at the start and every hour and tells the bar while commits that change code wait there
-// (docs alone do not count, as for the self-update). The owner's "git pull" fast-forwards the
-// checkout to them, and the self-update (watchOwnCode) restarts Seismic with the new code as after a
-// landing, once the workers paused. Where a fast-forward cannot go (commits of the checkout's own,
-// uncommitted changes in the way) the bar says so, and the owner pulls by hand.
+
+
+
+
+
+
+
 
 import { inert } from '../core/inert';
 import type { SourceUpdate } from '../core/types';
@@ -12,11 +12,11 @@ import { BadRequest } from './board';
 import { spawnOutput } from './spawn';
 import { GIT } from './workstations';
 
-/** How often the upstream is fetched. */
+
 export const FETCH_EVERY_MS = 60 * 60_000;
-/** A fetch that hangs (a network that answers nothing) is given up after this long. */
+
 const FETCH_TIMEOUT_MS = 60_000;
-/** How many of the new commits the bar names. */
+
 const SHOWN = 10;
 
 type Git = (...args: string[]) => Promise<{ ok: boolean; out: string }>;
@@ -36,7 +36,7 @@ export class SourceUpdates {
     this.git = async (...args) => {
       const r = await spawnOutput([GIT, '-C', checkout, ...args], {
         stdin: 'ignore',
-        // a remote that asks for a password asks no one: the fetch fails and is tried again next time
+        
         env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
         timeout: FETCH_TIMEOUT_MS,
       });
@@ -92,12 +92,12 @@ export class SourceUpdates {
 
   private async look(fetch: boolean) {
     const upstream = await this.git('rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}');
-    // a detached HEAD, or a branch that follows nothing (a card's): nothing to pull
+    
     if (!upstream.ok) return this.set(null);
     if (fetch) await this.fetch();
     const count = Number((await this.git('rev-list', '--count', 'HEAD..@{upstream}')).out) || 0;
     if (!count) return this.set(null);
-    // what the upstream changed since the checkout branched off it, not what the checkout changed itself
+    
     const changed = (await this.git('-c', 'core.quotePath=false', 'diff', '--name-only', 'HEAD...@{upstream}')).out.split('\n').filter(Boolean);
     if (!changed.some((f) => !inert(f))) return this.set(null);
     const log = await this.git('log', `-n${SHOWN}`, '--format=%ct%x09%s', 'HEAD..@{upstream}');
@@ -111,7 +111,7 @@ export class SourceUpdates {
     const update: SourceUpdate = { upstream: upstream.out, checkout: this.checkout, count, commits };
     const blocked = await this.blocked();
     if (blocked) update.blocked = blocked;
-    // a failed pull's message stays until the next pull, unless what it was about has changed
+    
     if (this.last?.error && this.last.count === count && JSON.stringify(this.last.blocked) === JSON.stringify(blocked)) update.error = this.last.error;
     this.set(update);
   }
@@ -120,7 +120,7 @@ export class SourceUpdates {
   private async blocked(): Promise<SourceUpdate['blocked'] | undefined> {
     if (!(await this.git('merge-base', '--is-ancestor', 'HEAD', '@{upstream}')).ok) return { why: 'diverged' };
     const theirs = new Set((await this.git('-c', 'core.quotePath=false', 'diff', '--name-only', 'HEAD', '@{upstream}')).out.split('\n').filter(Boolean));
-    // uncommitted changes, staged or not, to a file the pull would change: git refuses to overwrite them
+    
     const mine = (await this.git('-c', 'core.quotePath=false', 'diff', '--name-only', 'HEAD')).out.split('\n').filter(Boolean);
     const files = mine.filter((f) => theirs.has(f));
     return files.length ? { why: 'local', files } : undefined;
@@ -132,7 +132,7 @@ export class SourceUpdates {
     const remote = (await this.git('config', `branch.${branch}.remote`)).out;
     const merge = (await this.git('config', `branch.${branch}.merge`)).out;
     const tracking = (await this.git('rev-parse', '--symbolic-full-name', '@{upstream}')).out;
-    // an upstream that is a local branch (`remote` is `.`) has nothing to fetch
+    
     if (!remote || remote === '.' || !merge || !tracking.startsWith('refs/remotes/')) return;
     const r = await this.git('fetch', '--quiet', '--no-write-fetch-head', remote, `+${merge}:${tracking}`);
     if (!r.ok) console.error(`Seismic: git fetch ${remote} in ${this.checkout}: ${r.out}`);

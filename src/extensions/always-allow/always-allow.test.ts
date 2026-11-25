@@ -19,7 +19,7 @@ describe('a permission question', () => {
   eachTest();
 
   test('“Always allow” allows the call, adds its rules where work lands on main, and the Claude session takes them; not offered where it goes through pull requests', async () => {
-    // the change itself is the project test's below
+    
     const added: string[] = [];
     let fails = false;
     const asOwner = async <T,>(cwd: string): Promise<T> => {
@@ -41,7 +41,7 @@ describe('a permission question', () => {
     await flush();
     expect(added).toEqual([board.row(c.id).workstation!]);
     expect(board.events(c.id).at(-1)!.text).toBe('Added to the allow list and committed on main: bun run *');
-    // the list cannot take it: allowed once, and the card says why
+    
     fails = true;
     const again = runtime.last.spec.askOwner!({ name: 'Bash', input: { command: 'bun run x' }, suggestions }, new AbortController().signal);
     await flush();
@@ -105,14 +105,14 @@ describe('in a project', () => {
     expect(await answer).toEqual({ allow: true });
     await until(() => project!.board.events(card.id).some((e) => e.text.startsWith('Added to the allow list')));
     expect(project.board.events(card.id).at(-1)!.text).toBe('Added to the allow list and committed on main: bun run *');
-    // on main for everyone, the Codex rules made again from the list, and trusted as the owner's
+    
     const main = readShared(shop);
     expect(JSON.parse(main.claude!['.claude/settings.json']!.text)).toEqual({ permissions: { allow: ['Bash(bun test *)', 'Bash(bun run *)'] } });
     expect(main.codex!['.codex/rules/seismic.rules']!.text).toContain('prefix_rule(pattern=["bun","run"], decision="allow")');
     expect(git(shop, 'log', '-1', '--format=%s')).toBe('Allow for agents: Bash(bun run *)');
     expect(git(shop, 'status', '--porcelain')).toBe('');
     expect(store.trustedCommands.get(shop)).toEqual(commandsOf(main));
-    // the next such command is not asked
+    
     expect(await workers.last.permission('Bash', { command: "/bin/zsh -lc 'bun run build'" })).toEqual({ allow: true });
   });
 });

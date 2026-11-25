@@ -1,12 +1,12 @@
-// The excerpt of a worker's run for the work retrospective, drawn without a model from the Agent
-// SDK's transcript (`<projects>/<workstation path>/<session id>.jsonl`) or Codex's rollout
-// (`<codex home>/sessions/<year>/<month>/<day>/rollout-<time>-<thread id>.jsonl`) or Antigravity's
-// conversation database (`~/.gemini/antigravity-cli/conversations/<conversation id>.db`, SQLite
-// holding protobuf steps): where the worker went wrong and corrected itself. The formats are their
-// harness's own and may change: whatever cannot be read is left out, and a file that cannot be read
-// at all gives no excerpt rather than an error. Codex's and Antigravity's calls are read as the
-// Claude tools they match (a command is a Bash call, a file added a Write, a patch an Edit), so one
-// analysis serves all.
+
+
+
+
+
+
+
+
+
 
 import { Database } from 'bun:sqlite';
 import { copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
@@ -14,37 +14,37 @@ import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { clip } from '../core/text';
 
-/** One tool call of the run, with what came of it and the agent's words around it. */
+
 export interface Call {
-  /** Its place among the run's tool calls, from 1. */
+  
   step: number;
   tool: string;
-  /** What it did: the command, the file, the pattern. */
+  
   what: string;
   failed: boolean;
-  /** Ended by the owner or Seismic rather than by the agent: a pause, a stop, a restart, a Ctrl-C. */
+  
   cutOff?: true;
-  /** The error it ended in, shortened. */
+  
   error?: string;
-  /** The agent's last words before the call and its first words after the result. */
+  
   before?: string;
   after?: string;
 }
 
 export type Finding =
-  /** A call that failed, and was not retried right away. */
+  
   | { kind: 'failure'; call: Call }
-  /** Similar calls in a row: a failed one followed by its correction, or the same command again and again. */
+  
   | { kind: 'retry'; calls: Call[] }
-  /** A file written whole more than once. */
+  
   | { kind: 'rewrite'; file: string; times: number; before?: string };
 
 export interface Excerpt {
-  /** Tool calls in all. */
+  
   steps: number;
-  /** How many calls came before the first change to a file; null when it changed none. */
+  
   firstChange: number | null;
-  /** The steps the owner or Seismic cut off (a pause, a stop, a restart), when there were any. */
+  
   cutOff?: number[];
   findings: Finding[];
 }
@@ -88,20 +88,20 @@ function findRollout(thread: string, dirs: string[]): string | null {
         }
       }
     }
-    // an archive that is not sorted by day
+    
     const flat = newestFirst(root).find((f) => f.startsWith('rollout-') && f.endsWith(suffix));
     if (flat) return join(root, flat);
   }
   return null;
 }
 
-/**
- * The transcript file of a session, or null. An Antigravity session (`agy:<conversation id>`) is its
- * conversation database. A Codex session (`codex:<thread id>`) is looked for among
- * Codex's rollouts. A Claude session is looked for under the working directory it ran in first (`cwd`,
- * as the SDK names its directory), then in every directory, as the naming may change.
- */
-/** An Antigravity conversation id, as its harness accepts one to resume: a single file name's characters. */
+
+
+
+
+
+
+
 export const AGY_CONVERSATION_ID = /^[A-Za-z0-9_.-]+$/;
 
 export function findTranscript(sessionId: string, cwd?: string | null, dir?: string): string | null {
@@ -142,7 +142,7 @@ export function excerptOf(file: string | null): Excerpt | null {
 
 type Entry = { kind: 'text'; text: string } | { kind: 'call'; id: string; tool: string; input: Record<string, unknown> };
 type Result = { failed: boolean; output: string; cutOff?: boolean };
-/** A run as read from a file: the agent's words and calls in order, and what came of each call. */
+
 interface Run {
   entries: Entry[];
   results: Map<string, Result>;
@@ -202,7 +202,7 @@ function codexRun(records: Record<string, unknown>[]): Run {
         run.entries.push({ kind: 'text', text: text.trim() });
       }
     } else if (item.type === 'CommandExecution' && Array.isArray(item.command)) {
-      // `[shell, -lc, script]`: the script is what the agent wrote
+      
       const words = item.command.filter((w): w is string => typeof w === 'string');
       const output = str(item.aggregated_output);
       const code = typeof item.exit_code === 'number' ? item.exit_code : 0;
@@ -271,7 +271,7 @@ function nested(fields: ProtoField[], ...path: number[]): ProtoField[] {
 
 const protoText = (x: ProtoField | undefined) => (x?.b ? new TextDecoder().decode(x.b) : '');
 
-/** Antigravity's step kinds and outcomes, as far as they are known. */
+
 const AGY_MODEL_STEP = 15;
 const AGY_TOOL_STEP = 132;
 const AGY_CANCELED = 6;
@@ -364,7 +364,7 @@ export function readCopy<T>(file: string, read: (path: string) => T, copy: (from
         if (!before.endsWith('|-')) copy(wal, `${target}-wal`);
         if (stamp() === before) return read(target);
       } catch (e) {
-        // the log or the database went away mid-copy, or the copy is torn: taken again
+        
         failure = e;
       }
     }
@@ -418,10 +418,10 @@ function analyse(run: Run): Excerpt | null {
       continue;
     }
     const r = results.get(e.id);
-    // cut off by Seismic's restart, or stopped by the owner: no mistake of the agent's
+    
     const cutOff = !!r?.failed && (!!r.cutOff || CUT_OFF.some((c) => c.test(r.output)));
-    // The SDK exposes Seismic's worker tools with an mcp__seismic__ prefix. An
-    // unqualified status call is a name-resolution slip, not repository friction.
+    
+    
     const bareStatusName = e.tool === 'report' && /No such tool available: report\b/.test(r?.output ?? '');
     const failed = !!r?.failed && !cutOff && !bareStatusName;
     calls.push({
@@ -446,7 +446,7 @@ function analyse(run: Run): Excerpt | null {
     const repeated = run[0]!.tool === 'Bash' && run.length >= REPEATS;
     if (run.length >= 2 && (run[0]!.failed || repeated)) findings.push({ kind: 'retry', calls: run.map(plain) });
     else {
-      // a run that is no retry is calls on their own: of those, the failed ones count
+      
       for (const c of run) if (c.failed) findings.push({ kind: 'failure', call: plain(c) });
     }
     i = j;
@@ -545,14 +545,14 @@ function shorten(s: string): string {
 const isObject = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
 const str = (x: unknown) => (typeof x === 'string' ? x : '');
 
-/** Results that end a call without the agent having done anything wrong (a command killed, or stopped with Ctrl-C). */
+
 const CUT_OFF = [/^(Error: )?Exit code (137|143|130)\b/, /^\[Request interrupted/, /doesn't want to proceed/];
-/** The tools that change files. */
+
 const CHANGES = ['Edit', 'MultiEdit', 'Write', 'NotebookEdit'];
-/** How alike two commands' words must be to count as the same attempt, and how often a command repeated counts without a failure. */
+
 const SIMILAR = 0.6;
 const REPEATS = 3;
-/** How much of each thing the excerpt keeps. */
+
 const WORDS = 300;
 const COMMAND = 300;
 const ERROR_HEAD = 400;

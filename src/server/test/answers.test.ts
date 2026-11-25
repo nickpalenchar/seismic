@@ -68,7 +68,7 @@ describe('a question the Koordinator looks up', () => {
     expect(a.inbox[0]).toContain('Seismic takes this step itself once your answer is in: Create a task for each open issue.');
     a.call('answer_owner', { text: '- #27 Skills (https://github.com/o/r/issues/27)' });
     a.emit({ type: 'idle' });
-    // the Koordinator hears the answer with the step it takes now, not as news for the next command
+    
     const k = runtime.sessions.filter(isKoordinator).at(-1)!;
     await until(() => k.inbox.length === 2);
     expect(k.inbox[1]).toContain("No words of the owner's this time");
@@ -82,7 +82,7 @@ describe('a question the Koordinator looks up', () => {
       ['', 'Neue Aufgabe “Skills”.', undefined],
     ]);
     expect(notices.some((n) => n.text === 'Neue Aufgabe “Skills”.' && n.token)).toBe(true);
-    // the next command does not hear the answer again as news
+    
     const next = await say('danke', {}, 'reply', { confirm: 'Gern.' });
     expect(next.brief).not.toContain('came in and was shown to them');
   });
@@ -93,10 +93,10 @@ describe('a question the Koordinator looks up', () => {
       question: 'What would the worker do on W4 if the owner started it now?',
       confirm: 'Ich schaue im Plan nach.',
     });
-    // nothing to take back; the acknowledgement is what the owner hears now
+    
     expect(heard).toEqual({ confirm: 'Ich schaue im Plan nach.' });
     const a = answerer();
-    // with a worker's tools, in the workers' permission mode, to check what it says
+    
     expect(a.spec.permission).toBeUndefined();
     expect(a.spec.permission).toBeUndefined();
     expect(a.spec.system).toContain('plan agent of the plan "PR-Loop"');
@@ -118,15 +118,15 @@ describe('a question the Koordinator looks up', () => {
       ['activity', 'plan', 'Reads plan/pr-loop.md'],
       ['say', 'plan', '1. Liest das Plan-Doc.\n2. Fragt nach dem Go.'],
     ]);
-    // above the microphone too, written
+    
     expect(notices).toEqual([{ cardId: w4.id, text: '1. Liest das Plan-Doc.\n2. Fragt nach dem Go.', inTalk: true }]);
-    // the plan agent keeps its session: it knows the plan and the history
+    
     expect(board().row(w4.parent!).session_id).toBe('plan-1');
     expect(board().talk().at(-1)).toMatchObject({ question: 'What would the worker do on W4 if the owner started it now?', answer: '1. Liest das Plan-Doc.\n2. Fragt nach dem Go.', answerBy: 'plan' });
-    // it is read on the card, so the sheet does not wait with it
+    
     expect(board().talk().at(-1)!.unread).toBeUndefined();
 
-    // the Koordinator hears the answer with the next command
+    
     const next = await say('und dann?', { card: w4.id }, 'reply', { confirm: 'Dann wartet er.' });
     expect(next.brief).toContain('The answer A1 you looked up for the owner\'s question “What would the worker do on W4');
   });
@@ -150,9 +150,9 @@ describe('a question the Koordinator looks up', () => {
     a.emit({ type: 'idle' });
     await settle();
     expect(board().snapshot().talk.at(-1)).toMatchObject({ answer: 'Er sucht den Hänger.', answerBy: 'koordinator', unread: true });
-    // the sheet shows it in full: a page with the sheet open needs no line above the microphone for it
+    
     expect(notices).toEqual([{ text: 'Er sucht den Hänger.', talk: board().snapshot().talk.at(-1)!.id }]);
-    // Seismic waits for the owner with it, like a card that needs them, until they see the sheet
+    
     expect(waitingOn(board().snapshot())).toBe(1);
     board().readTalk();
     expect(board().snapshot().talk.at(-1)!.unread).toBeUndefined();
@@ -181,7 +181,7 @@ describe('a question the Koordinator looks up', () => {
     const running = await say('ja, leg eine an', {}, 'reply', { confirm: 'Mache ich.' });
     expect(running.brief).toContain(answer);
 
-    // a fresh session gets the newest five answers in full, older ones clipped
+    
     for (let n = 1; n <= 4; n++) asked(`frage ${n}`, `Antwort ${n}.`);
     project.shutdown();
     project = open();
@@ -228,11 +228,11 @@ describe('a question the Koordinator looks up', () => {
     a.emit({ type: 'text', text: 'Still downloading the logs.' });
     a.emit({ type: 'idle', background: 1 });
     await settle();
-    // its words so far are no answer, and its session runs on with the download
+    
     expect(a.closed).toBe(false);
     expect(board().talk().at(-1)!.answer).toBeUndefined();
     expect(board().events(login.id).at(-1)).toMatchObject({ kind: 'say', author: 'koordinator', text: 'Moment.' });
-    // the download ends and wakes the agent for a turn of its own
+    
     a.emit({ type: 'background', tasks: [] });
     a.emit({ type: 'tool', name: 'Bash', input: { command: 'grep -c timeout logs/*.log' } });
     a.call('answer_owner', { text: '37 Mal im September.' });
@@ -250,7 +250,7 @@ describe('a question the Koordinator looks up', () => {
     a.emit({ type: 'text', text: 'Still downloading.' });
     a.emit({ type: 'idle', background: 1 });
     a.emit({ type: 'background', tasks: [] });
-    // its last words are the answer after all
+    
     expect(await one).toEqual({ text: 'Still downloading.' });
     expect(a.closed).toBe(true);
     const two = ask();
@@ -277,12 +277,12 @@ describe('a look-up the usage limit stops', () => {
     let a = answerer();
     limit(a, 20);
     await settle();
-    // no answer that it failed: the sheet says when it goes on
+    
     const talk = () => board().snapshot().talk.at(-1)!;
     expect(talk().answer).toBeUndefined();
     expect(Date.parse(talk().limitedUntil!)).toBeGreaterThan(Date.now());
     expect(a.closed).toBe(false);
-    // Seismic restarts: the question is looked up again, runs into the limit again and waits anew
+    
     project.shutdown();
     project = open();
     await settle();
@@ -308,7 +308,7 @@ describe('a look-up the usage limit stops', () => {
     expect(a.spec.system).toContain('plan agent');
     limit(a, 20);
     await settle();
-    // in the card's conversation, without the error
+    
     expect(board().events(w4.id).at(-1)).toMatchObject({ kind: 'state', author: 'seismic' });
     expect(board().events(w4.id).at(-1)!.text).toStartWith('The usage limit is reached. Seismic looks this up by itself at ');
     expect(board().events(w4.id).some((e) => e.text.includes('hit your'))).toBe(false);
@@ -341,7 +341,7 @@ describe('a looked-up answer goes on', () => {
     project = open();
     const sessions = runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'answer_owner')).length;
     await say('und im Oktober?', {}, 'look_up', { question: 'And the October credits so far?', follows: `A${first}`, confirm: 'Ich schaue nach.' });
-    // one agent, resumed: it still has everything it read and computed
+    
     const a = answerer();
     expect(runtime.sessions.filter((s) => s.spec.tools.some((t) => t.name === 'answer_owner')).length).toBe(sessions + 1);
     expect(a.spec).toMatchObject({ resume: 'look-1', model: 'sonnet', effort: 'low', setting: { model: 'sonnet', effort: 'low' } });
@@ -368,7 +368,7 @@ describe('a looked-up answer goes on', () => {
     const second = answerer();
     const before = runtime.sessions.length;
     await say('und jenes?', {}, 'look_up', { question: 'Q3?', follows: `A${first}`, confirm: 'Moment.' });
-    // the Koordinator read it, but its agent waits for the turn before
+    
     expect(runtime.sessions.length).toBe(before);
     second.emit({ type: 'session', id: 'look-2' });
     second.call('answer_owner', { text: 'Zwei.' });
@@ -422,8 +422,8 @@ describe('a looked-up answer goes on', () => {
       { name: 'credits.csv', caption: 'Die Gutschriften je Monat' },
       { name: 'charts/price.html', caption: 'Preis je Stunde' },
     ]);
-    // served from the directory, a page sandboxed and reporting its height and allowed to read the
-    // files beside it (under its directory's key, see demo.test.ts); nothing outside it
+    
+    
     const files = 'http://127.0.0.1:4417/api/c/c1/threads/7/files/';
     const sentOn = serveAnswerFile(out, 'credits.csv', false, new Request(`${files}credits.csv`));
     expect(sentOn.status).toBe(302);
@@ -500,19 +500,19 @@ describe('a thread on a Question card', () => {
       ['owner', 'mach ein excel', 0],
       ['koordinator', 'Hier die Tabelle.', 1],
     ]);
-    // the sheet points to the card instead
+    
     expect(board().talk().filter((x) => x.thread === first).every((x) => x.movedTo === card.id)).toBe(true);
-    // moved again, it is the same card
+    
     expect(project.answers.toCard(first).id).toBe(card.id);
 
-    // the owner's words on the card go straight to that agent, with to_seismic for what asks Seismic
+    
     project.tell(card.id, 'und im Oktober?', [], false);
     expect(board().item(card.id)!.thread!.thinking).toBe(true);
     const a = answerer();
     expect(a.spec.resume).toBe('look-1');
     expect(a.spec.tools.map((t) => t.name)).toContain('to_seismic');
     expect(a.inbox[0]).toContain('und im Oktober?');
-    // what comes while it reads waits for its turn, unread until then, and can be taken back
+    
     project.tell(card.id, 'und November?', [], true);
     project.tell(card.id, 'und Dezember?', [], false);
     const [november, december] = board().events(card.id).slice(-2);
@@ -526,7 +526,7 @@ describe('a thread on a Question card', () => {
     const b = answerer();
     expect(b.inbox[0]).toContain('und November?');
     expect(b.inbox[0]).not.toContain('und Dezember?');
-    // read once its turn starts: after the answer it waited for
+    
     const answered = board().events(card.id).find((e) => e.text === 'Oktober: 12 ct.')!;
     expect(board().events(card.id).find((e) => e.id === november!.id)).toMatchObject({ readAfter: answered.id });
     b.call('answer_owner', { text: 'November: noch nichts.' });
@@ -576,7 +576,7 @@ describe('a thread on a Question card', () => {
     a.emit({ type: 'idle' });
     await settle();
     expect(board().events(card.id).filter((e) => e.kind === 'talk').map((e) => e.text).slice(-2)).toEqual(['und dezember?', 'Dezember: offen.']);
-    // the Koordinator hears it, and the sheet does not wait with it
+    
     expect(board().talk().at(-1)).toMatchObject({ answer: 'Dezember: offen.' });
     expect(board().talk().at(-1)!.unread).toBeUndefined();
   });
@@ -608,7 +608,7 @@ describe('a thread on a Question card', () => {
     await settle();
     expect(board().item(card.id)).toMatchObject({ hold: { reason: 'paused' }, thread: { answers: 2 } });
     expect(board().item(card.id)!.thread!.thinking).toBeUndefined();
-    // nothing answered it: the question stands last
+    
     expect(board().events(card.id).filter((e) => e.kind === 'talk').at(-1)!.text).toBe('und im Oktober?');
     project.shutdown();
     project = open();
@@ -661,7 +661,7 @@ describe('a thread on a Question card', () => {
     expect(board().item(card.id)!.thread).toEqual({ talk: card.thread!.talk, answers: 3, files: 1 });
     expect(board().events(card.id).filter((e) => e.kind === 'talk').at(-1)!.text).toBe('Oktober: 12 ct.');
 
-    // paused while it waits for the work: what it was asked stays for when it goes on
+    
     project.tell(card.id, 'und November?', [], false);
     const b = answerer();
     b.emit({ type: 'idle', background: 1 });
@@ -678,18 +678,18 @@ describe('a thread on a Question card', () => {
     const a = answerer();
     const sessions = runtime.sessions.length;
     a.emit({ type: 'background', tasks: [{ id: 'b1', description: 'Download 2024' }] });
-    // what comes while it works on its turn waits, unread
+    
     project.tell(card.id, 'mit Dezember', [], false);
     expect(board().events(card.id).at(-1)!.unread).toBe(true);
     expect(a.inbox).toHaveLength(1);
-    // its turn ends waiting for the download: those words go in now
+    
     a.emit({ type: 'text', text: 'The download runs.' });
     a.emit({ type: 'idle', background: 1 });
     await settle();
     expect(a.inbox).toHaveLength(2);
     expect(a.inbox[1]).toContain('mit Dezember');
     expect(board().events(card.id).find((e) => e.text === 'mit Dezember')!.unread).toBeUndefined();
-    // the agent takes them in and waits again; what the owner writes now goes in at once, read
+    
     a.emit({ type: 'idle', background: 1 });
     project.tell(card.id, 'stopp, nimm 2023', [], false);
     const stop = board().events(card.id).at(-1)!;
@@ -697,7 +697,7 @@ describe('a thread on a Question card', () => {
     expect(a.inbox).toHaveLength(3);
     expect(a.inbox[2]).toContain('stopp, nimm 2023');
     expect(() => project.press(card.id, { action: 'unsay', id: stop.id })).toThrow('read these words already');
-    // one answer answers all of it, in the same session, and nothing waits for another turn
+    
     a.emit({ type: 'background', tasks: [] });
     a.call('answer_owner', { text: '2023 mit Dezember: 14 ct.' });
     a.emit({ type: 'idle', background: 0 });
@@ -716,17 +716,17 @@ describe('a thread on a Question card', () => {
     a.emit({ type: 'idle', background: 1 });
     project.tell(card.id, 'stopp, nimm 2023', [], false);
     expect(a.inbox).toHaveLength(2);
-    // the work ended and is about to wake the agent: what comes now waits for its turn, unread
+    
     a.emit({ type: 'idle', background: 1 });
     a.emit({ type: 'background', tasks: [] });
     project.tell(card.id, 'und Dezember?', [], false);
     expect(board().events(card.id).at(-1)!.unread).toBe(true);
     expect(a.inbox).toHaveLength(2);
-    // a message still to come keeps the turn going
+    
     a.emit({ type: 'idle', background: 0, more: true });
     await settle();
     expect(a.closed).toBe(false);
-    // the resumed session fails, and reports more after its error: the fresh session gets what the failed one heard
+    
     const sessions = runtime.sessions.length;
     a.emit({ type: 'error', message: 'boom' });
     a.emit({ type: 'idle', background: 1 });
@@ -743,7 +743,7 @@ describe('a thread on a Question card', () => {
     b.call('answer_owner', { text: '2023: 14 ct.' });
     b.emit({ type: 'idle', background: 0 });
     await settle();
-    // what waited goes in with the next turn
+    
     const c = answerer();
     expect(c.inbox[0]).toContain('und Dezember?');
     expect(c.inbox[0]).toContain('und Januar?');
@@ -814,14 +814,14 @@ describe('a thread on a Question card', () => {
     expect(explorer.inbox[0]).toContain('Seismic: Hier die Tabelle.');
     expect(explorer.inbox[0]).toContain('numbers.xlsx – Die Viertelstunden');
     expect(explorer.inbox[0]).toContain(answersDir(dir, project.id, first));
-    // the thread is where it starts, once: it is no idea discussed before
+    
     expect(explorer.inbox[0]).not.toContain('discussed before');
 
     const other = await lookedUp('noch eine frage', 'Another?', 'Ja.', 'look-9');
     const done = project.answers.toCard(other);
     board().archive([done.id]);
     expect(board().item(done.id)).toBeUndefined();
-    // put back by moving the thread again
+    
     expect(project.answers.toCard(other).id).toBe(done.id);
     expect(board().item(done.id)).toBeDefined();
   });
@@ -844,7 +844,7 @@ describe("a question asked in a plan's sheet", () => {
   test('goes straight to its plan agent, with its screenshots, and stands in the sheet with the answer', async () => {
     const shot = project.images.save(new Uint8Array([1, 2, 3]), 'image/png');
     const { a, talk } = await asked('Warum wartet W4 auf das Go?', 'Weil der Shop live geht.', 'plan-1', { images: [shot] });
-    // no Koordinator read the words first
+    
     expect(runtime.sessions.some(isKoordinator)).toBe(false);
     expect(a.spec.system).toContain('plan agent of the plan "PR-Loop"');
     expect(a.spec.tools.map((t) => t.name)).toContain('to_seismic');
@@ -855,9 +855,9 @@ describe("a question asked in a plan's sheet", () => {
     expect(talk).toMatchObject({ said: 'Warum wartet W4 auf das Go?', askedIn: plan().id, question: 'Warum wartet W4 auf das Go?', answer: 'Weil der Shop live geht.', answerBy: 'plan', images: [shot] });
     expect(talk.reply).toBeUndefined();
     expect(board().planHistory(plan().id).talk.map((x) => x.id)).toEqual([talk.id]);
-    // the sheet shows it in full: a page with it open needs no line above the microphone
+    
     expect(notices).toEqual([{ talk: talk.id, plan: plan().id, text: 'Weil der Shop live geht.' }]);
-    // seen there, it waits nowhere else
+    
     expect(talk.unread).toBe(true);
     board().readTalk([talk.id]);
     expect(board().talk().at(-1)!.unread).toBeUndefined();
@@ -871,7 +871,7 @@ describe("a question asked in a plan's sheet", () => {
     expect(a.inbox[0]).not.toContain('as Seismic understood it');
     expect(talk).toMatchObject({ thread: first.talk.id, follows: first.talk.id, replyTo: { talk: first.talk.id, part: 'answer' } });
 
-    // asked of Seismic with the plan open, or with one of its workstreams open
+    
     await say('was sagt der plan zu W1?', { plan: plan().id }, 'look_up', { question: 'What does the plan say about W1?', confirm: 'Ich schaue im Plan nach.' });
     const viaSeismic = board().talk().at(-1)!;
     await say('und hier?', { card: workstream().id }, 'look_up', { question: 'What is left on W4?', confirm: 'Moment.' });
@@ -891,7 +891,7 @@ describe("a question asked in a plan's sheet", () => {
     k.call('reply', { confirm: 'Mache ich gleich.' });
     k.emit({ type: 'idle' });
     expect(await passed).toBe('Seismic: Mache ich gleich.');
-    // Seismic's reply stands in its sheet, not in a card's log
+    
     expect(board().talk().at(-1)).toMatchObject({ said: 'Starte bitte W4.', reply: 'Mache ich gleich.' });
     expect(board().talk().at(-1)!.cardId).toBeUndefined();
   });
@@ -903,7 +903,7 @@ describe("a question asked in a plan's sheet", () => {
     project = open();
     await settle();
     const talk = board().talk().at(-1)!;
-    // Seismic never read the words, so they get no reply of its own at the restart
+    
     expect(talk.reply).toBeUndefined();
     const a = answerer();
     expect(a.inbox[0]).toContain('Was fehlt noch?');
@@ -933,7 +933,7 @@ describe('the agents at work in the sheet', () => {
     expect(talk().lookUpAgent).toEqual({ harness: 'claude', model: 'opus' });
     a.emit({ type: 'session', id: 'a-1', model: 'claude-sonnet-5-5' });
     expect(talk().lookUpAgent).toEqual({ harness: 'claude', model: 'claude-sonnet-5-5' });
-    // the Koordinator's own session is not the look-up's
+    
     expect(board().snapshot().koordinatorAgent).toEqual({ harness: 'claude', model: 'claude-opus-5-5' });
     a.call('answer_owner', { text: 'Der Plan sagt nichts dazu.' });
     a.emit({ type: 'idle' });

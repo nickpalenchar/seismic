@@ -1,19 +1,19 @@
-// What Seismic needs on this machine, as one list for the setup assistant: shown on the first start
-// (no projects.json in Seismic's home), in the app and the checkout alike, and later from the
-// settings. Claude Code with a login and git are needed; gh with a login is for pull requests;
-// voice and demos are the checks the settings sheet makes (voice-setup.ts, the demo skill's
-// setup.ts). What installs without admin rights Seismic installs at a click (Claude Code and uv with
-// their official installers, the speech recognition through the voice's installation, a demo's voice);
-// system software comes with the command for this platform, which Seismic runs at a click where it
-// needs no password (Homebrew, winget); a login opens a terminal. Then the first project: a
-// repository's folder, or a clone of one. A second page recommends more: on a Mac the pieces of
-// mobile development (Xcode, an iPhone simulator, Safari's remote automation).
+
+
+
+
+
+
+
+
+
+
 
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir, userInfo } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-// by its path: the package exports no package.json, which Bun imports all the same but TypeScript does not
+
 import sdk from '../../node_modules/@anthropic-ai/claude-agent-sdk/package.json';
 import { DOCUMENT } from '../core/files';
 import { blocksSaving, CLONES, firstProjectHarness, HARNESSES, HARNESS_SECTION, type Harness, type FirstProject, type MachineItem, type MachineJob, type MachineSection, type MachineSectionId, type MachineView, type SetupFolder, type SetupRepoCheck, type GitSetupPreview } from '../core/types';
@@ -37,10 +37,10 @@ import type { VoiceSetup } from './voice-setup';
 
 type Env = Record<string, string | undefined>;
 
-/** The Claude Code the Agent SDK brings, which Seismic was checked with. */
+
 export const CHECKED_CLAUDE: string = sdk.claudeCodeVersion;
 
-/** The official installers, which need no admin rights: in a shell, or in PowerShell on Windows. */
+
 const INSTALLERS = {
   claude: { unix: 'curl -fsSL https://claude.ai/install.sh | bash', win: 'irm https://claude.ai/install.ps1 | iex', url: 'https://code.claude.com/docs/en/setup' },
   agy: { unix: 'curl -fsSL https://antigravity.google/cli/install.sh | bash', win: 'irm https://antigravity.google/cli/install.ps1 | iex', url: 'https://antigravity.google/docs/cli' },
@@ -57,7 +57,7 @@ export function machineHint(id: 'claude' | 'agy' | 'uv' | 'git' | 'gh', platform
   const packages = { git: { winget: 'Git.Git', pacman: 'git', url: 'https://git-scm.com/downloads' }, gh: { winget: 'GitHub.cli', pacman: 'github-cli', url: 'https://cli.github.com' } }[id];
   const command =
     platform === 'darwin'
-      ? // git comes with the Command Line Tools, which install without Homebrew
+      ? 
         brew || id === 'gh'
         ? `brew install ${id}`
         : 'xcode-select --install'
@@ -73,11 +73,11 @@ export function machineHint(id: 'claude' | 'agy' | 'uv' | 'git' | 'gh', platform
   return { commands: command ? [command] : [], url: packages.url };
 }
 
-/**
- * Codex from Homebrew where the Mac has it, else from npm, which needs Node.js. On Windows npm brings
- * only a `.cmd` shim, which Codex workers cannot start: there the native `codex.exe` of a release,
- * named by SEISMIC_CODEX or put on the PATH.
- */
+
+
+
+
+
 const CODEX_URL = 'https://developers.openai.com/codex/cli';
 const CODEX_RELEASES = 'https://github.com/openai/codex/releases';
 export const codexHint = (platform: string, brew: boolean): NonNullable<MachineItem['install']> =>
@@ -95,9 +95,9 @@ export function runnable(command: string, env: Env, platform: string = process.p
   if (!at) return null;
   if (program === 'brew') return [at, ...args];
   if (program === 'winget') return [at, ...args, '--accept-source-agreements', '--accept-package-agreements'];
-  // the Command Line Tools' own dialog
+  
   if (command === 'xcode-select --install') return [at, ...args];
-  // the App Store's page of Xcode, and the simulator's iOS runtime, which Xcode downloads itself
+  
   if (program === 'open' && platform === 'darwin' && /^macappstore:\/\/\S+$/.test(args.join(' '))) return [at, ...args];
   if (command === 'xcodebuild -downloadPlatform iOS') return [at, ...args];
   return null;
@@ -144,7 +144,7 @@ export async function openTerminal(argv: string[], platform: string = process.pl
     return (await output('osascript', ['-e', 'tell application "Terminal"', '-e', 'activate', '-e', `do script "${script}"`, '-e', 'end tell'], env)) !== null;
   }
   if (platform === 'win32') return detached('cmd.exe', ['/c', `start "Seismic" cmd /k "${line}"`], { env, windowsVerbatimArguments: true });
-  // the window stays open once the login ends, so what it said can be read
+  
   const keep = ['sh', '-c', `${line}; printf '\\n'; read -r _`];
   for (const [program, ...flag] of [['x-terminal-emulator', '-e'], ['gnome-terminal', '--'], ['konsole', '-e'], ['xfce4-terminal', '-x'], ['kitty'], ['alacritty', '-e'], ['xterm', '-e']] as const) {
     const at = which(program, env);
@@ -189,14 +189,14 @@ export function tried(argv: string[], env: Env, timeout: number): Promise<{ ok: 
     const p = spawn(argv[0]!, argv.slice(1), { env, windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'], detached: NO_TTY });
     let stderr = '';
     const timer = setTimeout(() => {
-      // A descendant can keep stderr open after git exits. Report the timeout independently of close.
+      
       done({ ok: false, last: 'no answer in time' });
       p.stderr.destroy();
       if (!p.pid) return;
       if (NO_TTY) {
-        try { process.kill(-p.pid, 'SIGKILL'); } catch { /* the process group has already exited */ }
+        try { process.kill(-p.pid, 'SIGKILL'); } catch {  }
       } else {
-        // Windows has no Unix process group to signal. End the tree without waiting for taskkill.
+        
         const killer = spawn('taskkill.exe', ['/PID', String(p.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
         killer.on('error', () => p.kill('SIGKILL'));
         killer.unref();
@@ -214,10 +214,10 @@ export function tried(argv: string[], env: Env, timeout: number): Promise<{ ok: 
   });
 }
 
-/** Turn off Git's own prompts, including its configured askpass program. */
+
 const NO_PROMPT_ARGS = ['-c', 'core.askPass=', '-c', 'credential.interactive=false'];
 
-/** Whether gh is logged in to github.com itself: a plain `gh auth status` also passes on an Enterprise host's login alone. */
+
 const GH_LOGIN_STATUS = ['auth', 'status', '--hostname', 'github.com'];
 
 /**
@@ -228,20 +228,20 @@ async function withBatchSsh<T>(env: Env, run: (env: Env) => Promise<T>): Promise
   if (env.GIT_SSH !== undefined || env.GIT_SSH_COMMAND !== undefined) return run(env);
   const dir = mkdtempSync(join(tmpdir(), 'seismic-ssh-'));
   try {
-    // Keep the basename so Git recognizes this fallback as OpenSSH and passes its usual options.
+    
     const ssh = join(dir, 'ssh');
     writeFileSync(ssh, '#!/bin/sh\nexec ssh -o BatchMode=yes "$@"\n', { mode: 0o700 });
     return await run({ ...env, GIT_SSH: ssh });
   } finally {
-    // A timed-out child on Windows may still have the script open as its tree is being stopped.
-    try { rmSync(dir, { recursive: true, force: true }); } catch { /* keep the Git result */ }
+    
+    try { rmSync(dir, { recursive: true, force: true }); } catch {  }
   }
 }
 
-/** A command that must never ask the owner anything runs in a session of its own, without the terminal Seismic was started from (Windows has no such terminal to lose). */
+
 const NO_TTY = process.platform !== 'win32';
 
-/** How long reading a repository before its clone may take. */
+
 const REPO_CHECK_MS = 20_000;
 
 /** The folder a request names, as an absolute path. */
@@ -251,7 +251,7 @@ function folderOf(input: unknown): string {
   return resolve(expandHome(path.trim()));
 }
 
-/** The marker of a project the assistant created: once it runs, it gets a first card that says what to try. */
+
 export const WELCOME_FILE = 'welcome';
 
 /** Puts the first card on the project the assistant created, once, when it runs. */
@@ -263,7 +263,7 @@ export function welcome(home: string, projects: ProjectRuntime[]) {
   const c = projects.find((x) => x.id === id);
   if (!c) return;
   const items = c.board.items();
-  // right of the plan docs' plans the repository brings, at their top
+  
   const at = items.length ? { x: Math.max(...items.map((i) => i.x)) + 560, y: Math.min(...items.map((i) => i.y)) } : { x: 0, y: 0 };
   const { title, body } = c.board.t.welcome;
   c.board.create({ title, body, ...at });
@@ -284,22 +284,22 @@ export function cloneName(spec: string): string {
 export interface MachineOptions {
   home: string;
   config: Config;
-  /** Seismic's own voice check, with its installation; none in tests. */
+  
   voice?: VoiceSetup;
   env?: Env;
   platform?: string;
   arch?: string;
-  /** Whether this is the compiled binary, which runs the machine's Claude Code rather than the SDK's. */
+  
   compiled?: boolean;
-  /** Told of each check, as it starts and then which harnesses are installed and signed in (`HarnessCheck`). */
+  
   agents?: Pick<HarnessCheck, 'begin' | 'set' | 'known'>;
   onHarnessesChange?: (configured: Harness[]) => void;
 }
 
-/** What the check found, with how Seismic acts on each piece. */
+
 interface Found {
   sections: MachineSection[];
-  /** The Claude Code that logs in, and gh's login. */
+  
   logins: Partial<Record<MachineItem['id'], string[]>>;
 }
 
@@ -323,7 +323,7 @@ export class MachineSetup {
         throw new BadRequest('invalid', 'Finish setting up this harness and check again.');
       }
     }
-    // Read after the check so confirms for different harnesses can complete concurrently.
+    
     const configured = this.harnesses();
     saveHarnesses(this.o.home, connected ? [...configured, selected] : configured.filter((h) => h !== selected));
     const saved = this.harnesses();
@@ -344,7 +344,7 @@ export class MachineSetup {
 
   /** `only`: the sections to check, so the assistant can show each as soon as it is known; all where left out. */
   async view(only?: readonly MachineSectionId[]): Promise<MachineView> {
-    // as it was before the check: a job that ends meanwhile is followed once more, onto what it installed
+    
     const job = this.job && { ...this.job };
     const { sections } = await this.check(only);
     return {
@@ -360,11 +360,11 @@ export class MachineSetup {
 
   private async check(only?: readonly MachineSectionId[]): Promise<Found> {
     const wants = (id: MachineSectionId) => !only || only.includes(id);
-    // the logins as of now: a check that started later knows better, whichever answers first
+    
     const begun = this.o.agents?.begin();
     const env = this.env;
     const platform = this.platform;
-    // on Windows what was installed since the last check, by Seismic or by hand
+    
     await freshPath(env, platform);
     const arch = this.o.arch ?? process.arch;
     const family = platform === 'linux' ? linuxFamily() : null;
@@ -378,7 +378,7 @@ export class MachineSetup {
     const logins: Found['logins'] = {};
 
     const agentsPart = async (): Promise<MachineItem[]> => {
-      // Claude Code: the checkout's agents run on the SDK's own binary, the compiled one's on the machine's
+      
       const agents = claudeExecutable(env, this.o.compiled ?? COMPILED, platform);
       const own = which('claude', env);
       const items: MachineItem[] = [];
@@ -396,7 +396,7 @@ export class MachineSetup {
       try {
         account = JSON.parse(status ?? '{}');
       } catch {}
-      // A session may have failed to refresh while auth status still reports a login.
+      
       if (claude) logins.claudeLogin = [claude, 'auth', 'login'];
       if (account.loggedIn) items.push({ id: 'claudeLogin', state: 'ok', found: account.email ?? account.authMethod ?? '' });
       else if (claude) {
@@ -421,7 +421,7 @@ export class MachineSetup {
     const prPart = async (): Promise<MachineItem[]> => {
       const gh = (await output('gh', ['--version'], env))?.match(/gh version (\S+)/)?.[1];
       if (!gh) return [missing({ id: 'gh', install: hint('gh') }), { id: 'ghLogin', state: 'missing' }];
-      // github.com's login, as a clone from GitHub asks for it (`route`): one on an Enterprise host alone is none
+      
       const auth = await output('gh', GH_LOGIN_STATUS, env);
       if (auth) return [{ id: 'gh', state: 'ok', found: gh }, { id: 'ghLogin', state: 'ok', found: auth.match(/account (\S+)/)?.[1] ?? '' }];
       logins.ghLogin = ['gh', 'auth', 'login', '--hostname', 'github.com'];
@@ -438,7 +438,7 @@ export class MachineSetup {
         const phone = list?.match(/^\s+(iPhone[^(\n]*?)\s+\(/m)?.[1];
         items.push(phone ? { id: 'simulator', state: 'ok', found: phone } : missing({ id: 'simulator', install: { commands: ['xcodebuild -downloadPlatform iOS'] } }));
       }
-      // `safaridriver --enable` makes the user a member of the group that may start it
+      
       const user = env.USER ?? userInfo().username;
       if (!which('safaridriver', env)) items.push({ id: 'safaridriver', state: 'missing' });
       else if ((await output('dseditgroup', ['-o', 'checkmember', '-m', user, '_webdeveloper'], env)) !== null) items.push({ id: 'safaridriver', state: 'ok' });
@@ -446,14 +446,14 @@ export class MachineSetup {
         logins.safaridriver = ['safaridriver', '--enable'];
         items.push({ id: 'safaridriver', state: 'missing', install: { commands: ['safaridriver --enable'] }, act: 'terminal' });
       }
-      // AXe sends taps and swipes into the simulator, which Safari's remote automation cannot
+      
       const axe = which('axe', env);
       if (axe) items.push({ id: 'axe', state: 'ok' });
       else items.push(missing({ id: 'axe', install: brew ? { commands: [AXE_INSTALL], url: AXE_URL } : { commands: [], url: AXE_URL } }));
       return items;
     };
 
-    // Antigravity: installed and signed in (it can list its models), for tasks and code reviews that choose it
+    
     const agyPart = async (): Promise<MachineItem[]> => {
       const agy = installedAgy(env);
       if (!agy) return [missing({ id: 'agy', install: hint('agy') }), { id: 'agyLogin', state: 'missing' }];
@@ -462,9 +462,9 @@ export class MachineSetup {
       return [{ id: 'agy', state: 'ok', found: agy }, signedIn ? { id: 'agyLogin', state: 'ok' } : missing({ id: 'agyLogin', install: { commands: [shown([agy])] }, act: 'login' })];
     };
 
-    // Codex: installed and signed in (`codex login status`), for tasks and code reviews that choose it
+    
     const codexPart = async (): Promise<MachineItem[]> => {
-      // the native executable Codex workers start; npm's Windows shim counts as missing, as it does for them
+      
       const codex = installedCodex(env);
       const version = codex ? (await output(codex, ['--version'], env))?.match(/(\d+\.\d+\.\d+)/)?.[1] : undefined;
       if (!codex || !version) return [missing({ id: 'codex', install: codexHint(platform, brew) }), { id: 'codexLogin', state: 'missing' }];
@@ -474,7 +474,7 @@ export class MachineSetup {
     };
 
     const none = async (): Promise<MachineItem[]> => [];
-    // the demo check also tells what the voice shares with it, so the voice's section is checked with it
+    
     const [claudeItems, gitItems, codexItems, pr, agyItems, voice, demo, mobile] = await Promise.all([
       wants('needed') ? agentsPart() : none(),
       wants('git') ? gitPart() : none(),
@@ -489,7 +489,7 @@ export class MachineSetup {
     const signedIn: Record<Harness, boolean> = { claude: ok(claudeItems, 'claude', 'claudeLogin'), codex: ok(codexItems, 'codex', 'codexLogin'), agy: ok(agyItems, 'agy', 'agyLogin') };
     const checked = HARNESSES.filter((h) => wants(HARNESS_SECTION[h]));
     if (begun && checked.length) this.o.agents!.set(checked.filter((h) => signedIn[h]), begun, checked);
-    // uv by its own installer, which needs no admin rights; the rest as the voice and demo checks say
+    
     const ownUv = (i: MachineItem): MachineItem => (i.id === 'uv' && i.state === 'missing' ? missing({ id: 'uv', install: hint('uv') }) : i);
     const voiceItems = (voice?.items ?? []).map((i): MachineItem => {
       if (i.id === 'recognition' && i.state === 'later') return i.waits ? i : { ...i, act: 'install' };
@@ -498,7 +498,7 @@ export class MachineSetup {
     });
     const demoItems = (demo?.items ?? [])
       .map((i): MachineItem => (i.id === 'voice' && i.state === 'missing' ? { ...i, act: 'install' } : i.state === 'missing' ? ownUv(missing(i)) : i))
-      // what the voice needs too shows once, unless demos need more of it (ffmpeg with libx264)
+      
       .filter((i) => !voiceItems.some((v) => v.id === i.id && v.state === i.state));
     const mb = (items: MachineItem[]) => items.reduce((n, i) => n + (i.state === 'missing' || i.state === 'later' ? (i.mb ?? 0) : 0), 0);
     const sections: MachineSection[] = [
@@ -536,7 +536,7 @@ export class MachineSetup {
           await this.o.voice!.finished();
         } else if (section === 'demos' && id === 'voice') await installVoice(readDemoSettings(this.o.home), log, this.o.home);
         else await this.run(runnable(item.install!.commands[0]!, this.env, this.platform)!, log);
-        // the official installers' directory, which the first of them creates, and Windows' PATH
+        
         extendPath(this.env, this.platform);
         await freshPath(this.env, this.platform);
         console.log(`Seismic: ${id} installed`);
@@ -566,16 +566,16 @@ export class MachineSetup {
     return this.view();
   }
 
-  /** Runs a program for a job, its output's last line shown as it goes. */
+  
   /** `noTty`: without the terminal Seismic was started from, for a command that must not ask (`NO_TTY`). */
   private run(argv: string[], log: (line: string) => void, env: Env = this.env, noTty = false): Promise<void> {
-    // the command as the owner knows it, without git's `-c` options before its verb
+    
     const named = argv.filter((a, i) => a !== '-c' && argv[i - 1] !== '-c');
     return new Promise((done, fail) => {
       const p = spawn(argv[0]!, argv.slice(1), { env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], detached: noTty && NO_TTY });
       let last = '';
       const take = (d: Buffer) => {
-        // progress comes with carriage returns; the line is what it shows last
+        
         const lines = String(d).split(/[\r\n]+/).map((l) => l.trim()).filter(Boolean);
         if (lines.length) log((last = lines.at(-1)!));
       };
@@ -660,7 +660,7 @@ export class MachineSetup {
     const githubOrigin = /^https?:\/\/(?:www\.)?github\.com\//i;
     const github = short || githubOrigin.test(spec);
     const url = short ? `https://github.com/${spec}.git` : expandHome(spec.replace(githubOrigin, 'https://github.com/'));
-    // Git and SSH run without askpass or a controlling terminal. The default SSH command uses batch mode.
+    
     const { GIT_ASKPASS: _git, SSH_ASKPASS: _ssh, ...rest } = this.env;
     const env: Env = {
       ...rest,
@@ -670,7 +670,7 @@ export class MachineSetup {
       SSH_ASKPASS_REQUIRE: 'never',
     };
     const ghLogin = github && (await tried(['gh', ...GH_LOGIN_STATUS], env, 30_000)).ok;
-    // An empty helper resets all configured helpers, including URL-specific ones.
+    
     const helper = action === 'check' || ghLogin ? ['-c', 'credential.helper='] : [];
     if (ghLogin) helper.push('-c', 'credential.https://github.com.helper=!gh auth git-credential');
     return { argv: (verb) => ['git', ...NO_PROMPT_ARGS, ...helper, ...verb], url, github, ghLogin, env };
@@ -685,7 +685,7 @@ export class MachineSetup {
     const spec = typeof clone === 'string' ? clone.trim() : '';
     if (!spec) throw new BadRequest('invalid', 'a repository to clone');
     const { argv, url, github, ghLogin, env } = await this.route(spec, 'check');
-    // Git's credential diagnostics need to be recognizable regardless of the machine's locale.
+    
     const { ok, last } = await withBatchSsh({ ...env, LC_ALL: 'C' }, (gitEnv) =>
       tried(argv(['ls-remote', '--heads', '--', url]), gitEnv, REPO_CHECK_MS),
     );
@@ -729,7 +729,7 @@ export class MachineSetup {
     const onboarding = configured && { worker: { ...worker, harness: firstProjectHarness(configured, worker.harness) }, harnesses: configured };
     let next = [...this.o.config.current(), { repos: [{ path, ...(folder ? { git: false as const } : {}) }] }];
     let { problems, resolved } = await this.o.config.check(next, onboarding);
-    // a repository whose settings say clones gets two, so two cards can be worked on at once
+    
     if (!folder && resolved.at(-1)?.repos[0]?.workstations === 'clones') {
       next = [...next.slice(0, -1), { repos: [{ path, clones: CLONES }] }];
       ({ problems, resolved } = await this.o.config.check(next, onboarding));
@@ -737,8 +737,8 @@ export class MachineSetup {
     const problem = problems.find(blocksSaving);
     if (problem) throw new BadRequest(problem.code === 'notRepo' ? 'notRepo' : 'config', problem.detail);
     const project = resolved.at(-1)!.id;
-    // the welcome and the default agent go first, for the project as it starts with the save: one that fails to be written
-    // keeps the project from being saved, and a save that writes nothing takes both back. Once the project is saved they stand.
+    
+    
     const welcomeFile = join(this.o.home, WELCOME_FILE);
     const undo = agentsAsNow(this.o.home);
     let saved;

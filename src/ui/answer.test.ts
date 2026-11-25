@@ -25,10 +25,10 @@ describe('an answer', () => {
       words: 'Danke.\n\nSonst nichts.',
     });
     expect(readAnswer(answerText([format, whom], [[], ['Verwalter']], ''), [format, whom])).toEqual({ picks: [undefined, ['Verwalter']], words: '' });
-    // an option that starts like another, followed by a comma
+    
     const later = { text: 'Wann?', options: ['Jetzt', 'Jetzt, aber leise'] };
     expect(readAnswer('**Wann?** Jetzt, aber leise', [later]).picks).toEqual([['Jetzt, aber leise']]);
-    // words of their own, a question asked nowhere, an option it does not have, a line naming no question: nothing picked
+    
     for (const text of ['Lieber JSON.', '**Welches Format?** JSON', '**Wie viele?** 3\n\nGenau.', '**Welches Format?** CSV\nUnd PDF.'])
       expect(readAnswer(text, [format])).toEqual({ picks: [], words: text });
   });
@@ -56,13 +56,13 @@ describe('the owner’s own answer', () => {
 
   test('reads back as its question’s answer, after the options picked', () => {
     expect(readAnswer(answerText([format], [['JSON']], ''), [format])).toEqual({ picks: [['JSON']], words: '' });
-    // an option in quotes itself stays that option
+    
     const quoted = { text: 'Welches Format?', options: ['“JSON”', 'CSV'] };
     expect(readAnswer(answerText([quoted], [['“JSON”']], ''), [quoted]).picks).toEqual([['“JSON”']]);
     expect(readAnswer(answerText([quoted], [['CSV', 'XML']], ''), [quoted]).picks).toEqual([['CSV', 'XML']]);
-    // one that starts like an option is still the owner's own, not that option
+    
     expect(readAnswer(answerText([format], [['CSV, aber mit Kopfzeile']], ''), [format]).picks).toEqual([['CSV, aber mit Kopfzeile']]);
-    // written over several lines, it stands on its question's line
+    
     expect(readAnswer(answerText([format, whom], answers([[OTHER], ['Vermieter']], ['JSON\n\noder XML']), 'Danke.'), [format, whom])).toEqual({
       picks: [['JSON oder XML'], ['Vermieter']],
       words: 'Danke.',

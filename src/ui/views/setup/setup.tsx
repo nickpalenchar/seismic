@@ -1,12 +1,12 @@
-/**
- * The setup assistant, in steps: the agents the owner works with (Claude Code, Codex, Antigravity,
- * picked as several options), each with what it needs on this machine and git beside them; then the
- * model Seismic itself runs with, confirmed among the picked agents; then the
- * features that can wait (pull requests, voice, demos, mobile development); on the first start (no
- * project yet) it fills the page and ends with the first project, from a folder or a clone. Each piece
- * is installed at a click where Seismic can, with the command for the rest and a terminal for the
- * logins. Later the settings open it over the project, without the last step.
- */
+
+
+
+
+
+
+
+
+
 
 import { Fragment, type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { type AgentsView, CLOUD_PRESETS, CLOUD_VOICES, type CloudPreset, firstProjectHarness, type GitSetupPreview, needsGit, LARGE_FILE, type Language, type MachineItem, type MachineSection, type MachineSectionId, type MachineView, type MobileId, RECOMMENDED_SECTIONS, type SetupItem, type SetupRepoCheck, type VoiceSetupItem } from '../../../core/types';
@@ -71,7 +71,7 @@ export function SetupList<I extends SetupItem | VoiceSetupItem | MachineItem>({
     <ul className={setupListClass}>
       {items.map((i) => {
         const act = action?.(i);
-        // the speech recognition, there but too slow on this machine
+        
         const slow = 'speed' in i && typeof i.speed === 'object' && i.speed.slow && !i.cloud?.used;
         return (
           <li key={i.id} className={cn(i.state, slow && 'slow', setupItemClass)}>
@@ -79,7 +79,7 @@ export function SetupList<I extends SetupItem | VoiceSetupItem | MachineItem>({
               {slow ? '!' : { ok: '✓', missing: '✗', later: '…' }[i.state]}
             </span>
             <span className={i.state === 'missing' ? 'c-name font-semibold' : 'c-name'}>{name(i)}</span>
-            {/* a speech recognition too slow here says so in the warning colour */}
+            { }
             <span className={slow ? 'text-warning text-xs m-0 [overflow-wrap:anywhere]' : 'hint'} title={i.found}>
               {state(i)}
             </span>
@@ -118,11 +118,11 @@ export function voiceState(i: VoiceSetupItem | MachineItem) {
   return (i.found && v.found[i.found]) ?? i.found ?? s.there;
 }
 
-/** Under the speech recognition's line: what was measured, the cloud's offer, each on a line of its own. */
+
 const voiceClass = 'c-voice flex flex-col items-start gap-1 w-full';
-/** Why the cloud or the measurement failed; in the configuration dialog in that dialog's size for errors. */
+
 const voiceErrorClass = 'text-destructive m-0 text-sm [#config_&]:mt-1.5 [#config_&]:text-sm';
-/** A row of the cloud's offer: the service, its address and model, the key's link and the test. */
+
 const cloudRowClass = cn(rowClass, 'gap-1.5');
 
 /**
@@ -145,7 +145,7 @@ export function RecognitionDetail({ item, busy, changed }: { item: VoiceSetupIte
   const measuring = speed === 'measuring';
   useEffect(() => {
     if (!measuring) return;
-    // one check at a time: the setup assistant's takes a while
+    
     let timer: ReturnType<typeof setTimeout>;
     let done = false;
     const tick = async () => {
@@ -237,26 +237,26 @@ export function RecognitionDetail({ item, busy, changed }: { item: VoiceSetupIte
 export function demoState(i: SetupItem | MachineItem) {
   const s = t.config.setup;
   if (i.state === 'missing') return i.found && i.need ? s.needs(i.found, i.need) : s.missing;
-  // a browser by its program's name; the whole path is in the tooltip
+  
   return (i.id === 'browser' ? i.found?.split(/[\\/]/).at(-1) : i.found) ?? s.there;
 }
 
 const ready = (items: MachineItem[] | undefined) => !!items?.length && items.every((i) => i.state !== 'missing');
 
-/** The agents the first step offers, in its order; Pi is not there yet. */
+
 const AGENTS = [...HARNESSES, 'pi'] as const;
 type Agent = (typeof AGENTS)[number];
-/**
- * The checks the list runs side by side, each shown as it answers: an agent's own first, git (which
- * every agent needs, and whose slowness holds back no agent's result), the features that can wait last.
- */
+
+
+
+
 const CHECKS: readonly (readonly MachineSectionId[])[] = [['needed'], ['git'], ['codex'], ['agents'], RECOMMENDED_SECTIONS];
 const SECTION_ORDER: readonly MachineSectionId[] = ['needed', 'git', 'codex', 'agents', ...RECOMMENDED_SECTIONS];
 /** The check that covers a section. */
 const checkOf = (id: MachineSectionId) => CHECKS.findIndex((c) => c.includes(id));
 const ALL_CHECKS = CHECKS.map((_, i) => i);
 const HARNESS_CHECKS = [...HARNESSES.map((h) => checkOf(HARNESS_SECTION[h])), checkOf('git')];
-/** The sections of the first step, whose blocks each have their own "Check again". */
+
 const OWN_CHECK_SECTIONS: readonly MachineSectionId[] = ['needed', 'git', 'codex', 'agents'];
 /**
  * The list with what a check of the sections `asked` found in place of what it held of them. The job
@@ -270,9 +270,9 @@ const merged = (was: MachineView | null, found: MachineView, asked: readonly Mac
   const job = newer ? found.job : was.job;
   return { ...rest, ...(job ? { job } : {}), sections: SECTION_ORDER.flatMap((id) => (asked.includes(id) ? found : was).sections.filter((x) => x.id === id)) };
 };
-/** How often the list checks again while a login it waits for is missing. */
+
 const LOGIN_POLL_MS = 15000;
-/** The assistant's steps: the agents, the features that can wait, and on the first start the first project. */
+
 type Step = 'agents' | 'seismic' | 'recommended' | 'first';
 
 /** The steps as a bar of segments, one per step, filled up to the current one; a step reached before is a click away. */
@@ -320,14 +320,14 @@ interface HarnessWizard {
 export function Setup({ first, onClose, wizard, notice }: { first?: boolean; onClose?: () => void; wizard?: HarnessWizard; notice?: ReactNode }) {
   const allChecks = wizard ? HARNESS_CHECKS : ALL_CHECKS;
   const [view, setView] = useState<MachineView | null>(null);
-  // the checks under way, by their index in CHECKS; all of them until the first answers come in, so a
-  // first check that fails (the server starting again) leaves no spinner behind
+  
+  
   const [checking, setChecking] = useState<readonly number[]>(allChecks);
   const [status, setStatus] = useState('');
   const [terminal, setTerminal] = useState<string | null>(null);
   const [step, setStep] = useState<Step>('agents');
   const [furthest, setFurthest] = useState(0);
-  // the agents the owner ticked or unticked; the others are picked once their check finds them ready
+  
   const [touched, setTouched] = useState<Partial<Record<Agent, boolean>>>({});
   const [pending, setPending] = useState<Harness[]>([]);
   const [confirming, setConfirming] = useState(false);
@@ -335,9 +335,9 @@ export function Setup({ first, onClose, wizard, notice }: { first?: boolean; onC
   const [connectionsError, setConnectionsError] = useState('');
   const [connectionsAttempt, setConnectionsAttempt] = useState(0);
   const reopened = !first && !wizard;
-  // in the desktop app the first start asks first how Seismic is to be used (how.tsx)
+  
   const [asking, setAsking] = useState(() => !!first && inApp() && !setUpHereChosen());
-  // only this machine's first start asks: a remote Seismic without projects goes on to set itself up
+  
   const here = onThisMachine(useDesks());
   useEffect(() => {
     if (!reopened) return;
@@ -360,17 +360,17 @@ export function Setup({ first, onClose, wizard, notice }: { first?: boolean; onC
   useEffect(() => {
     if (wizard) wizardHeading.current?.focus();
   }, [currentHarness]);
-  // the checks whose last run failed (the server starting again, say), by their index in CHECKS, with why:
-  // each shows that with a Check again of its own, as its sections may never have arrived
+  
+  
   const [broken, setBroken] = useState<Readonly<Partial<Record<number, string>>>>({});
   const failed = (e: unknown) => setStatus(failText(e, { detail: ['invalid', 'config'] }));
-  // Each check (an agent's, the features that can wait) runs on its own, so a slow one holds up no other.
-  // Of each, one at a time: one asked for while it runs follows it, so its sections end on what the
-  // machine looks like after the last ask. `version` counts the lists set from elsewhere (an install, the
-  // identity, the first project), so a check that started before one of them does not overwrite it.
+  
+  
+  
+  
   const flights = useRef(CHECKS.map(() => ({ inFlight: null as Promise<void> | null, again: null as Promise<void> | null })));
   const version = useRef(0);
-  // each check in the order it started, and the check whose job the list shows: an older check's answer leaves the job alone
+  
   const started = useRef(0);
   const jobFrom = useRef(0);
   const update = (v: MachineView) => {
@@ -403,7 +403,7 @@ export function Setup({ first, onClose, wizard, notice }: { first?: boolean; onC
           if (newer) jobFrom.current = seq;
           setView((was) => merged(was, v, asked, newer));
         },
-        // a check that fails keeps the list it had and says so beside what it checks
+        
         (e) => setBroken((was) => ({ ...was, [i]: failText(e, { detail: ['invalid', 'config'] }) })),
       )
       .finally(() => {
@@ -431,7 +431,7 @@ export function Setup({ first, onClose, wizard, notice }: { first?: boolean; onC
   const recheckOf = (id: MachineSectionId) => () => recheck([checkOf(id)]);
   useEffect(() => {
     recheck();
-    // back from a terminal or an installer: the list checks again
+    
     const back = () => document.visibilityState === 'visible' && recheck();
     window.addEventListener('focus', back);
     document.addEventListener('visibilitychange', back);
@@ -441,7 +441,7 @@ export function Setup({ first, onClose, wizard, notice }: { first?: boolean; onC
     };
   }, []);
   const running = !!view?.job?.running;
-  // an install follows the check of its own section; a job of no section (the first project) all of them
+  
   const jobSection = view?.job?.section;
   useEffect(() => {
     if (!running) return;
@@ -520,15 +520,15 @@ export function Setup({ first, onClose, wizard, notice }: { first?: boolean; onC
   const agentItems = (a: Agent) => (a === 'pi' ? [] : (sectionOf(HARNESS_SECTION[a])?.items ?? []));
   /** Whether the agent's check is under way, the first or a later one; one that failed is over, whatever it left. */
   const checkingAgent = (a: Agent) => a !== 'pi' && isChecking(HARNESS_SECTION[a]);
-  // Reopened setup checks the connected harnesses. New connections belong to the Harnesses wizard.
+  
   const offered = reopened ? connected ?? [] : wizard ? HARNESSES : AGENTS;
   const chosen = offered.filter((a) => touched[a] ?? (!wizard && a !== 'pi' && ready(agentItems(a))));
-  // an agent is configured once its own pieces and git are there: its Ready badge, the count and the steps after the first all go by this
+  
   const isConfigured = (a: Agent) => ready(agentItems(a)) && ready(gitItems);
   const configured = chosen.filter((a): a is Harness => a !== 'pi' && isConfigured(a));
-  // without a configured agent only the first step is open, however far the owner got before
+  
   const gated = !configured.length;
-  // Returning to either of the first two steps requires confirmation before going ahead again.
+  
   const reached = gated ? 0 : step === 'agents' || step === 'seismic' ? Math.min(furthest, 1) : furthest;
   const recommended = view?.sections.filter((x) => RECOMMENDED_SECTIONS.includes(x.id)) ?? [];
   const open = recommended.filter((x) => !ready(x.items));
@@ -538,24 +538,24 @@ export function Setup({ first, onClose, wizard, notice }: { first?: boolean; onC
   const go = (to: Step) => {
     if (gated && to !== 'agents') return;
     setStep(to);
-    // a new step starts at its top: over the project the body scrolls, on the first start the page
+    
     requestAnimationFrame(() => {
       if (body.current) body.current.scrollTop = 0;
       if (first) top.current?.scrollIntoView({ block: 'start' });
     });
     setFurthest((f) => Math.max(f, steps.indexOf(to)));
   };
-  // an agent that stops being configured (logged out, unpicked) takes the owner back to the first step
+  
   useEffect(() => {
     if (gated && step !== 'agents') go('agents');
   }, [gated, step]);
-  // A login done in a shell of its own (over SSH, say) brings no focus back to this page: while a login
-  // on the step shown is missing (those of the picked agents first, then the recommended ones), the list
-  // checks again by itself, whether or not Seismic could open a terminal for it.
+  
+  
+  
   const awaitsLogin = (i: MachineItem) => i.state === 'missing' && (i.act === 'login' || i.act === 'terminal');
   const shownItems = step === 'agents' ? chosen.flatMap(agentItems) : step === 'recommended' ? recommended.flatMap((x) => x.items) : [];
   const shownSections = wizard ? (currentHarness ? [HARNESS_SECTION[currentHarness], 'git'] as const : []) : step === 'agents' ? chosen.flatMap((a) => (a === 'pi' ? [] : [HARNESS_SECTION[a]])) : step === 'recommended' ? recommended.map((x) => x.id) : [];
-  // only the checks of the sections that wait for a login, each skipped while it runs already
+  
   const polling = [...new Set(shownSections.filter((id) => sectionOf(id)?.items.some((i) => (wizard || shownItems.includes(i)) && awaitsLogin(i))).map(checkOf))].sort().join(',');
   useEffect(() => {
     if (!polling) return;
@@ -722,7 +722,7 @@ export function Setup({ first, onClose, wizard, notice }: { first?: boolean; onC
             <CloseButton label={s.close} variant="ghost" className="setup-close ml-auto" onClick={onClose} />
           )}
         </header>
-        {/* over the project the dialog stays within the window: its head stays, the rest scrolls inside */}
+        { }
         <div ref={body} className={cn('setup-body', !first && 'flex-[1_1_auto] min-h-0 overflow-y-auto pt-0 pr-7 pb-6 pl-0')}>
           {notice}
           <Steps steps={steps} at={step} furthest={reached} onPick={go} />
@@ -839,11 +839,11 @@ function StepFooter({ callout, text, children }: { callout?: CalloutKind; text: 
   );
 }
 
-/** The assistant's pane, with commands in the page's mono. */
+
 const pageClass = 'setup-page max-w-[720px] pt-6 px-7 pb-6 [&_code]:font-mono [&_code]:text-xs';
-/** Its title, close under the kind above it. */
+
 const headingClass = 'mt-0.5 mb-0 mx-0';
-/** A block's head: its title, whether it is needed, its size and how much of it is still open. */
+
 const sectionHeadClass = 'setup-sh flex items-baseline gap-2 mb-0.5';
 
 /** The whole page on the first start; over the project from the settings, a dialog within the window. */
@@ -907,13 +907,13 @@ function LanguagePick() {
   );
 }
 
-/** A field of the first project: its name above it, small. */
+
 const fieldClass = 'block my-1.5 mx-0';
 const fieldLabelClass = 'block text-muted-foreground text-xs mb-0.5';
 const firstPathClass = 'w-full py-2 px-2';
-/** What went wrong with the first project, in a block of the assistant. */
+
 const firstErrorClass = 'text-destructive mt-1 mb-0 mx-0 text-sm';
-/** The buttons that go on. */
+
 const actionsClass = 'c-actions flex gap-2 mt-4';
 
 /** The first project: a repository's folder on this machine, or a clone of one. Seismic then starts again with it, and the page opens it. */
@@ -925,21 +925,21 @@ function FirstProject({ view, ready, agents, onView }: { view: MachineView; read
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [saved, setSaved] = useState<{ project: string; branch?: string; opens: boolean } | null>(null);
-  // the main branch of the folder named, once Seismic looked at it; or that it is a folder without git
+  
   const found = useFolder(mode === 'folder' ? path.trim() : '');
   const s = t.setup;
   const failed = (e: unknown) => setStatus(failText(e, { detail: ['invalid', 'config'] }));
   const job = view.job?.kind === 'clone' ? view.job : undefined;
-  // a clone that ended as the first project
+  
   useEffect(() => {
     if (job && !job.running && job.project) setSaved({ project: job.project, branch: job.branch, opens: !!job.opens });
   }, [job?.running, job?.project]);
   const branch = saved?.branch ?? found?.branch;
   const noGit = !!found?.noGit;
-  // Match the first-project check: a previous choice counts only if selected in this run.
+  
   const worker = useWorkerConfiguration();
   const harness = worker ? firstProjectHarness(agents, worker.agents.worker.harness) : undefined;
-  // once Seismic runs with the project (by itself, or started again by the owner), the page opens it
+  
   const opened = useRef(false);
   useEffect(() => {
     if (!saved) return;
@@ -991,7 +991,7 @@ function FirstProject({ view, ready, agents, onView }: { view: MachineView; read
           {branch && `${s.first.branch(branch)} `}{saved.opens ? s.first.opens : s.first.startAgain}</p>
       ) : (
         <>
-          {/* where the project is: two cards with a radio button each, the fields for the one chosen below */}
+          { }
           <RadioGroup className="setup-where grid grid-cols-2 gap-2.5 mt-3 mb-2.5 mx-0 [&>b]:col-span-full" labelledBy="setup-where" value={mode} onValueChange={(m) => setMode(m as typeof mode)}>
             <b id="setup-where">{s.first.where}</b>
             {(['folder', 'clone'] as const).map((m) => (
@@ -1063,7 +1063,7 @@ function useRepoCheck(view: MachineView) {
   const [terminal, setTerminal] = useState<'open' | 'none' | null>(null);
   const asked = useRef(0);
   const s = t.setup;
-  // the read under way, if any: a quiet one waits for it rather than superseding it
+  
   const pending = useRef<Promise<unknown> | null>(null);
   /**
    * `quiet`: a read again while the login is awaited, which keeps the line as it is until the answer
@@ -1098,10 +1098,10 @@ function useRepoCheck(view: MachineView) {
   useEffect(() => {
     if (loggedIn && awaiting) read(checked!.spec);
   }, [loggedIn]);
-  // A login done in a terminal of its own (over SSH, say) brings no focus back to this page, and the
-  // step lists no login that the page's own polling would wait for: while the line offers the login,
-  // it reads the repository again by itself, as the logins of the steps before check themselves.
-  // The next poll is set only once the one before has settled, so polls never pile up behind a slow read.
+  
+  
+  
+  
   useEffect(() => {
     if (!awaiting) return;
     const spec = checked!.spec;
@@ -1214,14 +1214,14 @@ export function useWorkerConfiguration(): AgentsView | null {
 /** The path, once Seismic found a folder without git there (where git can be set up); else empty. */
 export const useFolderWithoutGit = (path: string) => (useFolder(path)?.noGit ? path : '');
 
-/** A line of text in the offer to set up git. */
+
 const gitLineClass = 'hint my-1 mx-0';
-/** A choice of the offer: a frame with its title and what it means. */
+
 const gitChoiceClass = 'git-choice grid gap-1 [align-content:start] text-left bg-transparent py-2.5 px-3 border border-border rounded-lg cursor-pointer [&:hover:not(:disabled)]:border-foreground';
-/** What the first commit holds, in two columns where there is room. */
+
 const gitEntriesClass = 'git-entries list-none my-1.5 mx-0 p-0 max-w-[640px] [columns:2_260px] gap-x-6';
 
-// what stays out, listed up to this many
+
 const IGNORED_SHOWN = 12;
 
 /**
@@ -1272,7 +1272,7 @@ export function GitSetup({ path, confirm, gitOnly, onDone, onFolder }: { path: s
           ) : (
             <p className={gitLineClass}>{s.none}</p>
           )}
-          {/* use the folder as it is, or set up git there; each with what it means */}
+          { }
           <div className="git-choices grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-2.5 max-w-[720px] my-1.5 mx-0">
             {!gitOnly && (
               <button className={gitChoiceClass} disabled={!!busy} onClick={onFolder}>

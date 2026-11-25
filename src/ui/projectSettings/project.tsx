@@ -1,9 +1,9 @@
-// A project's entry in Seismic's configuration: its name and icon, old names, its repositories with
-// their paths (and git set up in a folder without it), and its place in the list of projects. The
-// settings sheet edits a running project's under "Configuration"; "+ New project" makes one in a
-// pop-up. Unlike the sheet's other sections, the entry is a draft with a Save button: a new path or a
-// repository added or removed starts or stops agents, so it applies once the owner says so. The whole
-// configuration is checked (`POST /api/config/check`) and saved (`PUT /api/config`) with it.
+
+
+
+
+
+
 
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { blockingProblems, type ConfigChecked, type ConfigView, type FilledClones, type ProjectConfig, restartsAgents, withClones } from '../../core/types';
@@ -24,13 +24,13 @@ import { entryDraft, type EntryDraft, mergedEntry, withEntry } from './entry';
 import { showSettingsAt } from './focus';
 import { cn } from 'cn';
 
-/** What the entry is read from: the configuration as saved, the entry's place in it, and the check of it. */
+
 interface Loaded {
   view: ConfigView;
-  /** Its place among the projects; the length of the list for a new one. */
+  
   at: number;
   saved: ConfigChecked | null;
-  /** The entry as saved, or a new one with Project defaults. */
+  
   entry: EntryDraft;
 }
 
@@ -46,9 +46,9 @@ function useProjectEntry(project: string | null, on: boolean) {
   const [loadError, setLoadError] = useState('');
   const [checkFailure, setCheckFailure] = useState<{ draft: string; message: string } | null>(null);
   const [busy, setBusy] = useState(false);
-  // the entry the last check was of: until the edit is checked, nothing goes by the check before
+  
   const [checkedOf, setCheckedOf] = useState('');
-  // a repository added here whose settings say clones gets as many as the first project's, until existing ones are listed
+  
   const filled = useRef<FilledClones>(new Map());
   const load = async () => {
     const view = await getConfiguration();
@@ -102,7 +102,7 @@ function useProjectEntry(project: string | null, on: boolean) {
     const at = resolved.findIndex((r) => r?.id === project);
     return at < 0 ? null : { projects, at };
   };
-  // The preview and save both validate the path with the current repository settings.
+  
   const seq = useRef(0);
   const check = async (draft: EntryDraft) => {
     const n = ++seq.current;
@@ -121,7 +121,7 @@ function useProjectEntry(project: string | null, on: boolean) {
       if (n !== seq.current) return;
       setChecked({ result, at: now.at });
       setCheckedOf(of);
-      // A changed path still belongs to an existing row. Only new rows get a default clone count.
+      
       const known = draft.repos.filter((r) => r.originalPath !== null);
       const next = withClones([candidate], [...now.projects, { repos: known }], [result.resolved[now.at] ?? null], filled.current);
       if (next) setEntry({ ...draft, repos: draft.repos.map((r, i) => r.originalPath === null ? { ...next[0]!.repos[i]!, originalPath: null } : r) });
@@ -137,7 +137,7 @@ function useProjectEntry(project: string | null, on: boolean) {
       ++seq.current;
     };
   }, [on, serialized, loaded]);
-  // the edit is written down as it changes, and forgotten once it is as saved
+  
   useEffect(() => {
     if (project !== null && loaded && entry) keepConfigDraft(draftSession, `project:${project}`, entry, loaded.entry);
   }, [JSON.stringify(entry), loaded]);
@@ -169,7 +169,7 @@ function useProjectEntry(project: string | null, on: boolean) {
         return null;
       }
       const list = withEntry(now.projects, now.at, mergedEntry(entry, now.projects[now.at]));
-      // checked as it goes, not as it was a moment ago: the id the project gets is this check's, and a problem the edit just made holds the save
+      
       const c = await api.checkConfig(list);
       validating = false;
       ++seq.current;
@@ -177,8 +177,8 @@ function useProjectEntry(project: string | null, on: boolean) {
       setCheckedOf(JSON.stringify(entry));
       if (blockingProblems(c.problems, (i) => i === now.at).length) return null;
       const { saved: { restarting, applied } } = await saveConfiguration(list);
-      // The saved entry can include server-generated old names and fresher repository fields.
-      // The draft that produced it has been saved even when its JSON differs from that entry.
+      
+      
       if (project !== null) {
         keepConfigDraft(draftSession, `project:${project}`, null, null);
         if (!restarting) await load();
@@ -296,7 +296,7 @@ function useLeaveGuard(unsaved: boolean, discard: () => void): [ReactNode, (proc
           if (!asking || current.current !== asking) return;
           asking.dismiss(false);
           discard();
-          // discarded: what goes on asks nothing more of it
+          
           release();
           asking.proceed();
         },
@@ -310,15 +310,15 @@ function useLeaveGuard(unsaved: boolean, discard: () => void): [ReactNode, (proc
 }
 
 /** The entry's fields: its name, old names and repositories, with the problems of the project and of the configuration as a whole. */
-function EntryFields({ e, pin, fresh, onShowProject, onNavigate }: { e: Entry; pin?: string; /** A new project: a path not typed yet is no problem to show, only one to fill in. */ fresh?: boolean; onShowProject?: ((id: string) => void) | undefined; onNavigate?: () => void }) {
+function EntryFields({ e, pin, fresh, onShowProject, onNavigate }: { e: Entry; pin?: string;  fresh?: boolean; onShowProject?: ((id: string) => void) | undefined; onNavigate?: () => void }) {
   if (!e.loaded || !e.entry) return e.loadError
     ? <EntryCheckError message={t.projectSettings.loadFailed(e.loadError)} retry={e.retryLoad} />
     : <p className="hint">{t.config.loading}</p>;
   const { loaded, entry, at, shown, problems } = e;
   const nameOf = (n: number) => shown?.resolved[n]?.name ?? shown?.projects[n]?.name;
   const conflicts = problems.flatMap((p) => {
-    // The checker reports duplicate names on the later entry. The earlier entry's editor
-    // can cause the conflict too, so it needs the same explanation and destination.
+    
+    
     if (p.code !== 'nameTaken' || p.ofProject !== at || p.project === undefined) return [];
     const name = nameOf(p.project);
     return name ? [{ ...p, project: at, of: name, ofProject: p.project }] : [];
@@ -420,19 +420,19 @@ export function ProjectEntrySection({ project, on, onShowProject }: { project: s
 export function NewProjectDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const e = useProjectEntry(null, open);
   const l = t.projectSettings;
-  // something typed in: closing the pop-up (Cancel, Esc) or leaving the page asks first
+  
   const typed = open && !!e.entry && !!e.loaded && JSON.stringify(e.entry) !== JSON.stringify(e.loaded.entry);
   const [question, ask, release] = useLeaveGuard(typed, () => {});
-  // with the entry as typed checked: the project's id, which the page goes to, is the check's
+  
   const ready = !!e.entry && e.entry.repos.some((r) => r.path.trim()) && !!e.shown && !e.pending && !e.blocking.length && !e.busy;
   const create = async () => {
     const made = await e.save();
     if (!made) return;
-    // made: nothing is lost by going to it
+    
     release();
     onClose();
     if (!made.id) return;
-    // a restart reloads the page by itself; the new project's page is where it comes back
+    
     if (made.restarting) location.assign(projectPath(made.id));
     else goTo(projectPath(made.id));
   };

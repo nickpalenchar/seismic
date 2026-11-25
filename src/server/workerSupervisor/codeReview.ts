@@ -1,14 +1,14 @@
-/**
- * The code review of a card's work where its project reviews work:
- * a separate, read-only agent of the "Code reviews" group reads the
- * branch's diff against main the repository's way and adds graded items to the card's one running
- * list, which its Review tab shows; it also verifies what the worker resubmitted as fixed and
- * reopens what regressed or is not fixed. It starts with each handover (`auto`) or on the owner's
- * "Start code review" (`manual`), where a handover that resubmits fixes starts the review verifying
- * them by itself; a handover that changes the branch makes the review before it
- * stale. On an item that needs them the owner decides "Fix it" (the card's worker fixes it) or "As a
- * follow-up task", or ignores it, with the card's one Send, as on a review card.
- */
+
+
+
+
+
+
+
+
+
+
+
 
 import { BadRequest, type Board, codeReviewOf, type StoredCodeReview } from '../board';
 import { type AgentRuntime, type AgentSession } from '../runtime';
@@ -21,25 +21,25 @@ import type { DueRestart } from '../llms/agents/worker/restartNotices';
 import { restartNotice } from '../llms/prompts/restartNotice';
 import { reviewerAgent } from '../llms/agents/review/reviewerAgent';
 
-/** How much of the diff the review agent gets in its brief; it reads the files themselves beyond that. */
+
 const DIFF_LIMIT = 150_000;
 const MAX_NEW_ITEMS = 30;
 
 export interface CodeReviewOptions {
   board: Board;
-  /** Runs the review agent, in the harness, model and effort of the "Code reviews" group. */
+  
   runtime: AgentRuntime;
   agentSetting?: () => AgentSetting;
   workstations: Pick<CardWorkstations, 'diff'>;
-  /** On a project with several repositories: the one whose cards these are. */
+  
   repo?: string;
 }
 
 /** The code reviews of the cards of one repository: their agents while they run, and what the owner decides on their findings. */
 export class CodeReviews {
-  /** The review agent of each card while it runs, told apart from one before it by `run`; `told`: it heard of a restart that is due. */
+  
   private running = new Map<string, { session?: AgentSession; run: object; told?: boolean }>();
-  /** The cards whose review paused for a restart that is due, or waits for it to start: they go on once it happened, or is off. */
+  
   private paused = new Set<string>();
   private restart: DueRestart | null = null;
   private shut = false;
@@ -78,7 +78,7 @@ export class CodeReviews {
       if (!i.review?.codeReview || (this.o.repo && i.repo !== this.o.repo)) continue;
       const c = codeReviewOf(this.o.board.row(i.id));
       if (c?.pending) {
-        // git had not told the commit yet: the review starts now, as the handover would have started it
+        
         if (this.waits(i.id)) {
           if (c.pendingStart) this.startPending(i.id, c);
           else void this.handedOver(i.id, c.handover, 'auto', true);
@@ -96,7 +96,7 @@ export class CodeReviews {
         this.resume(i.id);
       } else this.finish(i.id, null, undefined, this.o.board.t.worker.codeReviewInterrupted);
     }
-    // items waiting under review after a review that is done (resubmitted as it ended, or carried over from an older list): the next review verifies them, in either mode
+    
     for (const i of this.o.board.items()) {
       if (!i.review?.codeReview || (this.o.repo && i.repo !== this.o.repo) || this.running.has(i.id)) continue;
       const c = codeReviewOf(this.o.board.row(i.id));
@@ -122,11 +122,11 @@ export class CodeReviews {
       if (had) this.o.board.work(cardId, { review: { codeReview: null, items: [] } });
       return;
     }
-    // A pending lookup has already resubmitted its handover's fixes; a verification lookup has no handover to resubmit.
+    
     const resubmitted = resumePending ? [] : this.resubmit(cardId, this.items(cardId).filter((i) => i.status === 'fixing').map((i) => ({ number: i.number })), 'worker', handover).done;
-    // verifying the fixes is the end of a review the card has: it starts by itself in manual mode too
+    
     const starts = mode === 'auto' || this.items(cardId).some((i) => i.status === 'underReview');
-    // the review starts once git has told the commit; until then the card already counts as under review
+    
     const pendingId = crypto.randomUUID();
     if (starts && had) {
       const { pendingStart: _, ...rest } = had;
@@ -135,19 +135,19 @@ export class CodeReviews {
     else if (starts) this.save(cardId, { mode, handover, pending: true, pendingId });
     this.paused.delete(cardId);
     const ws = this.o.board.row(cardId).workstation;
-    // awaited also without a workstation: the handover is recorded before anything starts
+    
     const head = await (ws ? gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : Promise.resolve(undefined));
     if (this.shut || !this.o.board.item(cardId)) return;
-    // a newer handover came while git answered: its own continuation decides, and keeps the card pending until then
+    
     if (starts && codeReviewOf(this.o.board.row(cardId))?.pendingId !== pendingId) return;
     const now = codeReviewOf(this.o.board.row(cardId)) ?? had;
     let review = now?.review;
-    // a review still running for an earlier commit is stale before it ends: it stops, and leaves nothing
+    
     if (review?.state === 'running' && (!head || review.head !== head)) {
       this.stopSession(cardId);
       review = undefined;
     }
-    // the same commit reviewed, or under review: the review stands for this handover, unless items wait under review that it does not verify
+    
     const unverified = this.items(cardId).some((i) => i.status === 'underReview' && !(review?.state === 'running' && review.scope?.includes(i.number)));
     const same = !!review && !!head && review.head === head && !resubmitted.length && !unverified;
     if (review && same) review = { ...review, handover };
@@ -198,7 +198,7 @@ export class CodeReviews {
    */
   start(cardId: string, handover?: number, setting?: AgentSetting): void {
     if (this.shut) throw new BadRequest('notReview', 'the reviewer is shutting down');
-    // a card without a review (lost, or the project reviews no work) gets one on the owner's word, in manual mode
+    
     const c = codeReviewOf(this.o.board.row(cardId)) ?? (handover === undefined ? null : ({ mode: 'manual', handover } satisfies StoredCodeReview));
     if (!c) throw new BadRequest('notReview', 'the card has no handover to review');
     if (c.pending) throw new BadRequest('notReview', 'the review is starting already');
@@ -277,7 +277,7 @@ export class CodeReviews {
         next = moved(next, e.number, 'underReview', who, e.note, handover !== undefined ? { handover } : {});
         noted.push(i.number);
       } else if (i.status === 'underReview' || i.status === 'fixed') refused.push(`#${i.number} is ${i.status === 'fixed' ? 'fixed' : 'under review'} already`);
-      // the task the owner chose for it is owed first: once made, the item can go to the reviewer
+      
       else if (i.status === 'followUp' && !i.card) refused.push(`#${i.number} is to be a follow-up task first (follow_up_task)`);
       else next = moved(next, e.number, 'underReview', who, e.note, handover !== undefined ? { handover } : {});
     }
@@ -350,17 +350,17 @@ export class CodeReviews {
     const next = picked.reduce((all, p) => {
       const context = notes[p.i.number]?.trim();
       const next = moved(all, p.i.number, p.route === 'self' ? 'fixing' : 'followUp', 'owner', undefined, {}, context);
-      // context the owner cleared goes from the item
+      
       return context === '' ? next.map((i) => (i.number === p.i.number ? (({ context: _, ...rest }) => rest)(i) : i)) : next;
     }, items);
     this.setItems(cardId, next);
     const after = (n: number) => next.find((x) => x.number === n)!;
-    // the owner's context kept from an earlier choice goes with the item, unless this Send brings new context (which follows the note)
+    
     const kept = (f: ReviewItem) => `${described(f)}${f.context && notes[f.number] === undefined ? `\n    The owner wrote: ${f.context}` : ''}`;
     const fix = picked.filter((p) => p.route === 'self').map((p) => after(p.i.number));
     const later = picked.filter((p) => p.route === 'later').map((p) => after(p.i.number));
     const ids = new Set(later.map((f) => f.number));
-    // the review's own bundles, as far as they hold among the items the owner chose for later
+    
     const bundles = [...new Set(later.map((f) => [f.number, ...(f.with ?? []).filter((x) => ids.has(x))].sort((a, b) => a - b)).filter((b) => b.length > 1).map((b) => b.join(' + ')))];
     const others = next.filter((i) => !fix.some((f) => f.number === i.number));
     const group = (title: string, of: ReviewItem[]) => (of.length ? `${title}\n${of.map((i) => `${described(i)}${i.context ? `\n    The owner wrote: ${i.context}` : ''}${i.card ? `\n    Follow-up task: ${i.card}` : ''}`).join('\n')}` : '');
@@ -388,7 +388,7 @@ export class CodeReviews {
 
   /** A review of the card's latest handover, at `head`: its agent starts, any before it stops. */
   private begin(cardId: string, head: string | undefined): void {
-    // approved or stopped while git told the commit: nothing starts
+    
     if (this.shut || !this.waits(cardId)) return;
     const stored = codeReviewOf(this.o.board.row(cardId));
     if (!stored) return;
@@ -399,7 +399,7 @@ export class CodeReviews {
     const agent: AgentIdentity = { harness: setting.harness ?? 'claude', model: retry?.agent?.model ?? harnessChoice(setting).model };
     const next: NonNullable<StoredCodeReview['review']> = { handover: c.handover, ...(head ? { head } : {}), state: 'running', at: new Date().toISOString(), agent, setting };
     this.save(cardId, { ...c, runs: (c.runs ?? (c.review ? 1 : 0)) + 1, review: next });
-    // a restart that is due would cut it off: it starts once Seismic runs again
+    
     if (this.restart) return void this.paused.add(cardId);
     this.launch(cardId, next);
   }
@@ -407,7 +407,7 @@ export class CodeReviews {
   private settingFor(review?: StoredCodeReview['review']): AgentSetting {
     if (review?.setting) return review.setting;
     const fallback = this.o.agentSetting?.() ?? AGENT_DEFAULTS.review;
-    // Older reviews stored the setting only for overrides and omitted the model for account defaults.
+    
     if (!review?.agent) return fallback;
     const { harness, model } = review.agent;
     const setting = harness === (fallback.harness ?? 'claude') ? fallback : { ...AGENT_DEFAULTS.review, harness };
@@ -429,14 +429,14 @@ export class CodeReviews {
       review = { ...review, setting, agent };
       this.save(cardId, { ...c, review });
     }
-    // a session without the scope of its brief cannot have its verdicts checked against it: the review starts over
+    
     this.launch(cardId, review, review.scope ? review.session : undefined);
   }
 
   private launch(cardId: string, review: NonNullable<StoredCodeReview['review']>, resume?: string): void {
     const run = {};
     this.running.set(cardId, { run });
-    // the Workstations pill counts its agent at work
+    
     this.o.board.changed();
     const setting = this.settingFor(review);
     const model = review.agent?.model;
@@ -456,9 +456,9 @@ export class CodeReviews {
     if (this.running.get(cardId)?.run !== run) return;
     this.running.delete(cardId);
     this.paused.add(cardId);
-    // the Workstations pill no longer counts its agent at work
+    
     this.o.board.changed();
-    // the restart was called off meanwhile: it goes on at once
+    
     if (!this.restart) this.resume(cardId);
   }
 
@@ -469,10 +469,10 @@ export class CodeReviews {
     const diff = ws && !resume ? await this.o.workstations.diff(cardId, true).catch(() => null) : null;
     if (this.running.get(cardId)?.run !== run) return;
     const items = this.items(cardId);
-    // the items this run verifies: those under review when its brief was written, kept for a resumed session; one resubmitted meanwhile waits for the next review
+    
     const stored = codeReviewOf(b.row(cardId))?.review;
     const scope = resume && stored?.scope ? stored.scope : items.filter((i) => i.status === 'underReview').map((i) => i.number);
-    // a branch that no longer changes anything (the fix took out its last change) still gets its fixes verified, against the code as it is
+    
     if (!ws || (!resume && (!diff || (!diff.patch && !scope.length)))) return this.finish(cardId, run, undefined, b.t.worker.codeReviewNoDiff);
     const card = b.item(cardId);
     const handoverSummary = b.summary(cardId);
@@ -487,7 +487,7 @@ export class CodeReviews {
       ended = true;
       session?.close();
       const r = this.running.get(cardId);
-      // a session that does not resume (gone, or another harness now): the review starts over
+      
       if (resume && error && !limited && !recorded && r?.run === run) {
         this.running.delete(cardId);
         const c = codeReviewOf(b.row(cardId));
@@ -559,7 +559,7 @@ export class CodeReviews {
     if (!this.o.board.item(cardId)) return;
     const stored = codeReviewOf(this.o.board.row(cardId));
     if (!stored?.review || stored.review.state !== 'running') return;
-    // a newer handover still waiting for its review decision keeps its pending mark
+    
     const c = { ...stored, review: stored.review };
     const t = this.o.board.t.worker;
     const failed = recorded ? undefined : clip(oneLine(error ?? t.codeReviewNoFindings), 300);
@@ -567,12 +567,12 @@ export class CodeReviews {
     const { session: _, scope: __, ...review } = c.review;
     let result = { items: undefined as ReviewItem[] | undefined, raised: [] as ReviewItem[], fixed: 0, reopened: 0 };
     if (recorded) result = this.apply(cardId, recorded, { handover: review.handover, run: review.at });
-    // the list and the run's end are one write: a stop between them would resume a run whose results are already applied
+    
     const done: StoredCodeReview = { ...c, review: { ...review, state: failed ? 'failed' : 'done', ...(failed ? { error: failed } : {}), ...(failed && limited ? { limited: true as const } : {}) } };
     this.o.board.work(cardId, { review: { codeReview: done, ...(result.items ? { items: result.items } : {}) } });
     const count = (s: Severity) => result.raised.filter((f) => f.severity === s).length;
     this.o.board.log(cardId, 'state', 'seismic', failed ? t.codeReviewFailed(failed) : t.codeReviewDone(result.raised.length, Object.fromEntries(SEVERITIES.map((s) => [s, count(s)])) as Record<Severity, number>, result.fixed, result.reopened));
-    // items the worker resubmitted while it ran were not in its brief: the next review verifies them now
+    
     if (!failed) this.verifyLeft(cardId, review.at);
   }
 
@@ -638,7 +638,7 @@ export class CodeReviews {
         log: [{ at: now(), who: 'reviewer', to: 'raised', ...at }],
       }),
     );
-    // bundles hold across the whole list, in both directions: the new items may name old ones
+    
     const all = bundled(
       [...items, ...fresh],
       [...items.map((i) => [i.number, i.with ?? []] as [number, number[]]), ...given.map((g, k) => [first + k, g.with ?? []] as [number, number[]])],

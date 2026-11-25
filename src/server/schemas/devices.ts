@@ -5,33 +5,33 @@ import type { DeviceView } from '../../core/types';
 import type { Db } from './common';
 import { type Subscription, subscriptionOf } from '../webpush';
 
-/** The devices paired to reach Seismic from another machine, each known by the hash of its cookie. */
+
 export const devices = sqliteTable('devices', {
   id: text().primaryKey(),
   tokenHash: text('token_hash').notNull().unique(),
-  /** From its browser's user agent: "iPhone · Safari". */
+  
   name: text().notNull(),
   pairedAt: text('paired_at').notNull(),
   lastSeen: text('last_seen').notNull(),
-  /** Where it turned notifications on: its push subscription. */
+  
   push: text({ mode: 'json' }).$type<Subscription>(),
   enrollmentOrder: integer('enrollment_order').notNull().default(0),
 });
 
-/** A table of an earlier design's credential handover: databases have it, nothing reads or writes it. */
+
 export const deviceRenewals = sqliteTable('device_renewals', {
   deviceId: text('device_id').primaryKey().references(() => devices.id, { onDelete: 'cascade' }),
   nonce: text().notNull(),
   tokenHash: text('token_hash').notNull().unique(),
 });
 
-/**
- * Every credential a device was given once it was paired again, in the order given (`seq`; 0 the
- * one of its first pairing, `devices.token_hash`, until then the only one). Presenting one retires
- * those given before it, never those given after: an answer still on its way keeps working. A
- * replacement is made from the credential the pairing brought (`source_hash`, `nonce`), so the same
- * pairing again gets it again; a retired one lets nobody in, but still names its device.
- */
+
+
+
+
+
+
+
 export const deviceTokens = sqliteTable(
   'device_tokens',
   {
@@ -41,7 +41,7 @@ export const deviceTokens = sqliteTable(
     retired: integer({ mode: 'boolean' }).notNull().default(false),
     sourceHash: text('source_hash'),
     nonce: text(),
-    /** Null on credentials issued before presentation was recorded. */
+    
     presented: integer({ mode: 'boolean' }),
   },
   (t) => [
@@ -50,14 +50,14 @@ export const deviceTokens = sqliteTable(
   ],
 );
 
-// Keep the literal predicate so SQLite can use the partial index at query planning time.
+
 const activeToken = sql`${deviceTokens.retired} = 0`;
 
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
 /** The replacement credential of `token` with `nonce`: only who holds `token` can make it. */
 const replacement = (token: string, nonce: string) => createHmac('sha256', token).update(nonce).digest('base64url');
 
-/** A credential given in a pairing again. */
+
 interface Issued {
   token: string;
   hash: string;
@@ -85,7 +85,7 @@ export class Devices {
 
   /** The devices that get pushes, each with its subscription; one whose stored subscription is no valid subscription is cleared and left out. */
   pushes(): { id: string; name: string; push: Subscription; lastSeen: string }[] {
-    // The column is read as the raw text, so one malformed value fails only its own device.
+    
     const rows = this.db
       .select({ id: devices.id, name: devices.name, raw: sql<string>`${devices.push}`, lastSeen: devices.lastSeen })
       .from(devices)
@@ -133,7 +133,7 @@ export class Devices {
       return { ...device, seq: row.seq };
     }
     const first = this.db.select(enrollment).from(devices).where(eq(devices.tokenHash, hash)).get();
-    // once paired again, the first credential is in `device_tokens` too, which decides
+    
     if (!first || this.db.select({ seq: deviceTokens.seq }).from(deviceTokens).where(eq(deviceTokens.deviceId, first.device.id)).get()) return null;
     return { ...first, seq: 0 };
   }
@@ -176,7 +176,7 @@ export class Devices {
     return this.db.transaction((tx) => {
       tx.update(devices).set({ pairedAt: d.pairedAt, lastSeen: d.lastSeen }).where(eq(devices.id, d.id)).run();
       const history = eq(deviceTokens.deviceId, d.id);
-      // A pre-upgrade credential's delivery is unknown. Leave it valid and issue a trackable replacement.
+      
       const again = tx.select({ tokenHash: deviceTokens.tokenHash, seq: deviceTokens.seq, nonce: deviceTokens.nonce })
         .from(deviceTokens).where(and(history, activeToken, eq(deviceTokens.sourceHash, source), isNotNull(deviceTokens.presented)))
         .orderBy(desc(deviceTokens.seq)).limit(1).get();

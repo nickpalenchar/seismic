@@ -2,8 +2,8 @@ import { normalize, overlaps } from '../../core/path-overlap';
 import { workerConfig } from '../worker-config';
 import type { LandingNotice } from '../workstations';
 import { LimitAttempts, limitWatch } from '../limit-watch';
-// WorkerSupervisor: one agent session per card, in a leased clone. Seismic is the mailbox between the
-// worker and the owner; every exchange lands in the card's conversation.
+
+
 
 import { extensionSettings, type PermissionContext, type PermissionOption, serverExtensions as extensions } from '../../extensions/server';
 import type { PermissionUpdate } from '@anthropic-ai/claude-agent-sdk';
@@ -55,132 +55,132 @@ export interface WorkerOptions {
   board: Board;
   runtime: AgentRuntime;
   agentSetting?: () => AgentSetting;
-  /** Whether a Codex worker's approvals go to Codex's own automatic review rather than the owner; to the owner when left out. */
+  
   codexAutoReview?: () => boolean;
   workstations: CardWorkstations;
   adapter: RepoAdapter;
-  /**
-   * The settings the owner set for the repository on this machine, in front of its
-   * `.seismic/settings.json`: how work lands where they say so, whatever a card's branch changes.
-   */
+  
+
+
+
   machineSettings?: () => RepoSettings | undefined;
-  /** Whether the repository's demos are shared on a page now (its project's demo site, initialized); none when left out. */
+  
   shares?: () => boolean;
-  /** The vocabulary of tags the project names for its demo site; none where it names none. */
+  
   vocabulary?: () => PageTags | undefined;
-  /** The owner's preferences, added to every worker's instructions. */
+  
   preferences?: () => string;
-  /** The card starts: what the owner talked over with Seismic's answering agent before it (`Ahead.history`), which goes with the task; its agent ends. */
+  
   takeAsked?: (cardId: string) => string | undefined;
-  /** Called with everything the owner tells a worker, so lasting preferences can be learned. */
+  
   onOwnerInput?: (card: Item, kind: 'answer' | 'note' | 'feedback', text: string, context?: InputContext) => void;
-  /** On a project with several repositories: the one these workers work in. */
+  
   repo?: string;
-  /** The boards of the other projects this Seismic runs: a worker proposes a card in their repositories too. */
+  
   otherBoards?: () => Board[];
-  /** The worker reported the card's pull request: a demo shared before gets its link. */
+  
   onPrOpened?: (cardId: string) => void;
-  /**
-   * The owner approved the card's work (before it lands): its demo goes public where the
-   * repository's site publishes on approval. Returns the trailer for the commit that lands, for a
-   * card with a page (`Demo-Video: <url>`).
-   */
+  
+
+
+
+
   onApproval?: (cardId: string) => string | null;
-  /** The default branch has moved: the card's pull request was merged, or its work pushed there directly. */
+  
   onMerged?: (cardId: string) => void;
-  /** A review card's worker made a follow-up task (`followUpTask`): it goes to the Koordinator, to wait for the PR's merge. */
+  
   onFollowUpTask?: (taskId: string, reviewId: string) => void;
-  /** The card's work landed on the default branch without a pull request (`shipped` says where): its shared page links the commit. */
+  
   onLanded?: (cardId: string) => void;
-  /** A prototype was handed over: the idea's agent hears the summary. */
+  
   onPrototype?: (prototype: Item, summary: string, demo: string | undefined) => void;
-  /** A question on a prototype was answered: the idea's agent hears both, so its brief holds them. */
+  
   onPrototypeAnswer?: (prototype: Item, question: string, answer: string) => void;
-  /** How long an ended turn waits for a sign of the worker once none of its background work runs (any more). */
+  
   backgroundGrace?: number;
-  /** How long an ended turn waits at most while the worker's background work still runs. */
+  
   backgroundLimit?: number;
-  /** How long a worker asked to pause at a safe point has for it, before Seismic pauses it at once. */
+  
   pauseLimit?: number;
-  /** How long a card waits for the owner, its worker idle, before Seismic stops its workstation's app (`app.stop`). */
+  
   parkGrace?: number;
-  /** How long after the owner last opened the card's app Seismic leaves it running at the least, for them to try it by hand. */
+  
   tryGrace?: number;
-  /** How long the owner's comments on places in the demo video wait at most for them to finish watching. */
+  
   holdGrace?: number;
-  /** How long comments the owner finished watching with wait for an approval clicked at the same time, which takes them. */
+  
   releaseDelay?: number;
-  /** How often a session cut off from its machine asks whether that machine answers again; 30 s when left out. */
+  
   reconnectMs?: number;
-  /** How long after a usage limit lifts the worker goes on, so that clocks a little apart do not matter. */
+  
   limitMargin?: number;
-  /** How long a worker goes without a step before its card shows it thinking; THINKING_AFTER when left out. */
+  
   thinkingAfter?: number;
-  /** The files of the owner's screenshots, by id; unknown ones are left out. */
+  
   imageFiles?: (ids?: string[]) => string[];
-  /**
-   * Whether Seismic starts again for work that landed (`seismic`): it runs from this repository's
-   * checkout and the work changed code; or only this repository's agents do (`repo`): the work
-   * changed where they work (its own adapter, its `.seismic/settings.json`). `pushedFrom` is the
-   * workstation work was pushed from straight to the remote's main, which leaves the checkout as it is.
-   */
+  
+
+
+
+
+
   restartsFor?: (landed: Landed, pushedFrom?: string) => Promise<'seismic' | 'repo' | false> | 'seismic' | 'repo' | false;
-  /** Added to every worker's environment: where Seismic is (`SEISMIC_URL`), for a demo's narration. */
+  
   env?: Record<string, string>;
-  /** The narration language of the demo settings, for a repository that names none for its demos; the conversation language when left out. */
+  
   demoLanguage?: () => Language;
-  /** The artifacts a handover may bring where the repository names none (the demo settings'); all when left out. */
+  
   demoArtifacts?: () => HandoverArtifact[] | undefined;
-  /** The `Bash` rules of the allow list the owner confirmed for the repository `cwd` lies in: what a Codex worker's `seismic_run` runs without asking. None when left out. */
+  
   allowRules?: (cwd: string) => string[];
-  /**
-   * Makes a change to the repository `cwd` lies in as its owner (`PermissionPicked.asOwner` of an
-   * extension): the agents' configuration trusted before stays trusted with it. Without it,
-   * extensions change no repository.
-   */
+  
+
+
+
+
   asOwner?: <T>(cwd: string, change: (repo: { path: string; folder: boolean }) => Promise<T>) => Promise<T>;
-  /** Whether and when the project reviews work that lands on main; off when left out. */
+  
   codeReviews?: () => CodeReviewSetting;
-  /** Runs the code reviews' agents (the "Code reviews" group, in Claude Code or Codex); `runtime` when left out. */
+  
   reviewRuntime?: AgentRuntime;
   reviewAgentSetting?: () => AgentSetting;
-  /** The agent harnesses that can work on this machine (each where it is installed and signed in), for the allow list a setup card drafts; Claude Code alone when left out. */
+  
   harnesses?: () => string[];
-  /** The directory demos go into on this machine (the demo settings'); `~/demos` when left out. */
+  
   demoDirectory?: () => string;
-  /** A card's work ended (landed, closed without a change, a prototype discarded or built): its runs can be read now. */
+  
   onWorkEnded?: (cardId: string, workstation: string | null) => void;
-  /** Passes on to the Koordinator what the owner's words to a card's worker ask of Seismic (`to_seismic`); without it the worker has no such tool. */
+  
   toSeismic?: (cardId: string, request: string) => Promise<string>;
-  /** Where pull requests live: a review card's is read, commented on and merged through it. */
+  
   forge?: Forge;
-  /** The repository's checkout, where the forge's calls run for a card without a workstation on this machine. */
+  
   repoPath?: string;
-  /** The URL of the checkout's `origin`, where a review card's PR head is fetched from when it is that repository. */
+  
   remote?: string | null;
-  /**
-   * What happens to the checkout's main around a review card's merge where work lands on it
-   * (`Workstations`): before the merge, whether its unpushed commits would stop the pull of it; after,
-   * the pull, and where that stops, the landing of the rebase a worker resolved.
-   */
+  
+
+
+
+
   pulls?: Pick<Workstations, 'pullMain' | 'pushMain' | 'clashBeforeMerge' | 'landResolution' | 'landingOf'>;
-  /** How long pushing main for a review card waits for the owner's "Undo"; PUSH_HOLD_MS when left out. */
+  
   pushHold?: number;
-  /** How long Seismic waits between looks at whether the forge shows a review card's pushed commits as the PR's head; a second when left out. */
+  
   pushSettle?: number;
 }
 
-/** The owner's comments on places in the demo video that go with their approval, as the worker reads them. */
+
 type Comments = { text: string; images: string[] };
 
-/** A review card's branch against its pull request: its `head`, the PR's head on the forge (`base`), and the worker's own commits between them. */
+
 export interface OwnCommits {
   head: string;
   base: string;
   commits: number;
 }
 
-/** A comment on a place in the demo video held back while the owner watches (`CardRow.held`). */
+
 interface HeldComment {
   id: number;
   spoken?: true;
@@ -191,37 +191,37 @@ export const spotNote = (spot: Spot) => {
   return `[${spot.earlier ? 'Earlier demo video, one a later handover of yours replaced,' : 'Demo video'} at ${mmss(spot.at)}${spot.chapter ? `, chapter “${spot.chapter}”` : ''}${spot.narration ? `, narration: “${spot.narration}”` : ''}]`;
 };
 
-/** What is stored while landed work's worker finishes (`CardRow.landed`). */
+
 export interface LandedState {
   commit?: string;
-  /** Nothing landed: the work changed nothing in the repository, and the card is `done` rather than `live`. */
+  
   unchanged?: boolean;
-  /** Seismic starts again for the landing. */
+  
   restarts?: boolean;
-  /** The worker waits for that restart. */
+  
   waits?: boolean;
-  /** The card's demo is going out on its page: the worker waits to hear the page's address (`pageSettled`). */
+  
   page?: boolean;
-  /** Not a landing: the owner asked about the finished card, and its worker was resumed to answer. */
+  
   followUp?: boolean;
-  /** The follow-up runs in a temporary worktree (`followUpTree`), no clone being free: it goes once the follow-up ends. */
+  
   worktree?: boolean;
-  /** The follow-up's worker needs a full clone: without a workstation, it waits for the next free one (`takeClone`). */
+  
   needsClone?: boolean;
-  /**
-   * Not a landing of its own: pulling a review card's merged PR (`card`, PR `pr`) into the local
-   * main stopped on a conflict (`stopped`), and this card's worker resolves it (`resolvePull`).
-   */
+  
+
+
+
   resolve?: Resolving;
 }
 
-/** A pull after a review card's merge that a worker resolves (`LandedState.resolve`). */
+
 interface Resolving {
   card: string;
   pr: number;
   url: string;
   stopped: PullStopped;
-  /** The worker was reminded once that its turn ended with the pull unresolved. */
+  
   reminded?: true;
 }
 
@@ -229,7 +229,7 @@ interface Resolving {
 const settled = ({ restarts: _, waits: __, ...l }: LandedState): LandedState => l;
 
 
-/** What `f` returns; a workstation it cannot have is the request's error. */
+
 /** A path with its links resolved, or as it is where it cannot be (gone). */
 const realpathOr = (path: string) => {
   try {
@@ -260,7 +260,7 @@ async function asBadRequestAsync<T>(p: Promise<T>): Promise<T> {
 
 
 
-/** How an agent writes a proposal's task, for the agent who takes it on and has not seen `unseen`. */
+
 /** What became of a proposal the worker took back (`replaced`: by a new one), as it reads it. */
 const retractedText = (r: Retracted, replaced: boolean): string => {
   if (r.kind === 'unknown')
@@ -283,30 +283,30 @@ const retractedText = (r: Retracted, replaced: boolean): string => {
 };
 
 
-/** How the worker hears that the owner rewrote the text that goes onto the PR with its own changes. */
+
 const HELD_EDITED = 'While your handover waits, the owner edited the text that goes onto the pull request with the approval.';
 const heldEdited = (body: string) => `${HELD_EDITED} It reads now:\n\n${body}\n\nThat is the text that goes out with your commits. Should you hand over again with pr_draft, start from it and keep the owner's wording where nothing calls for a change.`;
 
-/** How the worker hears that its approved work could not land for something that is not its own to fix. */
+
 const NOT_LANDED = 'Since you handed over, the owner approved your work, but Seismic could not land it on main:';
 
-/**
- * The owner's words Seismic holds for the worker while it is in a turn (`CardRow.unheard`), each with
- * the lines of the log it carries: it takes them in with its next tool step's result, or, should
- * the turn end before one, as the message that starts the next.
- */
+
+
+
+
+
 export interface Unheard {
-  /** Informational news: accompanies a future turn, never starts one or enters a tool result. */
+  
   nextTurn?: true;
   said: number[];
   text: string;
   images: string[];
 }
 
-/**
- * Where the card's demo page stood when its worker last heard of it (`CardRow.page_heard`): going
- * online, online at its address (showing an earlier demo than the latest), or on no page.
- */
+
+
+
+
 export type PageHeard = { page: 'none' } | { page: 'going' } | { page: 'online'; url: string; stale?: true };
 
 function pageHeardOf(share: Share | undefined): PageHeard {
@@ -315,13 +315,13 @@ function pageHeardOf(share: Share | undefined): PageHeard {
   return { page: 'none' };
 }
 
-/** A hold that keeps what Seismic has for the worker (its pull request's review, the landing) until it goes on: a pause, the usage limit's, the owner's snooze. */
+
 type Holding = Extract<Hold, { reason: 'paused' | 'limit' | 'snoozed' }>;
 
-/**
- * A background task of the worker as Seismic follows it: whether it runs since an earlier turn, and
- * whether it serves the app the worker said runs, which wakes nobody: the worker waits for no app.
- */
+
+
+
+
 interface RunningTask extends BackgroundTask {
   earlier?: true;
   app?: true;
@@ -333,7 +333,7 @@ interface RunningTask extends BackgroundTask {
  * waits for) does not. The SDK links no task to the app, so this is what tells the two apart.
  */
 function appRunning(live: Live, url: string) {
-  // an address app_running refuses changes nothing
+  
   if (url && !workerConfig.appUrl.test(url)) return;
   for (const t of live.tasks.values()) {
     if (!url) delete t.app;
@@ -347,108 +347,108 @@ function onlyApp(live: Live): boolean {
   return live.tasks.size > 0 && [...live.tasks.values()].every((t) => t.app);
 }
 
-/** A step a script takes as a card's agent in a scratch Seismic (`standIn`), as the runtime would tell of it. */
+
 export type StandInStep = { type: 'tool'; name: string; input?: Record<string, unknown> } | { type: 'toolDone'; name: string; ok?: boolean } | { type: 'text'; text: string };
 
 export interface Live {
   session: AgentSession;
-  /** A Codex worker whose approvals Codex's automatic review decides, not the owner. */
+  
   autoReview?: boolean;
-  /** The machine its workstation is on (null: the one Seismic runs on), where it holds a slot while in a turn. */
+  
   host: string | null;
-  /** Whether the worker called `ask` or `ready_for_review` in the current turn. */
+  
   handedOver: boolean;
-  /** Whether the worker answered the owner with `reply` in the current turn. */
+  
   answered?: boolean;
-  /** Whether the worker had words for the owner in the current turn: said something, replied, or passed their words on to Seismic. */
+  
   spoke?: boolean;
-  /** Whether the worker snoozed in the current turn: its session ends with the turn, and its closing words repeat the snooze. */
+  
   snoozed?: boolean;
-  /** The worker's words since its reply: its words once a step follows them, its closing words at the turn's end. */
+  
   held?: string;
-  /**
-   * Whether the worker said or did anything in the current turn. A resumed session may first end a
-   * turn of its own, over what the previous session left (a background command the restart stopped).
-   */
+  
+
+
+
   acted: boolean;
   nudged: boolean;
   lastText: string;
-  /** The session died and ended the work it had started, the app in the workstation with it: nothing is left to park. */
+  
   ended?: true;
-  /** The error the worker's last turn failed with (not logged in, say); gone once it says or does something. */
+  
   failed?: string;
-  /** Between a message and the end of the turn it starts: a restart now would cut the worker off. */
+  
   busy: boolean;
-  /** What the worker is doing in its turn, as its card shows it (`doing.ts`); nothing yet: at work. */
+  
   doing?: Doing;
-  /** How many of its tool calls run: while one does, the agent waits for it rather than thinking. */
+  
   running?: number;
-  /** Set while the agent goes without a step: it then shows as thinking. */
+  
   quiet?: ReturnType<typeof setTimeout>;
-  /** Set while an ended turn waits for the worker's background work to wake it. */
+  
   waiting?: ReturnType<typeof setTimeout>;
-  /** Set while the worker waits for a usage limit to lift: it then goes on where it stopped. */
+  
   limitHit?: boolean;
   limitReset?: number;
-  /** The model named by this launch, if a session event arrived. */
+  
   model?: string;
-  /** How many of the worker's background tasks run, as the session last said. */
+  
   background: number;
-  /** Those tasks by the session's id, as the agent described them and since when Seismic saw them run, the oldest first: on the card while they run. */
+  
   tasks: Map<string, RunningTask>;
-  /** When the usage limit that stopped the worker lifts (or, not knowing, when to try again); gone once it works. */
+  
   limited?: number;
-  /** The card's status line from before the worker waited for the limit, back once it works again. */
+  
   statusBefore?: string | null;
-  /** Whether the card's open question is the worker having stopped, not a question it asked. */
+  
   stalled: boolean;
-  /** Whether the worker has heard of the restart that is due, so that it pauses for it. */
+  
   toldRestart?: boolean;
-  /** The card's status line from when the worker heard of the restart, back once it paused: a line about pausing is stale once it goes on. */
+  
   statusBeforeRestart?: string | null;
-  /** The worker ended a turn for the restart that is due: a turn that starts before the restart (its background work woke it) hears that Seismic still waits. */
+  
   restartPaused?: boolean;
-  /** The worker ended a turn for the owner's pause at a safe point while its background work runs on: a turn that work starts hears that the owner still waits. */
+  
   pauseHeld?: boolean;
-  /** The owner's preferences as the worker last heard them: in its instructions, or since then. */
+  
   preferences: string;
-  /** The plan the card is a workstream of, and the last of its decisions the worker has heard of. */
+  
   plan?: { id: string; decision: number };
-  /** Its setting was not pinned but taken from today's defaults (a legacy session resumed): what it runs on is known only from the session. */
+  
   guessed?: true;
-  /** Stands in for the agent of a card that has no session (`standIn`): its tools run all the same. */
+  
   standIn?: true;
-  /** A tool call waits for the owner's permission, the question the card waits on: settles it with their answer. */
+  
   permission?: (answer: PermissionAnswer) => void;
-  /** The permission asked last, which the next one waits for: the card holds one question at a time. */
+  
   asking?: Promise<unknown>;
-  /** The message that started the current turn, until the worker shows it has taken it: a session on another machine that is cut off before gets it again. */
+  
   pending?: { text: string; images: string[] };
 }
 
-/** What a tool call that needs the owner's permission was (`detail.permission`): a call allowed after its session was gone runs once it comes again. */
+
 interface AskedPermission {
   name: string;
   input: Record<string, unknown>;
-  /** The options extensions added to the question: which extension (its place in the registry), its words and its data. */
+  
   extra?: { extension: number; label: Record<Language, string>; data?: unknown }[];
 }
 
 
 
-/** The owner may pause the demo video for a while; a browser gone away leaves no other sign. */
+
 const HOLD_GRACE = 10 * 60_000;
-/** Closing the card with "Approve" also ends the watching: the approval takes the comments then. */
+
 const RELEASE_DELAY = 1500;
-/** A quick reply from the owner should not pay for starting the stack again. */
+
 const PARK_GRACE = 5 * 60_000;
-/** An app the owner opened to try by hand runs at least this long after, waiting card or not. */
+
 const TRY_GRACE = 30 * 60_000;
-/** How long Seismic waits for the app to answer when it looks whether it runs. */
+
 const PROBE_MS = 1500;
 /** Whether the card's status line is the one it shows while its worker waits for a usage limit, in either language. */
 const limitLine = (line: string | null | undefined) => !!line && LANGUAGES.some((l) => line.startsWith(MESSAGES[l].worker.limitStatus));
-/** Said of the owner's words when they came through speech recognition. */
+
 export const SPOKEN = 'spoken, so speech recognition may have misheard words';
 
 /**
@@ -473,7 +473,7 @@ export function givenAnswers(options: string[], picks: string[]): string[] {
 
 
 
-/** How often Seismic asks whether a machine whose connection was lost answers again. */
+
 const RECONNECT_MS = 30_000;
 
 const hostResumed = (host: string) =>
@@ -493,7 +493,7 @@ const REPO_RESTARTED =
 
 
 
-/** How long a worker asked to pause at a safe point has for it at most, as a due restart waits for it. */
+
 const PAUSE_LIMIT = 15 * 60_000;
 
 /** Tells a worker that the owner pauses it, so that it brings its work to a safe point first instead of being cut off. */
@@ -507,15 +507,15 @@ const pauseNotice = (limit: number) => {
 const describeSetting = (s: AgentSetting) =>
   s.harness === 'codex' && s.codex ? `Codex · ${s.codex.model} · ${s.codex.effort}` : s.harness === 'agy' && s.agy ? `Antigravity · ${s.agy.model}${s.agy.effort ? ` · ${s.agy.effort}` : ''}` : `Claude Code · ${s.model} · ${s.effort}`;
 
-/** Tells a worker that resumes its session on another model, after the usage limit stopped it, why. */
+
 const HANDED_OFF_SAME =
   'The usage limit of the model you ran on stopped your last turn, and the owner handed the card to another model: you run on it now, in the same session. Go on where you stopped.';
 
-/** Tells a worker that takes the card over in a new session, after the usage limit stopped the one before it, where things stand. */
+
 const HANDED_OFF_NEW =
   "You take this card over from another agent: the usage limit of its model stopped it, and the owner handed the card to you. Its work so far is in this workstation, on the card's branch (commits, and changes not committed yet); look at it before you go on, and finish the task.";
 
-/** Tells a worker about to pause at a safe point that the owner let it go on after all. */
+
 const PAUSE_TAKEN_BACK = 'The owner no longer wants you to pause: go on with your work.';
 
 const RESUMED =
@@ -577,78 +577,78 @@ const FOLLOW_UP =
 const IN_WORKTREE =
   "No clone of the repository was free, so this is a temporary worktree, where the repository's app and tooling may not run. If answering needs a full clone, call need_clone and end your turn: Seismic resumes you in the next free clone.";
 
-/** How long taking a card's workstation waits for its ended session to finish its step before git keeps its work. */
+
 const EVICT_SESSION_WAIT = 30_000;
 
 export class WorkerSupervisor {
   live = new Map<string, Live>();
   private limitAttempts = new Map<string, LimitAttempts>();
-  /** Turns a script plays for cards without a session in a scratch Seismic (`standIn` steps), shown as their workers'. */
+  
   private standIns = new Map<string, Live>();
-  /** Cards whose approved work is landing: the server answers meanwhile, but approving again is refused, and a restart waits. */
+  
   private landing = new Set<string>();
   private landingTurns = new Map<string, AbortController>();
   private landingActive = new Set<string>();
   private unwatchLandings?: () => void;
-  /** Cards approved while git tells what the approval does (`approve`). */
+  
   private approving = new Set<string>();
-  /** Review cards whose "Push main, adapt the PR" waits out its undo window (`pushMainFor`), or runs. */
+  
   private pushingMain = new Map<string, ReturnType<typeof setTimeout> | true>();
-  /** Merged cards whose branch git reads the added plan docs of: their workstation goes once it has (`finish`). */
+  
   private reading = new Map<string, Promise<void>>();
-  /** The files whose signs of a data-model change a card's handover was refused for once (`dataModels`): the next 'unchanged' for them stands. */
+  
   private dataBounced = new Map<string, Set<string>>();
-  /**
-   * Cards whose workstation git is making ready before their worker goes on (`whenReady`), with the
-   * machine it is on: the server answers meanwhile, the card holds a slot there, and a restart waits.
-   */
+  
+
+
+
   private preparing = new Map<string, { host: string | null; done: Promise<void> }>();
-  /** Whether these workers were shut down: a workstation made ready afterwards starts no worker. */
+  
   private shut = false;
-  /** Bumped whenever a card's work starts, stops or ends: replies and tool calls from before are stale. */
+  
   private generation = new Map<string, number>();
-  /** The restart that waits for workers, if one does. */
+  
   restart: DueRestart | null = null;
-  /** Cards that wait for the owner, until their grace runs out and Seismic stops their app. */
+  
   private parking = new Map<string, ReturnType<typeof setTimeout>>();
-  /** When the owner last opened a card's app to try it by hand, by card. */
+  
   private tried = new Map<string, number>();
-  /** The forwards to the apps of cards whose workstation is on another machine, by card: the address forwarded, from which workstation, and the port here it had last. */
+  
   private forwards = new Map<string, { app: string; workstation: string; forward: Forward; port?: number }>();
-  /** Cards whose stack is being stopped: a message to their worker waits until it is. */
+  
   private stopping = new Map<string, Promise<void>>();
-  /** Cards whose session on another machine was cut off, waiting for that machine to answer again. */
+  
   private reconnecting = new Map<string, ReturnType<typeof setTimeout>>();
-  /** When Seismic pauses at once a worker that the owner asked to pause at a safe point, by card. */
+  
   private pausing = new Map<string, ReturnType<typeof setTimeout>>();
-  /** Tool calls the owner allowed after the session that asked was gone (a restart), by card: each runs once, without asking again. */
+  
   private granted = new Map<string, Set<string>>();
-  /** Whether settling the leases is due once the change at hand is through (`settleLater`). */
+  
   private settling = false;
-  /** Worktrees their cards are done with that still hold uncommitted changes: they stay (`settleLeases`). */
+  
   private kept = new Set<string>();
-  /**
-   * Workstations git is freeing now (a landed card's, a discarded prototype's, one its card is done
-   * with), by path, with the card that held them: the server answers meanwhile, and a restart waits.
-   */
+  
+
+
+
   private freeing = new Map<string, { card: string; done: Promise<void> }>();
-  /** Cards whose clone the owner is taking from them (`evict`) while git keeps their work there: they do not start meanwhile. */
+  
   private evicting = new Set<string>();
-  /** Cards with comments on places in the demo video held back: when they go to the worker without the owner's sign. */
+  
   private holding = new Map<string, ReturnType<typeof setTimeout>>();
 
-  /** Ends the subscription to the board's changes. */
+  
   private unwatch: () => void;
 
-  /** The code reviews of the cards' work, where the project reviews work that lands on main. */
+  
   readonly reviews: CodeReviews;
 
   constructor(readonly o: WorkerOptions) {
     this.reviews = new CodeReviews({ board: o.board, runtime: o.reviewRuntime ?? o.runtime, workstations: o.workstations, ...(o.reviewAgentSetting ? { agentSetting: o.reviewAgentSetting } : {}), ...(o.repo ? { repo: o.repo } : {}) });
-    // what a worker does shows on its card while it is in a turn, and only then can it be paused
+    
     o.board.showTurns(() => this.turnsShown());
     this.unwatchLandings = o.workstations.watchLandings?.((notice) => this.landingNotice(notice));
-    // a forward to a card's app ends once the card no longer offers it: cleared, parked, its workstation gone
+    
     this.unwatch = o.board.onChange(() => {
       for (const [id, f] of this.forwards) {
         const card = this.o.board.item(id);
@@ -668,7 +668,7 @@ export class WorkerSupervisor {
     return this.o.shares ? this.o.shares() : false;
   }
 
-  // ---------------------------------------------------------------- owner actions
+  
 
   /**
    * Starts the card's worker. The card is at work at once, its workstation taken; the worker starts
@@ -682,17 +682,17 @@ export class WorkerSupervisor {
     if (card.kind === 'plan') throw new BadRequest('plan', 'a plan is worked on through its workstreams');
     if (card.state !== 'planned') throw new BadRequest('notPlanned', 'only a planned card can be started');
     if (this.evicting.has(card.id)) throw new BadRequest('evicting', 'its workstation is being given to another card');
-    // once work has begun the branch stays the card's, whatever the title says now
+    
     const row = this.o.board.row(card.id);
     const branch = row.branch ?? branchName(card.title, card.id);
     const { path, ready } = asBadRequest(() => this.o.workstations.lease(card.id, branch, { from: row.kept_in }));
     this.bump(card.id);
-    // the run before is not resumed, but the work retrospective still reads it
+    
     if (row.session_id) this.o.board.log(card.id, 'state', 'seismic', this.o.board.t.worker.restarted(this.o.board.t.worker.earlierRun(row.session_id)));
-    // a review card's pull request is watched from the start, afresh
+    
     const contribution = contributionOf(row);
     const pr: PrState | null = contribution ? { url: contribution.url, number: contribution.number, seen: [], reported: [] } : null;
-    // a fresh session knows of no app that was stopped
+    
     this.o.board.work(card.id, { state: 'working', need: null, ...this.keepingConflict(card.id), status_line: null, workstation: path, branch, session_id: null, agent_setting: selected ? JSON.stringify(selected) : null, review: { pr }, parked: null, ...this.o.board.unheld(card.id, AGENT_HOLDS), app: null });
     this.o.board.record(card.id, 'started', 'agent');
     const t = this.o.board.t.worker;
@@ -700,20 +700,20 @@ export class WorkerSupervisor {
     if (selected) this.o.board.log(card.id, 'state', 'seismic', t.startedWith(describeSetting(selected)));
     const asked = this.o.takeAsked?.(card.id);
     const launch = (headProblem?: string | null) => this.launch(card.id, [workerBriefing(this, card, branch, !!row.branch, headProblem), asked].filter(Boolean).join('\n\n'), undefined, this.taskImages(card));
-    // captured working changes go into the workstation it is given, not into the prompt
+    
     const captured = this.captured(card.id);
     const placed = captured === undefined ? ready : (ready ?? Promise.resolve(path)).then(async (at) => (await writeToGitDir(at, CAPTURED_CHANGES, captured), at));
     return this.whenReady(
       card.id,
       placed,
       () => {
-        // the branch is in this workstation now
+        
         if (row.kept_in) this.o.board.work(card.id, { kept_in: null });
-        // a review card's workstation stands on the pull request's head before its worker starts
+        
         if (contribution) this.onPrHead(card.id, branch, contribution, launch);
         else launch();
       },
-      // planned again, as before the start
+      
       () => this.o.board.work(card.id, { state: 'planned', workstation: null, branch: row.branch, ...this.o.board.unheld(card.id, AGENT_HOLDS) }),
       true,
     );
@@ -738,12 +738,12 @@ export class WorkerSupervisor {
     const path = this.o.board.row(cardId).workstation;
     const settle = (then: () => void, always = false) => {
       if (this.preparing.get(cardId)?.done === waited) this.preparing.delete(cardId);
-      // Seismic stopped meanwhile: a new run takes the card on
+      
       if (this.shut) return;
-      // a deleted card keeps its row, to be restored
+      
       if (this.o.board.row(cardId).status_line === line) this.o.board.work(cardId, { status_line: null });
       else this.o.board.changed();
-      // what was given back meanwhile (the card deleted, say) is freed now
+      
       this.settleLater();
       if (!this.o.board.item(cardId) || !(always || this.generation.get(cardId) === generation)) return;
       try {
@@ -755,8 +755,8 @@ export class WorkerSupervisor {
     };
     const done: Promise<void> = ready.then(
       (at) => {
-        // the clone it was given had uncommitted changes when git looked again: it holds the one that took its place,
-        // also where it was snoozed or started anew meanwhile
+        
+        
         if (at !== path && !this.shut && this.o.board.row(cardId).workstation === path) this.o.board.work(cardId, { workstation: at });
         settle(go);
       },
@@ -788,7 +788,7 @@ export class WorkerSupervisor {
     const generation = this.generation.get(cardId);
     const ws = this.o.board.row(cardId).workstation;
     const source = this.prSource(c);
-    // stopped while git fetched, the workstation may be another card's by now: it is left as it is
+    
     const still = () => !this.shut && this.generation.get(cardId) === generation && this.o.board.row(cardId).workstation === ws;
     const fetched = ws
       ? gitAsync(ws, 'fetch', '--quiet', source, `refs/pull/${c.number}/head`).then(() => (still() ? gitAsync(ws, 'checkout', '--quiet', '-B', branch, 'FETCH_HEAD') : ''))
@@ -809,7 +809,7 @@ export class WorkerSupervisor {
     if (!ref) return c.url;
     const remote = this.o.remote?.trim();
     if (remote && sameRepo(remote, ref.owner, ref.repo)) return remote;
-    // a repository without a remote has its pull requests' heads in itself, where any (a scratch Seismic's played forge)
+    
     if (!remote && this.o.repoPath) return this.o.repoPath;
     return `${ref.base}/${ref.owner}/${ref.repo}.git`;
   }
@@ -837,7 +837,7 @@ export class WorkerSupervisor {
    */
   private decide(cardId: string, decisions: Record<number, ChangeRoute>, notes?: Record<number, string>): { note: string; log: string } {
     const c = contributionOf(this.o.board.row(cardId));
-    // a card of the owner's decides on the findings of its code review
+    
     if (!c) return this.reviews.decide(cardId, decisions, notes);
     const t = this.o.board.t.worker;
     const picked = Object.entries(decisions).map(([id, route]) => {
@@ -847,7 +847,7 @@ export class WorkerSupervisor {
       return { f, route };
     });
     const of = (route: ChangeRoute) => picked.filter((p) => p.route === route);
-    // a request to the contributor while the worker's own changes are under way or held goes with them, as one message
+    
     const changing = of('self').length > 0;
     const withChanges = changing || !!c.changing || !!c.held;
     const findings = c.findings!.map((f): Finding => {
@@ -859,7 +859,7 @@ export class WorkerSupervisor {
     const what = (p: (typeof picked)[number]) => (p.route === 'self' ? t.findingSelf : p.route === 'later' ? t.findingLater : t.findingTo(c.author));
     const later = of('later');
     const ids = new Set(later.map((p) => p.f.id));
-    // the worker's own bundles, as far as they hold among the findings the owner chose for later
+    
     const bundles = [
       ...new Set(
         later
@@ -918,7 +918,7 @@ export class WorkerSupervisor {
    */
   followUpTask(cardId: string, title: string, task: string, ids: number[]): string {
     const c = contributionOf(this.o.board.row(cardId));
-    // on a card of the owner's, the findings are the items of its code review
+    
     const code = c ? undefined : this.reviews.items(cardId);
     const known = c ? c.findings?.map((f) => ({ id: f.id, state: f.status, settled: f.status !== 'open', card: f.card })) : code?.map((i) => ({ id: i.number, state: i.status, settled: !(i.status === 'followUp' && !i.card), card: i.card }));
     if (!known?.length) return `Not made: your work has no code review with ${c ? 'findings' : 'items'}.`;
@@ -993,7 +993,7 @@ export class WorkerSupervisor {
       if (id >= next) next = id + 1;
       seen.add(id);
       const before = had.find((f) => f.id === id);
-      // one the owner made a follow-up task or ignored stays so, and only a task made with follow_up_task makes one
+      
       const status = before?.status === 'later' || before?.status === 'dropped' ? before.status : g.status === 'later' ? (before?.status ?? 'open') : (g.status ?? before?.status ?? 'open');
       const url = g.url ?? (status === before?.status ? before?.url : undefined);
       if (g.with?.length) named.push([id, g.with]);
@@ -1010,7 +1010,7 @@ export class WorkerSupervisor {
         ...(status === 'open' && before?.decided ? { decided: before.decided, ...(before.withChanges ? { withChanges: true as const } : {}) } : {}),
       });
     }
-    // bundles: each finding's group of the findings named together with it, in both directions
+    
     const root = new Map(findings.map((f) => [f.id, f.id]));
     const find = (id: number): number => (root.get(id) === id ? id : find(root.get(id)!));
     for (const [id, others] of named) for (const o of others) if (root.has(o)) root.set(find(o), find(id));
@@ -1019,7 +1019,7 @@ export class WorkerSupervisor {
       if (w.length) f.with = w;
     }
     this.o.board.work(cardId, { review: { contribution: { ...c, findings } satisfies StoredContribution } });
-    // the owner ignored some without a word to the worker: a new finding must not raise one of them again
+    
     const ignored = findings.filter((f) => f.status === 'dropped' && had.some((h) => h.id === f.id && h.status === 'dropped'));
     const fresh = findings.filter((f) => !had.some((h) => h.id === f.id));
     const recorded = `Recorded: ${findings.length === 1 ? '1 finding' : `${findings.length} findings`}.`;
@@ -1028,12 +1028,12 @@ export class WorkerSupervisor {
       : recorded;
   }
 
-  /**
-   * A hint while the worker runs, words on its handover, or a question once its work is done;
-   * `images` are screenshot files the owner attached; `replyTo`: the message of the card's
-   * conversation the words reply to, which the worker reads above them; `spot`: the place in the
-   * demo video they are about. Such words on a handover are held back while the owner watches (`hold`).
-   */
+  
+
+
+
+
+
   /** Route review decisions to a fresh session in the same workstation. */
   reviewWithNewAgent(cardId: string, picks: Record<number, FindingPick> | undefined, setting: AgentSetting, notes?: Record<number, string>) {
     const card = this.card(cardId);
@@ -1045,12 +1045,12 @@ export class WorkerSupervisor {
     if (!entries.length) throw new BadRequest('noFinding', 'choose findings first');
     const ignored = entries.filter(([, p]) => p === 'ignore').map(([id]) => Number(id));
     const routed = Object.fromEntries(entries.filter(([, p]) => p !== 'ignore')) as Record<number, ChangeRoute>;
-    // Validate every choice before changing any of them.
+    
     for (const [id, route] of entries) {
       if (!card.review.codeReview.items.some((i) => i.number === Number(id) && needsOwner(i)) || route === 'contributor')
         throw new BadRequest('noFinding', `item ${id} does not wait for you`);
     }
-    // ignored first, so that the fresh worker's list shows them closed
+    
     if (ignored.length) this.ignore(cardId, ignored);
     const decided = Object.keys(routed).length ? withNotes(this.reviews.decide(cardId, routed, notes), routed, notes) : undefined;
     if (!decided) return;
@@ -1064,7 +1064,7 @@ export class WorkerSupervisor {
 
   message(cardId: string, text: string, images: string[] = [], spoken = false, replyTo?: number, spot?: SpotInput, picks?: Record<number, FindingPick>, notes?: Record<number, string>) {
     const card = this.card(cardId);
-    // findings the owner ignores are settled at once and never reach the worker; ignoring alone sends nothing
+    
     const ignored = Object.entries(picks ?? {}).filter(([, p]) => p === 'ignore').map(([id]) => Number(id));
     const routed = Object.entries(picks ?? {}).filter((e): e is [string, ChangeRoute] => e[1] !== 'ignore');
     const findings = routed.length ? (Object.fromEntries(routed) as Record<number, ChangeRoute>) : undefined;
@@ -1073,23 +1073,23 @@ export class WorkerSupervisor {
     const place = spot ? this.place(cardId, spot) : undefined;
     const handover = handedOver(card);
     if (place && handover && !findings) return this.hold(card, text, images, spoken, replyTo, place);
-    // on a review card, what the owner decided for its findings goes with the words, above them
+    
     const decided = findings ? withNotes(this.decide(cardId, findings, notes), findings, notes) : undefined;
     if (decided) this.o.board.record(cardId, 'reviewSent', 'owner');
     const words = `${decided ? `${decided.note}\n\n` : ''}${this.words(cardId, text, images, replyTo, place)}`;
-    // the log shows the owner's screenshots, not the stills that join them below
+    
     const shots = images;
     const said = [decided?.log, text].filter(Boolean).join('\n\n');
-    // words that reach the worker in the middle of a turn wait for its next step, unread until then
+    
     const log = (later = false) => [this.o.board.log(cardId, 'hint', 'owner', said, { images: shots, replyTo, spot: place, unread: later && this.takesLater(cardId) }).id];
-    // the worker sees the frame the words are about
+    
     images = [...this.stills(place), ...images];
     if (handover) {
-      // under a demo whose report asks a question, the words answer it, whatever else they say
+      
       if (card.question) return this.answerDemo(card, decided ? `${decided.note}\n\n${text}` : text, images, spoken, replyTo, []);
-      // the work still waits for approval while the worker takes the words in; a change they call for comes as a new handover
+      
       this.takingIn(cardId);
-      // words without a place end the watching: the comments held back come first, and go with them
+      
       const held = this.takeHeld(cardId);
       const said = log(!held);
       if (text) this.o.onOwnerInput?.(card, 'feedback', text);
@@ -1101,11 +1101,11 @@ export class WorkerSupervisor {
         held ? [] : said,
       );
     } else if (card.state === 'waiting' && card.need === 'question') {
-      // a note instead of an answer takes the question back: it may have settled it, else the worker asks anew
+      
       const waiting = this.live.get(cardId)?.permission;
       this.backToWork(cardId);
       if (waiting) {
-        // the tool call waits for the owner, so the worker reads nothing else meanwhile: the note refuses it
+        
         log();
         if (text) this.o.onOwnerInput?.(card, 'note', text);
         waiting({ allow: false, message: `Not run: the owner wrote a note instead of allowing it${spoken ? ` (${SPOKEN})` : ''}. If the note settles it, go on; if not, ask again.\n\n${words}` });
@@ -1122,19 +1122,19 @@ export class WorkerSupervisor {
         said,
       );
     } else if (holdsNotes(card)) {
-      // no agent works on the card yet: the words go with the task to the one that takes it on
+      
       const said = [this.o.board.log(cardId, 'hint', 'owner', text, { images: shots, replyTo, spot: place, unread: true }).id];
       if (text) this.o.onOwnerInput?.(card, 'note', text);
       this.o.board.work(cardId, { unheard: JSON.stringify([...this.unheard(cardId), { said, text: `A note the owner left on the card while no agent worked on it${spoken ? ` (${SPOKEN})` : ''}:\n\n${words}`, images }] satisfies Unheard[]) });
     } else if (this.waitsForClone(cardId)) {
-      // no session to take them in now: they go with the message that resumes it in the clone
+      
       const said = [this.o.board.log(cardId, 'hint', 'owner', text, { images: shots, replyTo, spot: place, unread: true }).id];
       if (text) this.o.onOwnerInput?.(card, 'note', text);
       this.o.board.work(cardId, { unheard: JSON.stringify([...this.unheard(cardId), { said, text: `A note from the owner while you waited for the clone${spoken ? ` (${SPOKEN})` : ''}:\n\n${words}`, images }] satisfies Unheard[]) });
     } else if (card.state === 'working' || card.state === 'inPr' || card.agent?.finishing) {
       const said = log(true);
       if (text) this.o.onOwnerInput?.(card, 'note', text);
-      // a note to a paused worker lets it go on, with the note
+      
       const how = this.heldFor(cardId) ? 'with which they let you go on' : 'it does not stop you; adjust your plan if it changes anything';
       this.deliver(cardId, `A note from the owner${spoken ? ` (${SPOKEN})` : ''} (${how}):\n\n${words}`, images, true, said);
     } else if (askable(card)) this.followUp(card, text, images, spoken, replyTo, place);
@@ -1180,12 +1180,12 @@ export class WorkerSupervisor {
     let lease: Lease;
     let worktree = false;
     try {
-      // the owner's question does not wait for a slot
+      
       lease = this.o.workstations.lease(card.id, row.branch!, { overSlots: true });
     } catch (e) {
       if (!(e instanceof WorkstationError)) throw e;
       if (!shortageOf(e.code)) throw new BadRequest(e.code, e.message);
-      // nor for a clone: a worktree takes none
+      
       lease = asBadRequest(() => this.o.workstations.followUpTree(card.id, row.branch!));
       worktree = true;
     }
@@ -1200,11 +1200,11 @@ export class WorkerSupervisor {
       card.id,
       ready,
       () => {
-        // a card that never reported a session: a new one needs the card first
+        
         if (row.session_id) this.launch(card.id, text, row.session_id, images);
         else this.launch(card.id, `You worked on the card “${card.title}”:\n\n${card.body}\n\n${text}`, undefined, [...this.taskImages(card), ...images]);
       },
-      // the question stands in the conversation, without a workstation to answer it in
+      
       () => {
         this.o.workstations.release(card.id);
         this.o.board.work(card.id, { workstation: null, landed: row.landed });
@@ -1256,7 +1256,7 @@ export class WorkerSupervisor {
       cardId,
       lease.ready,
       () => this.deliver(cardId, `A clone is free now: you go on in it, a full clone on the branch ${row.branch}. Answer the owner's question there.\n\n${FOLLOW_UP}`),
-      // it waits for the next free clone again
+      
       () => this.o.board.work(cardId, { workstation: null, landed: row.landed, status_line: this.o.board.t.worker.waitsForWorkstation }),
     );
     return true;
@@ -1290,7 +1290,7 @@ export class WorkerSupervisor {
     if (detail.permission) return this.answerPermission(card, detail.permission, text, images, spoken, replyTo);
     const question = detail.question;
     const q = question?.text ?? this.pendingQuestion(cardId) ?? '';
-    // an answer given at a place in the demo video (one the question brought, say) is about that place
+    
     const place = spot ? this.place(cardId, spot) : undefined;
     this.backToWork(cardId);
     this.recordAnswer(card, q, text, images, replyTo, picked, place);
@@ -1316,12 +1316,12 @@ export class WorkerSupervisor {
     const live = this.live.get(card.id);
     if (live?.permission) {
       live.permission(allowed ? { allow: true, ...(permissions?.length ? { permissions } : {}) } : { allow: false, message: `Not run: the owner did not allow it${said}` });
-      // the call's result can carry no words, the next message can
+      
       if (allowed && (words || images.length)) live.session.send(`The owner allowed it${said}`, images);
       else if (images.length) live.session.send('The screenshots of the owner’s answer.', images);
       return;
     }
-    // the session that asked is gone: the worker hears the answer when it goes on, and the call runs once it makes it again
+    
     if (allowed) this.granted.set(card.id, (this.granted.get(card.id) ?? new Set()).add(permissionKey(asked)));
     const call = describeTool(asked.name, asked.input, this.o.board.t);
     this.deliver(
@@ -1405,7 +1405,7 @@ export class WorkerSupervisor {
    * for each comment. Ten minutes after the last one without a sign, they go anyway.
    */
   private hold(card: Item, text: string, images: string[], spoken: boolean, replyTo: number | undefined, place: Spot) {
-    // unread until they go: they stand below whatever the worker does meanwhile, and where they went once sent
+    
     const e = this.o.board.log(card.id, 'hint', 'owner', text, { images, replyTo, spot: place, unread: true });
     if (text) this.o.onOwnerInput?.(card, 'feedback', text);
     this.o.board.work(card.id, { demo: { held: [...this.held(card.id), { id: e.id, ...(spoken ? { spoken: true } : {}) }] } });
@@ -1422,7 +1422,7 @@ export class WorkerSupervisor {
       cardId,
       setTimeout(() => {
         this.holding.delete(cardId);
-        // no request to answer with the error: it goes into the card's log
+        
         try {
           this.release(cardId);
         } catch (e) {
@@ -1440,7 +1440,7 @@ export class WorkerSupervisor {
   released(cardId: string, now = false) {
     this.card(cardId);
     if (!this.held(cardId).length) return;
-    // sent by the owner ("Jetzt senden"): no approval is on its way to take them instead
+    
     if (now) this.release(cardId);
     else this.releaseLater(cardId, this.o.releaseDelay ?? RELEASE_DELAY);
   }
@@ -1493,7 +1493,7 @@ export class WorkerSupervisor {
     this.holding.delete(cardId);
     const held = this.held(cardId);
     if (!held.length) return null;
-    // read where they go, before they stop being held: never shown meanwhile as words waiting for a step
+    
     this.o.board.readNow(cardId, held.map((h) => h.id));
     this.o.board.work(cardId, { demo: { held: null } });
     const events = new Map(this.o.board.events(cardId).map((e) => [e.id, e]));
@@ -1560,10 +1560,10 @@ export class WorkerSupervisor {
     }
     if ('code' in folded) throw new BadRequest(folded.code, folded.detail);
     this.o.board.work(cardId, { detail: JSON.stringify(detail) });
-    // whatever was in the way is gone meanwhile: the approval lands as it is, or waits for the owner
+    
     if (!folded.files.length) return land ? this.approve(cardId) : undefined;
     const files = folded.files.map((f) => `- ${f}`).join('\n');
-    // the failed approval is no news any more: what came of it follows
+    
     this.o.board.work(cardId, { state: 'working', need: null, detail: null, status_line: null, approved_at: land ? new Date().toISOString() : null, unheard: JSON.stringify(this.unheardBut(cardId, NOT_LANDED)) });
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.folded(folded.files, land));
     this.deliver(
@@ -1590,7 +1590,7 @@ export class WorkerSupervisor {
    * cards still at work or planned follow the setting when they hand over.
    */
   codeReviewsChanged(): Promise<void> {
-    // one catch-up after the other, so an older setting never overwrites a newer one
+    
     return (this.catchingUp = this.catchingUp.then(() => this.catchUpCodeReviews()));
   }
 
@@ -1613,12 +1613,12 @@ export class WorkerSupervisor {
       try {
         if (!this.catchable(i.id)) continue;
         const work = await this.o.workstations.hasWork(i.id);
-        // the card may have moved on during the git calls: look again before writing
+        
         if (!this.catchable(i.id)) continue;
         const e = this.o.board.events(i.id).findLast((x) => x.kind === 'review' && x.author === 'worker');
         if (!e) continue;
         const mode = this.reviewModeOf(this.o.board.row(i.id), work);
-        // only the project's setting taking reviews away drops one: a git look that found no work (a workstation still being made ready after a restart) says nothing about it
+        
         if (!mode && this.o.codeReviews?.().on) continue;
         this.reviews.applyMode(i.id, e.id, mode);
       } catch (err) {
@@ -1639,17 +1639,17 @@ export class WorkerSupervisor {
     if (this.folder || row.idea?.prototypeOf || contributionOf(row)) return null;
     const reviews = this.o.codeReviews?.();
     if (!reviews?.on || !work) return null;
-    // a card at work when the setting changed hands over unreviewed in automatic mode (its flag goes with the handover's detail)
+    
     if (reviews.mode === 'auto' && row.detail && (JSON.parse(row.detail) as { noAutoReview?: boolean }).noAutoReview) return null;
     return reviews.mode;
   }
 
-  /** `direct`: the work goes onto the default branch at once instead of into a pull request, where the repository's settings allow it. */
+  
   /** "Start code review" on work waiting for the owner's approval: a review of its latest handover starts, with `setting` where the owner chose another agent for it. */
   startCodeReview(cardId: string, setting?: AgentSetting) {
     const card = this.card(cardId);
     if (!handedOver(card) || card.review?.landing || this.landing.has(cardId) || this.approving.has(cardId)) throw new BadRequest('notReady', 'the card is not ready for review');
-    // the latest handover is what a review the card lacks is made for
+    
     const latest = this.o.board.events(cardId).findLast((x) => x.kind === 'review' && x.author === 'worker');
     if (card.review?.contribution || this.folder || card.idea?.prototypeOf) throw new BadRequest('notReview', 'this work is not reviewed by a code review');
     this.reviews.start(cardId, latest?.id, setting);
@@ -1682,7 +1682,7 @@ export class WorkerSupervisor {
     const same = (before?.harness ?? 'claude') === (setting.harness ?? 'claude');
     this.o.board.work(cardId, { hold: null, status_line: statusBefore ?? null, agent_setting: JSON.stringify(setting), ...(same ? {} : { session_id: null }) });
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.handedOff(describeSetting(setting)));
-    // what Seismic held for it while it was paused goes to the agent that takes over
+    
     const news = held.length ? `\n\nWhile it was paused, Seismic had this for it:\n\n${held.map((h) => h.text).join('\n\n---\n\n')}` : '';
     const images = held.flatMap((h) => h.images);
     const note = same && row.session_id ? `${HANDED_OFF_SAME}${news}` : `${HANDED_OFF_NEW}${news}`;
@@ -1692,36 +1692,36 @@ export class WorkerSupervisor {
   async approve(cardId: string, { direct = false }: { direct?: boolean } = {}) {
     const card = this.card(cardId);
     if (!handedOver(card) || this.landing.has(cardId) || this.approving.has(cardId)) throw new BadRequest('notReady', 'the card is not ready for review');
-    // the approval goes into the activity log once nothing stands in its way any more
+    
     const approved = () => this.o.board.record(cardId, 'approved', 'owner');
     if (card.review?.contribution) {
       if (direct) throw new BadRequest('noDirect', 'a review card merges its pull request');
       return this.mergeContribution(cardId);
     }
     if (direct && card.idea?.prototypeOf) throw new BadRequest('noDirect', 'a prototype never lands');
-    // a prototype never lands: approving it is having seen enough
+    
     if (card.idea?.prototypeOf) {
       this.takeHeld(cardId);
       approved();
       return this.endPrototype(cardId, 'discarded');
     }
-    // approved, a card its worker snoozed on its handover wakes no more: the check it was to make again is done with
+    
     const unsnooze = () => snoozeOf(card) && this.o.board.work(cardId, { hold: null });
-    // in a folder without git, what it changed is in the folder already
+    
     if (this.folder) {
       unsnooze();
       approved();
       return void this.close(cardId, 'owner', this.approvalComments(cardId));
     }
-    // git tells where the work lands and whether there is any, without blocking the server; the click ends the owner's turn meanwhile,
-    // and the comments held back wait for the approval
+    
+    
     clearTimeout(this.holding.get(cardId));
     this.holding.delete(cardId);
     const before = this.o.board.row(cardId).approved_at;
-    // what stood in the way of an earlier approval is looked at afresh by this one
+    
     const { blocked, ...detail } = this.detailOf(cardId);
     this.o.board.work(cardId, { approved_at: new Date().toISOString(), ...(blocked ? { detail: JSON.stringify(detail) } : {}) });
-    // the owner approved without waiting for the code review: one still running stops, its findings would come too late
+    
     this.reviews.cancel(cardId);
     this.approving.add(cardId);
     const generation = this.generation.get(cardId);
@@ -1732,9 +1732,9 @@ export class WorkerSupervisor {
     } finally {
       this.approving.delete(cardId);
     }
-    // stopped meanwhile (and perhaps started and handed over anew: that is not what the owner approved)
+    
     if (!handedOver(this.card(cardId)) || this.generation.get(cardId) !== generation) throw new BadRequest('notReady', 'the card is not ready for review');
-    // where work lands on main anyway, approving it directly is approving it
+    
     if (direct && lands.land === 'pr' && !lands.direct) {
       this.o.board.work(cardId, { approved_at: before });
       if (this.held(cardId).length) this.releaseLater(cardId, this.o.releaseDelay ?? RELEASE_DELAY);
@@ -1742,22 +1742,22 @@ export class WorkerSupervisor {
     }
     unsnooze();
     const comments = this.approvalComments(cardId);
-    // work that changed nothing (a demo, an analysis) has nothing to land and no pull request to open
+    
     if (!work) {
       approved();
       return void this.close(cardId, 'owner', comments);
     }
-    // a landing that gives the card back to the owner takes the approval back: the landing logs it once it holds
+    
     if (lands.land === 'main' || direct) return this.land(cardId, 'owner', comments);
     approved();
-    // the worker opens the PR the way the repository does it, then Seismic watches it
+    
     const pr: PrState = { url: null, seen: [], reported: [] };
-    // the line the worker reported before handing over is about work that is done
+    
     this.o.board.work(cardId, { state: 'inPr', need: null, detail: null, status_line: null, approved_at: null, review: { pr } });
     this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.approvedPr);
-    // a page that goes out now gets the pull request's link from Seismic once both are there
+    
     this.o.onApproval?.(cardId);
-    // a demo shared later gets its line from Seismic once the pull request is open
+    
     const shared = card.demo?.share?.url;
     if (shared) this.pageHeard(cardId);
     this.deliver(
@@ -1811,9 +1811,9 @@ export class WorkerSupervisor {
         return this.merged(cardId, now.mergeCommit, t.mergedContribution(c.number));
       }
       if (now.state === 'CLOSED') throw new BadRequest('prClosed', 'the pull request was closed');
-      // the worker's own commits go on top of the head they were made on; already there, only their text is still to post
+      
       if (!c.reviewed || (now.head !== c.reviewed && now.head !== c.held?.base)) throw this.moved(cardId, c, now.head);
-      // unpushed commits on the local main the pull after the merge would stop at: the owner sees them before the merge
+      
       const merging = merge && !c.held?.asks.length;
       if (merging) {
         const shown = c.clash;
@@ -1830,7 +1830,7 @@ export class WorkerSupervisor {
         await this.postHeld(cardId, c);
         if (c.held.asks.length || !merge) return;
       }
-      // the comments held back while the owner watched go with the approval
+      
       const comments = this.approvalComments(cardId);
       this.o.board.work(cardId, { review: { contribution: { ...(contributionOf(this.o.board.row(cardId)) ?? c), approved: true } satisfies StoredContribution } });
       this.o.board.log(cardId, 'state', 'owner', t.approvedMerge(c.number));
@@ -1937,7 +1937,7 @@ export class WorkerSupervisor {
       }
       throw refuse(why);
     }
-    // the forge shows the new head a moment after the push; the merge is pinned to it
+    
     for (let i = 0; i < 10; i++) {
       const head = await this.o.forge!.status(this.forgeCwd(cardId), c.url).then(
         (s) => s.head,
@@ -1976,14 +1976,14 @@ export class WorkerSupervisor {
     });
     const sent = asks && !failed;
     this.o.board.work(cardId, {
-      // the owner's edit went out as they wrote it: nothing of it is news to the worker any more
+      
       ...(failed ? {} : { unheard: JSON.stringify(this.unheardBut(cardId, HELD_EDITED)) }),
       review: { contribution: {
         ...rest,
         ...(findings ? { findings } : {}),
         ...(sent ? { requested: { ...(url ? { url } : {}), at: new Date().toISOString() } } : {}),
       } satisfies StoredContribution },
-      // the state says it: "Waiting for the contributor"
+      
       ...(sent ? { state: 'inPr', need: null, detail: null, status_line: null } : {}),
     });
     if (failed) {
@@ -2034,7 +2034,7 @@ export class WorkerSupervisor {
     if (!this.o.forge || !c) return 'Not sent: this card reviews no pull request.';
     if (!body.trim()) return 'Not sent: the review has no text.';
     const generation = this.generation.get(cardId);
-    // the head the request is about, where no handover named one yet: a push after it is news for the worker
+    
     const ws = this.o.board.row(cardId).workstation;
     const head = c.reviewed ?? (ws ? await gitAsync(ws, 'rev-parse', 'HEAD').catch(() => undefined) : undefined);
     let url: string | void;
@@ -2044,7 +2044,7 @@ export class WorkerSupervisor {
       return `Not sent: the forge refused it (${messageOf(e)}). Tell the owner with reply if it keeps failing.`;
     }
     const t = this.o.board.t.worker;
-    // the owner stopped the card meanwhile: the review is out, but the card does not wait for anyone
+    
     const row = this.o.board.row(cardId);
     if (this.generation.get(cardId) !== generation || !(row.state === 'working' || row.state === 'waiting')) {
       this.o.board.log(cardId, 'state', 'worker', `${t.changesRequested(c.number, c.author)}${url ? ` ${url}` : ''}`);
@@ -2055,12 +2055,12 @@ export class WorkerSupervisor {
       state: 'inPr',
       need: null,
       detail: null,
-      // the state says it: "Waiting for the contributor"
+      
       status_line: null,
       review: { contribution: {
         ...now,
         ...(head && !now.reviewed ? { reviewed: head } : {}),
-        // the findings it holds are sent, with the review they went in
+        
         ...(now.findings ? { findings: now.findings.map((f) => (ids.includes(f.id) && f.status !== 'later' ? { id: f.id, title: f.title, text: f.text, ...(f.security ? { security: true } : {}), status: 'sent' as const, ...(url ? { url } : {}) } : f)) } : {}),
         requested: { ...(url ? { url } : {}), at: new Date().toISOString() },
       } satisfies StoredContribution },
@@ -2097,7 +2097,7 @@ export class WorkerSupervisor {
     );
     if (!on)
       return `Not handed over: the pull request's head is ${base.slice(0, 7)}, and your branch does not build on it (${c.author} pushed since you fetched it, or your branch was rewritten). Fetch refs/pull/${c.number}/head from ${this.prSource(c)} and look at what changed before you run any of it; put the commits of your own that are not on the PR yet on top of it (rebase; the PR's commits stay as they are), review what is new, then hand over again.`;
-    // a merge of main into it counts once, not with each commit it brings
+    
     const commits = Number(await gitAsync(ws, 'rev-list', '--count', '--first-parent', `${base}..${head}`).catch(() => '0')) || 0;
     return { head, base, commits };
   }
@@ -2114,7 +2114,7 @@ export class WorkerSupervisor {
     if (!mine.commits) {
       const waiting = asks.filter((f) => f.withChanges);
       if (!c.changing && !c.held && !waiting.length) return undefined;
-      // nothing of its own to push after all: a request that waited for it goes out now, alone
+      
       const { changing: _, held: __, ...rest } = c;
       const findings = c.findings?.map((f) => (f.withChanges ? (({ withChanges: ___, ...x }) => x)(f) : f));
       this.o.board.work(cardId, { review: { contribution: { ...rest, ...(findings ? { findings } : {}) } satisfies StoredContribution } });
@@ -2124,7 +2124,7 @@ export class WorkerSupervisor {
     }
     if (!c.canModify)
       return `Not handed over: your branch holds ${mine.commits === 1 ? 'a commit' : `${mine.commits} commits`} beyond the pull request's head ${mine.base.slice(0, 7)}, and ${c.author} does not allow maintainers' edits, so nothing can go onto the PR's branch. Put your branch back on the PR's head (git reset --hard ${mine.base.slice(0, 7)}), then hand over again.`;
-    // a draft written before the worker heard of the owner's edit would put back what they rewrote
+    
     const edited = draft?.trim() && this.unheard(cardId).find((u) => u.text.startsWith(HELD_EDITED));
     if (edited) {
       this.o.board.work(cardId, { unheard: JSON.stringify(this.unheardBut(cardId, HELD_EDITED)) });
@@ -2209,7 +2209,7 @@ export class WorkerSupervisor {
       await this.landNow(cardId, by, comments, turn.signal);
     } catch (e) {
       if (turn.signal.aborted) return;
-      // a landing that broke off gives the card back to the owner, who approves again
+      
       if (this.o.board.row(cardId).state === 'waiting') this.o.board.work(cardId, { approved_at: null });
       throw e;
     } finally {
@@ -2222,11 +2222,11 @@ export class WorkerSupervisor {
 
   private async landNow(cardId: string, by: 'owner' | 'seismic', comments?: Comments, signal?: AbortSignal) {
     const row = this.o.board.row(cardId);
-    // only a direct approval is held where work goes out as a pull request
+    
     const direct = (await this.landingOf(cardId)).land === 'pr';
-    // read before landing: the landed branch adds nothing against main
+    
     const added = await this.planDocsAdded(cardId);
-    // the demo goes out with the approval, also where it holds for the worker's next handover
+    
     signal?.throwIfAborted();
     const trailer = this.o.onApproval?.(cardId) ?? undefined;
     const turn = { signal, position: (n: number | undefined) => {
@@ -2236,21 +2236,21 @@ export class WorkerSupervisor {
     const result = await (direct ? this.o.workstations.pushToMain(cardId, trailer, turn) : this.o.workstations.landOnMain(cardId, row.branch!, trailer, turn));
     if (signal?.aborted) return;
     if ('code' in result && !result.worker) {
-      // the worker hears it with its next step, so it does not tell the owner the card still waits for their approval as if nothing had happened
+      
       const text = `${NOT_LANDED} ${result.detail}\n\nThat is not in your work: the owner sees on the card what to do, and the card waits for their approval again.`;
-      // the checkout's uncommitted changes to the card's files: the card offers to fold them into it
+      
       const blocked = result.code === 'landMerge' && result.files?.length ? { files: result.files } : undefined;
       this.o.board.work(cardId, {
         approved_at: null,
         unheard: JSON.stringify([...this.unheardBut(cardId, NOT_LANDED), { said: [], text, images: [] }] satisfies Unheard[]),
         ...(blocked ? { detail: JSON.stringify({ ...this.detailOf(cardId), blocked }) } : {}),
       });
-      // only where the card names the files in the way does it offer to fold them in
+      
       throw new BadRequest(result.code === 'landMerge' && !blocked ? 'landLocal' : result.code, result.detail);
     }
     if (by === 'owner') this.o.board.record(cardId, 'approved', 'owner');
     if ('code' in result) {
-      // a handover while that rebase is still under way (or leaves a stray file) is still about the conflict: a stop keeps the approval, and the next worker hears of the rebase
+      
       const conflict = result.code === 'landConflict' || this.detailOf(cardId).conflict === true;
       this.o.board.work(cardId, { state: 'working', need: null, detail: conflict ? JSON.stringify({ conflict: true }) : null, approved_at: row.approved_at ?? new Date().toISOString() });
       this.o.board.log(cardId, 'error', 'seismic', result.detail, { code: result.code });
@@ -2266,7 +2266,7 @@ export class WorkerSupervisor {
       );
       return;
     }
-    // an earlier approval that could not land is no news any more
+    
     if (this.unheard(cardId).some((u) => u.text.startsWith(NOT_LANDED))) this.o.board.work(cardId, { unheard: JSON.stringify(this.unheardBut(cardId, NOT_LANDED)) });
     this.o.board.planDocsLanded(cardId, added);
     this.bump(cardId);
@@ -2343,17 +2343,17 @@ export class WorkerSupervisor {
    * its demo's page.
    */
   close(cardId: string, by: 'owner' | 'worker', comments?: Comments): string {
-    // a demo, an analysis: what the approval was for goes public as any approved demo
+    
     if (by === 'owner') this.o.onApproval?.(cardId);
     this.bump(cardId);
     const page = this.pageNote(cardId);
     this.o.board.work(cardId, { state: 'done', need: null, detail: null, status_line: null, approved_at: null, review: { pr: null }, landed: JSON.stringify({ unchanged: true, ...(page.waits ? { page: true } : {}) } satisfies LandedState) });
     const t = this.o.board.t.worker;
     const folder = !!this.folder?.changed(cardId).length;
-    // what it changed in the folder stays: nothing of it is undone any more
+    
     this.folder?.done(cardId);
     this.o.board.log(cardId, 'state', by, by === 'owner' ? (folder ? t.approvedFolder : t.approvedUnchanged) : t.doneUnchanged);
-    // the worker that closed it is told by the tool's result, and its turn's end finishes it (unless it waits for its demo's page)
+    
     if (by === 'owner')
       this.afterLanding(
         cardId,
@@ -2476,26 +2476,26 @@ export class WorkerSupervisor {
     this.bump(cardId);
     const row = this.o.board.row(cardId);
     const worktree = this.inWorktree(cardId);
-    // the plan docs its branch adds are read before its workstation goes
+    
     const reading = this.reading.get(cardId);
     if (worktree) {
       if (reading) void reading.finally(() => this.removeTree(row.workstation));
       else this.removeTree(row.workstation);
     } else if (row.workstation) {
       const removeLanded = () => this.o.workstations.removeLanded(cardId, row.branch ?? '');
-      // the card is done either way; a leftover worktree does no harm
+      
       this.whileFreeing(cardId, row.workstation, reading ? reading.catch(() => {}).then(removeLanded) : removeLanded(), 'freeing a landed workstation');
     }
     const landed = workerConfig.landedOf(row);
     this.o.board.work(cardId, { landed: null, workstation: null, status_line: null, parked: null, ...this.o.board.unheld(cardId, AGENT_HOLDS), app: null, ...(row.state === 'waiting' ? { state: landed?.unchanged ? 'done' : 'live', need: null, detail: null } : {}) });
     this.o.board.workDone(cardId);
-    // the work retrospective read the card's runs when its work ended
+    
     if (!landed?.followUp) this.o.onWorkEnded?.(cardId, row.workstation);
   }
 
   /** The plan docs the card's branch adds, as plan references of the project. */
   private async planDocsAdded(cardId: string): Promise<string[]> {
-    // a plan folder outside the repository has nothing in the branch: such a card named its doc when it started
+    
     if (!this.o.board.row(cardId).idea?.discussion || outsidePlanDir(this.o.adapter.planDocs.dir)) return [];
     const home = !this.o.repo || this.o.repo === this.o.board.home;
     return (await this.o.workstations.addedFiles(cardId, this.o.adapter.planDocs.dir))
@@ -2518,7 +2518,7 @@ export class WorkerSupervisor {
     this.o.board.work(cardId, this.o.board.unheld(cardId, AGENT_HOLDS));
     const workstation = this.o.workstations.leasedBy(cardId);
     const { branch } = this.o.board.row(cardId);
-    // the card goes anyway, its workstation once git has cleaned it; a leftover worktree does no harm
+    
     if (workstation) this.whileFreeing(cardId, workstation, this.o.workstations.discard(cardId, branch ?? ''), 'discarding a prototype');
     const idea = this.o.board.card(card.idea.prototypeOf);
     const t = this.o.board.t.worker;
@@ -2541,7 +2541,7 @@ export class WorkerSupervisor {
       this.endPrototype(prototypeId, 'built', 'owner', into);
       return moved;
     });
-    // until the card names the workstation, its lease is not settled, and a restart waits for git
+    
     this.whileFreeing(prototypeId, workstation, built, 'building on a prototype');
     return built;
   }
@@ -2553,7 +2553,7 @@ export class WorkerSupervisor {
   diff(cardId: string, full: boolean): Promise<CardDiff | null> {
     const row = this.o.board.row(cardId);
     const shipped = row.shipped ? (JSON.parse(row.shipped) as Shipped) : null;
-    // landed work's workstation, while its worker finishes, has nothing left against the default branch
+    
     if (row.state === 'live' && shipped?.commit && shipped.base) return this.o.workstations.landedDiff(shipped.base, shipped.commit, full);
     return this.o.workstations.diff(cardId, full);
   }
@@ -2595,9 +2595,9 @@ export class WorkerSupervisor {
     const row = this.o.board.row(cardId);
     const shipped = row.shipped ? (JSON.parse(row.shipped) as Shipped) : null;
     const landed = row.state === 'live' && shipped?.commit ? shipped.commit : undefined;
-    // to open: the checkout's copy only of what landed there, never for a branch elsewhere
+    
     const ref = landed ?? (local ? undefined : (row.branch ?? undefined));
-    // a page the worker named from its demo's directory, which stays out of git
+    
     const beside = (row.demo?.files ?? []).find((f) => f.dir && f.path === path);
     if (beside) return ownFile(beside.dir!, path);
     const changed = await this.changedFiles(cardId);
@@ -2612,11 +2612,11 @@ export class WorkerSupervisor {
     return null;
   }
 
-  /**
-   * The files a worker names as its result at its handover, as paths of its change relative to the
-   * workstation (or folder), or as files in `demoDir`, the directory of the demo it hands over (else
-   * the one on the card), by their absolute paths; what is wrong instead, for the worker to fix.
-   */
+  
+
+
+
+
   /**
    * What a handover says of the data its change persists, against what its branch shows: 'changed'
    * needs the schema-change page among the files (named now, else those named before); 'unchanged'
@@ -2651,7 +2651,7 @@ export class WorkerSupervisor {
     const ws = (row.workstation ?? '').replace(/^ssh:\/\/[^/]+/, '');
     const roots = [ws, ...(ws && !hostName(row.workstation) ? [realpathOr(ws)] : [])].filter(Boolean);
     const shown = demoDir ?? row.demo?.latest?.dir;
-    // a demo made on another machine is checked once it is copied here
+    
     const onHost = !!demoDir && !!hostName(row.workstation);
     const demoRoots = shown ? [...new Set([shown, ...(onHost ? [] : [realpathOr(shown)])])] : [];
     const changed = await this.changedFiles(cardId);
@@ -2684,9 +2684,9 @@ export class WorkerSupervisor {
   merged(cardId: string, commit?: string, note = this.o.board.t.worker.merged, comments?: Comments) {
     this.bump(cardId);
     this.refuseAsked(cardId, 'meanwhile your pull request was merged, and the card is live.');
-    // a review card's PR where work lands on the local main: the checkout gets the merge, as the owner would pull it
+    
     if (contributionOf(this.o.board.row(cardId)) && this.pulls()) void this.pullAfterMerge(cardId);
-    // git reads them without blocking the server; the workstation goes only once it has (`finish`)
+    
     const added = Promise.all([
       this.planDocsAdded(cardId).then((a) => this.o.board.planDocsLanded(cardId, a)),
       commit ? this.o.workstations.noticeMerged?.(cardId, commit) : undefined,
@@ -2856,7 +2856,7 @@ export class WorkerSupervisor {
         const s = row.shipped ? (JSON.parse(row.shipped) as Shipped) : null;
         return s?.commit && s.base && !s.pr ? [{ card: i, base: s.base, commit: s.commit, at: row.updated_at }] : [];
       })
-      // the cards touched last first: unpushed commits are recent
+      
       .sort((a, b) => b.at.localeCompare(a.at))
       .slice(0, 100);
     const at = await this.pulls()!.landingOf(commit, landed);
@@ -2878,7 +2878,7 @@ export class WorkerSupervisor {
     if (!c) return;
     const { card } = await this.landedBy(stopped.commit);
     const resolving: Resolving = { card: reviewId, pr: c.number, url: c.url, stopped };
-    // a card resolving one already is busy with that
+    
     const takes = (id: string) => {
       const i = this.o.board.item(id);
       const l = i && workerConfig.landedOf(this.o.board.row(id));
@@ -2900,7 +2900,7 @@ export class WorkerSupervisor {
       this.deliver(resolver, message(this.o.board.row(resolver).workstation ?? ''));
       return;
     }
-    // no workstation to resolve it in: the owner pulls by hand
+    
     const failed = () => {
       if (this.o.board.card(resolver)) this.o.board.work(resolver, { status_line: null });
       if (this.o.board.card(reviewId)) this.o.board.log(reviewId, 'error', 'seismic', t.pullUnresolved(stopped.subject, stopped.files.join(', '), t.noResolver));
@@ -3007,9 +3007,9 @@ export class WorkerSupervisor {
       return Promise.resolve();
     }
     if (card.state !== 'working' && card.state !== 'waiting') throw new BadRequest('noAgent', 'no agent works on this card');
-    // comments held back for the worker stay in the conversation
+    
     this.takeHeld(cardId);
-    // a code review still running reviews work that is no longer handed over
+    
     this.reviews.cancel(cardId);
     this.end(cardId);
     this.bump(cardId);
@@ -3032,7 +3032,7 @@ export class WorkerSupervisor {
    */
   evictable(cardId: string): boolean {
     if (this.o.workstations.mode !== 'clones' || this.evicting.has(cardId)) return false;
-    // from the row: the pools the board's snapshot shows ask for each card
+    
     let row: CardRow;
     try {
       row = this.o.board.row(cardId);
@@ -3059,10 +3059,10 @@ export class WorkerSupervisor {
     const path = this.o.board.row(cardId).workstation!;
     this.evicting.add(cardId);
     try {
-      // its session ends before git keeps its work, and a stop still asking git (`stop`) gives nothing back afterwards
+      
       const session = this.live.get(cardId)?.session;
       if (active) {
-        // comments held back for the worker stay in the conversation
+        
         this.takeHeld(cardId);
         this.end(cardId);
         this.o.board.work(cardId, { state: 'planned', need: null, ...this.keepingConflict(cardId), review: { pr: null }, ...this.o.board.unheld(cardId, AGENT_HOLDS), app: null, stopped_at: JSON.stringify(stoppedAtOf(card)) });
@@ -3071,7 +3071,7 @@ export class WorkerSupervisor {
       this.bump(cardId);
       this.o.board.work(cardId, { status_line: this.o.board.t.worker.evicting });
       await Promise.race([session?.done.catch(() => {}), Bun.sleep(EVICT_SESSION_WAIT)]);
-      // parking the app may be under way already: it is through before the clone changes hands
+      
       await this.stopping.get(cardId)?.catch(() => {});
       const stop = this.o.adapter.app?.stop;
       if (stop) {
@@ -3085,7 +3085,7 @@ export class WorkerSupervisor {
         this.o.board.log(cardId, 'error', 'seismic', this.o.board.t.worker.evictFailed(messageOf(e)));
         return false;
       }
-      // deleted meanwhile: its row stays, to be restored without the clone
+      
       this.o.board.work(cardId, { workstation: null, parked: null, app: null, ...(kept ? { kept_in: kept } : {}) });
       this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.evicted(path));
       return active;
@@ -3212,13 +3212,13 @@ export class WorkerSupervisor {
   async standIn(cardId: string, act: { say: string } | { tool: string; args?: Record<string, unknown> } | { end: true } | { step: StandInStep }): Promise<string> {
     const card = this.card(cardId);
     const live = this.live.get(cardId);
-    // the agent ends its turn, as an idle worker never does by itself
+    
     if ('end' in act) {
       if (live) this.onEvent(cardId, live, { type: 'idle' });
       if (this.standIns.delete(cardId)) this.o.board.changed();
       return 'Turn ended.';
     }
-    // a step of the agent's own (a command, a file it reads, its end), for what the card shows it doing; a card without a session gets a turn for it
+    
     if ('step' in act) {
       const s = act.step;
       const e: AgentEvent = s.type === 'tool' ? { type: 'tool', name: String(s.name), input: s.input ?? {} } : s.type === 'toolDone' ? { type: 'toolDone', name: String(s.name), ok: s.ok !== false } : s.type === 'text' ? { type: 'text', text: String(s.text ?? '') } : (undefined as never);
@@ -3258,10 +3258,10 @@ export class WorkerSupervisor {
     };
     const tool = workerTools(this, cardId, stand, !!card.idea?.prototypeOf).find((t) => t.name === act.tool);
     if (!tool) throw new BadRequest('invalid', `the card's agent has no tool ${act.tool}`);
-    // as the SDK checks a call against the tool's schema
+    
     const args = z.object(tool.schema).safeParse(act.args ?? {});
     if (!args.success) throw new BadRequest('invalid', `${act.tool}: ${args.error.message}`);
-    // a tool call is a step of the turn, as the agent's own calls are
+    
     if (live) live.acted = true;
     return await tool.run(args.data);
   }
@@ -3291,7 +3291,7 @@ export class WorkerSupervisor {
     this.card(cardId);
     const snoozed = this.o.board.snoozedOf(cardId);
     if (snoozed) return this.o.board.snooze(cardId, { ...snoozed, until, ...(snoozed.by === 'agent' ? { moved: true as const } : {}) }, 'owner');
-    // a message the worker had not taken in yet goes to it with the rest, after what a pause held already
+    
     const pending = this.live.get(cardId)?.pending;
     const held = this.heldFor(cardId)?.held ?? [];
     this.end(cardId);
@@ -3344,22 +3344,22 @@ export class WorkerSupervisor {
     const restarted = repo ? REPO_RESTARTED : RESTARTED;
     this.reprobeClashes();
     this.reviews.interrupted();
-    // a setting changed while Seismic was down or restarted to apply it reaches the cards waiting for approval
+    
     void this.codeReviewsChanged();
     for (const i of this.o.board.items()) {
       if (this.o.repo && i.repo !== this.o.repo) continue;
-      // the page reloaded: the owner may watch on, or have gone
+      
       if (i.demo?.held?.length) this.releaseLater(i.id, this.o.holdGrace ?? HOLD_GRACE);
       const row = this.o.board.row(i.id);
       const landed = workerConfig.landedOf(row);
-      // a snoozed worker sleeps on until its time, a restart notwithstanding
+      
       const hold = this.o.board.holdOf(i.id);
       if (hold?.reason === 'snoozed' && !hold.waiting) {
-        // the owner's snooze holds what Seismic has for the worker, as a pause does
+        
         if (hold.held) this.pausedOverRestart(i.id, landed);
         else {
           this.parkLater(i.id);
-          // a restart it waited for after the landing has happened: that wakes it
+          
           if (landed?.restarts) {
             this.o.board.work(i.id, { landed: JSON.stringify(settled(landed)) });
             this.deliver(i.id, 'Seismic has started again and runs main with your change now.');
@@ -3367,14 +3367,14 @@ export class WorkerSupervisor {
         }
         continue;
       }
-      // about to pause at a safe point, it paused for the restart: it stays paused (an idea's or
-      // Question card's agent, which a restart of this repository's agents leaves running, pauses by itself)
+      
+      
       const pausing = hold?.reason === 'pausing' && i.kind !== 'question' && i.state !== 'idea';
       if (pausing) {
         this.o.board.work(i.id, { hold: holdNow('paused') });
         this.o.board.log(i.id, 'state', 'owner', this.o.board.t.worker.pausedByOwner);
       }
-      // the owner's pause holds across the restart
+      
       if (pausing || hold?.reason === 'paused' || hold?.reason === 'limit') {
         this.pausedOverRestart(i.id, landed);
         continue;
@@ -3383,13 +3383,13 @@ export class WorkerSupervisor {
         this.resumeLanded(i, landed, row.session_id, repo);
         continue;
       }
-      // a worker taking in the owner's words on its handover was in the middle of a turn too
+      
       if (answering(i)) {
         if (row.workstation && row.session_id) this.launch(i.id, restarted, row.session_id);
         else this.answerTaken(i.id);
         continue;
       }
-      // a landing the restart cut off: the card waits for the owner's approval again
+      
       if (i.review?.landing) this.o.board.work(i.id, { approved_at: null });
       if (this.waitsForOwner(i.id)) {
         this.parkLater(i.id);
@@ -3398,10 +3398,10 @@ export class WorkerSupervisor {
       if (i.state !== 'working' && i.state !== 'inPr') continue;
       if (!row.workstation) continue;
       if (row.session_id) this.launch(i.id, restarted, row.session_id);
-      // it never reported a session: start one with the card
+      
       else if (i.state === 'working') this.launchAnew(i.id, row.workstation, workerBriefing(this, i, row.branch ?? '', true), this.taskImages(i));
     }
-    // what stood taken for good before the restart is freed now, not only at the next change
+    
     this.settleLeases();
     void this.listFiles();
   }
@@ -3434,7 +3434,7 @@ export class WorkerSupervisor {
     this.settling = true;
     queueMicrotask(() => {
       this.settling = false;
-      // shut down meanwhile: the repository's workers started afresh settle the leases now
+      
       if (!this.shut) this.settleLeases();
     });
   }
@@ -3450,7 +3450,7 @@ export class WorkerSupervisor {
   private settleLeases() {
     if (this.folder) return;
     for (const { path, card_id: id } of this.o.workstations.list()) {
-      // a workstation being made ready is freed once git is done, and so is one git is freeing
+      
       if (!id || this.kept.has(path) || this.preparing.has(id) || this.freeing.has(path)) continue;
       const ended = this.o.board.leaseEnded(id, path);
       if (!ended) continue;
@@ -3460,9 +3460,9 @@ export class WorkerSupervisor {
       }
       const abandoned = this.o.workstations.abandon(path).then(
         (freed) => {
-          // a worktree with uncommitted changes stays, and is not looked at again until Seismic starts anew
+          
           if (!freed) return void this.kept.add(path);
-          // a deleted card brought back and started meanwhile works there again: its worktree is made anew
+          
           if (!this.o.board.leaseEnded(id, path)) return;
           this.o.board.freed(id, path);
           if (ended === 'ticked') this.o.board.log(id, 'state', 'seismic', this.o.board.t.worker.tickedFreed);
@@ -3519,7 +3519,7 @@ export class WorkerSupervisor {
   private resumeLanded(card: Item, l: LandedState, session: string | null, repo: boolean) {
     if (!session) return this.finish(card.id);
     this.o.board.work(card.id, { landed: JSON.stringify(settled(l)) });
-    // an open question waits for its answer, which resumes the session
+    
     if (card.state === 'waiting') return this.parkLater(card.id);
     const restarted = repo ? REPO_RESTARTED : RESTARTED;
     this.launch(card.id, l.restarts ? `${repo ? 'Seismic runs' : 'Seismic has started again and runs'} main with your change now. ${restarted}` : restarted, session);
@@ -3548,7 +3548,7 @@ export class WorkerSupervisor {
     const preparing = this.preparing.get(id);
     if (!live?.busy && !preparing) return undefined;
     if (live) return live.host;
-    // a clone that turned out dirty gave way to one on another machine, perhaps
+    
     const at = this.o.workstations.leasedBy(id);
     return at ? hostName(at) : preparing!.host;
   }
@@ -3561,7 +3561,7 @@ export class WorkerSupervisor {
     try {
       path = this.o.board.row(id).workstation;
     } catch {
-      // a card that left the board while the pool is read
+      
     }
     return { host, path };
   }
@@ -3587,10 +3587,10 @@ export class WorkerSupervisor {
   restartDue(due: DueRestart | null) {
     this.restart = due;
     this.reviews.restartDue(due);
-    // the cards paused for it show so while it is due
+    
     this.o.board.changed();
     if (!due) {
-      // a worker that paused for it goes on with the owner's words that waited meanwhile
+      
       for (const cardId of this.live.keys()) if (!this.takesLater(cardId) && this.unheard(cardId).some((u) => !u.nextTurn)) this.deliver(cardId, '');
       return;
     }
@@ -3603,7 +3603,7 @@ export class WorkerSupervisor {
   }
 
   shutdown() {
-    // workers of a repository started afresh are its new ones: these settle no lease any more
+    
     this.unwatch();
     this.unwatchLandings?.();
     for (const turn of this.landingTurns.values()) turn.abort();
@@ -3619,7 +3619,7 @@ export class WorkerSupervisor {
     for (const id of [...this.forwards.keys()]) this.unforward(id);
   }
 
-  // ---------------------------------------------------------------- sessions
+  
 
   /** What a worker's environment gets: where Seismic is, and the language the repository names for its demos (`DEMO_LANGUAGE`, read by the demo skill). */
   private env(): Record<string, string> | undefined {
@@ -3682,10 +3682,10 @@ export class WorkerSupervisor {
   private launch(cardId: string, message: string, resume?: string, images: string[] = [], reviewOnly = false) {
     const row = this.o.board.row(cardId);
     if (!row.workstation) throw new Error(`card ${cardId} has no workstation to work in`);
-    // A legacy unqualified session belongs to Claude regardless of today's worker default.
+    
     const chosen = this.o.agentSetting?.() ?? AGENT_DEFAULTS.worker;
     const setting: AgentSetting = row.agent_setting ? JSON.parse(row.agent_setting) : resume ? { model: chosen.model, effort: chosen.effort } : chosen;
-    // a legacy session resumed on today's defaults ran on what is not known: recorded so before they are pinned for it
+    
     if (!row.agent_setting && resume) this.o.board.recordRun(cardId, resume, { harness: 'claude', model: null, effort: null });
     this.o.board.work(cardId, { agent_setting: JSON.stringify(setting) });
     const preferences = this.o.preferences?.() ?? '';
@@ -3700,13 +3700,13 @@ export class WorkerSupervisor {
     }
     live.pending = { text: message, images };
     const env = this.env();
-    // a plan folder outside the repository is the worker's to tick its workstream in, on this machine
+    
     const plans = live.host ? null : outsidePlanDir(this.o.adapter.planDocs.dir);
-    // a Codex worker's sandbox writes only in its workstation and the temporary directories: the demos directory, where it makes the demos it hands over, is the one more place it may write
+    
     const demos = live.host || !setting.harness || setting.harness === 'claude' ? null : expandHome(this.demosDir(cardId));
     const dirs = [plans, demos && isAbsolute(demos) && existsSync(demos) ? demos : null].filter((d): d is string => !!d);
-    // a review card's workstation holds a stranger's code: its Claude Code settings (hooks, MCP servers) and
-    // CLAUDE.md are the contributor's, so the session reads none of them, the default branch's CLAUDE.md instead
+    
+    
     const review = !!contributionOf(row);
     const notes = review ? this.mainNotes() : '';
     try {
@@ -3736,7 +3736,7 @@ export class WorkerSupervisor {
         { cwd: row.workstation, onEvent: (e) => this.onEvent(cardId, live, e), ...(resume ? { resume } : {}), images },
       );
     } catch (e) {
-      // the agent could not start at all (Codex not installed, say): the card does not stay at work without one
+      
       this.live.delete(cardId);
       this.o.board.log(cardId, 'error', 'seismic', messageOf(e));
       const card = this.o.board.item(cardId);
@@ -3748,9 +3748,9 @@ export class WorkerSupervisor {
     live.session.done.then(() => {
       if (this.live.get(cardId) !== live) return;
       this.live.delete(cardId);
-      // the card no longer shows its worker in a turn (an error after its turn ended counted as one)
+      
       this.o.board.changed();
-      // a session that ended without ending its turn takes in no answer any more
+      
       this.answerTaken(cardId);
     });
   }
@@ -3767,19 +3767,19 @@ export class WorkerSupervisor {
       this.o.board.work(cardId, { hold: { ...holding, held: [...(holding.held ?? []), { text, images }] } satisfies Hold });
       return;
     }
-    // a snoozed worker wakes: at its time, by the owner's words, or (snoozed by itself) by whatever Seismic has for it
+    
     const snoozed = this.o.board.snoozedOf(cardId);
     const woke = snoozed && !snoozed.waiting ? snoozed : null;
     if (woke) {
       this.o.board.unsnooze(cardId, met ? { met } : timeUp ? 'time' : owner ? 'owner' : 'news');
       const live = this.live.get(cardId);
       if (live) live.snoozed = false;
-      // snoozed on its handover, it goes on towards what it told the owner: the card is at work again
+      
       const card = this.o.board.item(cardId);
       if (card && handedOver(card)) this.takingIn(cardId, true);
     }
     const wokeText = woke ? wokeNote(woke, timeUp, owner, !!text, met) : '';
-    // the owner's words let a worker about to pause go on, as they do a paused one
+    
     if (owner && this.o.board.holdOf(cardId)?.reason === 'pausing') {
       this.pauseTakenBack(cardId);
       text = [PAUSE_TAKEN_BACK, text].filter(Boolean).join('\n\n');
@@ -3791,7 +3791,7 @@ export class WorkerSupervisor {
         this.limitAttempts.set(cardId, attempts);
         this.o.board.work(cardId, { status_line: holding.statusBefore ?? null });
       }
-      // a snooze it woke from is gone already
+      
       if (!woke) {
         this.o.board.work(cardId, { hold: null });
         this.o.board.log(cardId, 'state', 'owner', this.o.board.t.worker.resumedByOwner);
@@ -3803,14 +3803,14 @@ export class WorkerSupervisor {
     this.unpark(cardId);
     const stopping = this.stopping.get(cardId);
     if (stopping) {
-      // the worker might start the app again while the stop still runs, and lose it
+      
       const generation = this.generation.get(cardId);
       void stopping.then(() => {
         if (this.generation.get(cardId) === generation) this.deliver(cardId, text, images, false, said);
       });
       return;
     }
-    // its worker starts once its workstation is ready and hears them then, or, should git fail, the next start's does
+    
     if ((said.length && this.takesLater(cardId)) || this.preparingFor(cardId)) {
       this.o.board.work(cardId, { unheard: JSON.stringify([...this.unheard(cardId), { said, text, images }] satisfies Unheard[]) });
       return;
@@ -3823,7 +3823,7 @@ export class WorkerSupervisor {
     }
     const live = this.live.get(cardId);
     if (live) {
-      // the turn this starts reports the background work that is still running
+      
       this.stopWaiting(live);
       limitWatch.cancel(live);
       live.limitHit = false;
@@ -3836,7 +3836,7 @@ export class WorkerSupervisor {
     }
     const row = this.o.board.row(cardId);
     if (row.session_id) return this.launch(cardId, text, row.session_id, images);
-    // no session to resume (it never reported one): a new one needs the card first
+    
     const card = this.card(cardId);
     this.launchAnew(cardId, row.workstation, `${workerBriefing(this, card, row.branch ?? '', true)}\n\n${text}`, [...this.taskImages(card), ...images]);
   }
@@ -3848,7 +3848,7 @@ export class WorkerSupervisor {
   private launchAnew(cardId: string, at: string | null, text: string, images: string[]) {
     const captured = this.captured(cardId);
     if (captured === undefined || !at) return this.launch(cardId, text, undefined, images);
-    // meanwhile what the owner says waits for the session, as while a workstation is made ready
+    
     void this.whenReady(
       cardId,
       writeToGitDir(at, CAPTURED_CHANGES, captured).then(() => at),
@@ -3960,7 +3960,7 @@ export class WorkerSupervisor {
     this.o.board.waitsForLimit({ card: cardId }, undefined);
     clearTimeout(live?.quiet);
     live?.session.close();
-    // its slot is free again
+    
     if (live?.busy) this.o.board.changed();
   }
 
@@ -3988,7 +3988,7 @@ export class WorkerSupervisor {
     live.quiet = undefined;
     if (e.type === 'idle' || e.type === 'error' || e.type === 'lost') {
       live.running = 0;
-      // the next turn starts afresh, unless this one only waits for its background work (a render) to wake it
+      
       if (e.type !== 'idle' || !e.background) d = {};
       else d = { ...d, thinking: false };
     } else if (!live.running) {
@@ -4007,13 +4007,13 @@ export class WorkerSupervisor {
     if (this.live.get(cardId) !== live) return;
     if (e.type === 'background') return this.backgroundChanged(cardId, live, e.tasks);
     this.follow(live, e);
-    // a turn may also start without a message from Seismic (a finished background command)
+    
     this.setBusy(live, e.type !== 'idle');
     this.stopWaiting(live);
     limitWatch.cancel(live);
     if (e.type === 'text' || e.type === 'tool') {
-      // a turn of its own (a finished background command woke it) after it answered the owner's
-      // words on its handover: it works on towards what it told them, so the card is at work again
+      
+      
       if (!live.acted && this.o.board.item(cardId)?.review?.answered) this.takingIn(cardId, true);
       this.resumed(cardId, live);
       this.unlimited(cardId, live);
@@ -4023,10 +4023,10 @@ export class WorkerSupervisor {
     if (e.type === 'text' || e.type === 'tool' || (e.type === 'idle' && !e.more)) live.pending = undefined;
     switch (e.type) {
       case 'session': {
-        // a session that replaces another (none resumed, say) keeps the one before for the work retrospective
+        
         const before = this.o.board.row(cardId).session_id;
         if (before && before !== e.id) this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.worker.newSession(this.o.board.t.worker.earlierRun(before)));
-        // what this session runs on, as asked for and as it resolved, for whom the owner's response on the work credits
+        
         const pinned = this.o.board.row(cardId).agent_setting;
         const model = e.model ?? (e.setting ? harnessChoice(e.setting).model : undefined);
         if (model && model !== 'default') live.model = model;
@@ -4037,9 +4037,9 @@ export class WorkerSupervisor {
       }
       case 'text':
         live.lastText = e.text;
-        // after handing over the worker's closing words repeat the handover the card shows: the
-        // conversation leaves them out; after a reply its words wait to see whether work follows them
-        // or they close the turn, repeating the reply
+        
+        
+        
         if (live.handedOver || live.snoozed) break;
         live.spoke = true;
         if (live.answered) live.held = clip(e.text, 12000);
@@ -4060,7 +4060,7 @@ export class WorkerSupervisor {
         if (e.ended) {
           live.ended = true;
           this.unpark(cardId);
-          // the address no longer answers
+          
           if (this.o.board.item(cardId)?.agent?.app) this.o.board.work(cardId, { app: null });
         }
         if (e.limit) {
@@ -4115,7 +4115,7 @@ export class WorkerSupervisor {
     try {
       await this.land(cardId, 'seismic');
     } catch (e) {
-      // the Seismic checkout is in the way: the card waits for the owner, who approves again
+      
       if (!(e instanceof BadRequest)) return this.o.board.log(cardId, 'error', 'seismic', messageOf(e));
       this.o.board.work(cardId, { state: 'waiting', need: this.o.board.row(cardId).demo?.latest ? 'demo' : 'review', status_line: null });
       this.o.board.log(cardId, 'error', 'seismic', e.message, { code: e.code });
@@ -4131,11 +4131,11 @@ export class WorkerSupervisor {
    * is, so the landing of its work, told while the worker ended its reply, is not lost with the session.
    */
   private turnEnded(cardId: string, live: Live, background: number, waited = false, more = false) {
-    // calls whose end its hooks never heard of (refused, cut off) end with the turn
+    
     void this.folder?.settle(cardId);
     const handedOver = live.handedOver;
     const acted = live.acted || waited;
-    // what runs now was started before any later turn
+    
     for (const t of live.tasks.values()) t.earlier = true;
     const closing = live.held;
     const snoozed = live.snoozed;
@@ -4143,89 +4143,89 @@ export class WorkerSupervisor {
     live.handedOver = false;
     live.answered = false;
     live.spoke = false;
-    // a snooze holds across a turn a message from Seismic still starts (a restart notice): its session ends after that one
+    
     if (!more) live.snoozed = false;
     live.held = undefined;
     live.acted = false;
-    // a turn that took in the restart pauses for it, whatever else keeps the worker busy
+    
     if (this.restart && live.toldRestart && !more) live.restartPaused = true;
     const card = this.o.board.item(cardId);
     if (!card) return;
     if (closing !== undefined) this.o.board.log(cardId, 'closing', 'worker', closing);
     const row = this.o.board.row(cardId);
-    // it snoozed: its session ends (its background work with it), and Seismic resumes it at the time;
-    // on its handover the snooze answers the owner's words, so waking it is at work again
+    
+    
     if (snoozed && !handedOver && !more && this.o.board.snoozedOf(cardId)) {
       if (answering(card)) this.answerTaken(cardId, true);
       return this.end(cardId);
     }
     if (this.o.board.holdOf(cardId)?.reason === 'pausing' && !more) {
-      // it paused at a safe point, as the owner asked: its session ends, and it goes on once they let it
+      
       if (!background) return this.pausedAtSafePoint(cardId, card, !!row.approved_at, handedOver, spoke);
-      // its background work keeps the owner waiting, and the turn it starts hears so
+      
       live.pauseHeld = true;
     }
     if (background > 0) {
-      // the usage limit cut the worker's turn off while its work runs on: the card says so, and the
-      // worker goes on once it lifts, without waiting for that work to wake it
+      
+      
       if (live.limited && !handedOver && this.goesOnAfterLimit(cardId)) return this.waitForLimit(cardId, live, live.limited, background);
-      // the background work still belongs to the turn, whatever the card's state (a worker may ask
-      // while its render runs): a restart now would cut it off
+      
+      
       this.waitForWorker(cardId, live);
       if (!handedOver) {
-        // words for the owner on its handover answer theirs though the app it serves for them to try
-        // runs on: the card is theirs again. Other work (a test run, a render) wakes the worker to go
-        // on towards what it told them, so the card stays at work while it runs.
+        
+        
+        
         if (spoke && answering(card) && onlyApp(live)) this.answerTaken(cardId, true);
         return;
       }
     }
     if (more && !handedOver) return this.waitForWorker(cardId, live);
     if (answering(card)) {
-      // a resumed session may first end a turn of its own before it takes in the owner's words
+      
       if (!acted && !handedOver) return this.waitForWorker(cardId, live);
-      // it paused for the restart, which resumes it, still taking in the answer
+      
       if (this.restart && live.toldRestart && !handedOver) return this.pausedForRestart(cardId, live);
-      // the usage limit cut it off: it goes on by itself once the limit lifts, still taking in the answer
+      
       if (live.limited && !handedOver) return this.waitForLimit(cardId, live, live.limited);
       this.answerTaken(cardId, spoke);
     }
     if (handedOver) {
-      // work the owner approved already lands once its worker handed over what stood in the way
+      
       if (card.state === 'working' && row.approved_at) void this.landApproved(cardId);
       return;
     }
     const landed = workerConfig.landedOf(row);
-    // in the PR phase a turn ends normally once the PR is open
+    
     if (card.state === 'inPr' && card.review?.pr) return;
-    // fixing review items under a handover that waits for approval is work too: the card stays waiting, and only a handover, a resubmission or a dispute settles the items
+    
     const fixing = this.reviews.items(cardId).some((i) => i.status === 'fixing');
     if (card.state !== 'working' && card.state !== 'inPr' && !landed && !fixing) return;
     if (landed) {
-      // what remained after the landing is done, unless the worker waits for its question, the restart, its demo's page or the usage limit
+      
       if (card.state === 'waiting' || landed.waits) return;
       if (landed.page) {
-        // the page went out (or did not) without the worker hearing it (Seismic was not running, say): it hears now
+        
         if (card.demo?.share?.state !== 'publishing') this.pageSettled(cardId);
         return;
       }
       if (landed.needsClone) return this.awaitClone(cardId);
       if (landed.resolve && !live.failed && !live.limited && !(this.restart && live.toldRestart)) return this.unresolved(cardId, live, landed.resolve);
-      // it paused for the restart, which resumes it with its workstation
+      
       if (this.restart && live.toldRestart && !live.failed) return this.pausedForRestart(cardId, live);
       if (live.limited) return this.waitForLimit(cardId, live, live.limited);
       if (live.failed) return this.failedAfterLanding(cardId, live);
       this.finish(cardId);
       return;
     }
-    // it paused for the restart, which resumes it
+    
     if (this.restart && live.toldRestart) return this.pausedForRestart(cardId, live);
     if (live.limited) return this.waitForLimit(cardId, live, live.limited);
-    // a session that died with an error (Codex refusing to start, say) hears no nudge: the owner hears why at once
+    
     if (live.ended && live.failed) live.nudged = true;
     if (!acted && !live.nudged) {
-      // the worker's own turn is still to come; should it not, it counts as ended after a while
-      // (silence after a nudge, though, is the worker having stopped)
+      
+      
       this.waitForWorker(cardId, live);
       return;
     }
@@ -4243,7 +4243,7 @@ export class WorkerSupervisor {
     }
     live.nudged = false;
     live.stalled = true;
-    // a session that fails again after the nudge cannot go on by itself: the owner hears why, not its last words
+    
     const text = live.failed ? failureReason(clip(live.failed, 1200), this.o.board.t) : live.lastText ? clip(live.lastText, 1200) : this.o.board.t.worker.stalled;
     this.toOwner(cardId, { text, options: [], stuck: true });
   }
@@ -4315,7 +4315,7 @@ export class WorkerSupervisor {
     if (!detail) return;
     const { answering, answered: before, ...rest } = JSON.parse(detail) as Record<string, unknown>;
     if (!answering) return;
-    // the worker's words alone end the card's wait for a handover: it takes the project's code review setting as it stands
+    
     void this.codeReviewsChanged();
     const answered = spoke || !!before;
     this.o.board.work(cardId, { detail: JSON.stringify({ ...rest, ...(answered ? { answered: true } : {}) }) });
@@ -4339,7 +4339,7 @@ export class WorkerSupervisor {
       this.turnEnded(cardId, live, 0, true);
       this.parkLater(cardId);
     }, live.background > 0 ? (this.o.backgroundLimit ?? BACKGROUND_LIMIT) : (this.o.backgroundGrace ?? BACKGROUND_GRACE));
-    // a card waiting for the owner shows nobody at work once only its background work holds the turn
+    
     if (began && [...this.live.values()].includes(live)) this.o.board.changed();
   }
 
@@ -4354,16 +4354,16 @@ export class WorkerSupervisor {
   /** The worker's background work started or ended: an ended turn waiting for it waits as long as it runs. */
   private backgroundChanged(cardId: string, live: Live, running: { id: string; description: string }[]) {
     live.background = running.length;
-    // what it changes in a folder without git meanwhile is the card's
+    
     this.folder?.background(cardId, running.length > 0);
     const now = Date.now();
     live.tasks = new Map(running.map((t) => [t.id, { ...live.tasks.get(t.id), description: t.description, since: live.tasks.get(t.id)?.since ?? now }]));
-    // the card shows what runs while the worker is in a turn
+    
     if (live.busy) this.o.board.changed();
     if (live.waiting) this.waitForWorker(cardId, live);
   }
 
-  // ---------------------------------------------------------------- parking
+  
 
   /**
    * Whether the card waits for the owner with its workstation and nothing of its worker's running:
@@ -4372,7 +4372,7 @@ export class WorkerSupervisor {
   private waitsForOwner(cardId: string): boolean {
     const card = this.o.board.item(cardId);
     if (!card || !(card.state === 'waiting' || (card.state === 'inPr' && card.review?.pr) || isPaused(card) || snoozeOf(card))) return false;
-    // paused while taking in the owner's words on its handover, nothing of it runs either
+    
     if ((answering(card) && !isPaused(card) && !snoozeOf(card)) || this.live.get(cardId)?.busy) return false;
     const row = this.o.board.row(cardId);
     return !!row.workstation && !row.parked;
@@ -4427,7 +4427,7 @@ export class WorkerSupervisor {
     const local = await f.forward.ready;
     if (!local || this.forwards.get(cardId) !== f) return null;
     f.port = local;
-    // the browser here names it as the worker did where it can, so the page's own origin stays
+    
     url.hostname = url.hostname === '127.0.0.1' ? '127.0.0.1' : 'localhost';
     url.port = String(local);
     return url.href;
@@ -4484,7 +4484,7 @@ export class WorkerSupervisor {
     clearTimeout(live.waiting);
     limitWatch.cancel(live);
     const pending = live.pending;
-    // in a turn, or its ended turn waiting for background work that woke it: that work went with the session
+    
     const busy = live.busy;
     const generation = this.generation.get(cardId);
     this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.worker.hostLost(there.host.name));
@@ -4527,17 +4527,17 @@ export class WorkerSupervisor {
   /** Stops the app in the card's workstation, unless it holds what must stay (`app.keep`). */
   private async park(cardId: string) {
     const { stop, keep } = this.o.adapter.app ?? {};
-    // the settings lost the command since the grace began
+    
     if (!stop) return;
     const workstation = this.o.board.row(cardId).workstation!;
     const generation = this.generation.get(cardId);
     if (keep && (await runAppCommand(workstation, keep)).ok) {
-      // the session died meanwhile and took the app: it does not keep running
+      
       if (this.generation.get(cardId) === generation && !this.live.get(cardId)?.ended) this.o.board.log(cardId, 'state', 'seismic', this.o.board.t.worker.parkKept);
       return;
     }
     const result = await runAppCommand(workstation, stop);
-    // the card's work ended or started afresh meanwhile: its row is no longer this workstation's
+    
     if (this.generation.get(cardId) !== generation) return;
     if (!result.ok) {
       this.o.board.log(cardId, 'error', 'seismic', this.o.board.t.worker.parkFailed(clip(result.output, 600)));
@@ -4563,7 +4563,7 @@ export class WorkerSupervisor {
     if (background > 0) this.waitForWorker(cardId, live);
     else this.setBusy(live, false);
     if (live.statusBefore === undefined) {
-      // after a restart the line may still be the one this shows
+      
       const line = this.o.board.row(cardId).status_line;
       live.statusBefore = line && limitLine(line) ? null : line;
     }
@@ -4592,7 +4592,7 @@ export class WorkerSupervisor {
     const before = live.statusBefore;
     live.statusBefore = undefined;
     if (before !== undefined) this.o.board.work(cardId, { status_line: before });
-    // it waited before a restart
+    
     else if (limitLine(this.o.board.row(cardId).status_line)) this.o.board.work(cardId, { status_line: null });
   }
 
@@ -4605,7 +4605,7 @@ export class WorkerSupervisor {
     this.backToWork(cardId);
   }
 
-  // ---------------------------------------------------------------- the worker's tools
+  
 
 
   /**
@@ -4686,8 +4686,8 @@ export class WorkerSupervisor {
         resolve(value);
       };
       const abort = () => {
-        // Closing a session preserves the question for a restart. Resolving/interruption of just
-        // this request invalidates it, so it must not block a later permission or appear open.
+        
+        
         if (signal.reason === 'permission-obsolete' && this.live.get(cardId) === live && live.permission === answer) this.backToWork(cardId);
         answer({ allow: false, message: 'This permission request has ended.' });
       };
@@ -4706,7 +4706,7 @@ export class WorkerSupervisor {
     this.live.get(cardId)?.permission?.({ allow: false, message: `Not run: ${why} If you still need the call, make it again; the owner is asked anew.` });
   }
 
-  /** The worker takes back one of its proposals by title, or marks it replaced (`s.by`): what became of it, as the tool's result. */
+  
   /** The boards a card's proposals may be on: this project's, then those of the other projects. */
   proposalBoards(): Board[] {
     return [this.o.board, ...this.otherBoards()];
@@ -4734,7 +4734,7 @@ export class WorkerSupervisor {
   }
 
   retract(cardId: string, title: string, s: Superseded): string {
-    // the proposal may be on another project: where none of this card's has the title, the next one is asked
+    
     const mine: Extract<Retracted, { kind: 'unknown' }>['mine'] = [];
     let r: Retracted = { kind: 'unknown', mine };
     for (const b of this.proposalBoards()) {
@@ -4786,7 +4786,7 @@ export class WorkerSupervisor {
     this.o.board.work(cardId, { state: landed ? (landed.unchanged ? 'done' : 'live') : row.review?.pr ? 'inPr' : 'working', need: null, detail: null });
   }
 
-  // ---------------------------------------------------------------- prompts
+  
 
   /** What a handover on this repository may bring: its settings', else the demo settings', else everything. */
   artifacts(): readonly HandoverArtifact[] {

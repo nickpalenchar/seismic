@@ -1,0 +1,10 @@
+{
+  // Bun loads the UI through src/ui/index.html.
+  "entry": ["src/ui/main.tsx", "src/ui/frost.ts"],
+  "ignoreDependencies": [
+    // scripts/app.ts and scripts/build-app.ts invoke the CLI through Bun.spawnSync.
+    "@tauri-apps/cli",
+    // tools/lint.ts invokes the binary through Bun.spawnSync.
+    "oxlint"
+  ]
+}

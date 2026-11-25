@@ -10,7 +10,7 @@ import { siteTarget } from '../site';
 import { SiteSetup } from '../site-setup';
 import { type Exec, exec } from '../site-hosts';
 
-// the folder's tests run real git: a busy machine takes seconds for them
+
 setDefaultTimeout(60_000);
 
 describe('where a folder is served', () => {
@@ -53,9 +53,9 @@ describe('the push check', () => {
 
   test('classic protection blocks where it holds for the login, and links the branch settings', async () => {
     const protectedBranch = { 'repos/acme/docs/rules/branches/main': [], 'repos/acme/docs/branches/main': { protected: true } };
-    // not an admin: the protection cannot be read, so it counts
+    
     expect(await pushCheck(gh(protectedBranch), 'acme/docs', 'main', { push: true, admin: false })).toEqual({ allowed: false, admin: false, settings: 'https://github.com/acme/docs/settings/branches' });
-    // an admin passes it unless it includes administrators
+    
     const reviews = { required_pull_request_reviews: {}, enforce_admins: { enabled: false } };
     expect((await pushCheck(gh({ ...protectedBranch, 'repos/acme/docs/branches/main/protection': reviews }), 'acme/docs', 'main', { push: true, admin: true })).allowed).toBe(true);
     const strict = { ...reviews, enforce_admins: { enabled: true } };
@@ -120,19 +120,19 @@ describe('a site in a folder of an existing repository', () => {
   let dir: string;
   let remote: string;
   let demo: string;
-  /** What gh is asked, and the pull requests it says are open. */
+  
   let gh: string[][];
   let open: { url: string; number: number; mergeable?: string; body?: string; headRefOid?: string; base?: string }[];
-  /** The repository's default branch and its Pages as GitHub says now (null: off). */
+  
   let defaultBranch: string;
   let pages: { source: { branch: string; path: string } } | null | 'default';
   let state: string;
   let failCreate: boolean;
   let failEdit: boolean;
-  /** The pull requests GitHub has besides the open one, newest first. */
+  
   let history: { headRefOid: string; state: string }[];
   let failRollback: boolean;
-  /** Runs once right before the next push: another machine's commit coming in between. */
+  
   let beforePush: (() => Promise<void>) | null;
   const x: Exec = async (argv, o) => {
     if (argv[0] === 'gh') {
@@ -141,7 +141,7 @@ describe('a site in a folder of an existing repository', () => {
       if (line === 'auth token') return { code: 0, out: 'gho_secret\n', err: '' };
       if (line === 'api repos/acme/docs') return { code: 0, out: JSON.stringify({ default_branch: defaultBranch }), err: '' };
       if (line === 'api repos/acme/docs/pages') return pages ? { code: 0, out: JSON.stringify(pages === 'default' ? { source: { branch: defaultBranch, path: '/' } } : pages), err: '' } : { code: 1, out: '', err: 'gh: Not Found (HTTP 404)' };
-      // GitHub's list of the branch's pull requests, two to a page, the open one first
+      
       const pulls = /^api --paginate --slurp repos\/acme\/docs\/pulls\?state=(open|all)&head=acme%3Aseismic%2Fdemos&per_page=100$/.exec(line);
       if (pulls) {
         const list = [...open, ...(pulls[1] === 'all' ? history : [])].map((p) => ({ html_url: 'url' in p ? p.url : '', number: 'number' in p ? p.number : 0, body: 'body' in p ? p.body : null, head: { sha: p.headRefOid ?? '' }, base: { ref: 'base' in p && p.base ? p.base : 'main' } }));
@@ -160,20 +160,20 @@ describe('a site in a folder of an existing repository', () => {
         return { code: 0, out: '', err: '' };
       }
       if (line.startsWith('pr view')) return { code: 0, out: `${state}\n`, err: '' };
-      // GitHub's compare, as git tells it of the remote
+      
       const compare = /^api repos\/acme\/docs\/compare\/(\w+)\.\.\.(\w+)/.exec(line);
       if (compare) {
         const [, a, b] = compare as unknown as [string, string, string];
         const on = async (x: string, y: string) => (await exec(['git', '-C', remote, 'merge-base', '--is-ancestor', x, y])).code === 0;
         const status = a === b ? 'identical' : (await on(a, b)) ? 'ahead' : (await on(b, a)) ? 'behind' : 'diverged';
         if (!argv.at(-1)!.includes('ahead_by')) return { code: 0, out: `${status}\n`, err: '' };
-        // the commits the second has beyond the first, and whether each is Seismic's
+        
         const messages = (await exec(['git', '-C', remote, 'log', '--format=%s', `${a}..${b}`])).out.split('\n').filter(Boolean);
         return { code: 0, out: JSON.stringify({ status, ahead_by: messages.length, demos: messages.map((m) => m.startsWith('Demos:')) }), err: '' };
       }
       return { code: 0, out: '', err: '' };
     }
-    // a rollback deletes the branch or puts back its tip from before, never pushes HEAD
+    
     if (failRollback && argv.some((a) => a.endsWith(':refs/heads/seismic/demos') && !a.startsWith('HEAD:') && !a.startsWith('--'))) return { code: 1, out: '', err: 'cannot restore branch' };
     if (argv.includes('push') && beforePush) {
       const run = beforePush;
@@ -222,7 +222,7 @@ describe('a site in a folder of an existing repository', () => {
     history = [];
     beforePush = null;
     defaultBranch = 'main';
-    // served from the default branch's root, whichever it is
+    
     pages = 'default';
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
@@ -238,9 +238,9 @@ describe('a site in a folder of an existing repository', () => {
     expect(existsSync(join(at, 'docs/demos/first/demo.mp4'))).toBe(true);
     expect(existsSync(join(at, 'docs/demos/obeya-site.json'))).toBe(true);
     for (const f of ['.nojekyll', 'docs/demos/.nojekyll', 'docs/demos/_headers']) expect(existsSync(join(at, f))).toBe(false);
-    // gh's token stays off the command line
+    
     expect(gh.flat()).not.toContain('gho_secret');
-    // a withdrawal is one more commit
+    
     expect((await make('direct').withdraw('first', [])).why).toBeUndefined();
     const again = await look();
     expect((await git(again, 'log', '--format=%s')).split('\n')[0]).toBe('Demos: withdraw Title first');
@@ -266,7 +266,7 @@ describe('a site in a folder of an existing repository', () => {
   test('two machines merge through git: a push rejected because the other pushed is made once more', async () => {
     const other = make('direct', join(dir, 'home-b'), 'b');
     expect(await other.publish(page('theirs'))).toHaveProperty('url');
-    // the other machine shares again right before this one's push
+    
     beforePush = async () => void (await other.publish(page('later')));
     expect(await make('direct').publish(page('mine'))).toHaveProperty('url');
     const at = await look();
@@ -278,10 +278,10 @@ describe('a site in a folder of an existing repository', () => {
     const r = await make('pr').publish(page('one'));
     expect(r).toMatchObject({ merge: 'https://github.com/acme/docs/pull/7' });
     expect(gh.filter((c) => c[0] === 'pr' && c[1] === 'create')).toHaveLength(1);
-    // the default branch is as it was; the branch holds the page
+    
     expect(await git(await look(), 'log', '--format=%s')).toBe('seed');
     expect(existsSync(join(await look('seismic/demos'), 'docs/demos/one/demo.mp4'))).toBe(true);
-    // the next share goes onto the same branch, and the pull request lists both pages
+    
     expect(await make('pr').publish(page('two', ['one']))).toMatchObject({ merge: 'https://github.com/acme/docs/pull/7' });
     expect(gh.filter((c) => c[0] === 'pr' && c[1] === 'create')).toHaveLength(1);
     const edit = gh.filter((c) => c[0] === 'pr' && c[1] === 'edit').at(-1)!;
@@ -289,7 +289,7 @@ describe('a site in a folder of an existing repository', () => {
     expect(edit.at(-1)).toContain('[Title two]');
     expect(await git(await look('seismic/demos'), 'log', '--format=%s')).toBe('Demos: Title two\nDemos: Title one\nseed');
     expect(await make('pr').prState!('https://github.com/acme/docs/pull/7')).toBe('open');
-    // merged at GitHub (squashed): the next share starts the branch afresh from the default branch
+    
     const merged = await look();
     await git(merged, 'checkout', '-q', 'origin/seismic/demos', '--', 'docs/demos');
     await git(merged, 'commit', '-qm', 'Demos (#7)');
@@ -346,7 +346,7 @@ describe('a site in a folder of an existing repository', () => {
   test('a closed proposal counts however many pull requests came after it', async () => {
     await make('pr').publish(page('one'));
     await close();
-    // six later proposals, merged: the closed one is on GitHub's fourth page
+    
     history = [...Array.from({ length: 6 }, (_, i) => ({ headRefOid: String(i).repeat(40), state: 'MERGED' })), ...history];
     await onBranch();
     expect(await make('pr', join(dir, 'home-b'), 'b').publish(page('two'))).toHaveProperty('merge');
@@ -367,7 +367,7 @@ describe('a site in a folder of an existing repository', () => {
 
   test('switching to direct publishing never lets the audit publish a proposal, closed or open', async () => {
     await make('pr').publish(page('one'));
-    // open, then closed: the default branch never gets the page from the minute check
+    
     for (const closed of [false, true]) {
       if (closed) await close();
       for (let i = 0; i < 2; i++) expect(await make('direct').audit(['one'])).toEqual({ gone: [], missing: [] });
@@ -417,7 +417,7 @@ describe('a site in a folder of an existing repository', () => {
 
   test('an orphan branch goes on after an earlier proposal was merged with a merge commit', async () => {
     await make('pr').publish(page('zero'));
-    // merged at GitHub with a merge commit: its head is in the default branch's history
+    
     const merged = await look();
     await git(merged, 'merge', '-q', '--no-ff', '-m', 'Merge #7', 'origin/seismic/demos');
     await git(merged, 'push', '-q', 'origin', 'main');
@@ -460,7 +460,7 @@ describe('a site in a folder of an existing repository', () => {
     const trunk = await look('trunk');
     expect(await git(trunk, 'log', '--format=%s')).toBe('Demos: Title two\ntrunk\nDemos: Title one\nseed');
     for (const slug of ['one', 'two']) expect(existsSync(join(trunk, 'docs/demos', slug, 'index.html'))).toBe(true);
-    // the earlier default branch is left as it was
+    
     expect(await git(await look(), 'log', '--format=%s')).toBe('Demos: Title one\nseed');
   });
 
@@ -470,7 +470,7 @@ describe('a site in a folder of an existing repository', () => {
     await toTrunk();
     failEdit = true;
     expect(JSON.stringify(await make('pr').publish(page('two', ['one'])))).toContain('brought up to date on the next site check');
-    // its branch is built afresh on trunk, in the same pull request
+    
     expect(await git(await look('seismic/demos'), 'log', '--format=%s')).toBe('Demos: Title two\ntrunk\nseed');
     expect(gh.filter((c) => c[0] === 'pr' && c[1] === 'create')).toHaveLength(1);
     expect(open[0]!.base).toBe('main');
@@ -493,7 +493,7 @@ describe('a site in a folder of an existing repository', () => {
   });
 
   test('a site check moves the pull request only once its branch holds demos alone on the new default branch', async () => {
-    // the new default branch is an older point of the earlier one: the proposal's branch is built on it, with main's own commit between
+    
     const at = await look();
     writeFileSync(join(at, 'MAIN.md'), 'after the fork\n');
     await git(at, 'add', '-A');
@@ -549,7 +549,7 @@ describe('initializing a site in an existing repository', () => {
     expect(v.job?.error).toBeUndefined();
     expect(calls).toContain('api -X POST repos/acme/notes/pages -f source[branch]=main -f source[path]=/');
     expect(v.sites[0]).toMatchObject({ url: 'https://acme.github.io/notes/docs/demos', host: 'github', project: 'acme/notes', listed: false, git: { branch: 'main', folder: 'docs/demos', mode: 'pr' } });
-    // a push straight to main does not go through: refused as the mode
+    
     await expect(setup.mode({ url: v.sites[0]!.url, mode: 'direct' })).rejects.toThrow('does not go through');
     answers['repos/acme/notes/rules/branches/main'] = [];
     expect((await setup.mode({ url: v.sites[0]!.url, mode: 'direct' })).sites[0]!.git?.mode).toBe('direct');

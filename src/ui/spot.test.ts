@@ -11,7 +11,7 @@ test('a timestamped send resumes only the demo it was written on', () => {
   closeFirst();
   const closeSecond = watch('card', video, [], 2);
   try {
-    // The next version can reuse the same element and even stand at the same time.
+    
     first.resume();
     expect(played).not.toHaveBeenCalled();
     take('card')!.resume();

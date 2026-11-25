@@ -1,7 +1,7 @@
-// A block of code: shadcn/ui's code block (`code-block`, from the radix-nova registry), its surface,
-// content and lines. Ours: lines can carry a gutter (a diff's two line numbers), added and removed
-// lines are tinted green and red like the line counts beside a file, and a split diff puts two lines
-// side by side in one row. The copy button, header and footer are left out until something needs them.
+
+
+
+
 
 import { cva, type VariantProps } from 'class-variance-authority';
 import type { ClipboardEvent, ComponentProps, ReactNode } from 'react';
@@ -47,13 +47,13 @@ function copyLines(e: ClipboardEvent<HTMLPreElement>) {
     const row = line.parentElement;
     return row?.dataset.slot === 'code-block-split-row' ? [...row.children].indexOf(line) : -1;
   };
-  // the empty side of a split row is no line of that file
+  
   const picked = [...e.currentTarget.querySelectorAll('[data-slot=code-block-line]:not([data-variant=absent]) > [data-slot=code-block-line-content]')].filter((c) =>
     range.intersectsNode(c),
   );
   if (!picked.length) return;
-  // the side the owner started dragging on, whichever way they dragged (a range always runs forward,
-  // so its first line can lie on the other side of a row above); from between two hunks, the first line's
+  
+  
   const from = side(selection.anchorNode) ?? side(picked[0]!);
   const text = picked
     .filter((c) => side(c) === from)
@@ -64,7 +64,7 @@ function copyLines(e: ClipboardEvent<HTMLPreElement>) {
       if (content.contains(range.endContainer)) part.setEnd(range.endContainer, range.endOffset);
       const copy = part.cloneContents();
       copy.querySelectorAll('[data-copy=skip]').forEach((n) => n.remove());
-      // an empty line holds a newline of its own, for its height
+      
       return (copy.textContent ?? '').replace(/^\n$/, '');
     })
     .join('\n');
@@ -122,7 +122,7 @@ const codeBlockLineVariants = cva(
         added: "bg-approved/12 after:text-approved after:content-['+']",
         removed: "bg-destructive/10 after:text-destructive after:content-['−']",
         highlighted: 'bg-muted',
-        /** The empty side of a split diff's row, where the other side has a line the one has not. */
+        
         absent: 'bg-muted/60',
       },
     },
@@ -132,7 +132,7 @@ const codeBlockLineVariants = cva(
 
 /** One line; `gutter` stands before it, out of the selection (a diff's line numbers). */
 export function CodeBlockLine({ className, variant = 'default', gutter, children, ...props }: ComponentProps<'span'> & VariantProps<typeof codeBlockLineVariants> & { gutter?: ReactNode }) {
-  // An empty line holds a newline, so it keeps the height of a line.
+  
   const empty = children === undefined || children === null || children === '' || (Array.isArray(children) && children.length === 0);
   return (
     <span data-slot="code-block-line" data-variant={variant} data-gutter={gutter !== undefined || undefined} className={cn(codeBlockLineVariants({ variant }), className)} {...props}>

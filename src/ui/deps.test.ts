@@ -5,7 +5,7 @@ import { depsOf, nearestHandle, settledAmong, waitsAmong, withoutImplied } from 
 const card = (id: string, ...behind: string[]) =>
   ({ id, kind: 'task', state: behind.length ? 'planned' : 'working', title: id, body: '', x: 0, y: 0, source: 'manual', repo: 'r', ...(behind.length && { queue: { behind, reason: '' } }) }) as Item;
 
-// A ← B ← C, A ← D (D also waits for B), E on its own
+
 const items = [card('A'), card('B', 'A'), card('C', 'B'), card('D', 'A', 'B'), card('E')];
 
 test('a waiting card shows what it waits for, over every step', () => {
@@ -19,7 +19,7 @@ test('a working card shows everything that waits for it, each wait once, none a 
   const d = depsOf('A', items)!;
   expect([...d.after].sort()).toEqual(['B', 'C', 'D']);
   expect(d.before.size).toBe(0);
-  // D waits for A too, but through B already
+  
   expect(d.edges.sort()).toEqual([['A', 'B'], ['B', 'C'], ['B', 'D']]);
 });
 
@@ -40,7 +40,7 @@ test('a card in the middle shows both ways', () => {
   const d = depsOf('B', items)!;
   expect([...d.before]).toEqual(['A']);
   expect([...d.after].sort()).toEqual(['C', 'D']);
-  // the waits on the way to it are told apart from those waiting for it
+  
   expect([...d.first]).toEqual(['A B']);
 });
 
@@ -95,7 +95,7 @@ test('the dot nearest the pointer shows, only within reach', () => {
   expect(nearestHandle(cards, { x: 100, y: 108 }, 16)).toEqual({ id: 'A', side: 'bottom' });
   expect(nearestHandle(cards, { x: 100, y: 124 }, 16)).toEqual({ id: 'B', side: 'top' });
   expect(nearestHandle(cards, { x: 205, y: 50 }, 16)).toEqual({ id: 'A', side: 'right' });
-  // in the middle of a card, and beside an edge but far from its middle, no dot
+  
   expect(nearestHandle(cards, { x: 100, y: 50 }, 16)).toBeNull();
   expect(nearestHandle(cards, { x: 20, y: 100 }, 16)).toBeNull();
 });
@@ -124,7 +124,7 @@ test("a finished card's dependencies stay as dim green lines, in a plan or not",
     { from: 'W1', to: 'W4' },
     { from: 'X', to: 'W5' },
   ]);
-  // they are no waits
+  
   expect(waitsAmong(items)).toEqual([['W3', 'W4']]);
 });
 

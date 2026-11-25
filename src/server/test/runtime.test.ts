@@ -18,7 +18,7 @@ test('background work counts renders, test runs and watchers, not housekeeping',
     backgroundWork([
       { task_id: 'b1', task_type: 'local_bash', description: 'Run the test suite' },
       { task_id: 'a1', task_type: 'local_agent', description: 'Review the diff' },
-      // a watcher the SDK marks as no activity still wakes the agent when it fires
+      
       { task_id: 'm1', task_type: 'monitor_ws', description: 'Watch the deploy', ambient: true },
       { task_id: 'd1', task_type: 'dream', description: 'Consolidate memory', ambient: true },
     ]),
@@ -39,17 +39,17 @@ test('foreground sleep: sleep durations, loops, bounds and background', () => {
     ['sleep 290 && curl -s https://example.com/health', 290],
     ['cd app; sleep 20; sleep 20', 40],
     ['sleep 60 2>&1', 60],
-    // behind & it runs on while the command returns
+    
     ['sleep 300 &', 0],
     ['(sleep 300; touch done) & echo started', 0],
-    // loops: the body times the iterations, unbounded for while and until
+    
     ['for i in $(seq 1 60); do curl -s x && break; sleep 5; done', 300],
     ['for i in {1..10}; do sleep 2; done', 20],
     ['for host in a b c; do ping -c1 $host; sleep 1; done', 3],
     ['until curl -s localhost:4000 >/dev/null; do sleep 0.5; done', Infinity],
     ['while true; do\n  gh run view 123 | grep -q completed && break\n  sleep 10\ndone', Infinity],
     ['for i in $(seq 1 5); do echo $i; done', 0],
-    // timeout bounds the command it starts, wherever that stands, but not longer than it waits
+    
     ["timeout 30 bash -c 'until curl -s localhost:4000; do sleep 1; done'", 30],
     ["cd app && timeout 28 bash -c 'until grep -q ready log; do sleep 2; done' && cat log", 28],
     ['PORT=4000 gtimeout -k 5 --foreground 20s bash -c "until curl -s localhost:\\$PORT; do sleep 1; done"', 20],
@@ -60,7 +60,7 @@ test('foreground sleep: sleep durations, loops, bounds and background', () => {
     ['timeout 0 sleep 60', 60],
     ['timeout 300 sleep 300 &', 0],
     ['sleep infinity', Infinity],
-    // a heredoc's text is data, unless a shell runs it
+    
     ["cat > wait.sh <<'EOF'\nuntil curl -s x; do sleep 2; done\nEOF\nchmod +x wait.sh", 0],
     ['cat > wait.sh <<EOF\nuntil curl -s x; do sleep 2; done\nEOF\nsleep 5', 5],
     ['cat <<-END > f\n\twhile true; do sleep 1; done\n\tEND', 0],
@@ -70,7 +70,7 @@ test('foreground sleep: sleep durations, loops, bounds and background', () => {
     ['ssh host bash -s <<EOF\nsleep 60\nEOF', 60],
     ["cat <<'EOF' | sh\nsleep 60\nEOF", 60],
     ["cat > f <<'EOF' && bash f\nsleep 60\nEOF", 0],
-    // no heredoc: a here-string, `<<` in quotes or a comment, a shift
+    
     ['grep -q x <<< "$out"; sleep 40', 40],
     ["echo 'a <<b'\nsleep 40\nb", 40],
     ['echo "a <<b"\nsleep 40\nb', 40],
@@ -106,7 +106,7 @@ test('a turn that failed on the API counts as failed, with its error', () => {
   expect(failureReason('overloaded', MESSAGES.en)).toContain('overloaded');
   expect(failureReason('Claude Code process exited with code 1. stderr: not logged in', MESSAGES.en)).toBe(MESSAGES.en.failure.notLoggedIn);
   expect(failureReason('Invalid API key · Please run /login', MESSAGES.en)).toBe(MESSAGES.en.failure.notLoggedIn);
-  // another tool's login error is not Claude's
+  
   expect(failureReason('gh: OAuth token expired', MESSAGES.en)).toContain('gh: OAuth token expired');
 });
 
@@ -114,10 +114,10 @@ test('a turn the usage limit stopped says when the limit lifts', () => {
   const hit = "You've hit your session limit · resets 2:40pm (Europe/Berlin)";
   const rejected = { status: 'rejected', resetsAt: 1_791_211_200, rateLimitType: 'five_hour' } as const;
   expect(usageLimit(hit, true, rejected)).toEqual({ resetsAt: 1_791_211_200_000 });
-  // refused, but the limits reported say nothing of when: the message does
+  
   const now = Date.parse('2026-10-16T12:05:00Z');
   expect(usageLimit(hit, true, undefined, now)).toEqual({ resetsAt: Date.parse('2026-10-16T12:40:00Z') });
-  // a CLI that reports neither: the message alone
+  
   expect(usageLimit(hit, false, undefined, now)).toEqual({ resetsAt: Date.parse('2026-10-16T12:40:00Z') });
   expect(usageLimit("You've hit your weekly limit", false, undefined, now)).toEqual({});
   expect(usageLimit('overloaded', false, { status: 'allowed' })).toBeUndefined();
@@ -126,17 +126,17 @@ test('a turn the usage limit stopped says when the limit lifts', () => {
 
 test('the reset time a limit message names is the next such time in its zone', () => {
   const at = (iso: string) => Date.parse(iso);
-  // 19:18 in Berlin (summer time, UTC+2): later the same day
+  
   expect(resetIn('resets 7:20pm (Europe/Berlin)', at('2026-10-16T17:18:00Z'))).toBe(at('2026-10-16T17:20:00Z'));
-  // past midnight there, and in winter time (UTC+1)
+  
   expect(resetIn('resets 1am (Europe/Berlin)', at('2026-12-01T21:00:00Z'))).toBe(at('2026-12-02T00:00:00Z'));
-  // a few minutes past: it should have lifted, not tomorrow
+  
   expect(resetIn('resets 7:20pm (Europe/Berlin)', at('2026-10-16T17:25:00Z'))).toBe(at('2026-10-16T17:20:00Z'));
   expect(resetIn('resets 12pm (America/New_York)', at('2026-10-16T13:00:00Z'))).toBe(at('2026-10-16T16:00:00Z'));
-  // a day named too, or no time: unknown
+  
   expect(resetIn('resets Oct 20, 3pm (Europe/Berlin)')).toBeUndefined();
   expect(resetIn("You've hit your session limit")).toBeUndefined();
-  // a zone the machine does not know: its own
+  
   expect(resetIn('resets 3pm (Nowhere/Else)')).toBeNumber();
 });
 
@@ -152,18 +152,18 @@ test('an agent with onLimit waits for the usage limit and goes on where it stopp
     s.emit({ type: 'idle' });
   };
   limit(20);
-  // neither the error nor the end of the turn it stopped
+  
   expect(events).toEqual([]);
   expect(waits).toHaveLength(1);
   expect(waits[0]! - Date.now()).toBeGreaterThan(20);
   await new Promise((r) => setTimeout(r, 50));
   expect(waits.at(-1)).toBeUndefined();
   expect(s.inbox).toEqual(['Los.', 'The usage limit that stopped your last turn has reset. Go on where you stopped.']);
-  // a turn after it ends as ever; another error is one
+  
   s.emit({ type: 'idle' });
   s.emit({ type: 'error', message: 'boom' });
   expect(events).toEqual([{ type: 'idle' }, { type: 'error', message: 'boom' }]);
-  // closed while it waits, it waits no more
+  
   limit(10_000);
   expect(waits).toHaveLength(3);
   session.close();
@@ -173,7 +173,7 @@ test('an agent with onLimit waits for the usage limit and goes on where it stopp
   await new Promise((r) => setTimeout(r, 30));
   expect(s.inbox).toHaveLength(2);
 
-  // without onLimit, the limit is the agent's to handle
+  
   const plain: AgentEvent[] = [];
   runtime.start({ cwd: '/r', system: '', tools: [], onEvent: (e) => plain.push(e) }, 'Los.');
   fake.last.emit({ type: 'error', message: 'limit', limit: {} });
@@ -187,7 +187,7 @@ test('three consecutive limit failures exhaust retries, including after a manual
   const session = withLimitWait(fake).start({ cwd: '/r', system: '', tools: [], onLimit: (at, again) => { states.push(at); retry = again; }, onEvent: () => {} }, 'Go.');
   const fail = () => {
     fake.last.emit({ type: 'error', message: 'Session limit', limit: {} });
-    // duplicate errors in a single refused turn do not use up the budget
+    
     fake.last.emit({ type: 'error', message: 'Session limit', limit: {} });
     fake.last.emit({ type: 'idle' });
   };
@@ -214,7 +214,7 @@ test("agents run the Agent SDK's Claude Code from the checkout, the machine's ow
   expect(claudeExecutable({ SEISMIC_CLAUDE: '/opt/claude', PATH: '' }, true)).toBe('/opt/claude');
   expect(claudeExecutable({ OBEYA_CLAUDE: '/opt/claude', PATH: '' }, true)).toBe('/opt/claude');
   expect(claudeExecutable({ SEISMIC_CLAUDE: '/opt/new', OBEYA_CLAUDE: '/opt/claude', PATH: '' }, true)).toBe('/opt/new');
-  // none on the PATH: where the official installer puts it, for the SDK to say it is missing
+  
   expect(claudeExecutable({ PATH: '' }, true, 'linux')).toBe(join(homedir(), '.local', 'bin', 'claude'));
   expect(claudeExecutable({ PATH: '' }, true, 'win32')).toBe(join(homedir(), '.local', 'bin', 'claude.exe'));
 });
@@ -226,7 +226,7 @@ test("an agent's environment keeps a machine's Claude login but not another sess
 });
 
 test("a denial's reason type is sorted into who refused the call", () => {
-  // a Bash command whose parts the rules decided one by one, as a deny rule reports it
+  
   expect(deniedBy('subcommandResults')).toBe('rule');
   expect(deniedBy('rule')).toBe('rule');
   expect(deniedBy('classifier')).toBe('classifier');
@@ -264,21 +264,21 @@ test('a message sent while a turn ends is still to come; one the turn took mid-w
   const reply = await uuid();
   inbox.push('Your work is on main now.');
   const landed = await uuid();
-  // the reply's turn ended before the landing came: a turn of its own follows
+  
   expect(inbox.taken({ user_message_uuids: [reply] })).toBe(false);
   expect(inbox.taken({ user_message_uuids: [landed] })).toBe(true);
-  // taken in the middle of the turn, it is listed with the turn's result
+  
   inbox.push('Go on.');
   inbox.push('A note.');
   expect(inbox.taken({ user_message_uuids: [await uuid(), await uuid()] })).toBe(true);
-  // a CLI that lists nothing is taken at its word
+  
   inbox.push('More.');
   expect(inbox.taken({})).toBe(true);
 });
 
 test.skipIf(process.platform === 'win32')("Claude Code here runs out of the terminal's process group: Ctrl-C reaches Seismic alone, which ends it and what it runs as it stops", async () => {
   let stderr = '';
-  // the agent and a command it runs, each saying its process group
+  
   const p = spawnHere((t) => (stderr += t))({ command: 'sh', args: ['-c', 'echo "$(ps -o pgid= -p $$) $$"; sh -c \'echo "$(ps -o pgid= -p $$)"; sleep 30\' & echo "not logged in" >&2; wait'], env: { PATH: process.env.PATH }, cwd: process.cwd(), signal: new AbortController().signal });
   const out: string[] = [];
   p.stdout.setEncoding('utf8').on('data', (d: string) => out.push(...d.split('\n').filter(Boolean)));
@@ -290,8 +290,8 @@ test.skipIf(process.platform === 'win32')("Claude Code here runs out of the term
   const exited = new Promise<string | null>((r) => p.once('exit', (_code: number | null, signal: NodeJS.Signals | null) => r(signal)));
   endAgentsHere();
   expect(await exited).toBe('SIGTERM');
-  // the command it ran went with it: it got the signal too, and is gone once it was reaped, which
-  // may come a moment after the agent's own exit
+  
+  
   const alive = () => {
     try {
       return process.kill(-Number(group), 0);
@@ -338,7 +338,7 @@ test("a Codex agent in a repository whose Claude Code configuration is held star
   runtime.start(spec, 'Start.');
   expect(fake.last.spec.untrusted).toBe(true);
   expect(fake.last.spec.claudeHeld).toBeUndefined();
-  // a review card's comes untrusted already, and stays so
+  
   runtime.start({ ...spec, untrusted: true, setting: { model: 'opus', effort: 'high', harness: 'codex' } }, 'Start.');
   expect(fake.last.spec).toMatchObject({ untrusted: true });
   expect(fake.last.spec.claudeHeld).toBeUndefined();
@@ -357,13 +357,13 @@ test('a Codex agent is not asked for a command the owner-confirmed allow list co
   };
   expect(await answer({}, 'Bash', { command: "/bin/zsh -lc 'bun run typecheck'" })).toEqual({ allow: true });
   expect(await answer({}, 'Bash', { command: "/bin/zsh -lc 'bun test a.test.ts'" })).toEqual({ allow: true });
-  // with network for it, as Codex asks for it on its own or for a host of its managed network
+  
   const install = "/bin/zsh -lc 'pnpm -C app install --frozen-lockfile && pnpm -C ext install --frozen-lockfile'";
   expect(await answer({}, 'Bash', { command: install, additionalPermissions: { network: { enabled: true } } })).toEqual({ allow: true });
   expect(await answer({}, 'Bash', { command: install, additionalPermissions: { network: { enabled: true }, fileSystem: null } })).toEqual({ allow: true });
   expect(await answer({}, 'Bash', { command: install, networkApprovalContext: { host: 'registry.npmjs.org', protocol: 'https' }, proposedNetworkPolicyAmendments: [{ host: 'registry.npmjs.org', action: 'allow' }] })).toEqual({ allow: true });
   expect(asked).toEqual([]);
-  // chained with an uncovered part, uncovered, a grant beyond network, another tool, another repository, held or Claude's own
+  
   expect((await answer({}, 'Bash', { command: "/bin/zsh -lc 'bun test x; rm -rf y'" })).allow).toBe(false);
   expect((await answer({}, 'Bash', { command: "/bin/zsh -lc 'source ~/.nvm/nvm.sh && pnpm -C app install'", additionalPermissions: { network: { enabled: true } } })).allow).toBe(false);
   expect((await answer({}, 'Bash', { command: "/bin/zsh -lc 'git push'" })).allow).toBe(false);
@@ -376,7 +376,7 @@ test('a Codex agent is not asked for a command the owner-confirmed allow list co
   expect((await answer({}, 'Edit', { command: "/bin/zsh -lc 'bun run typecheck'" })).allow).toBe(false);
   expect((await answer({ cwd: '/other' }, 'Bash', { command: "/bin/zsh -lc 'bun run typecheck'" })).allow).toBe(false);
   expect(asked).toHaveLength(11);
-  // setting the shell up in front: sourcing a file the agent cannot write, not one in its writable places
+  
   const home = mkdtempSync(join(homedir(), '.seismic-runtime-test-'));
   try {
     writeFileSync(join(home, 'nvm.sh'), '');
@@ -405,11 +405,11 @@ test("a Codex agent loads the repository's .codex only where its workstation has
     const spec = (over: Record<string, unknown> = {}) => ({ cwd: repo, system: '', tools: [], onEvent: () => {}, setting: { harness: 'codex' }, ...over }) as never;
     wrapped.start(spec());
     expect(seen.at(-1)!.codexConfig).toBe(true);
-    // changed in the workstation since (by the card, or a rebase onto a change not trusted yet)
+    
     writeFileSync(join(repo, '.codex/config.toml'), 'model = "x"\n[mcp_servers.x]\ncommand = "x"\n');
     wrapped.start(spec());
     expect(seen.at(-1)!.codexConfig).toBeUndefined();
-    // trusted as it is now; another repository, or a claim from the caller, does not count
+    
     git(repo, 'commit', '--quiet', '-am', 'an MCP server');
     trusted = commandsOf(readShared(repo)).codex;
     wrapped.start(spec());

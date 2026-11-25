@@ -1,4 +1,4 @@
-// Read-only comparison of two cards, reviewed by the owner before anything dissolves.
+
 import { messageOf } from '../core/text';
 import type { Item, Merge } from '../core/types';
 import type { Board } from './board';
@@ -11,13 +11,13 @@ export interface MergeOptions {
   pathFor: (card: Item) => string;
   preferences?: () => string;
   imageFiles?: (ids: string[]) => string[];
-  /** How long after a change to a merging card the watcher looks, so a burst of edits makes one comparison. */
+  
   settleMs?: number;
 }
 
 export class Merges {
   private busy = new Map<string, string | undefined>();
-  /** What the comparison running for a card read of the pair, by card. */
+  
   private reading = new Map<string, NonNullable<Merge['compared']>>();
   private watched = new Map<string, { fingerprint: string; timer?: ReturnType<typeof setTimeout> }>();
   private unwatch: () => void;
@@ -30,7 +30,7 @@ export class Merges {
   }
 
   resume() {
-    // what changed while Seismic was not running: a pair that can no longer merge separates before anything runs
+    
     this.check();
     for (const i of this.o.board.items()) {
       const merge = i.idea?.proposal?.merge;
@@ -63,8 +63,8 @@ export class Merges {
       if (!merge) continue;
       live.add(card.id);
       const other = this.partner(merge);
-      // Only inputs to this comparison (or its eligibility/attempt) extend its deadline.
-      // Results, status messages, and edits to other pairs must not postpone it.
+      
+      
       const fingerprint = JSON.stringify([merge.with, merge.attempt, other && board.mergeReads(card, other), !!other && board.stillMergeable(card, other)]);
       const was = this.watched.get(card.id);
       if (was?.fingerprint === fingerprint) continue;
@@ -91,11 +91,11 @@ export class Merges {
 
   /** The cards of merging card `card` that changed since its comparison read them; none for one that has yet to read them. */
   private changes(card: Item, other: Item, merge: Merge): string[] {
-    // a comparison that is in (a result or a failure) is checked against what it read, one running against what it is reading
+    
     const running = this.busy.has(card.id) && this.busy.get(card.id) === merge.attempt;
     const read = merge.task !== undefined || merge.failed !== undefined ? merge.compared : running ? this.reading.get(card.id) : undefined;
-    // one that has not read the cards yet reads them as they are now; a failure from before the reads were kept waits for
-    // "Try again", while a result from then is made again, as nothing tells what it read
+    
+    
     if (!read && merge.task === undefined) return [];
     return this.o.board.mergeChanges(card, other, read);
   }
@@ -121,7 +121,7 @@ export class Merges {
         const changed = this.changes(i, other, merge);
         if (changed.length) board.mergeAgain(i.id, changed);
         const now = board.item(i.id)?.idea?.proposal?.merge;
-        // run does nothing for an attempt that runs already
+        
         if (now && now.task === undefined && now.failed === undefined) this.run(i.id);
       } catch (e) {
         console.error('merge:', e);
@@ -141,7 +141,7 @@ export class Merges {
     this.ask(card, other)
       .then(
         (r) => void this.o.board.merged(cardId, r, attempt),
-        // what the failed attempt read: a change since then makes it again, as for a result
+        
         (e) => void this.o.board.merged(cardId, { failed: messageOf(e), compared: this.reading.get(cardId) }, attempt),
       )
       .catch((e) => console.error('merge:', e))

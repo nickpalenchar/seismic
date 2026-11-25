@@ -1,7 +1,7 @@
-// The rules "Always allow" offers and how they go into the repository's allow list,
-// the `permissions.allow` of its `.claude/settings.json` that Claude Code and Seismic's Codex workers
-// both read, and into `.codex/rules/seismic.rules` where the repository has that generated from the
-// list.
+
+
+
+
 
 import { codexRules } from '../../server/allow-rules';
 

@@ -1,18 +1,18 @@
-// What a card's worker is doing right now, as its card shows under the title while it works
-//. Read from the agent's events alone: no
-// instruction asks the agent to say it.
+
+
+
 
 import type { AgentDoing } from '../core/types';
 
-/** How long the agent goes without a step of its own (no tool running) before it shows as thinking. */
+
 export const THINKING_AFTER = 20_000;
 
-/** Where a worker is in recording its demo, once it has begun one. */
+
 type DemoStage = 'preparingDemo' | 'recordingDemo' | 'finalizingDemo';
 
 export interface Doing {
   demo?: DemoStage;
-  /** A tool call failed and the agent works on it: the name of the tool whose next success ends it. */
+  
   failed?: string;
   thinking?: boolean;
   building?: number;
@@ -45,7 +45,7 @@ export function onTool(d: Doing, name: string, input: Record<string, unknown>): 
   const command = name === 'Bash' && typeof input.command === 'string' ? input.command : '';
   if (command && renders(command)) next.demo = 'recordingDemo';
   else if (preparesDemo(name, input)) next.demo = d.demo === 'recordingDemo' || d.demo === 'finalizingDemo' ? 'finalizingDemo' : 'preparingDemo';
-  // once the render ran, whatever follows checks and hands over its result
+  
   else if (d.demo === 'recordingDemo') next.demo = 'finalizingDemo';
   return next;
 }

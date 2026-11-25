@@ -4,7 +4,7 @@ import { MAIN_CANVAS } from '../../core/types';
 import { atomic, type Db, now } from './common';
 import { projects } from './projects';
 
-/** A project holds its cards on canvases, each named once in it (case aside), in the project's order from 0. */
+
 export const canvases = sqliteTable(
   'canvases',
   {
@@ -58,7 +58,7 @@ export class Canvases {
 
   update(id: string, fields: Partial<Pick<CanvasRow, 'name' | 'icon'>>) {
     if (!Object.keys(fields).length) return;
-    // a field named without a value is cleared, as SQL binds it; Drizzle would leave it out
+    
     this.db.update(canvases).set(Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, v ?? null]))).where(eq(canvases.id, id)).run();
   }
 

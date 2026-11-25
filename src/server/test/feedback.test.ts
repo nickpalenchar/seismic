@@ -37,7 +37,7 @@ test('a response credits the session that did the work as it ran, through change
   expect(first).toMatchObject({ cardId: card.id, short: board.row(card.id).short, projectId: 'c', title: 'Zählerstände exportieren', repo: 'home', attribution: 'single', configs: [claudeOpus], credited: claudeOpus, answer: { rating: 4 } });
   expect(first.plan).toBeUndefined();
   expect(first.updatedAt).toBeUndefined();
-  // the same click twice is one response; a changed answer replaces it and keeps whom it credits
+  
   expect(board.giveFeedback(card.id, { answer: { rating: 4 } })).toEqual(first);
   const changed = board.giveFeedback(card.id, { answer: { rating: 2, comment: '  Missed the tests. ' } });
   expect(changed).toMatchObject({ id: first.id, answer: { rating: 2, comment: 'Missed the tests.' }, credited: claudeOpus });
@@ -59,7 +59,7 @@ test('work done by two configurations credits neither alone, and an earlier resp
   await workers.freed();
   choice = codex;
   await workers.start(card.id);
-  // a run begun after a handover is not credited with it
+  
   approve(card.id);
   expect(board.giveFeedback(card.id, { answer: { rating: 5 }, handover: first.handover }).credited).toEqual(claudeOpus);
   runtime.last.emit({ type: 'session', id: 'codex:t-1', setting: { ...codex, codex: { model: 'gpt-resolved', effort: 'low' } } });
@@ -102,7 +102,7 @@ test('a legacy session resumed on today’s defaults is credited only with what 
   runtime.last.emit({ type: 'session', id: 'legacy', model: 'claude-sonnet-5-5' });
   expect(store.agentRuns.of(card.id)).toMatchObject([{ session: 'legacy', harness: 'claude', model: 'claude-sonnet-5-5', effort: null }]);
   expect(store.agentRuns.of(card.id)[0]!.requested).toBeUndefined();
-  // restarted before the session names itself, the defaults pinned for it meanwhile are not taken for what it ran on
+  
   workers.shutdown();
   await flush();
   workers.resumeAll();
@@ -120,7 +120,7 @@ test('a workstream’s response carries its plan; it follows the card to another
   store.ensureProject('d', 'D');
   store.moveCard(w.id, 'd', { x: 0, y: 0 });
   expect(store.feedback.of({ cardId: w.id })[0]).toMatchObject({ id: f.id, projectId: 'd', plan: { title: 'A' } });
-  // the dashboard reads every project's responses, from any project
+  
   expect(board.allFeedback().map((x) => [x.id, x.projectId])).toEqual([[f.id, 'd']]);
   expect(board.allFeedback()[0]!.deleted).toBeUndefined();
 });
@@ -144,7 +144,7 @@ test('a response is checked before it is kept', () => {
   for (const bad of [null, {}, { answer: {} }, { answer: { comment: '   ' } }, { answer: { rating: 'good' } }, { answer: { rating: Infinity } }, { answer: { stars: 3 } }, { answer: { rating: 1 }, handover: 999 }, { answer: { rating: 1 }, facets: { type: 3 } }])
     expect(give(bad)).toThrow(BadRequest);
   expect(give({ answer: { comment: 'x'.repeat(4001) } })).toThrow('at most');
-  // a long conversation after the handover does not hide it
+  
   for (let n = 0; n < 510; n++) board.log(card.id, 'state', 'seismic', `Line ${n}`);
   expect(board.giveFeedback(card.id, { answer: { rating: 1 } }).handover).toBeGreaterThan(0);
   store.db.run('DELETE FROM feedback');
@@ -174,19 +174,19 @@ test('archiving after the landing, approved work asks for feedback until answere
   const card = manual();
   board.log(card.id, 'review', 'worker', 'Done.');
   const handover = store.events.handover(card.id)!.id;
-  // waiting for approval, nothing is asked yet
+  
   expect(board.item(card.id)!.review?.rate).toBeUndefined();
   board.work(card.id, { state: 'approved', approved_at: new Date().toISOString() });
   expect(board.item(card.id)!.review?.rate).toEqual({ handover });
-  // approved again (a retried landing), it is the same prompt; once answered, the card shows the answer
+  
   board.work(card.id, { state: 'approved', approved_at: new Date().toISOString() });
   board.giveFeedback(card.id, { answer: { rating: 4, comment: 'Clean.' }, handover });
   expect(board.item(card.id)!.review?.rate).toEqual({ handover, answer: { rating: 4, comment: 'Clean.' } });
-  // read afresh, as after a restart
+  
   const again = new Board(store, board.project, () => ({ docs, dirs: [] }));
   again.archiving = () => 'landed';
   expect(again.item(card.id)!.review?.rate).toEqual({ handover, answer: { rating: 4, comment: 'Clean.' } });
-  // work handed over again after more work asks about its new handover
+  
   board.work(card.id, { state: 'waiting' });
   board.log(card.id, 'review', 'worker', 'Done again.');
   board.work(card.id, { state: 'approved' });
@@ -199,7 +199,7 @@ test('work that changed nothing asks too once done; a prompt left unanswered sta
   board.log(card.id, 'review', 'worker', 'Nothing to change.');
   board.work(card.id, { state: 'done', approved_at: new Date().toISOString() });
   expect(board.item(card.id)!.review?.rate).toEqual({ handover: store.events.handover(card.id)!.id });
-  // a card nobody handed work over on asks nothing
+  
   const bare = manual();
   board.work(bare.id, { state: 'done' });
   expect(board.item(bare.id)!.review?.rate).toBeUndefined();
@@ -214,10 +214,10 @@ test('archiving by hand, a live card offers feedback before and after archiving'
   board.archive([card.id]);
   expect(board.card(card.id)!.review?.rate).toEqual({ handover });
   expect(board.archived().find((i) => i.id === card.id)!.review?.rate).toEqual({ handover });
-  // and takes the answer there
+  
   board.giveFeedback(card.id, { answer: { rating: 4 }, handover });
   expect(board.card(card.id)!.review?.rate).toEqual({ handover, answer: { rating: 4 } });
-  // back on the project, its answer remains available
+  
   board.unarchive(card.id);
   expect(board.item(card.id)!.review?.rate).toEqual({ handover, answer: { rating: 4 } });
   const w = board.snapshot().items.find((i) => i.plan?.label === 'W1')!;
@@ -234,16 +234,16 @@ test('archiving after the landing, a finished card goes into the archive once it
   board.workDone(card.id);
   expect(board.snapshot().items.some((i) => i.id === card.id)).toBe(false);
   expect(board.archived().map((i) => i.id)).toContain(card.id);
-  // archiving by hand, it stays where it is
+  
   board.archiving = () => 'manual';
   const other = manual();
   board.work(other.id, { state: 'live' });
   board.workDone(other.id);
   expect(board.snapshot().items.some((i) => i.id === other.id)).toBe(true);
-  // a workstream goes with its plan, not on its own
+  
   board.archiving = () => 'landed';
   const w = board.snapshot().items.find((i) => i.plan?.label === 'W1')!;
-  // landed, but the Lesestand does not hold it yet: the card stays in its plan
+  
   board.work(w.id, { state: 'live', shipped: JSON.stringify({ fetch: true }) });
   board.workDone(w.id);
   expect(board.archived().map((i) => i.id)).not.toContain(w.id);

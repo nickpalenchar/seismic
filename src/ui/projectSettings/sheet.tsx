@@ -1,15 +1,15 @@
-// The project's own settings, a docked sheet on the right like the inbox, opened from the sliders in the
-// bar: a list of sections, each of which slides into a view of its own with a Back button (and Esc) to
-// the list, and "Archive project" at its foot. Allowed commands stands first, with a red count while a
-// repository has commands to trust. Four views hold settings of a repository, with a switcher of the
-// project's repositories at the top where it has more than one; the others the project's own (models,
-// code reviews, suggestions, card archiving). Each change saves at once: the project's into the
-// configuration (`PUT /api/c/:project/settings`), a repository's into its entry there (`PUT
-// /api/c/:project/repos`), shortly after the last key; what restarts a repository's agents waits for
-// the owner's word. "Configuration" at the top holds the project's entry (its name, repositories and
-// place in the list), a draft with a Save button (`./project`).
-// A jump to a field (`showSettingsAt`: a card waiting for a clone, a proposal for a setting) opens its
-// section at its repository and marks the field.
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { Archive, Bot, Cog, BrickWall, ChevronLeft, ChevronRight, CircleX, Film, GitPullRequest, Laptop, Lock, type LucideIcon, MessageSquareCode, Sparkle, Sparkles, TriangleAlert } from 'lucide-react';
 import { type KeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from 'react';
@@ -38,30 +38,30 @@ import { leave } from '../leaving';
 import { onSettingsFocus, SECTIONS, type Section, type SettingsFocus, takeSettingsFocus } from './focus';
 import { cn } from 'cn';
 
-/** Each section's icon on its row. */
+
 const ICONS: Record<Section, LucideIcon> = { project: Cog, commands: BrickWall, agents: Bot, suggestions: Sparkle, environment: Laptop, reviews: MessageSquareCode, git: GitPullRequest, archiving: Archive, demos: Film };
 
-/**
- * Where a repository's problem shows and is counted: commands to trust under Allowed commands, where
- * its agents work under Agents and models, every other one under Git and releasing.
- */
+
+
+
+
 const PLACE_PROBLEMS: ConfigProblemCode[] = ['notClone', 'otherClone', 'hostRepo', 'hostName'];
 const sectionOf = (p: ConfigProblem): Section => (p.code === 'untrusted' ? 'commands' : PLACE_PROBLEMS.includes(p.code) ? 'agents' : 'git');
 
-/** The labels' checkboxes under "Suggest card labels", in the order they show. */
+
 const LABEL_ORDER: SuggestToggle[] = ['priority', 'complexity', 'category'];
 
 interface SettingsProps {
   project: string;
   name: string;
-  /** The project's home repository, which proposing the demo site's tags reads. */
+  
   homePath?: string | undefined;
-  /** Opens Configuration at the page that adds a demo site. */
+  
   onAddSite: () => void;
   on: boolean;
-  /** The Configuration dialog is open over it: read afresh once it closes, as models may have changed there. */
+  
   covered: boolean;
-  /** The phone's project switch, keeping its settings page open. */
+  
   onShowProject?: (id: string) => void;
 }
 
@@ -84,10 +84,10 @@ export function ProjectSettingsBody({ project, name, homePath, on, covered, onAd
   const [busy, setBusy] = useState(false);
   const [catalogs, setCatalogs] = useState<Catalogs>({});
   const repos = useProjectRepos(project, on, covered);
-  // the section open, and the one the list comes back to (focused, with the list sliding back in)
+  
   const [open, setOpen] = useState<Section | null>(null);
   const [back, setBack] = useState<Section | null>(null);
-  // the repository the per-repository views show, by its place on the project
+  
   const [repoAt, setRepoAt] = useState(0);
   useEffect(() => {
     if (!on || covered) return;
@@ -110,13 +110,13 @@ export function ProjectSettingsBody({ project, name, homePath, on, covered, onAd
     }, console.error);
     return () => { active = false; };
   }, [on, covered]);
-  // another project starts at its list
+  
   useEffect(() => {
     setOpen(null);
     setBack(null);
     setRepoAt(0);
   }, [project]);
-  // a jump to a field: taken as the sheet shows its project, applied once that project's repositories are read
+  
   const [jump, setJump] = useState<SettingsFocus | null>(null);
   const [mark, setMark] = useState<SettingsFocus | null>(null);
   useEffect(() => {
@@ -152,7 +152,7 @@ export function ProjectSettingsBody({ project, name, homePath, on, covered, onAd
   }, [on]);
   const l = t.projectSettings;
   const save = async (s: ProjectSettings) => {
-    // shown at once; the server's answer, or the view before on a refusal, follows
+    
     const before = view;
     setView((v) => v && { ...v, settings: { ...v.settings, ...s } as ProjectSettingsView['settings'] });
     setBusy(true);
@@ -166,7 +166,7 @@ export function ProjectSettingsBody({ project, name, homePath, on, covered, onAd
     setBusy(false);
   };
   const choose = (role: AgentRole, change: Partial<ProjectAgents[AgentRole]> | null) => save({ agents: chosen(view!.settings.agents, role, change) });
-  // Back (or another section) leaves the one open: an unsaved draft in it asks first
+  
   const shown = (s: Section | null) =>
     leave(() => {
       if (s === null) setBack(open);
@@ -179,7 +179,7 @@ export function ProjectSettingsBody({ project, name, homePath, on, covered, onAd
     <>
       {open && view ? (
         <SectionView key={open} section={open} onBack={() => shown(null)}>
-          {/* under the title, in view however far the section's fields reach */}
+          { }
           <Said status={said} failed={repos.failed} />
           <SectionBody section={open} project={project} view={view} repos={repos} repoAt={Math.min(repoAt, Math.max(0, repos.repos.length - 1))} onRepo={(i) => { setMark(null); setRepoAt(i); }} catalogs={catalogs} busy={busy} save={save} choose={choose} homePath={homePath} onAddSite={onAddSite} onShowProject={onShowProject} mark={mark?.project === project ? mark : null} />
         </SectionView>
@@ -205,14 +205,14 @@ export function ProjectSettingsBody({ project, name, homePath, on, covered, onAd
   );
 }
 
-/** A row of the list, as wide as the sheet: its icon, its name, what it is set to, and a chevron. */
+
 const rowClass = 'cs-section -mx-5.5 h-auto w-[calc(100%+2.75rem)] justify-start gap-3 rounded-none px-5.5 py-2.5 text-left text-base font-normal text-foreground [&_svg:not([class*=size-])]:size-[18px]';
 
 /** The list of sections: Allowed commands, then the others, each with what it is set to and a count of what needs the owner. */
 function SectionList({ view, repos, focus, onOpen }: { view: ProjectSettingsView; repos: ProjectRepos; focus: Section | null; onOpen: (s: Section) => void }) {
   const l = t.projectSettings;
   const list = useRef<HTMLDivElement>(null);
-  // back from a view: its row has the focus again
+  
   useEffect(() => {
     if (focus) list.current?.querySelector<HTMLButtonElement>(`[data-section="${focus}"]`)?.focus();
   }, [focus]);
@@ -267,7 +267,7 @@ function SectionList({ view, repos, focus, onOpen }: { view: ProjectSettingsView
 }
 
 /** "Archive project" at the foot of the list, after a confirm: the project leaves Seismic, its cards kept. */
-function ArchiveProject({ project, name, last }: { project: string; name: string; /** It is the only project: it stays. */ last: boolean }) {
+function ArchiveProject({ project, name, last }: { project: string; name: string;  last: boolean }) {
   const l = t.projectSettings;
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState('');
@@ -275,7 +275,7 @@ function ArchiveProject({ project, name, last }: { project: string; name: string
     setError('');
     try {
       await api.archiveProject(project);
-      // the project is gone: the page goes to the one Seismic opens first
+      
       location.assign('/');
     } catch (e) {
       setError(failText(e));
@@ -314,12 +314,12 @@ function hostOf(url: string) {
 function SectionView({ section, onBack, children }: { section: Section; onBack: () => void; children: ReactNode }) {
   const backButton = useRef<HTMLButtonElement>(null);
   const box = useRef<HTMLDivElement>(null);
-  // Back has the focus, unless the view was opened at a field, which has it already
+  
   useEffect(() => {
     if (!box.current?.contains(document.activeElement)) backButton.current?.focus({ preventScroll: true });
   }, []);
   const keys = (e: KeyboardEvent<HTMLDivElement>) => {
-    // what opened over the view (a menu of a choice, in a portal) closes first
+    
     if (e.key !== 'Escape' || layerOpen() || !e.currentTarget.contains(e.target as Node)) return;
     e.preventDefault();
     onBack();
@@ -349,7 +349,7 @@ interface BodyProps {
   choose: (role: AgentRole, change: Partial<ProjectAgents[AgentRole]> | null) => void;
   homePath: string | undefined;
   onAddSite: () => void;
-  /** The field to focus and mark for a moment: the sheet was opened at it. */
+  
   mark: SettingsFocus | null;
   onShowProject: SettingsProps['onShowProject'];
 }
@@ -441,7 +441,7 @@ function RepoPart({ section, project, view, save, repos, repoAt, onRepo, mark }:
       control?.focus({ preventScroll: true });
     };
     take();
-    // Retry after the slide if the control could not take focus and the user has not moved it.
+    
     const h = setTimeout(() => {
       if (control !== document.activeElement && (document.activeElement === before || document.activeElement?.matches('.cs-back'))) take();
     }, 450);
@@ -489,7 +489,7 @@ function RepoPart({ section, project, view, save, repos, repoAt, onRepo, mark }:
     repos.edit(repoAt, settings ? { ...rest, settings } : rest);
   };
   const at = repoSettingsAt(repo.settings, resolved.values, edit, place ? null : key);
-  // what reads the saved configuration (sharing it for everyone, the agent that writes it) saves what waits first
+  
   const takeover: Takeover = { saved: !repos.unsaved(repoAt) && !repos.busy, onReload: async () => repos.reload(), prepare: () => repos.settle(repoAt) };
   const name = repoName(repo, resolved);
   switch (section) {
@@ -558,7 +558,7 @@ function RepoPart({ section, project, view, save, repos, repoAt, onRepo, mark }:
                 <RepoSettingRows at={at} keys={REPO_SETTING_GROUPS.plans} />
                 <PlanBaselineField value={view.settings.planBaselines} onChange={(planBaselines) => save({ planBaselines })} />
               </div>
-              {/* its button's label is long for the sheet: it wraps */}
+              { }
               <div className="mt-4 [&_[data-slot=button]]:h-auto [&_[data-slot=button]]:py-1.5 [&_[data-slot=button]]:whitespace-normal">
                 <ShareSettings repo={repo} values={resolved.values} branch={at.value<string>('branch')} shareTo={resolved.shareTo} shareDirect={!!resolved.shareDirect} settingsFile={resolved.settingsFile} takeover={takeover} />
               </div>
@@ -636,7 +636,7 @@ function Suggestions({ view, save }: { view: ProjectSettingsView; save: (s: Proj
     <>
       <SwitchRow title={s.cards.title} hint={s.cards.hint} checked={view.settings.suggestCards} onChange={(suggestCards) => save({ suggestCards })} />
       <SwitchRow title={s.merges.title} hint={s.merges.hint} checked={view.settings.suggestMerges} onChange={(suggestMerges) => save({ suggestMerges })} />
-      {/* off keeps the labels checked as they are, only Seismic suggests none; on with none checked checks them all */}
+      { }
       <SwitchRow title={l.suggestLabels} hint={l.suggestLabelsHint} checked={on} onChange={(suggestLabels) => save(suggestLabels && !any ? { suggestLabels, suggest: all } : { suggestLabels })}>
         <div className="cs-labels mt-1 pl-1">
           {LABEL_ORDER.map((k) => (

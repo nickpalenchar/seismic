@@ -1,3 +1,3 @@
-// The shapes agy wrote for a command it ran as a background task (captured 2026-11-14).
+
 export const started = (id: string, command: string) => JSON.stringify({ step_index: 2, source: 'MODEL', type: 'GENERIC', status: 'RUNNING', content: `Created At: 2026-11-14T20:41:17-05:00\nTool is running as a background task with task id: ${id}\nTask Description: ${command}\nTask logs are available at: file:///x/task.log\nYOU MUST TAKE ONE OF THE FOLLOWING TWO ACTIONS` });
 export const finished = (id: string) => JSON.stringify({ step_index: 6, source: 'SYSTEM', type: 'SYSTEM_MESSAGE', status: 'DONE', content: `<SYSTEM_MESSAGE>\n[Message] sender=${id} content=Task id "${id}" finished with result:\nCommand exited with code 0.\n</SYSTEM_MESSAGE>` });

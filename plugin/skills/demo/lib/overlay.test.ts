@@ -7,13 +7,13 @@ import { launchChromium } from '../../../lib/chromium.ts';
 import { paintTimes } from './director.ts';
 import type { Frame } from './timeline.ts';
 
-// The overlay in a real browser, on a page with iframes as a card's HTML artifact has them.
+
 describe('the demo overlay', () => {
   let browser: Browser;
   let page: Page;
   let server: ReturnType<typeof Bun.serve>;
 
-  // Chrome starts and closes slowly while the other test files run beside it.
+  
   beforeAll(async () => {
     const html = (body: string) => new Response(`<!doctype html><body>${body}</body>`, { headers: { 'content-type': 'text/html' } });
     server = Bun.serve({
@@ -50,7 +50,7 @@ describe('the demo overlay', () => {
     }
   });
 
-  // Chrome's JPEGs are 4:2:0, which ffmpeg 6 cropped to even heights only: no frame read its time.
+  
   test.skipIf(!Bun.which('ffmpeg'))('a frame as Chrome encodes it tells when it was painted', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'clock-'));
     try {
@@ -65,8 +65,8 @@ describe('the demo overlay', () => {
     }
   });
 
-  // A sharp take asks for two pixels per point; Chrome's screencast sent phone-sized frames at one
-  // per point, read at the place of two, and every frame's clock was garbage.
+  
+  
   test.skipIf(!Bun.which('ffmpeg'))('a phone-sized frame tells when it was painted at one pixel per point and at two', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'clock-'));
     const phone = { width: 393, height: 852 };
@@ -96,7 +96,7 @@ describe('the demo overlay', () => {
   test('pointer, highlight and image stage still work in the top page', async () => {
     const button = await page.locator('#b').elementHandle();
     const shown = await page.evaluate((b) => {
-      // biome-ignore lint: the overlay is untyped browser script
+      
       const demo = (window as any).__demo;
       demo.moveTo(100, 100, true);
       demo.highlight([b], 'Here');
@@ -109,7 +109,7 @@ describe('the demo overlay', () => {
 
   test('tells an element hidden behind another part of the page from one that shows', async () => {
     const els = await Promise.all(['#under', '#b'].map((s) => page.locator(s).elementHandle()));
-    // biome-ignore lint: the overlay is untyped browser script
+    
     expect(await page.evaluate((e) => (window as any).__demo.hidden(e), els)).toEqual([true, false]);
   });
 
@@ -118,12 +118,12 @@ describe('the demo overlay', () => {
     const edge = await page.locator('#edge').elementHandle();
     const answers = await page.evaluate(
       ([b, e]) => {
-        // biome-ignore lint: the overlay is untyped browser script
+        
         const demo = (window as any).__demo;
         demo.clearHighlights();
         const first = demo.highlight([b], 'Interface');
         const again = demo.highlight([b], 'Conversation');
-        // one element more is another ring
+        
         const both = demo.highlight([b, e], 'Both');
         const rings = [...document.querySelectorAll('div')].filter((d) => ['Interface', 'Conversation', 'Both'].includes(d.textContent ?? '') && !d.children.length).map((d) => d.textContent);
         return { first, again, both, rings };
@@ -138,14 +138,14 @@ describe('the demo overlay', () => {
     const label = 'A label much longer than the button it belongs to';
     await page.evaluate(
       ([b, text]) => {
-        // biome-ignore lint: the overlay is untyped browser script
+        
         const demo = (window as any).__demo;
         demo.clearHighlights();
         demo.highlight([b], text);
       },
       [button, label] as const,
     );
-    // the overlay places the label on the next frame
+    
     await page.waitForTimeout(300);
     const tag = await page.evaluate((text) => {
       const el = [...document.querySelectorAll('div')].find((d) => d.textContent === text && !d.children.length);
@@ -155,7 +155,7 @@ describe('the demo overlay', () => {
     expect(tag).toBeTruthy();
     expect(tag!.left).toBeGreaterThanOrEqual(0);
     expect(tag!.right).toBeLessThanOrEqual(800);
-    // the button sits at the top, so the label goes below it, on one line
+    
     expect(tag!.top).toBeGreaterThanOrEqual(0);
     expect(tag!.height).toBeLessThan(40);
   });

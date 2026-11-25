@@ -44,7 +44,7 @@ describe('a card’s diff', () => {
       { file: 'logo.png', status: 'added', added: 0, removed: 0, binary: true },
     ]);
     expect(diffSize(diffFiles(patch))).toEqual({ added: 3, removed: 4 });
-    // each file keeps its lines, from its `diff --git` line on
+    
     expect(splitDiff(patch)[0]!.lines).toHaveLength(10);
   });
 
@@ -67,7 +67,7 @@ describe('a card’s diff', () => {
     const cut = cardDiff('branch', big, true);
     expect(cut.truncated).toBe(true);
     expect(cut.patch).toBe(patch);
-    // the list still names every file
+    
     expect(cut.files.map((f) => f.file)).toContain('big.txt');
   });
 });
@@ -91,7 +91,7 @@ test('two lists of lines as a patch: each change with three lines around it, hun
   expect(part.lines.filter((l) => l.startsWith('@@'))).toEqual(['@@ -7,11 +7,11 @@', '@@ -24,7 +24,6 @@']);
   expect(part.lines.slice(3, 6)).toEqual(['@@ -7,11 +7,11 @@', ' line 7', ' line 8']);
   expect([part.added, part.removed]).toEqual([2, 3]);
-  // a list that was empty: one hunk of all its lines, taking none from the old side
+  
   expect(patchOf('f', [], ['a', 'b']).lines.slice(3)).toEqual(['@@ -0,0 +1,2 @@', '+a', '+b']);
   expect(patchOf('f', ['a'], ['a']).lines).toHaveLength(3);
 });
@@ -111,7 +111,7 @@ test('two small changes far apart in a long list stay two changes, the lines bet
 });
 
 test('lists too unlike for the budget are anchored on the lines found once in each', () => {
-  // every other line differs, the rest are unique and kept
+  
   const before = Array.from({ length: 40_000 }, (_, i) => (i % 2 ? `old ${i}` : `same ${i}`));
   const after = before.map((l, i) => (i % 2 ? `new ${i}` : l));
   const d = lineDiff(before, after);

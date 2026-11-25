@@ -86,7 +86,7 @@ test('fetched only while the bar shows them and a page is open; closed and forgo
   await settle();
   expect(meter.current()!.limits[0]!.percent).toBe(4);
   expect(changes).toBe(1);
-  // a second page asks the same session, not a new one
+  
   const other = meter.watch();
   await meter.refresh();
   expect(f.counts.opened).toBe(1);
@@ -96,7 +96,7 @@ test('fetched only while the bar shows them and a page is open; closed and forgo
   await settle();
   expect(f.counts.closed).toBe(1);
   expect(meter.current()).toBeNull();
-  // turned off, an open page fetches nothing
+  
   meter.setOn(false);
   const again = meter.watch();
   await settle();
@@ -132,7 +132,7 @@ test('hidden during a fetch: the source is closed at once, which ends its fetch,
     expect(closed).toBe(1);
     await settle();
     expect(warnings).toEqual([]);
-    // shown again, the next fetch goes ahead at once, not after rounds left out
+    
     meter.setOn(true);
     await settle();
     expect(opened).toBe(2);
@@ -156,7 +156,7 @@ test('a page that reloads or goes to another project finds the session and its n
   expect(meter.current()!.limits[0]!.percent).toBe(4);
   expect(f.counts.opened).toBe(1);
   expect(f.counts.closed).toBe(0);
-  // with no page left after the while, the session closes and the numbers are forgotten
+  
   next();
   await new Promise((r) => setTimeout(r, 50));
   expect(f.counts.closed).toBe(1);
@@ -176,7 +176,7 @@ test('a source that fails is closed and a new one asked next round; what it fetc
   await meter.refresh();
   expect(f.counts.opened).toBe(2);
   expect(meter.current()!.limits[0]!.percent).toBe(6);
-  // a failure after numbers this old takes them away
+  
   await meter.refresh();
   expect(meter.current()).toBeNull();
   page();
@@ -191,7 +191,7 @@ test('a source that keeps failing is tried after more and more rounds', async ()
   await new Promise((r) => setTimeout(r, 120));
   page();
   meter.stop();
-  // about two dozen rounds: tried in the first two, the fourth, the eighth, the sixteenth
+  
   expect(f.counts.fetched).toBeGreaterThanOrEqual(2);
   expect(f.counts.fetched).toBeLessThanOrEqual(6);
 });

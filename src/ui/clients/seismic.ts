@@ -1,21 +1,21 @@
-/**
- * The client of Seismic's RESTful API (`/api/v1/`, the server's `routes/v1/`). A write answers with
- * what it changed, which the page shows at once (`cardSaved`). New calls go here; `api.ts` holds
- * the old routes until they move.
- */
+
+
+
+
+
 import type { AgentSetting, CardPatch, ConfigSaved, ConfigView, Item, OwnerSetting, OwnerSettingChanges, OwnerSettingViews, ProjectConfig } from '../../core/types';
 import { agentSettingsSaved, call, cardBack, cardRemoved, cardSaved, projectOf, snapshotsOf } from '../api';
 
-/** How long a request may take before the page gives it up. */
+
 const TIMEOUT_MS = 60_000;
 
 /** The URL of the card `id` in the API; the server finds the project it is on. */
 export const getCardById = (id: string) => `/api/v1/cards/${encodeURIComponent(id)}`;
 
 type WriteOptions = {
-  /** How the project shows the card: in place of the card it was (`cardSaved`, the default), put back on it (`cardBack`), or taken off it. */
+  
   shown?: (project: string, card: Item, seen: number) => void;
-  /** How long the page waits; `null` waits as long as the server works on it. */
+  
   timeoutMs?: number | null;
 };
 

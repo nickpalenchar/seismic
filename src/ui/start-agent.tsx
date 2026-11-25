@@ -11,7 +11,7 @@ import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from './compon
 import { Tooltip } from './components/tooltip';
 import { Select, SelectItem } from './components/select';
 
-/** The start button's two lines, its label over the agent it starts with; Approve takes them while a review is at work. */
+
 export const startAgentMain = 'start-agent-main flex flex-col items-center justify-center gap-0 py-1 leading-[1.15]';
 export const startAgentModel = 'start-agent-model text-2xs font-normal opacity-85 whitespace-nowrap';
 
@@ -75,22 +75,22 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   const connected = useConnectedHarnesses(open);
   const [setting, setSetting] = useState<StartAgentChoice | null>(null);
   const [models, setModels] = useState<ModelInfo[] | null>(null);
-  // which harness the catalog in `models` belongs to: after a switch the old one stands until the new one has loaded
+  
   const [modelsOf, setModelsOf] = useState<Harness | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [initial, setInitial] = useState<AgentSetting | null>(null);
   const [currentDefault, setCurrentDefault] = useState<AgentSetting | null>(null);
   const [configured, setConfigured] = useState<Harness[]>();
-  // the choice made in the menu for this card: it stays after the menu closes, shows in the button's small text and is what the button starts with.
-  // Kept in the card's draft where there is one, so it outlives closing the card.
+  
+  
   const [local, setLocal] = useState<StartAgentChoice | null>(null);
   const kept = useDraft(draft ?? '').agent ?? null;
-  // what a queued card was started with stands until another is chosen: it is checked and started like a choice made here
+  
   const picked: StartAgentChoice | null = (draft ? kept : local) ?? saved ?? null;
   const setPicked = (s: StartAgentChoice | null) => draft ? updateDraft(draft, { agent: s ?? undefined }) : setLocal(s);
-  // a saved Codex or Antigravity choice is checked against the harness's catalog as it stands: on its own, when it is saved, and again as the button starts with it.
-  // One the harness no longer offers stays shown and saved until the owner changes it, and the button does not start it.
+  
+  
   const pickedOther = picked?.harness === 'codex' || picked?.harness === 'agy' ? picked.harness : null;
   const disconnected = !!picked && configured?.includes(picked.harness ?? 'claude') === false;
   const noHarness = configured?.length === 0;
@@ -122,8 +122,8 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   const checking = !!pickedOther && !disconnected && codexAllowed && checked?.key !== pickedKey;
   const gone = disconnected || (!!pickedOther && (!codexAllowed || (checked?.key === pickedKey && checked.ok === false)));
   const [startError, setStartError] = useState('');
-  // one start at a time, from the main button or the menu: the exact model and effort are checked against a fresh catalog first.
-  // `key` names the saved choice the start records its check under. A start is dropped if the saved choice, the harness's availability or the parent's disabled state changed since the click.
+  
+  
   const start = async (stored: StartAgentChoice | undefined, key: string | null) => {
     let choice: AgentSetting | undefined = stored;
     const other = choice?.harness === 'codex' || choice?.harness === 'agy' ? choice.harness : null;
@@ -161,7 +161,7 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   const startPicked = () => start(picked ?? undefined, pickedKey);
   const touched = useRef(false);
   const choose = (s: StartAgentChoice) => { touched.current = true; setSetting(s); };
-  // the newest model request: an older one that answers late is dropped
+  
   const request = useRef(0);
   const loadModels = async () => {
     setLoading(true); setError('');
@@ -209,10 +209,10 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
     refresh();
     return () => { ++revision; unsubscribe(); };
   }, [open, attempt, role]);
-  // the keyboard lands in the menu once it has its choices (Radix returns it to the button that opened it)
+  
   const first = useRef<HTMLButtonElement>(null);
   useEffect(() => { if (open && setting) first.current?.focus({ preventScroll: true }); }, [open, !!setting]);
-  // a Claude choice needs no catalog: a request still pending for another harness is dropped, so it neither blocks the save nor answers later
+  
   useEffect(() => {
     if (!open || !setting?.harness) return;
     if (setting.harness === 'claude') { ++request.current; setLoading(false); setError(''); } else void loadModels();
@@ -251,7 +251,7 @@ export function StartAgent({ label, disabled, title, codexAllowed = true, select
   const effort = choice.effort ?? modelEffort(selected);
   const valid = !!setting && (!codex || (codexAllowed && !!selected && (effortless || (!!effort && efforts.includes(effort)))));
 
-  // Only a choice that can start is kept, so the main button never starts one the menu would refuse.
+  
   useEffect(() => { if (touched.current && setting && valid && (!codex || !loading)) setPicked(setting); }, [setting, valid, loading]);
 
   const main = <Button variant={selectionOnly ? 'code-review' : variant} className={selectionOnly ? undefined : cn(startAgentMain, 'rounded-l-sm rounded-r-none')} disabled={disabled || starting || (!selectionOnly && (noHarness || checking || gone || (!!picked?.followProjectModel && !currentDefault)))} title={noHarness ? t.config.harnesses.empty : gone ? a.unavailableChoice : title} onClick={selectionOnly ? undefined : () => void startPicked()}>

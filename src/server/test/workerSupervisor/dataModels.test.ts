@@ -76,7 +76,7 @@ describe('a handover says whether its change alters persisted data models', () =
     writeFileSync(join(demo.dir, 'schema-change.html'), '<p>schema</p>');
     expect(await runtime.last.call('ready_for_review', { summary: 'S', demo, data_models: 'changed', files: [{ path: join(demo.dir, 'schema-change.html'), caption: 'Schema' }] })).toContain('Recorded');
     expect(board.item(c.id)!.review?.modelsUnchanged).toBeUndefined();
-    // a later handover keeps the page named before
+    
     workers.message(c.id, 'Noch einmal.');
     expect(await runtime.last.call('ready_for_review', { summary: 'S', data_models: 'changed' })).toContain('Recorded');
   });
@@ -96,7 +96,7 @@ describe('a handover says whether its change alters persisted data models', () =
     const c = await cardWith({ 'src/app.ts': 'export const x = 1;\n' });
     expect(await runtime.last.call('ready_for_review', { summary: 'S', demo: artifact(), data_models: 'unchanged' })).toContain('takes its reason');
     expect(await runtime.last.call('ready_for_review', { summary: 'S', demo: artifact(), data_models: 'unchanged', data_models_reason: 'Nur UI.' })).toContain('Recorded');
-    // no signs: nothing for the owner to judge
+    
     expect(board.item(c.id)!.review?.modelsUnchanged).toBeUndefined();
   });
 

@@ -1,11 +1,11 @@
-// Sheet (shadcn/ui's, on Radix Dialog): a panel along the window's edge. `SheetContent` is the modal one
-// shadcn brings (overlay, focus trap, a close ✕). `docked` is the sidebar of the right dock (see
-// docked.tsx): a non-modal sheet (`modal={false}` on `Sheet`) that the canvas stays usable beside,
-// mounted all the time so what it holds survives closing (`forceMount`), standing where it is
-// rendered rather than in a portal, its slide, width (`--sheet-w`) and frost's glass its own. Esc, the
-// close button and the resize grip stay the dock's: a docked sheet is a complementary region, not a
-// dialog, so what Radix would dismiss on (Esc, a press or focus outside) and where it would put the
-// focus is left to the dock.
+
+
+
+
+
+
+
+
 
 import * as React from "react"
 import { cn } from "cn"

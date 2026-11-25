@@ -12,9 +12,9 @@ import { asOwner, FakeRuntime, gitRepo, noForge } from '../../../helpers/testing
 let dir: string;
 let project: ProjectRuntime;
 let server: ReturnType<typeof serve>;
-/** What the usage meter was set to, save by save. */
+
 let meters: boolean[];
-/** How often the project was told its cards changed. */
+
 let changed: number;
 
 beforeEach(() => {

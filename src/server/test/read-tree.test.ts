@@ -13,9 +13,9 @@ const doc = (title: string, ticked = '') =>
 
 let dir: string;
 let origin: string;
-/** The configured checkout: a pool clone, which cards lease. */
+
 let checkout: string;
-/** Another clone, from which work reaches `origin`. */
+
 let other: string;
 let project: ProjectRuntime | undefined;
 
@@ -51,7 +51,7 @@ function push(files: Record<string, string | null>) {
   git(other, 'push', '--quiet', 'origin', 'main');
 }
 
-// its `origin` stands in for one on GitHub, where work goes out as pull requests
+
 function open(land: 'main' | 'pr' = 'pr') {
   project = new ProjectRuntime({ name: 'Shop', repos: [{ path: checkout, settings: { land } }] }, { store: new Store(':memory:'), home: join(dir, 'home'), runtime: new FakeRuntime(), forge: noForge });
   return project;
@@ -70,10 +70,10 @@ describe('the Lesestand', () => {
     git(checkout, 'rm', '--quiet', 'docs/plan/export.md');
     git(checkout, 'commit', '--quiet', '-m', 'card');
     const c = open();
-    // named after the repository, which is named after its remote
+    
     expect(c.repos[0]!.read.path).toBe(join(dir, 'home', 'read', 'shop', 'origin'));
     expect(plans(c)).toEqual(['Export']);
-    // the checkout's working tree is the card's, untouched; leasing finds it clean
+    
     expect(existsSync(join(checkout, 'docs/plan/export.md'))).toBe(false);
     expect(git(checkout, 'status', '--porcelain')).toBe('');
     git(checkout, 'checkout', '--quiet', 'main');
@@ -112,7 +112,7 @@ describe('the Lesestand', () => {
     c.board.work(ws('W1').id, { state: 'inPr', review: { pr: { url: 'https://example.com/pr/1', seen: [], reported: [] } } });
     push({ 'docs/plan/export.md': doc('Export', 'W1') });
     c.repos[0]!.workers.merged(ws('W1').id);
-    // the merge started the refresh; a second call waits for the same one
+    
     await c.repos[0]!.read.refresh();
     expect([ws('W1').state, ws('W2').state]).toEqual(['live', 'planned']);
   });
@@ -133,7 +133,7 @@ describe('the Lesestand', () => {
     git(checkout, 'commit', '--quiet', '-m', 'local');
     await tree.refresh();
     expect(existsSync(join(read, 'local.md'))).toBe(true);
-    // origin moves on without it: the local main no longer has everything, so origin counts
+    
     push({ 'remote.md': 'y\n' });
     await tree.refresh();
     expect([existsSync(join(read, 'local.md')), existsSync(join(read, 'remote.md'))]).toEqual([false, true]);
@@ -146,20 +146,20 @@ describe('the Lesestand', () => {
     const on = () => git(read, 'rev-parse', 'HEAD');
     make();
     expect(on()).toBe(head);
-    // reused as it is
+    
     writeFileSync(join(read, 'marker'), '');
     make();
     expect(existsSync(join(read, 'marker'))).toBe(true);
-    // gone
+    
     rmSync(read, { recursive: true, force: true });
     expect(make().path).toBe(read);
     expect(on()).toBe(head);
-    // broken: its link to the repository points nowhere
+    
     writeFileSync(join(read, '.git'), 'gitdir: /nowhere\n');
     make();
     expect(on()).toBe(head);
     expect(git(checkout, 'worktree', 'list').split('\n')).toHaveLength(2);
-    // another repository's
+    
     rmSync(read, { recursive: true, force: true });
     git(origin, 'worktree', 'add', '--quiet', '--detach', read);
     make();
@@ -167,7 +167,7 @@ describe('the Lesestand', () => {
   });
 
   test.skipIf(process.platform === 'win32' || process.getuid?.() === 0)('reads the checkout while its directory cannot be made afresh', () => {
-    // a directory that is no worktree and whose files cannot go, as one an agent works in on Windows
+    
     const read = join(dir, 'read');
     mkdirSync(read);
     writeFileSync(join(read, 'kept'), '');
@@ -198,7 +198,7 @@ describe('the Lesestand', () => {
 describe("the seal of a repository's refs", () => {
   test("stays while only the cards' branches move, and breaks once main or origin's main moves, or the refs are packed", () => {
     const seal = () => refsSeal(checkout);
-    // the checkout on a card's branch, as a lease leaves it
+    
     git(checkout, 'checkout', '--quiet', '-b', 'seismic/export-a1');
     const first = seal();
     expect(first).not.toBeNull();
@@ -208,7 +208,7 @@ describe("the seal of a repository's refs", () => {
     git(checkout, 'worktree', 'add', '--quiet', '-b', 'seismic/import-b2', join(dir, 'tree'));
     git(checkout, 'checkout', '--quiet', '--detach');
     expect(seal()).toBe(first);
-    // a worktree on a card's branch tells the same seal as its checkout
+    
     expect(refsSeal(join(dir, 'tree'))).toBe(first);
 
     git(checkout, 'checkout', '--quiet', 'main');
@@ -222,7 +222,7 @@ describe("the seal of a repository's refs", () => {
     git(checkout, 'pack-refs', '--all');
     const packed = seal();
     expect(packed).not.toBe(fetched);
-    // the branch the checkout is on may tell the main branch, unless it is a card's
+    
     git(checkout, 'checkout', '--quiet', '-b', 'release');
     expect(seal()).not.toBe(packed);
   });
@@ -237,7 +237,7 @@ describe("the seal of a repository's refs", () => {
     git(checkout, 'checkout', '--quiet', '--detach');
     expect(refsSeal(checkout)).not.toBe(before);
 
-    // `ref: refs/heads/seismic/` and a name that makes the file as long as a commit's hash
+    
     git(checkout, 'branch', 'seismic/source-c3xxxxxxxxx');
     git(checkout, 'symbolic-ref', 'refs/heads/trunk', 'refs/heads/seismic/source-c3xxxxxxxxx');
     expect(refsSeal(checkout)).toBeNull();
@@ -259,7 +259,7 @@ describe("a repository's settings for everyone", () => {
   };
 
   test("a new version on the default branch applies without a restart; one that moves where the workers work restarts them", async () => {
-    // its `origin` stands in for one on GitHub: the settings say that work goes out as pull requests
+    
     push({ '.seismic/settings.json': settings({ land: 'pr' }) });
     git(checkout, 'pull', '--quiet');
     const c = openWatched(checkout);
@@ -270,21 +270,21 @@ describe("a repository's settings for everyone", () => {
     expect(c.repos[0]).toBe(repo);
     push({ '.seismic/settings.json': settings({ land: 'pr', setup: 'bun install' }) });
     await repo.read.refresh();
-    // the same repository, its workers on, with the new version
+    
     expect(c.repos[0]).toBe(repo);
     expect(repo.adapter.setup).toBe('bun install');
     expect(c.pendingRestart()).toBeNull();
 
-    // where its workers work changes: with none of them at work, they restart at once, in clones
+    
     push({ '.seismic/settings.json': settings({ land: 'pr', workstations: 'clones' }) });
     await repo.read.refresh();
-    // the restart reads the repositories first, without holding the server up
+    
     await until(() => c.repos[0] !== repo);
     expect(c.repos[0]!.workstations.mode).toBe('clones');
   });
 
   test('changed by work that lands on the local main applies at once; where it moves the workers, its worker hears that they restart', async () => {
-    // a repository without a remote whose settings land work on its main
+    
     const repo = gitRepo(join(dir, 'local'), { '.seismic/settings.json': settings({ land: 'main', workstations: 'worktrees' }) });
     const runtime = new FakeRuntime();
     const c = openWatched(repo, runtime);
@@ -312,7 +312,7 @@ describe("a repository's settings for everyone", () => {
     expect(c.repos[0]!.adapter.checks).toEqual(['bun test']);
     runtime.last.emit({ type: 'idle' });
 
-    // to clones: the worker in its turn hears of the restart and holds it up until it pauses
+    
     const before = c.repos[0];
     const clones = await land('Clones', { '.seismic/settings.json': settings({ land: 'main', workstations: 'clones' }) });
     expect(clones.told).toContain('call after_restart');
@@ -341,7 +341,7 @@ describe("a repository's settings for everyone", () => {
       const card = c.board.create({ title, x: 0, y: 0 });
       const started = runtime.sessions.length;
       await workers.start(card.id);
-      // the lease fetched main as the remote has it: its agent starts once git has read it there
+      
       await until(() => runtime.sessions.length > started);
       const ws = c.board.row(card.id).workstation!;
       mkdirSync(join(ws, file, '..'), { recursive: true });

@@ -64,7 +64,7 @@ describe('two cards at once', () => {
   test("each card's list holds its own changes, not the other card's nor the owner's", async () => {
     ws.lease('a');
     ws.lease('b');
-    // both run at the same time: a's script while b edits a file
+    
     const ca: ToolCall = { id: 'x1', name: 'Bash', input: { command: 'mv Scan.pdf Steuer/' } };
     const cb: ToolCall = { id: 'x2', name: 'Edit', input: { file_path: join(folder, 'Sortierung.md') } };
     await ws.watch('a').before(ca);
@@ -73,9 +73,9 @@ describe('two cards at once', () => {
     writeFileSync(join(folder, 'Sortierung.md'), 'eins\nzwei\ndrei\n');
     await ws.watch('b').after(cb);
     await ws.watch('a').after(ca);
-    // the owner, between the cards' calls
+    
     writeFileSync(join(folder, 'Nachlass', 'Liste.txt'), 'Konten und Depots\n');
-    // not within the millisecond the next call starts in, which counts as the call's
+    
     await Bun.sleep(3);
     await call('b', 'Bash', { command: 'touch Nachlass/Brief.docx' }, () => writeFileSync(join(folder, 'Nachlass', 'Brief.docx'), bytes(100, 2)));
     expect(await kinds('a')).toEqual(['moved Scan.pdf → Steuer/Scan.pdf']);
@@ -84,7 +84,7 @@ describe('two cards at once', () => {
     expect(d.files.find((f) => f.file === 'Sortierung.md')).toMatchObject({ added: 1, removed: 0 });
     expect(d.patch).toContain('+drei');
     expect(await ws.changes('a')).toEqual([{ file: 'Steuer/Scan.pdf', regions: ['moved from Scan.pdf'] }]);
-    // the kept copy and the file now; nothing for a file outside the change, a new file has no earlier version
+    
     expect(await ws.versionsOf('b', 'Sortierung.md')).toEqual({ old: expect.any(String), new: 'eins\nzwei\ndrei\n' });
     expect((await ws.versionsOf('b', 'Nachlass/Brief.docx'))!.old).toBeNull();
     expect(await ws.versionsOf('b', 'Scan.pdf')).toBeNull();
@@ -116,7 +116,7 @@ describe('undo', () => {
       mkdirSync(join(folder, 'Neu'));
       writeFileSync(join(folder, 'Neu', 'Brief.txt'), 'Hallo\n');
     });
-    // the owner edits one of them afterwards
+    
     await Bun.sleep(5);
     writeFileSync(join(folder, 'Nachlass', 'Liste.txt'), 'vom Owner\n');
     const view = (await ws.diff('a', false))!.folder!;
@@ -129,11 +129,11 @@ describe('undo', () => {
     expect(report.changedSince).toEqual(['Nachlass/Liste.txt']);
     expect(existsSync(join(folder, 'Neu'))).toBe(false);
     if (view.undo === 'full') {
-      // a clone of the folder has the binaries
+      
       expect(new Uint8Array(readFileSync(join(folder, 'Zähler.png')))).toEqual(bytes(3000, 5));
       expect(existsSync(join(folder, 'Scan.pdf'))).toBe(true);
     } else expect(report.lost.sort()).toEqual(['Scan.pdf', 'Zähler.png']);
-    // what was left stays the card's
+    
     expect(await kinds('a')).toEqual([...(view.undo === 'full' ? [] : ['modified Zähler.png', 'deleted Scan.pdf']), 'modified Nachlass/Liste.txt']);
   });
 
@@ -196,12 +196,12 @@ describe('undo', () => {
   test("the owner's change just before a script's call is not the card's, nor put back over", async () => {
     ws.lease('a');
     await call('a', 'Bash', { command: 'true' }, () => {});
-    // the owner edits the list, then the card's script appends to it
+    
     writeFileSync(join(folder, 'Nachlass', 'Liste.txt'), 'vom Owner\n');
     await Bun.sleep(3);
     await call('a', 'Bash', { command: 'echo mehr >> Nachlass/Liste.txt' }, () => writeFileSync(join(folder, 'Nachlass', 'Liste.txt'), 'vom Owner\nmehr\n'));
     const report = await ws.undo('a');
-    // its copy from the start is older than what the card changed: nothing to put back from
+    
     expect(report.lost).toEqual(['Nachlass/Liste.txt']);
     expect(readFileSync(join(folder, 'Nachlass', 'Liste.txt'), 'utf8')).toBe('vom Owner\nmehr\n');
   });

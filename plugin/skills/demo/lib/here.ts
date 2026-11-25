@@ -1,8 +1,8 @@
-// The directory this skill's files are in. Seismic's compiled server carries the modules it imports
-// (the setup check, the voices) inside its binary, where `import.meta.dirname` names a directory
-// no other process can read; the server then says where the files are on disk (`useLib`).
-//
-// Plain Node with type stripping, like the director.
+
+
+
+
+
 
 import fs from 'node:fs';
 import path from 'node:path';

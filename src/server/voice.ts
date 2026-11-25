@@ -1,6 +1,6 @@
-// Voice in: a sidecar on this machine transcribes (Parakeet by default, Whisper where asked for),
-// or a cloud service where the owner chose one (voice-cloud.ts). Seismic does not speak; its
-// confirmations and answers are written.
+
+
+
 
 import { seismicEnv } from '../core/env';
 import type { Subprocess } from 'bun';
@@ -11,11 +11,11 @@ import { resource } from './resources';
 import { OWN_GROUP } from './spawn';
 import { cloudInUse, transcribeInCloud } from './voice-cloud';
 
-/**
- * `doubtful`: Whisper itself counts the decode as failed (a loop, or too unsure of its words).
- * `unprompted`: the card titles did not go in as vocabulary (Parakeet takes none), so hearing it
- * once more without them would change nothing.
- */
+
+
+
+
+
 export interface Transcript {
   text: string;
   doubtful: boolean;
@@ -23,12 +23,12 @@ export interface Transcript {
 }
 
 export interface Transcriber {
-  /**
-   * In the language spoken, of the ones Seismic speaks: the owner may speak another than the
-   * interface's, and Whisper told to expect that one translated into it.
-   */
+  
+
+
+
   transcribe(audioPath: string, vocabulary: string): Promise<Transcript>;
-  /** Gets ready for the next recording (the owner started speaking). */
+  
   warm?(): void;
 }
 
@@ -115,7 +115,7 @@ class Sidecar {
   private proc: Subprocess<'pipe', 'pipe', 'inherit'> | null = null;
   private pending = new Map<number, { resolve: (msg: Record<string, unknown>) => void; reject: (e: Error) => void }>();
   private next = 1;
-  /** Settles once the running process has loaded its model (`{"ready": true}`), or has ended before. */
+  
   private loaded: Promise<void> = Promise.resolve();
 
   constructor(
@@ -142,7 +142,7 @@ class Sidecar {
         if (msg.error !== undefined) job.reject(new Error(msg.error));
         else job.resolve(msg);
       }
-      // the sidecar died: fail what waits, the next request starts a new one
+      
       ended(new Error(`${this.name} sidecar exited (${await proc.exited})`));
       for (const [, job] of this.pending) job.reject(new Error(`${this.name} sidecar exited`));
       this.pending.clear();

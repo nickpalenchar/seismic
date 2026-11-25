@@ -1,8 +1,8 @@
-// The project's full-page views besides the canvas (src/ui/fullPage.tsx), and the switcher at the
-// bottom centre that moves between them. Parked lists the cards in the parking lot; Queue the tasks
-// waiting for an agent in turn, dragged to their place as in Agent work; a card opened from either
-// unfolds over the view and folds back into its entry. The switcher holds Canvas, Parked and Table
-// (`table/view.tsx`); switching keeps the canvas's camera, and an open card stays open.
+
+
+
+
+
 
 import { cn } from 'cn';
 import { Table2, Car, Map as MapIcon } from 'lucide-react';
@@ -15,7 +15,7 @@ import { entryListClass } from './inboxClasses';
 import { QueueList, useQueueSort } from './queue';
 import { t } from './strings';
 
-/** The views the switcher moves between, the canvas being none of the full-page ones. */
+
 export type SwitchedView = 'canvas' | 'parked' | 'table';
 
 interface ListProps {
@@ -25,14 +25,14 @@ interface ListProps {
   underway: (id: string) => boolean;
   onOpen: (i: Item) => void;
   onClose: () => void;
-  /** Where a card opened from the view unfolds from and folds back to. */
+  
   els: Map<string, HTMLElement>;
 }
 
-/** A list view's body: the list and the hint above it to a readable width, the hint set apart from the list (over `.hint`'s own size). */
+
 const listBodyClass = `${fullBodyClass} [&>:is(ul,ol,.hint)]:max-w-[760px] [&>.hint]:mt-1 [&>.hint]:mb-3.5 [&>.hint]:mx-0 [&>.hint]:text-sm!`;
 
-/** The parked view's body: the cards in a grid, 2 to a row once the view itself is wide enough and 3 once it is wider (1 when narrow), by the view's own width (a container query), since the menu and dock take width from the viewport. */
+
 const parkedBodyClass = `${fullBodyClass} @container [&>.hint]:mt-1 [&>.hint]:mb-3.5 [&>.hint]:mx-0 [&>.hint]:text-sm! [&>ul]:grid [&>ul]:grid-cols-1 @xl:[&>ul]:grid-cols-2 @4xl:[&>ul]:grid-cols-3 [&>ul]:items-start`;
 
 /** The view's head: its title, its count and ✕. */
@@ -76,7 +76,7 @@ export function QueueView({ on, items, onOpen, onClose }: Omit<ListProps, 'els' 
 function QueuePage({ items, onOpen, onClose }: { items: Item[]; onOpen: (i: Item) => void; onClose: () => void }) {
   const body = useRef<HTMLDivElement>(null);
   const q = useQueueSort(items, body);
-  // the view closing under a drag: the row is not dropped anywhere
+  
   useEffect(() => () => q.sort.cancel(), []);
   return (
     <FullPage id="queue-full" title={t.views.queue}>
@@ -89,10 +89,10 @@ function QueuePage({ items, onOpen, onClose }: { items: Item[]; onOpen: (i: Item
   );
 }
 
-/**
- * A view of the switcher: its icon and name; on medium screens (where the switcher shrinks to fit the main
- * area left of a dock) the views that are not showing keep only their icon.
- */
+
+
+
+
 const switchButtonClass = 'inline-flex items-center gap-1.5 h-[30px] py-0 px-3.5 [border:0] rounded-full bg-transparent text-muted-foreground text-sm leading-none cursor-pointer';
 
 /** Canvas | Parked | Table at the bottom centre, where the microphone was. */
@@ -104,7 +104,7 @@ export function ViewSwitcher({ shown, onShow }: { shown: SwitchedView | null; on
     </button>
   );
   return (
-    // a click leaves the focus where it was: in a field, typing goes on there; outlined while files are dragged over the row
+    
     <div
       className="flex gap-0.5 px-1 py-0.5 rounded-full bg-glass border border-glass-edge [box-shadow:var(--lift)] backdrop-blur-glass group-[.dropping]/ptt:outline-2 group-[.dropping]/ptt:outline-dashed group-[.dropping]/ptt:outline-working group-[.dropping]/ptt:outline-offset-[5px]"
       role="group"

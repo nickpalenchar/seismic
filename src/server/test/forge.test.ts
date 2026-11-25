@@ -25,17 +25,17 @@ test('parsePrUrl: GitHub and GitHub Enterprise, and Forgejo or Gitea on any serv
   expect(parsePrUrl('https://github.example.com/a/b/pull/x', github)).toBeNull();
   expect(parsePrUrl('https://codeberg.org/acme/app/pulls/12', github)).toEqual({ forge: 'forgejo', base: 'https://codeberg.org', host: 'codeberg.org', owner: 'acme', repo: 'app', number: 12, url: 'https://codeberg.org/acme/app/pulls/12' });
   expect(parsePrUrl('https://git.example.org/forge/team/app/pulls/3/', github)).toEqual({ forge: 'forgejo', base: 'https://git.example.org/forge', host: 'git.example.org', owner: 'team', repo: 'app', number: 3, url: 'https://git.example.org/forge/team/app/pulls/3' });
-  // Forgejo's form on a GitHub host (an Enterprise PR recorded before gh was logged in there): GitHub's PR
+  
   expect(parsePrUrl('https://github.com/a/b/pulls/1', github)?.url).toBe('https://github.com/a/b/pull/1');
   expect(parsePrUrl('https://git.example:bad/a/b/pull/1', github)).toBeNull();
   expect(parsePrUrl('https://github.com/x/a/b/pull/1', github)).toBeNull();
   expect(parsePrUrl('https://codeberg.org/a/b/pulls', github)).toBeNull();
-  // GitHub's form on a host that is not GitHub's: a Forgejo PR, at the address the server knows
+  
   expect(parsePrUrl('https://codeberg.org/BuendnisOst/bo-website/pull/62', github)).toEqual({ forge: 'forgejo', base: 'https://codeberg.org', host: 'codeberg.org', owner: 'BuendnisOst', repo: 'bo-website', number: 62, url: 'https://codeberg.org/BuendnisOst/bo-website/pulls/62' });
   expect(parsePrUrl('https://git.example.org/forge/team/app/pull/3', github)?.url).toBe('https://git.example.org/forge/team/app/pulls/3');
-  // GitHub Enterprise Cloud, with no login of gh's for it (a token in the environment alone)
+  
   expect(parsePrUrl('https://acme.ghe.com/team/app/pulls/4', (u) => onGitHub(u, () => []))).toMatchObject({ forge: 'github', host: 'acme.ghe.com', url: 'https://acme.ghe.com/team/app/pull/4' });
-  // by default, the hosts gh is logged into are GitHub's
+  
   expect(parsePrUrl('https://github.com/a/b/pull/1')?.forge).toBe('github');
   expect(parsePrUrl('https://codeberg.org/a/b/pull/1')?.forge).toBe('forgejo');
 });
@@ -43,13 +43,13 @@ test('parsePrUrl: GitHub and GitHub Enterprise, and Forgejo or Gitea on any serv
 test('parsePrUrl: the host a PR is told by is the host it goes to', () => {
   const asked: string[] = [];
   const github = (url: string) => (asked.push(url), onGitHub(url, () => []));
-  // a fragment, a login or a query in the server's address: the host seen in it is not the one gone to
+  
   expect(parsePrUrl('https://attacker.example#@github.com/a/b/pulls/1', github)).toBeNull();
   expect(parsePrUrl('https://attacker.example?@github.com/a/b/pull/1', github)).toBeNull();
   expect(parsePrUrl('https://attacker.example\\@github.com/a/b/pull/1', github)).toBeNull();
   expect(parsePrUrl('https://me:secret@github.com/a/b/pull/1', github)).toBeNull();
   expect(parsePrUrl('https://git.example.org/x?y/a/b/pulls/1', github)).toBeNull();
-  // the forge is asked of the server's host as the URL parser reads it, port and all
+  
   expect(parsePrUrl('https://GIT.example.org:3000/forge/a/b/pulls/1', github)).toMatchObject({ forge: 'forgejo', base: 'https://git.example.org:3000/forge', host: 'git.example.org:3000', url: 'https://git.example.org:3000/forge/a/b/pulls/1' });
   expect(asked).toEqual(['https://git.example.org:3000']);
 });
@@ -117,7 +117,7 @@ test('gh runs on the host and as the account that own the repository: of the pul
 
 test('gh is sent to the pull request\'s host, with the token of the owner\'s login there in the variable gh reads for that host', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'seismic-gh-host-'));
-  // as on a machine where gh's login is its own, not the environment's
+  
   const names = ['GH_HOST', 'GH_TOKEN', 'GITHUB_TOKEN', 'GH_ENTERPRISE_TOKEN', 'GITHUB_ENTERPRISE_TOKEN'];
   const saved = names.map((n) => [n, process.env[n]] as const);
   for (const n of names) delete process.env[n];
@@ -163,7 +163,7 @@ test('gh output becomes a PR status', async () => {
         reviews: [
           { id: 'PRR_1', author: { login: 'lead' }, body: '', state: 'COMMENTED' },
           { id: 'PRR_2', author: { login: 'lead' }, body: 'Please split this.', submittedAt: '2026-10-02T08:05:00Z', state: 'COMMENTED' },
-          // a request for changes without words of its own still holds the merge
+          
           { id: 'PRR_3', author: { login: 'lead' }, body: '', submittedAt: '2026-10-02T08:06:00Z', state: 'CHANGES_REQUESTED' },
         ],
       });
@@ -174,7 +174,7 @@ test('gh output becomes a PR status', async () => {
             pullRequest: {
               reviewThreads: { nodes: [{ isResolved: true, comments: { nodes: [{ databaseId: 7 }] } }] },
               comments: { nodes: [{ id: 'IC_1', updatedAt: '2026-10-02T08:09:00Z' }] },
-              // the last commit merges the base in: the PR's own changes are older
+              
               commits: {
                 nodes: [
                   { commit: { committedDate: '2026-10-02T07:58:00Z', parents: { totalCount: 1 } } },
@@ -250,7 +250,7 @@ test('the review: rounds of threads with their replies, and the conversation bet
 });
 
 test('a review bot’s HTML becomes text: badges by name, folded and code parts gone', () => {
-  // as Greptile writes them on a real PR
+  
   expect(
     readable(
       '<a href="#"><img alt="P1" src="https://x/p1.svg" align="top"></a> **Sessions remain on both servers** Step 5 adds\\-on.\n\n<details><summary>Prompt To Fix With AI</summary>\n\nfix it\n</details>',
@@ -265,8 +265,8 @@ test('a review bot’s HTML becomes text: badges by name, folded and code parts 
 });
 
 test('ready to merge: GitHub clean, checks green, threads resolved, the last re-review request answered', () => {
-  // a real PR on 2026-10-02: Greptile answered the third re-review request by rewriting its
-  // summary to 5/5, with no new comment
+  
+  
   const at = (m: string) => `2026-10-02T08:${m}:00Z`;
   const s: PrStatus = {
     state: 'OPEN',
@@ -290,22 +290,22 @@ test('ready to merge: GitHub clean, checks green, threads resolved, the last re-
     f(c);
     return readyToMerge(c, ['cloudflare']);
   };
-  // the re-review not answered yet: only the deploy bot has written since
+  
   expect(without((c) => delete c.comments[1]!.edited)).toBe(false);
   expect(without((c) => (c.comments[4]!.resolved = false))).toBe(false);
   expect(without((c) => (c.checks[1]!.state = 'pending'))).toBe(false);
   expect(without((c) => (c.mergeState = 'BLOCKED'))).toBe(false);
   expect(without((c) => (c.mergeable = 'UNKNOWN'))).toBe(false);
-  // no reviewer asked for anything
+  
   expect(without((c) => (c.comments = []))).toBe(true);
-  // the PR's changes are older than the reviewer's last word; a change after it is not reviewed yet
+  
   expect(without((c) => (c.changedAt = at('45')))).toBe(true);
   expect(without((c) => (c.changedAt = at('50')))).toBe(false);
 });
 
 test('a push since the review is not ready to merge until the reviewer has seen it', () => {
-  // a PR on 2026-10-02: Greptile rated the first commit 3/5; the worker pushed a fix,
-  // replied in the threads and resolved them, but asked for no new review, and the PR was merged
+  
+  
   const s: PrStatus = {
     state: 'OPEN',
     mergeable: 'MERGEABLE',
@@ -323,15 +323,15 @@ test('a push since the review is not ready to merge until the reviewer has seen 
   };
   expect(reviewStale(s, ['cloudflare'])).toBe(true);
   expect(readyToMerge(s, ['cloudflare'])).toBe(false);
-  // asked, not answered yet
+  
   s.comments.push({ id: 'cPING', author: 'owner', body: '@greptile re-review', at: '2026-10-02T12:53:00Z' });
   expect(lastAsked(s)).toBe('2026-10-02T12:53:00Z');
   expect(readyToMerge(s, ['cloudflare'])).toBe(false);
-  // the reviewer rewrites its summary
+  
   s.comments[1]!.edited = '2026-10-02T12:57:00Z';
   expect(reviewStale(s, ['cloudflare'])).toBe(false);
   expect(readyToMerge(s, ['cloudflare'])).toBe(true);
-  // a PR no reviewer wrote on waits for nobody
+  
   expect(reviewStale({ ...s, comments: [s.comments[0]!] }, ['cloudflare'])).toBe(false);
 });
 
@@ -340,7 +340,7 @@ test('only a comment of the author that mentions an account asks for another loo
   const ask = (body: string) => lastAsked({ ...s, comments: [{ id: 'c1', author: 'owner', body, at: '2026-11-02T12:43:00Z' }] });
   expect(ask('@greptileai review')).toBe('2026-11-02T12:43:00Z');
   expect(ask('Could you look again, @coderabbitai?')).toBe('2026-11-02T12:43:00Z');
-  // a thank-you to a summary without findings (2026-11-02), an address, code and a quote mention nobody
+  
   expect(ask('Thanks for the review, nothing to change.')).toBe('');
   expect(ask('Reported to ops@example.com')).toBe('');
   expect(ask('See `@types/node` and\n```\n@decorator\n```')).toBe('');
@@ -349,12 +349,12 @@ test('only a comment of the author that mentions an account asks for another loo
   expect(ask('~~~\n@greptile review\n~~~\nDone.')).toBe('');
   expect(ask('Output:\n\n    @greptile review\n\nDone.')).toBe('');
   expect(ask('```\ncode\n```\n@greptileai review')).toBe('2026-11-02T12:43:00Z');
-  // a reply in a thread on the code is no request either
+  
   expect(lastAsked({ ...s, comments: [{ id: 'i1', author: 'owner', body: '@greptile fixed', at: '2026-11-02T12:43:00Z', replyTo: 'i0' }] })).toBe('');
 });
 
 test('a plain reply to a reviewer who asked for changes waits for the reviewer, whom nobody mentioned', () => {
-  // a human reviewer's request in a plain comment, naming nobody, as on the owner's PRs so far
+  
   const s: PrStatus = {
     state: 'OPEN',
     mergeable: 'MERGEABLE',
@@ -366,20 +366,20 @@ test('a plain reply to a reviewer who asked for changes waits for the reviewer, 
     comments: [
       { id: 'cSUM', author: 'greptile-apps', body: 'Confidence Score: 5/5', at: '2026-11-02T12:10:00Z' },
       { id: 'cLEAD', author: 'lead', body: 'Please rename the export to invoices.csv.', at: '2026-11-02T12:20:00Z' },
-      // the worker keeps the name, without a push and without mentioning anybody
+      
       { id: 'cWHY', author: 'owner', body: 'Kept the name: the importer expects export.csv.', at: '2026-11-02T12:30:00Z' },
     ],
   };
   expect(lastAsked(s)).toBe('2026-11-02T12:30:00Z');
   expect(waitsOf(s)).toEqual(['answer']);
   expect(readyToMerge(s)).toBe(false);
-  // the reviewer answers: through
+  
   s.comments.push({ id: 'cOK', author: 'lead', body: 'Fine, thanks.', at: '2026-11-02T12:40:00Z' });
   expect(readyToMerge(s)).toBe(true);
-  // a thank-you after a verdict below 4/5 asks for an answer too
+  
   const low: PrStatus = { ...s, comments: [{ id: 'cSUM', author: 'greptile-apps', body: 'Confidence Score: 3/5', at: '2026-11-02T12:10:00Z' }, { id: 'cTHX', author: 'owner', body: 'Thanks!', at: '2026-11-02T12:11:00Z' }] };
   expect(waitsOf(low)).toEqual(['answer']);
-  // one after an approval does not
+  
   const approved: PrStatus = { ...s, comments: [{ id: 'r1', author: 'lead', body: '', at: '2026-11-02T12:10:00Z', verdict: 'approved' }, { id: 'cTHX', author: 'owner', body: 'Thanks!', at: '2026-11-02T12:11:00Z' }] };
   expect(waitsOf(approved)).toEqual([]);
 });
@@ -387,7 +387,7 @@ test('a plain reply to a reviewer who asked for changes waits for the reviewer, 
 test('a request waits for the reviewer who made it, whatever other reviewers write', () => {
   const base: PrStatus = { state: 'OPEN', mergeable: 'MERGEABLE', mergeState: 'CLEAN', head: 'h', author: 'owner', checks: [], comments: [] };
   const at = (m: number) => `2026-11-02T12:${String(m).padStart(2, '0')}:00Z`;
-  // the lead asks for a rename, a bot then gives 5/5, the worker explains why it kept the name
+  
   const s: PrStatus = {
     ...base,
     comments: [
@@ -397,12 +397,12 @@ test('a request waits for the reviewer who made it, whatever other reviewers wri
     ],
   };
   expect(waitsOf(s)).toEqual(['answer']);
-  // the bot rewriting its summary is no answer of the lead's
+  
   s.comments[1]!.edited = at(25);
   expect(waitsOf(s)).toEqual(['answer']);
   s.comments.push({ id: 'cOK', author: 'lead', body: 'Fine.', at: at(30) });
   expect(waitsOf(s)).toEqual([]);
-  // a reviewer's word in a resolved thread after a 5/5 does not turn a thank-you into a request
+  
   const thread: PrStatus = {
     ...base,
     comments: [
@@ -427,7 +427,7 @@ test('a standing request for changes holds the merge until the reviewer approves
     comments: [{ id: 'r1', author: 'lead', body: 'Split this.', at: '2026-11-02T12:10:00Z', verdict: 'changes' }],
   };
   expect(waitsOf(s)).toEqual(['changes']);
-  // a later comment of the reviewer's leaves the request standing, as on GitHub
+  
   s.comments.push({ id: 'r2', author: 'lead', body: 'One more thing.', at: '2026-11-02T12:20:00Z' });
   expect(waitsOf(s)).toEqual(['changes']);
   s.comments.push({ id: 'r3', author: 'lead', body: '', at: '2026-11-02T12:30:00Z', verdict: 'approved' });
@@ -460,14 +460,14 @@ test('what a pull request waits for, in the order it is in the way', () => {
   expect(waits((c) => (c.mergeState = 'DRAFT'))).toEqual(['draft']);
   expect(waits((c) => (c.mergeState = 'BLOCKED'))).toEqual(['protection']);
   expect(waits((c) => (c.mergeable = 'UNKNOWN'))).toEqual(['forge']);
-  // GitHub's UNSTABLE is a check not passed, which the checks name
+  
   expect(waits((c) => ((c.mergeState = 'UNSTABLE'), (c.checks[0]!.state = 'failure')))).toEqual(['checksFailed']);
   expect(waits((c) => (c.mergeState = 'UNSTABLE'))).toEqual(['forge']);
   expect(waits((c) => (c.checks[0]!.state = 'pending'))).toEqual(['checks']);
   expect(waits((c) => c.comments.push({ id: 'i1', author: 'greptile-apps', body: 'P1', at: '2026-11-02T12:42:00Z', round: 'A', resolved: false }))).toEqual(['threads']);
   expect(waits((c) => (c.changedAt = '2026-11-02T12:45:00Z'))).toEqual(['review']);
   expect(waits((c) => c.comments.push({ id: 'cPING', author: 'owner', body: '@greptileai review', at: '2026-11-02T12:45:00Z' }))).toEqual(['answer']);
-  // a PR merged or closed waits for nothing
+  
   expect(waits((c) => ((c.state = 'MERGED'), (c.mergeable = 'UNKNOWN')))).toEqual([]);
   expect(readyToMerge({ ...s, state: 'CLOSED' })).toBe(false);
 });
@@ -475,7 +475,7 @@ test('what a pull request waits for, in the order it is in the way', () => {
 test('the confidence a reviewer gave last', () => {
   const s: PrStatus = { state: 'OPEN', mergeable: 'MERGEABLE', head: 'h', author: 'owner', checks: [], comments: [] };
   expect(confidence(s)).toBeUndefined();
-  // Greptile's summary as it writes it, rewritten each round
+  
   s.comments.push({
     id: 'cSUM',
     author: 'greptile-apps',

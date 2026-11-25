@@ -1,6 +1,6 @@
-// The queue's order: the cards waiting to start, in the order they came to the Koordinator
-// (`since`). The owner moves a waiting card earlier or later, one place or several at once, past
-// cards it has no wait with: the waits fix the order between the cards they join, the owner the rest.
+
+
+
 
 import { finished, inParkingLot, type Item, snoozeOf } from './types';
 

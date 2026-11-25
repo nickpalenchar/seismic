@@ -1,7 +1,7 @@
-// The desktop app's workspaces (a workspace is a *desk* in code): the Seismics its window can show,
-// this machine's and the remote ones the owner paired. The shell keeps the list (desktop/src/desks/);
-// every page in the app reads it and switches through the shell's commands, and only this machine's
-// page may change it. A browser or a phone has no shell: none of this shows there.
+
+
+
+
 
 import { useSyncExternalStore } from 'react';
 import { goTo, pushAddress } from '../address';
@@ -10,26 +10,26 @@ import { t } from '../strings';
 
 export interface Desk {
   id: string;
-  /** The name to show: the owner's, else the machine's (this machine's) or the host (a remote one's). */
+  
   name: string;
-  /** A remote one's origin (`https://studio.tail1234.ts.net`); null for this machine's. */
+  
   origin: string | null;
   local: boolean;
-  /** The one this window shows. */
+  
   open: boolean;
 }
 
 export interface DeskList {
-  /** The workspace the calling page is of; null while the window is about to show another. */
+  
   current: string | null;
-  /** Why the status page shows in place of the current workspace. */
+  
   problem: string | null;
   list: Desk[];
 }
 
-/** This machine's workspace, always on the list. */
+
 export const LOCAL = 'local';
-/** This machine's page that lists the workspaces; `?new` opens the form to pair one, `?edit=<id>` the dialog of one. */
+
 export const WORKSPACES_PATH = '/workspaces';
 
 type DeskPageAction = 'ask' | 'commit' | 'cancel';
@@ -37,7 +37,7 @@ type DeskPageResult = 'waiting' | 'pending' | 'ready' | 'opened' | 'cancelled';
 
 declare global {
   interface Window {
-    /** Resolves the leave guard and commits the route only while its native selection is current. */
+    
     seismicDeskPage?: (page: string, id: string, action: DeskPageAction) => DeskPageResult;
   }
 }
@@ -91,8 +91,8 @@ export const desks = {
   remove: (id: string) => call('remove_desk', { id }),
 };
 
-// One read for the whole page, the switcher's and the workspaces page's alike, read again whenever
-// the shell says the list changed (`seismic-desks`, desktop/src/desks/mod.rs `changed`).
+
+
 let shown: DeskList | null = null;
 let failed = false;
 let reads = 0;
@@ -179,7 +179,7 @@ export function backFromWorkspaces() {
 /** The shell sends this machine's page shown already to its workspaces page (menu, a remote page's switcher). */
 export function followShell() {
   if (!inApp()) {
-    // a browser has no workspaces page: its address shows the projects
+    
     if (location.pathname === WORKSPACES_PATH) history.replaceState(history.state, '', '/');
     return;
   }
@@ -241,5 +241,5 @@ export function deskError(e: unknown, address = ''): string {
   return Object.hasOwn(w, code) && typeof w[code as keyof typeof w] === 'string' ? (w[code as keyof typeof w] as string) : w.other(code);
 }
 
-/** The user guide's page on workspaces in the desktop app, which "Learn more" opens. */
+
 export const GUIDE = 'https://seismic.im/docs/workspaces/';

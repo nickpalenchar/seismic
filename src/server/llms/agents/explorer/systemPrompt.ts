@@ -1,12 +1,12 @@
-/**
- * The exploration agent's system prompt: who it is on Seismic, how it talks with the owner about an
- * idea, and the rules it keeps the idea's brief by.
- */
+
+
+
+
 import { type Language, ownersLanguage, repositoryLanguage } from '../../../../core/locale';
 import { MESSAGES } from '../../../../core/messages';
 import { TO_SEISMIC } from '../../../to-seismic';
 
-/** The words of the card the idea's agent writes into: the parts of the brief, and examples in the owner's language. */
+
 export const WORDS: Record<Language, { parts: [string, string, string, string, string, string]; changed: string; pointer: string; approach: string }> = {
   en: { parts: ['Goal', 'Today', 'Variants', 'Decisions', 'Open questions', 'Effort'], changed: 'Added variants A to C', pointer: 'Two open questions, see the brief', approach: '"A Plasma fields"' },
 };

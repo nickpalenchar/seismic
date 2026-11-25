@@ -1,16 +1,16 @@
-// The looks of the ring a right click opens on the canvas, which the colour
-// ring of the groups (groups.tsx `Ring`) and the ring of the canvases (canvases.tsx `CanvasRing`) share:
-// the backdrop that catches the pointer, the frosted halo, the balls around the middle, their names, the
-// caption in the middle and the field for a new group's name. `open` is the ring once it has come out (a
-// frame after it mounts, so it springs); `hot` the ball the pointer is aimed at. The ball's place and
-// hue are its `--bx`, `--by` and `--h`.
+
+
+
+
+
+
 
 import { cn } from 'cn';
 
-/** Over the whole page, under nothing: a click anywhere picks or closes. */
+
 export const ringBackClass = 'fixed inset-0 z-70 cursor-crosshair';
 
-/** The ring's middle, where the pointer was (its `left` and `top`). */
+
 export const radialClass = 'absolute w-0 h-0';
 
 /**
@@ -44,7 +44,7 @@ export const ballClass = (kind: 'group' | 'canvas' | 'new' | 'none', { open, hot
     !open && '[transform:translate(0,0)_scale(.2)]',
     open && !hot && '[transform:translate(var(--bx),var(--by))_scale(1)]',
     open && hot && '[transform:translate(calc(var(--bx)*1.12),calc(var(--by)*1.12))_scale(1.3)]',
-    // the canvas shown already stays pale, also while the ring comes out
+    
     here ? 'opacity-55' : open ? 'opacity-100' : 'opacity-0',
     open && hot && (plain ? '[box-shadow:0_0_0_2px_var(--foreground)] text-foreground' : '[box-shadow:0_0_0_2px_var(--background),0_0_0_5px_hsl(var(--h)_80%_55%_/_.5),0_0_26px_hsl(var(--h)_90%_55%_/_.8)]'),
   );
@@ -70,12 +70,12 @@ export const countClass = (vacant: boolean) =>
     vacant ? 'bg-border/70 text-muted-foreground' : 'text-foreground bg-[hsl(var(--h)_70%_50%_/_.2)]',
   );
 
-/** The × on the aimed group's name that deletes the group. */
+
 export const tagDeleteClass = 'gdel -mr-0.5 rounded-full';
 
-/** What the aimed ball is (or how many cards the ring is for), in the middle. */
+
 export const captionClass = 'rcap absolute left-[-60px] w-[120px] top-[-9px] text-center font-sans text-sm/[18px] font-semibold text-foreground whitespace-nowrap';
 
-/** The name of a new group, typed in the middle. */
+
 export const nameFieldClass =
   'rname absolute left-[-80px] top-[-16px] w-[160px] h-8 box-border rounded-xs border-[1.5px] border-working bg-card text-foreground font-sans text-base py-0 px-3 text-center outline-none [box-shadow:0_0_18px_--alpha(var(--working)/40%)]';

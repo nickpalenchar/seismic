@@ -1,4 +1,4 @@
-// Camera math, from the mock: a world transform (translate, then scale) and animated flights.
+
 
 import type { Bounds, Place } from '../core/layout';
 import { MAIN_CANVAS } from '../core/types';
@@ -10,7 +10,7 @@ export interface Cam {
   s: number;
 }
 
-/** Cards keep a readable size; zooming out stops here, and a small screen shows a section. */
+
 /**
  * Where a canvas's view is kept in localStorage. The canvas named `main` holds what a project had
  * before canvases, so it keeps the project-wide key of those days; any other canvas has its id,
@@ -31,17 +31,17 @@ export const lastCanvas = <C extends { id: string }>(canvases: C[], keptId: stri
 
 export const MIN_ZOOM = 0.55;
 export const MAX_ZOOM = 2;
-/** Below this scale cards drop their details. */
+
 export const FAR = 0.72;
-/** Height of the top bar and the floating row under it, which the camera keeps content clear of. */
+
 export const TOP = 110;
 
 export const toWorld = (cam: Cam, sx: number, sy: number) => ({ x: (sx - cam.x) / cam.s, y: (sy - cam.y) / cam.s });
 
-/**
- * What the panels docked at the window's edges take of it: the navigation pinned on the left, a
- * sheet on the right. The canvas is the rest between them.
- */
+
+
+
+
 export interface Sides {
   left: number;
   right: number;
@@ -75,14 +75,14 @@ export const besideSheet = (c: Cam, from: Sides, to: Sides): Cam => {
   return d === 0 ? c : { ...c, x: c.x - d / 2 };
 };
 
-/** How near an edge of the view, in screen pixels, a dragged card starts it scrolling. */
+
 export const EDGE_ZONE = 60;
-/** Screen pixels per second at the very edge; it slows towards the inner side of the zone. */
+
 const EDGE_SPEED = 1200;
-/** World room kept beside the content for the dragged card, beyond its own size. */
+
 export const DROP_ROOM = 40;
 
-/** A rectangle of the screen, in pixels. */
+
 export interface View {
   left: number;
   top: number;
@@ -108,7 +108,7 @@ export function edgeScroll(cam: Cam, pointer: { x: number; y: number }, from: { 
   const step = (EDGE_SPEED * ms) / 1000;
   const near = (d: number) => Math.min(1, Math.max(0, (EDGE_ZONE - d) / EDGE_ZONE)) ** 2;
   const axis = (c: number, p: number, p0: number, lo: number, hi: number, wlo: number, whi: number) => {
-    // towards the low edge the world moves forward, until its low limit reaches the edge
+    
     if (p < p0) return Math.min(c + step * near(p - lo), Math.max(c, lo - wlo * cam.s));
     if (p > p0) return Math.max(c - step * near(hi - p), Math.min(c, hi - whi * cam.s));
     return c;
@@ -136,9 +136,9 @@ export function placeIn(cam: Cam, view: View, pointer: { x: number; y: number } 
 export const shows = (cam: Cam, view: View, b: Bounds) =>
   b.x * cam.s + cam.x >= view.left && b.y * cam.s + cam.y >= view.top && (b.x + b.w) * cam.s + cam.x <= view.right && (b.y + b.h) * cam.s + cam.y <= view.bottom;
 
-/** Screen pixels of content the view keeps when panned or zoomed (all of a smaller card). */
+
 export const KEEP = 120;
-/** The bottom strip the minimap and the microphone cover; content kept in view lies above it. */
+
 export const BOTTOM = 150;
 
 /**
@@ -146,7 +146,7 @@ export const BOTTOM = 150;
  * in both directions, so panning and zooming never end on an empty view. No boxes, no limit.
  */
 export function keepInView(cam: Cam, boxes: Bounds[], view: View): Cam {
-  // how far a box spanning lo..lo+size on screen has to move to show k of it between vlo and vhi
+  
   const shift = (lo: number, size: number, vlo: number, vhi: number) => {
     const k = Math.min(KEEP, size, vhi - vlo);
     if (lo + size < vlo + k) return vlo + k - lo - size;
@@ -177,7 +177,7 @@ export function flyTo(from: Cam, to: Cam, set: (c: Cam) => void, ms = 650): Prom
     settle = resolve;
     const t0 = performance.now();
     const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-    // zoom out a little on long flights, so the eye keeps the map
+    
     const dist = Math.hypot((to.x - from.x) / from.s, (to.y - from.y) / from.s);
     const bump = Math.min(0.35, dist / 6000);
     const cx = innerWidth / 2;
@@ -214,7 +214,7 @@ export function stopFlight() {
   settle = null;
 }
 
-/** How long the camera takes to close nearly two thirds of the way to a chased target. */
+
 export const CHASE_MS = 70;
 
 /** One frame of a chase: `dt` ms closer to `to`, there once less than half a pixel is left. */

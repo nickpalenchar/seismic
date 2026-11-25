@@ -67,13 +67,13 @@ test('an idea whose agent is at work uses an available dot after the worktrees a
   expect(spots.map((s) => s?.card)).toEqual(['a', 'i']);
   expect(hostSpots({ ...h, slots: 1, total: 1 }, [card('a'), card('i', { state: 'idea' })]).map((s) => s?.card)).toEqual(['a']);
   expect(atWorkOn(h)).toBe(2);
-  // in clones, after every clone
+  
   const clones = host({ worktrees: false, exploring: ['i'], workstations: [{ path: '/c/1' }] });
   expect(hostSpots(clones, [card('i', { state: 'idea' })]).map((s) => s?.card)).toEqual([undefined, 'i']);
-  // on this machine's checkout alone (no workstation of the repository here), the idea is its one dot
+  
   const checkout = host({ worktrees: false, checkout: true, slots: 0, total: 0, exploring: ['i'] });
   expect(hostSpots(checkout, [card('i', { state: 'idea' })]).map((s) => s?.card)).toEqual(['i']);
-  // a parked idea's agent shows no dot
+  
   expect(hostSpots(clones, [card('i', { state: 'idea', hold: { reason: 'parkingLot' } as Item['hold'] })]).map((s) => s?.card)).toEqual([undefined]);
 });
 

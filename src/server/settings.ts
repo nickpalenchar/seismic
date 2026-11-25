@@ -1,10 +1,10 @@
-// Seismic's own settings, in `settings.json` under its home beside `projects.json` and `demo.json`:
-// the language of Seismic's interface and the one its agents talk to the owner in, light or dark, the model and effort of each group of
-// agents, how other devices reach Seismic (remote.ts), whether the bar shows the plan's usage limits (usage.ts), whether approving work asks for feedback on it, and the Project defaults a new project takes its own settings from. The owner chooses them in the settings sheet;
-// until then the system's language and look apply, the agents run as `AGENT_DEFAULTS` says, and
-// no other device reaches Seismic. Saving restarts nothing: the page loads again in the new
-// language, takes the new look at once, and the server reads the file whenever it needs the
-// language or starts an agent.
+
+
+
+
+
+
+
 
 import { z } from 'zod';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -17,29 +17,29 @@ import { BadRequest } from './board';
 import { firstProjectHarness, projectAgentSetting, type Harness, type ProjectConfig } from '../core/types';
 
 interface Settings {
-  /** The interface's: Seismic's own words. */
+  
   language?: Language;
-  /** The agents' to the owner; absent, English. */
+  
   conversationLanguage?: Language;
-  /** Light or dark; absent follows the system. */
+  
   theme?: Theme;
-  /** Full or reduced motion; absent follows the system. */
+  
   motion?: Motion;
-  /** Only what differs from `AGENT_DEFAULTS`, so a changed default reaches what the owner left. */
+  
   agents?: Partial<Record<AgentRole, Partial<AgentSetting>>>;
-  /** Harnesses connected to Seismic. Absent on installations that predate harness management. */
+  
   harnesses?: Harness[];
-  /** `false`: Codex workers ask the owner what leaves their sandbox; absent, Codex's own automatic review decides. */
+  
   codexAutoReview?: false;
-  /** How other devices reach Seismic; absent, they do not. */
+  
   remote?: RemoteSetting;
-  /** `false`: the bar does not show the plan's usage limits; absent, it does. */
+  
   usageMeter?: false;
-  /** `true`: approving a card's work asks for feedback on it; absent, it does not. */
+  
   feedbackPrompt?: true;
-  /** Whether a page notifies the owner on the desktop when a card needs them; absent until the owner has been asked. */
+  
   notifications?: boolean;
-  /** Project defaults: what a new project's own settings start as; a setting left out has its built-in value. */
+  
   projectDefaults?: ProjectSettings;
 }
 
@@ -64,10 +64,10 @@ export function languageView(home: string, system = systemLanguage()): LanguageV
   return { file: join(home, SETTINGS_FILE), chosen, system, language, conversationChosen, conversation: conversationChosen ?? 'en' };
 }
 
-/** The interface language that applies: the owner's choice, else the system's. */
+
 export const ownerLanguage = ownerLanguageIn;
 
-/** The conversation language that applies: the owner's choice, else English. */
+
 export const conversationLanguage = conversationLanguageIn;
 
 /**
@@ -146,7 +146,7 @@ export function renamedBaselines(saved: unknown): unknown {
   return 'planBaselines' in rest ? rest : { ...rest, planBaselines: projectBaselines };
 }
 
-/** A project's own settings, as the configuration and Project defaults hold them. */
+
 export const projectSettingsShape = z.object({
   planBaselines: z.boolean().optional(),
   archive: z.enum(CARD_ARCHIVING).optional(),
@@ -160,7 +160,7 @@ export const projectSettingsShape = z.object({
   demoSite: z
     .object({
       url: z.string().trim().regex(/^https?:\/\/\S+$/),
-      // up to three lower-case parts with hyphens, `/` between them; the root where empty
+      
       path: z
         .string()
         .transform((p) => p.trim().replace(/^\/+|\/+$/g, ''))
@@ -196,25 +196,25 @@ function projectAgents(saved: ProjectAgents | undefined): ProjectAgents {
   return out;
 }
 
-/**
- * Each project setting as it applies, from its value as saved (none: its built-in default). A setting
- * added to `ProjectSettings` needs its entry here, and with it a value in Project defaults.
- */
+
+
+
+
 export const PROJECT_SETTINGS: { [K in keyof ProjectSettings]-?: (saved: ProjectSettings[K]) => ProjectDefaults[K] } = {
   suggest: suggestToggles,
-  // the work retrospective proposes cards, and a starting card is checked for duplicates, where left out
+  
   suggestLabels: (saved) => saved !== false,
   suggestCards: (saved) => saved !== false,
   suggestMerges: (saved) => saved !== false,
   planBaselines: (saved) => saved !== false,
-  // the owner archives by hand where left out
+  
   archive: (saved) => (saved === 'landed' ? 'landed' : 'manual'),
-  // a right click manages groups where left out
+  
   rightClick: (saved) => (saved === 'canvases' ? 'canvases' : 'groups'),
-  // the default of every project's models is Configuration's "Agents and models": none of its own
+  
   agents: projectAgents,
   codeReviews,
-  // chosen per project, from this machine's sites: a new project has none until it chooses one
+  
   demoSite,
 };
 
@@ -265,7 +265,7 @@ export function withProjectDefaults<C extends ProjectSettings>(projects: C[], de
 
 /** Saves one of the owner's choices, or with `null` takes it out; the other settings in the file stay. */
 function save<K extends 'language' | 'conversationLanguage' | 'theme' | 'motion' | 'remote' | 'usageMeter' | 'codexAutoReview' | 'feedbackPrompt' | 'notifications' | 'projectDefaults'>(home: string, key: K, value: Settings[K] | null, what: string) {
-  // `canvasDefaults` is what `projectDefaults` was called while projects were canvases: read, and gone once saved
+  
   write(home, { ...read(home), canvasDefaults: undefined, [key]: value ?? undefined } as Settings);
   console.log(`Seismic: ${what} saved to ${join(home, SETTINGS_FILE)}`);
 }
@@ -393,7 +393,7 @@ export function agentsAsNow(home: string): () => void {
   };
 }
 
-/** A DNS name a reverse proxy serves Seismic under: labels of letters, digits and hyphens, no port, no scheme. */
+
 const HOSTNAME = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 
 /** A setting for other devices as the file or the page gives it; `null` for none or one Seismic cannot use. */

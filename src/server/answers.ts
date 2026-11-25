@@ -1,13 +1,13 @@
-// Questions the Koordinator looks up: what it cannot answer in its quick reading of a command (what
-// an agent would do on a card, what the plan says, what a release holds) goes to an agent with a
-// worker's tools that takes the time to read and check.
-// A workstream's question goes to its plan agent, any other to a thorough Koordinator turn. The
-// answer comes later: in full in the log of the card that was open (else in the Koordinator's
-// sheet), and summed up aloud.
-// A look-up starts a thread: a follow-up on its answer resumes the same agent, which still has all
-// it read and computed, and the thread's output directory holds the files its answers come with.
-// The owner can move a thread onto a Question card of its own, where their words go straight to
-// that agent.
+
+
+
+
+
+
+
+
+
+
 
 import { oneAtATime } from '../core/one-at-a-time';
 import { mkdirSync } from 'node:fs';
@@ -26,45 +26,45 @@ import { clip, messageOf } from '../core/text';
 export interface AnswerOptions {
   board: Board;
   runtime: AgentRuntime;
-  /** The checkout the answer is read from: the card's repository, or the project's home. */
+  
   pathFor: (card: Item | undefined) => string;
-  /** The task the card's worker gets at its start. */
+  
   startBrief: (card: Item) => string | undefined;
-  /** The plan agent of a plan answers what is asked about it and its workstreams. */
+  
   planAgent: (plan: Item) => Pick<PlanAgents, 'inform'>;
-  /** A thread's output directory, outside every repository. */
+  
   dirOf: (thread: number) => string;
-  /** The files of the owner's screenshots, by id; unknown ones are left out. */
+  
   imageFiles?: (ids?: string[]) => string[];
   preferences?: () => string;
-  /** The workers' permission mode, which the answering Koordinator turn runs in too. */
-  /** The answer to an exchange is in: the Koordinator hears it with the owner's next command. */
+  
+  
   onAnswer?: (talk: number, question: string, answer: string) => void;
-  /** Passes on what the owner's words on a Question card ask of Seismic (`to_seismic`). */
+  
   toSeismic?: (cardId: string, request: string) => Promise<string>;
 }
 
-/** Log lines of a card the answering agent reads. */
+
 const LOG_LINES = 25;
 
 type Exchange = Talk & { about?: string; session?: string };
 type By = 'koordinator' | 'plan';
 
 export class Answers {
-  /** Exchanges being looked up, so a resume does not ask twice. */
+  
   private busy = new Set<number>();
-  /** The turns of each thread, one after the other: two never run in one session at once. */
+  
   private turns = new Map<number, Promise<unknown>>();
-  /** Question cards whose agent is in a turn: what the owner asks meanwhile waits for the next, unread until then. */
+  
   private reading = new Set<string>();
-  /**
-   * Question cards whose agent waits for its background work in a turn, each with what passes the
-   * owner's words still pending into its session at once: the turn's answer answers them too.
-   */
+  
+
+
+
   private waiting = new Map<string, () => void>();
-  /** Ends the running turn of a Question card's agent, for the owner's pause. */
+  
   private turnEnds = new Map<string, AbortController>();
-  /** Question cards whose agent the owner let go on after a pause: its next turn hears so. */
+  
   private resumed = new Set<string>();
 
   constructor(private o: AnswerOptions) {}
@@ -76,7 +76,7 @@ export class Answers {
     if (!t?.question || t.answer !== undefined) return;
     const thread = t.thread ?? t.id;
     const root = thread === t.id ? t : (this.o.board.exchange(thread) ?? t);
-    // a thread on a Question card goes on there, with the card's agent
+    
     const card = root.movedTo ? this.o.board.item(root.movedTo) : undefined;
     if (card?.kind === 'question') {
       if (!t.movedTo) this.o.board.moveThread(thread, card.id);
@@ -86,18 +86,18 @@ export class Answers {
     this.busy.add(talkId);
     const { by, about, plan } = this.agentFor(root);
     const reading = t.cardId && this.o.board.item(t.cardId) ? t.cardId : undefined;
-    // what it reads shows on the open card, as an exploration agent's reading does
+    
     const onTool = (name: string, input: Record<string, unknown>) => {
       if (reading && !name.startsWith('mcp__')) this.o.board.log(reading, 'activity', by, describeTool(name, input, this.o.board.t));
     };
     const follow = t.id !== thread;
-    // looked up for an action: Seismic takes it with the answer, which brings what it needs
+    
     const step = t.then ? `\n\nSeismic takes this step itself once your answer is in: ${t.then}\nYour answer gives what the step needs.` : '';
     const fresh = `${this.message(root.said, root.question!, about, plan, root.askedIn)}${follow ? '' : step}`;
-    // written in the plan's sheet: Seismic did not read the words, so the agent passes on what asks Seismic
+    
     const asked = t.askedIn ? { images: this.o.imageFiles?.(t.images) ?? [], from: t.askedIn } : undefined;
     this.queue(thread, () => {
-      // Read the session and its setting together when the queued follow-up is ready to run.
+      
       const previous = follow ? this.o.board.threadTalk(thread).findLast((x) => x.session && x.id <= (t.follows ?? t.id)) : undefined;
       const cardSession = follow ? this.cardSession(root) : undefined;
       const resume = previous?.session ?? cardSession;
@@ -110,13 +110,13 @@ export class Answers {
         onTool,
         onSession: (id, setting) => {
           this.o.board.talkSession(talkId, id, setting);
-          // The owner can move the thread while this turn starts. Keep the card's copy in step.
+          
           const moved = this.o.board.exchange(talkId)?.movedTo;
           if (moved && this.o.board.item(moved)?.kind === 'question') this.saveCardSession(moved, id, setting);
         },
         resolvedModel: previous?.answerAgent?.model,
         setting: previous?.setting ?? (resume && resume === cardSession && root.movedTo ? this.o.board.sessionSetting(root.movedTo) : undefined),
-        // under the question in the sheet, and in the conversation of the card it was asked on
+        
         onLimit: (until, retry) => {
           this.o.board.waitsForLimit({ talk: talkId }, until, retry);
           if (reading && until != null) this.o.board.log(reading, 'state', 'seismic', this.o.board.t.answer.limited(this.o.board.t.when(until)));
@@ -163,7 +163,7 @@ export class Answers {
     const said = `${replyNote(quoted, 'koordinator')}${text}${imageNote(images)}`;
     const thread = this.o.board.thread(cardId);
     const pending = [...(thread.pending ?? []), { text: spoken ? `(${SPOKEN}:) ${said}` : said, images, said: [e.id], ...(talk ? { talk } : {}) }];
-    // the owner's words let a paused agent go on, with what it had not answered yet, and one about to pause read on
+    
     if (isPaused(card)) this.goOn(cardId);
     else if (isPausing(card)) this.pauseTakenBack(cardId);
     this.o.board.setThread(cardId, { thinking: true, pending });
@@ -210,7 +210,7 @@ export class Answers {
     if (!isPaused(card)) throw new BadRequest('notPaused', 'the agent is not paused');
     this.goOn(cardId);
     const thread = this.o.board.thread(cardId);
-    // the owner may have taken back all it was asked meanwhile
+    
     if (!thread.pending?.length) return;
     this.o.board.setThread(cardId, { thinking: true });
     this.queue(thread.talk, () => this.cardTurn(cardId));
@@ -246,7 +246,7 @@ export class Answers {
   resumeAll() {
     for (const i of this.o.board.items()) {
       if (i.kind !== 'question' || !i.thread?.thinking) continue;
-      // about to pause after its answer, which the restart cut off: it stays paused, what it was asked pending
+      
       if (isPausing(i)) {
         this.halt(i.id);
         continue;
@@ -307,7 +307,7 @@ export class Answers {
     const card = this.o.board.item(cardId);
     const stored = card?.kind === 'question' ? this.o.board.thread(cardId) : undefined;
     const taken = [...(stored?.pending ?? [])];
-    // paused while it waited for its turn: it goes on once the owner lets it
+    
     if (!card || !stored || !taken.length || isPaused(card)) return;
     const root = this.o.board.exchange(stored.talk);
     if (!root?.question) return;
@@ -342,7 +342,7 @@ export class Answers {
         at: { card: cardId },
         resume: this.o.board.row(cardId).session_id ?? undefined,
         message: `${resumed}${followUp(words, undefined, true)}`,
-        // with the words passed in meanwhile, which the session that failed had heard
+        
         fallback: () => ({
           message: `${intro}\n\n${this.history(stored.talk, cardId)}\n\n${followUp(taken.map((p) => p.text).join('\n\n'), undefined, true)}`,
           images: taken.flatMap((p) => p.images),
@@ -350,7 +350,7 @@ export class Answers {
         signal: end.signal,
         onWaiting: (pass) => {
           if (!pass) return void this.waiting.delete(cardId);
-          // what the owner said since the turn began goes in now, and the turn answers it too
+          
           const passOn = () => {
             const more = (this.o.board.thread(cardId).pending ?? []).filter((p) => !heard(p));
             if (!more.length) return;
@@ -363,7 +363,7 @@ export class Answers {
         },
       });
     } catch (e) {
-      // paused: what it was asked stays pending
+      
       if (e instanceof Interrupted) return;
       a = { text: this.o.board.t.answer.failed(messageOf(e)) };
     } finally {
@@ -372,14 +372,14 @@ export class Answers {
       if (this.turnEnds.get(cardId) === end) this.turnEnds.delete(cardId);
     }
     const text = clip(a.text, 12000);
-    // the card may have become an idea meanwhile; the answer stands in its conversation all the same
+    
     this.o.board.log(cardId, 'talk', by, text, { answer: answerRef(stored.talk, a.files), agent: a.agent });
     const now = this.o.board.row(cardId).thread ? this.o.board.thread(cardId) : undefined;
     if (now) {
       const left = (now.pending ?? []).filter((p) => !heard(p));
       this.o.board.setThread(cardId, { answers: now.answers + 1, files: now.files + (a.files?.length ?? 0), thinking: left.length > 0, pending: left });
     }
-    // the owner asked it to pause once its answer was given: what was asked meanwhile waits for them to let it go on
+    
     if (this.o.board.holdOf(cardId)?.reason === 'pausing') this.halt(cardId);
     this.o.board.notify({ cardId, text, inTalk: true });
     for (const p of taken) if (p.talk) {
@@ -403,18 +403,18 @@ export class Answers {
     fallback?: () => { message: string; images?: string[] };
     card?: string;
     images?: string[];
-    /** Written in a plan's sheet (`from`), straight to its plan agent, with these screenshot files. */
+    
     asked?: { images: string[]; from: string };
     signal?: AbortSignal;
-    /** The turn waits for the agent's background work, or no longer (`Briefing.onWaiting`). */
+    
     onWaiting?: Briefing['onWaiting'];
     onTool: (name: string, input: Record<string, unknown>) => void;
     setting?: AgentSetting;
     resolvedModel?: string;
     onSession: (id: string, setting?: AgentSetting) => void;
-    /** Where it shows that it waits for the usage limit. */
+    
     onLimit: (until: number | null | undefined, retry?: () => void) => void;
-    /** Where it shows at work. */
+    
     at: AgentAt;
   }): Promise<OwnerAnswer> {
     const dir = this.o.dirOf(c.thread);
@@ -484,7 +484,7 @@ export class Answers {
   private deliver(talkId: number, thread: number, by: By, question: string, a: OwnerAnswer, card: string | undefined, plan: Item | undefined) {
     const text = clip(a.text, 12000);
     const t = this.o.board.exchange(talkId);
-    // in the log of the card that was open; with the thread moved onto a Question card meanwhile, there too
+    
     const moved = t?.movedTo && this.o.board.item(t.movedTo)?.kind === 'question' ? t.movedTo : undefined;
     this.o.board.answerTalk(talkId, text, by, a.files, a.agent);
     const ref = answerRef(thread, a.files, t?.continues);
@@ -494,7 +494,7 @@ export class Answers {
       const s = this.o.board.thread(moved);
       this.o.board.setThread(moved, { answers: s.answers + 1, files: s.files + (a.files?.length ?? 0) });
     }
-    // above the microphone too, wherever the owner is by now; in full on the card or in the sheet
+    
     this.o.board.notify({ ...(card || moved ? { cardId: card ?? moved, inTalk: true as const } : { talk: talkId, ...(by === 'plan' && plan ? { plan: plan.id } : {}) }), text });
     this.o.onAnswer?.(talkId, question, text);
   }
@@ -510,13 +510,13 @@ export class Answers {
     const lines = cardId
       ? this.o.board
           .events(cardId)
-          // words not read yet come with a later turn
+          
           .filter((e) => inConversation(e) && !e.unread)
           .map((e) => said(e))
       : this.o.board
           .threadTalk(thread)
           .flatMap((r) => [`The owner: "${r.said}"`, ...(r.answer !== undefined ? [`You: ${r.answer}${fileList(r.files)}`] : [])]);
-    // the words being asked now come after it
+    
     return `You answered the owner before, in a session that cannot be resumed. The conversation so far, oldest first:\n\n${lines.join('\n\n')}`;
   }
 
@@ -549,7 +549,7 @@ export class Answers {
         );
       const log = this.o.board
         .events(about.id)
-        // a captured patch is no line of the log
+        
         .filter((e) => e.kind !== 'activity' && e.kind !== 'changes')
         .slice(-LOG_LINES);
       if (log.length) parts.push(`The card's log, latest last:\n${log.map((e) => `- ${e.at.slice(0, 16)} ${e.author} (${e.kind}): ${clip(e.text, 300)}`).join('\n')}`);
@@ -575,7 +575,7 @@ const followUp = (said: string, question: string | undefined, onCard: boolean) =
 const meanwhile = (said: string) =>
   `While your background work runs, the owner wrote on the card; their words come to you at once:\n\n${said}\n\nYour answer (answer_owner, once, when you have it) answers these words too.`;
 
-/** What the agent of a Question card hears when the owner lets it go on after a pause. */
+
 const RESUMED =
   'The owner paused you while you worked on your answer and has now let you go on. Pausing ended your session at once: whatever you had running was stopped with it (a command still running shows exit code 137). What they asked is still unanswered.';
 

@@ -27,10 +27,10 @@ export function CardSearch({ items, onOpen, field, hidden }: { items: Item[]; on
     setQuery('');
     box.current?.querySelector('input')?.blur();
   };
-  // the project switcher opening over it takes the focus for a while: only the list closes, the query
-  // stays for when the focus comes back
+  
+  
   const leave = (to?: EventTarget | null) => (to instanceof Element && to.closest('#project-switcher')) || document.querySelector('#project-switcher') ? setOpen(false) : close();
-  // an unfolded card covers what the finder would open
+  
   useEffect(() => void (hidden && open && close()), [hidden]);
   const pick = (item: Item) => {
     close();
@@ -67,7 +67,7 @@ export function CardSearch({ items, onOpen, field, hidden }: { items: Item[]; on
           align="center"
           sideOffset={8}
           className="max-h-[min(420px,55vh)] w-[max(var(--radix-popover-trigger-width),min(520px,calc(100vw-28px)))] rounded p-2"
-          // the field keeps the focus; a press in it is no click outside
+          
           onOpenAutoFocus={(e) => e.preventDefault()}
           onCloseAutoFocus={(e) => e.preventDefault()}
           onInteractOutside={(e) => box.current?.contains(e.target as Node) && e.preventDefault()}

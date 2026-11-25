@@ -1,14 +1,14 @@
-// The height of the phone's conversation panel, as the owner drags its top and throws it.
 
-/** How near the screen's top or bottom edge a dragged top has to be let go to take the full height or close, as a share of the screen. */
+
+
 export const SNAP = 0.15;
-/** How fast a thrown top slows down, in px/ms². */
+
 export const FRICTION = 0.002;
-/** Let go slower than this (px/ms), the finger had stopped: the top stays where it was let go. */
+
 export const THROWN = 0.3;
-/** Over how many ms of its last moves the finger's speed is measured. */
+
 const TRAIL = 80;
-/** A finger that has not moved for this long (ms) when it lets go had stopped. */
+
 const STILL = 50;
 
 /**
@@ -23,7 +23,7 @@ export function settle(top: number): number | 'close' {
   return 1 - top;
 }
 
-/** Where the finger was, at a time in ms. */
+
 export type Mark = { t: number; y: number };
 
 /**

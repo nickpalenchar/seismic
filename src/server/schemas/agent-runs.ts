@@ -4,7 +4,7 @@ import type { WorkConfig } from '../../core/types';
 import { cards } from './cards/cards';
 import { type Db, now } from './common';
 
-/** Each session that worked on a card, with the configuration it ran on (`WorkConfig`, null where unknown). */
+
 export const agentRuns = sqliteTable(
   'agent_runs',
   {

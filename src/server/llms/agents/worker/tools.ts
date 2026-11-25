@@ -1,8 +1,8 @@
-/**
- * The worker's tools: what it reaches Seismic through (`report`, `reply`, `ask`, `ready_for_review`
- * and the rest), as the card's state allows them. They act on the card through the `WorkerSupervisor` that
- * runs it (`WorkerHost`).
- */
+
+
+
+
+
 import { unheardNow } from './contextUpdate';
 import { workerConfig } from '../../../worker-config';
 import { z } from 'zod';
@@ -25,20 +25,20 @@ import { parsePrUrl, sameRepo } from '../../../forge';
 import { clip } from '../../../../core/text';
 import type { LandedState, Live, OwnCommits, WorkerSupervisor } from '../../../workerSupervisor/workerSupervisor';
 
-/** What the worker's tools and prompt need of the `WorkerSupervisor` that runs the card. */
+
 export type WorkerHost = Pick<WorkerSupervisor, 'restart' | 'pageNews' | 'takeUnheard' | 'live' | 'artifacts' | 'cardTitled' | 'close' | 'dataModels' | 'demoHere' | 'demoLanguage' | 'demoSkill' | 'disputeItems' | 'earlier' | 'execLane' | 'folder' | 'followUpTask' | 'heldAt' | 'inWorktree' | 'landResolved' | 'landingOf' | 'live' | 'namedFiles' | 'o' | 'otherBoards' | 'owedTasks' | 'ownCommits' | 'probeClash' | 'proposalBoards' | 'proposalRepo' | 'report' | 'requestChanges' | 'resubmitItems' | 'retract' | 'reviewModeOf' | 'reviews' | 'setFindings' | 'shares' | 'showsFiles' | 'toOwner'>;
 
 export function workerTools(self: WorkerHost, cardId: string, live: Live, prototype: boolean): AgentTool[] {
-  // the system prompt says which language that is (`ownersLanguage`)
+  
   const language = "the owner's language";
-  // the page goes to colleagues: in the language of the repository's demos where it names one
+  
   const pageLanguage = LANGUAGE_NAMES[self.demoLanguage()];
-  // whether the repository shares, as the session's tools have it from their start on: the schema drops a page they do not
-  // take, so the handover asks for one only where they take it (where sharing began since, the page is written once shared)
+  
+  
   const shares = self.shares;
-  // the vocabulary the page's tags come from, where the repository's site names one
+  
   const vocabulary = shares ? dimensions(self.o.vocabulary?.()) : [];
-  // a proposal may go to another repository than the card's: of this project, or of another project this Seismic runs
+  
   const repos = self.o.board.project.repos;
   const ownRepo = self.o.repo ?? self.o.board.home;
   const others = self.otherBoards().filter((b) => b.project.repos.length);
@@ -46,7 +46,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
   const handOver = () => {
     live.handedOver = true;
     live.nudged = false;
-    // a question or a handover after a snooze in the same turn: the card waits for the owner instead
+    
     if (live.snoozed) {
       live.snoozed = false;
       self.o.board.work(cardId, self.o.board.unheld(cardId, ['snoozed']));
@@ -63,13 +63,13 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
     if (!words) return plain;
     return `${stands} The owner wrote to you while you worked, and their words reach you only now, with this result: take them in as at any other step. Answer them with reply where they call for an answer, and do what they ask${change ? `; ${change}` : ''}. Then end your turn.\n\n${words}`;
   };
-  // a session the owner stopped or replaced may still call its tools: those calls change nothing
+  
   const current = (tools: AgentTool[]): AgentTool[] =>
     tools.map((t) => ({ ...t, run: (args) => (self.live.get(cardId) === live || live.standIn ? t.run(args) : 'This session has ended. Stop working and end your turn.') }));
-  // a review card's tools to the contributor's pull request
+  
   const review = contributionOf(self.o.board.row(cardId));
-  // the tools stand for the whole session, while the project's setting may change under it: every card of the owner's has the tool, which refuses where there are no findings
-  // a card whose work the project reviews makes the follow-up tasks the owner chooses of the review's findings
+  
+  
   const reviewed = !review && !self.folder && !self.o.board.row(cardId).idea?.prototypeOf;
   return current([
     {
@@ -90,7 +90,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
       run: ({ text }) => {
         const s = clip(String(text).trim(), 2000);
         if (!s) return 'Not shown: the reply is empty.';
-        // a reply may end the turn on a handover: what the owner chose for later is made before it
+        
         const owed = self.owedTasks(cardId);
         if (owed) return `Not shown: first make the follow-up tasks the owner chose, for ${owed}; then reply.`;
         self.o.board.log(cardId, 'talk', 'worker', s);
@@ -125,7 +125,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
           const q = withPick(args as unknown as Asked);
           const e = self.o.board.log(cardId, 'question', 'worker', formatQuestion(q, self.o.board.language()));
           if (shown) {
-            // the demo it replaces stays with the card, for the owner to go back to
+            
             const row = self.o.board.row(cardId);
             self.o.board.work(cardId, { demo: { latest: { ...shown, asked: true, handover: e.id, at: e.at }, ...(row.demo?.latest ? { earlier: self.earlier(cardId, row) } : {}) } });
           }
@@ -138,10 +138,10 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
         };
         const given = args.demo as { kind?: DemoKind; dir: string; chapters?: string[] } | undefined;
         if (!given) return asked();
-        // a demo made on another machine is shown from its copy here
+        
         return self.demoHere(cardId, given.dir).then((here) => {
           if ('wrong' in here) return `Not asked: the demo could not be copied to the owner's machine (${here.wrong}). Check the directory, then ask again.`;
-          // copying it takes a while, in which the owner may stop or replace the session
+          
           if (self.live.get(cardId) !== live && !live.standIn) return 'This session has ended. Stop working and end your turn.';
           const kind = given.kind ?? 'video';
           if (kind === 'html') {
@@ -155,7 +155,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
         });
       },
     },
-    // a prototype makes no cards of its own: what it proposes is building its idea on it
+    
     prototype
       ? {
           name: 'propose_build',
@@ -221,7 +221,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
             return old ? `Proposed. ${self.retract(cardId, old, { by: p.id, title: p.title })}` : 'Proposed; the owner decides. Continue with your task.';
           },
         },
-    // a prototype makes no cards, so it has none to take back
+    
     ...(prototype
       ? []
       : [
@@ -235,7 +235,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
             schema: { title: z.string(), why: z.string(), replaced_by: z.string().optional() },
             run: (args: Record<string, unknown>) => {
               const { title, why, replaced_by } = args as { title: string; why: string; replaced_by?: string };
-              // the latest by that title, as retract takes the latest it replaces: of two alike, the newer replaces the older
+              
               const by = replaced_by?.trim()
                 ? self.proposalBoards()
                     .map((b) => b.items().findLast((i) => i.from === cardId && (!!i.idea?.proposal || !!i.idea?.proposed) && titleKey(i.title) === titleKey(replaced_by)))
@@ -331,13 +331,13 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
         if (!ref) return 'Not recorded: that is not the URL of a pull request (on GitHub or GitHub Enterprise https://<host>/<owner>/<repo>/pull/<number>, on Forgejo or Gitea such as Codeberg https://<host>/<owner>/<repo>/pulls/<number>).';
         handOver();
         const root = row.review.pr;
-        // the card's own is the one in its repository, which the landing is about; one in another
-        // repository is watched beside it, and reported again (opened again after it was closed) as before
+        
+        
         const host = self.o.remote && remoteHost(self.o.remote)?.toLowerCase().replace(/^ssh\.github\.com$/, 'github.com');
         const elsewhere = !!self.o.remote && (!sameRepo(self.o.remote, ref.owner, ref.repo) || (!!host && host !== ref.host.toLowerCase()));
         const known = elsewhere ? root.more?.find((m) => parsePrUrl(m.url ?? '')?.url === ref.url) : undefined;
         let pr: PrState;
-        // the card's own reported again keeps what was told of it; another in its place starts afresh
+        
         if (!elsewhere) pr = parsePrUrl(root.url ?? '')?.url === ref.url || !root.url ? { ...root, url: ref.url, number: ref.number } : { url: ref.url, number: ref.number, seen: [], reported: [], ...(root.more ? { more: root.more } : {}) };
         else if (known) {
           const { closed: _, ...open } = known;
@@ -441,14 +441,14 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
             }),
       },
       run: ({ summary, demo, files, review: results, pr_draft: draft, data_models: declared, data_models_reason: why }) => {
-        // a stopped pull this worker resolved lands as it hands it over, without the owner
+        
         const resolving = workerConfig.landedOf(self.o.board.row(cardId))?.resolve;
         if (resolving) return self.landResolved(cardId, resolving);
         type Demo = { kind?: DemoKind; dir: string; chapters?: string[]; question?: { text: string } & Omit<Asked, 'question'>; page?: DemoPage; follows?: 'replaces' | 'supplements' };
         const given = demo as Demo | undefined;
-        // whether the branch holds work and decides where it lands, which git tells without blocking the server
-        // a review card hands over the PR's head it reviewed, which is all Seismic ever merges
-        // with the commits of its own on top of the PR's head, which Seismic pushes on the owner's approval
+        
+        
+        
         const handOverWork = (d: Demo | undefined, named: CardFile[] | undefined, shows: boolean): Promise<string> =>
           review
             ? self.ownCommits(cardId, review).then((mine) => (typeof mine === 'string' ? mine : handOverNow(d, named, shows, true, undefined, mine)))
@@ -461,7 +461,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
                   own,
                   undefined,
                   work && !self.folder ? await self.o.workstations.changedFiles(cardId) : undefined,
-                  // what the branch shows of a data-model change, unless the worker says it has one
+                  
                   work && !self.folder && declared !== 'changed' && self.artifacts().includes('schema') ? dataModelSignals((await self.o.workstations.diff(cardId, true))?.patch ?? '') : [],
                 ),
               );
@@ -475,7 +475,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
           changed?: string[],
           signals: DataSignal[] = [],
         ): string => {
-          // reading what the change shows takes a while, in which the owner may stop or replace the session
+          
           if (self.live.get(cardId) !== live && !live.standIn) return 'This session has ended. Stop working and end your turn.';
           const s = clip(String(summary), 6000);
           const row = self.o.board.row(cardId);
@@ -486,17 +486,17 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
           if (review && !contributionOf(row)?.findings) return 'Not handed over: record your findings first (findings; an empty list where your review found nothing), then call ready_for_review again.';
           const owed = self.owedTasks(cardId);
           if (owed) return `Not handed over: first make the follow-up tasks the owner chose, for ${owed}; then call ready_for_review again.`;
-          // what goes onto the PR with the owner's approval: the worker's own commits and their text, with the requests to the contributor decided meanwhile
+          
           const held = review && mine ? self.heldAt(cardId, mine, typeof draft === 'string' ? draft : undefined) : undefined;
           if (typeof held === 'string') return held;
-          // approved work that could not land comes back to be landed, not reviewed: its demo stands
+          
           const approved = !!row.approved_at;
-          // a handover in answer to the owner's words that brings no new demo is an answer to them, not a demo to watch
+          
           const answered = !d && !!row.detail && !!(JSON.parse(row.detail) as { answering?: boolean }).answering;
-          // without a new demo, the one on the card stands, unless it only came with a question
+          
           const asked = !!row.demo?.latest?.asked;
           const kept = !d && !!row.demo?.latest && !asked;
-          // in a folder without git the card's change list shows what changed, where often nothing can be shown on screen
+          
           if (!d && !kept && !approved && !self.folder)
             return `Not handed over: every handover brings a demo${row.demo?.latest ? ' (the one you showed with your question is not one)' : ''}. Record it with ${self.demoSkill(cardId)}, or make an HTML artifact when the result is something to look at, then call ready_for_review again with it.`;
           const models = review || self.folder || approved || !self.artifacts().includes('schema') ? undefined : self.dataModels(cardId, declared, why, named, signals);
@@ -506,7 +506,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
             const allowed = self.artifacts();
             const kind = d.kind ?? (allowed.includes('video') ? 'video' : 'html');
             if (!allowed.includes(kind)) return `Not handed over: this repository's settings do not allow ${kind === 'video' ? 'a video' : 'an HTML artifact'} as a demo here. Hand over ${kind === 'video' ? "an HTML artifact (kind 'html')" : 'a video'} instead, then call ready_for_review again.`;
-            // what the worker says of it beside the demo before, for the owner's buttons when the page shows that one
+            
             const report = { ...(d.question?.text.trim() ? workerConfig.demoQuestion(d.question) : {}), ...(row.demo?.latest && (d.follows === 'replaces' || d.follows === 'supplements') ? { follows: d.follows } : {}) };
             const tags = vocabulary.length && d.page?.tags && typeof d.page.tags === 'object' ? (d.page.tags as PageTags) : undefined;
             const page =
@@ -522,7 +522,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
             if (kind === 'html') {
               const wrong = checkArtifact(d.dir);
               if (wrong) return `Not handed over: ${wrong}. Fix the artifact, then call ready_for_review again.`;
-              // an artifact that is its index.html alone also goes out as one HTML file
+              
               const single = artifactFiles(d.dir).length === 1;
               demoJson = JSON.stringify({ kind, dir: d.dir, chapters: [], ...report, ...(page ? { page } : {}), ...(single ? { single } : {}) });
             } else {
@@ -541,36 +541,36 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
               review: { contribution: { ...rest, reviewed: mine?.head, results, ...(held ? { held, ...(findings ? { findings } : {}) } : {}) } satisfies StoredContribution },
               ...(row.state === 'inPr' ? { state: 'working' } : {}),
             });
-            // what the pull after the merge would run into on the local main, for the owner to see before approving
+            
             void self.probeClash(cardId);
           }
           const report = self.report(cardId, s);
           const e = self.o.board.log(cardId, 'review', 'worker', s);
-          // work in a git repository gets its code review where the project reviews work, whatever its landing; the forge's reviewers come after it
+          
           if (!review && !approved) void self.reviews.handedOver(cardId, e.id, self.reviewModeOf(row, work));
-          // the demo report's question goes with the handover it came with, also once a later one keeps the demo
+          
           if (demoJson) demoJson = JSON.stringify({ ...(JSON.parse(demoJson) as object), handover: e.id, at: e.at });
-          // the demo it replaces stays with the card, for the owner to go back to; so do a question's drafts, which are no handover's result
+          
           const demos = (demoJson || asked) && row.demo?.latest ? self.earlier(cardId, row) : undefined;
-          // approved work does not wait for the owner again: it stays with Seismic until its turn has ended
+          
           self.o.board.work(cardId, {
-            // the worker's last status line is about the work it hands over: it would show again once the card is at work
+            
             ...(approved ? { status_line: self.o.board.t.worker.landing } : { state: 'waiting', need: d || kept ? 'demo' : 'review', status_line: null }),
-            // approving work that changes nothing makes the card done, which the owner sees before approving; where work
-            // lands that its own branch decides, likewise
+            
+            
             detail: JSON.stringify({
               summary: report,
               ...(work ? (own ? { lands: own } : {}) : { noChange: true }),
               ...(answered && !approved ? { answered: true } : {}),
               ...(models?.unchanged ? { modelsUnchanged: models.unchanged } : {}),
-              // approved work that came back from a conflict is still about it until it lands: a stop keeps the approval
+              
               ...(approved && !!row.detail && (JSON.parse(row.detail) as { conflict?: boolean }).conflict === true ? { conflict: true } : {}),
             }),
             demo: {
               ...(demoJson ? { latest: JSON.parse(demoJson) as StoredDemo } : asked ? { latest: null } : {}),
               ...(demos ? { earlier: demos } : {}),
-              // the files named stand until a later handover names others (an empty list named clears them); a folder's card handed
-              // over without a demo shows what it changed, while there are files of it to show
+              
+              
               ...(named?.length
                 ? { files: named }
                 : self.folder && !d && !kept && (named || !row.demo?.files?.length)
@@ -588,7 +588,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
               'Recorded: once your turn has ended, Seismic lands your work on main.',
               'a change to the work is to be committed by then',
             );
-          // what the owner's button does, as Seismic sees the branch: the worker may know of no commit on it but its own
+          
           const lands =
             review || self.folder
               ? ''
@@ -599,7 +599,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
                   : '';
           return ending(`${workerConfig.endTurn}${lands}`, `Recorded: your handover waits for the owner's approval.${lands}`, 'if they change what you handed over, hand it over again');
         };
-        // a demo made on another machine is served and shared from its copy here
+        
         const handOverWith = (named?: CardFile[]): string | Promise<string> => {
           if (given && hostName(self.o.board.row(cardId).workstation))
             return self.demoHere(cardId, given.dir).then((here) =>
@@ -611,11 +611,11 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
                     false,
                   ),
             );
-          // in a folder, what the change has to show decides whether a handover without a demo shows it beside the conversation
+          
           if (self.folder && !given) return self.showsFiles(cardId).then((shows) => handOverWork(given, named, shows));
           return handOverWork(given, named, false);
         };
-        // the files named as the result, checked against what the card changed before anything is handed over
+        
         if (files !== undefined)
           return self.namedFiles(cardId, files as { path: string; caption: string }[], given?.dir).then((named) =>
             typeof named === 'string'
@@ -632,7 +632,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
       run: async () => {
         const row = self.o.board.row(cardId);
         if (row.landed) return 'Not recorded: the card is finished already.';
-        // a review card whose pull request was closed lands nothing, whatever its branch holds
+        
         if (contributionOf(row)?.closed) return [`Recorded: the card is done.`, self.close(cardId, 'worker'), workerConfig.afterLanding].filter(Boolean).join(' ');
         const work = await self.o.workstations.hasWork(cardId);
         const pr = row.review?.pr ?? null;
@@ -668,7 +668,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
         const card = self.o.board.item(cardId);
         if (!card) return 'Not snoozed: the card is gone.';
         if (live.handedOver) return 'Not snoozed: you asked or handed over in this turn, so the card waits for the owner.';
-        // taking in the owner's words on its handover, it may snooze as they ask (check again in three days): the handover stands meanwhile
+        
         if (!(card.state === 'working' || card.state === 'inPr' || card.agent?.finishing || answering(card))) return 'Not snoozed: the card waits for the owner; their answer or approval comes as your next message.';
         if (isPausing(card)) return 'Not snoozed: the owner pauses you; end your turn, and once they let you go on, snooze then if it is still due.';
         const named = typeof until === 'string' && until.trim() !== '';
@@ -737,7 +737,7 @@ export function workerTools(self: WorkerHost, cardId: string, live: Live, protot
     ...(self.o.toSeismic
       ? [
           toSeismicTool((request) => {
-            // what Seismic does or replies is shown to the owner as the answer to their words
+            
             live.spoke = true;
             return self.o.toSeismic!(cardId, request);
           }),

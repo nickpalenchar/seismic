@@ -1,11 +1,11 @@
-/**
- * What a session asks of its model, set against the model: made by the agent that runs it
- * (`SeismicAgent.checkCapabilities`) once the harness has resolved the model, before the session's
- * first turn.
- */
+
+
+
+
+
 import { type Capabilities, type Capability, CAPABILITIES, type SeismicModel } from './seismicModel';
 
-/** What a session that only takes screenshots as a help reads where its model cannot see images. */
+
 export const IMAGES_DROPPED = 'Screenshots came with this message, but the model you run on cannot read images, so they are left out. Go on from the text alone.';
 
 const WORDS: Record<Capability, string> = { images: 'images' };

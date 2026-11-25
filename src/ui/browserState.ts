@@ -1,8 +1,8 @@
-// Migration shim for the rename: what this browser keeps under names from before it (`obeya-…`,
-// `obeya.…` in localStorage and sessionStorage) is moved to the `seismic-…` / `seismic.…` name once, at
-// page start, before any of it is read. A value already under the new name stays; the old name is
-// removed, so only the new one is written from then on. The drafts' own keys, `obeya` and
-// `obeya:<project>` inside the stored drafts (draft.ts), are renamed where they are read.
+
+
+
+
+
 
 /** `obeya-theme` as `seismic-theme`; null for a key that is not from before the rename. */
 export const renamedKey = (key: string): string | null => (/^obeya[-.]/.test(key) ? `seismic${key.slice('obeya'.length)}` : null);
@@ -27,7 +27,7 @@ export function migrateBrowserState(stores: Storage[]): number {
         moved++;
       }
     } catch {
-      // storage that is unavailable or full keeps what it has
+      
     }
   }
   return moved;

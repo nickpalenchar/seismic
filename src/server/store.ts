@@ -32,20 +32,20 @@ import { Talk } from './schemas/talk';
 import { TrustedCommands } from './schemas/trusted-commands';
 import { Workstations } from './schemas/workstations';
 
-// What Seismic stores: each table's queries in its schema file (`schemas/`), and here what spans several
-// of them, each in one transaction.
 
-/**
- * Where the cards' history stood when it was read: the time, and the latest event and card then.
- * What is written later has a larger id, even within the same millisecond or once the clock went back.
- */
+
+
+
+
+
+
 export interface Mark {
   at: string;
   event: number;
   card: number;
 }
 
-/** A step in a card's history, as the Koordinator reads it; `created` marks a card of the owner's or a proposal. */
+
 export interface Moment {
   at: string;
   cardId: string;
@@ -54,7 +54,7 @@ export interface Moment {
   text: string;
 }
 
-/** Something the owner said: to an agent (`hint` a note or feedback, `answer`), in an idea (`talk`), to the Koordinator (`say`). */
+
 export interface Utterance {
   at: string;
   kind: 'hint' | 'answer' | 'talk' | 'say';
@@ -64,7 +64,7 @@ export interface Utterance {
 }
 
 export class Store {
-  /** The SQLite connection under `orm`. */
+  
   readonly db: Database;
   readonly orm: Db;
   readonly projects: Projects;
@@ -254,7 +254,7 @@ export class Store {
     const m = typeof since === 'string' ? { at: since, event: Number.MAX_SAFE_INTEGER, card: Number.MAX_SAFE_INTEGER } : since;
     return this.orm
       .all<Moment>(
-        // within one millisecond, cards are created before anything happens to them, each in the order it was written
+        
         sql`SELECT at, cardId, kind, author, text FROM (
               SELECT e.at, e.card_id AS cardId, e.kind, e.author, e.text, 1 AS phase, e.id AS seq FROM events e JOIN cards c ON c.id = e.card_id
               WHERE c.project_id = ${projectId} AND c.deleted_at IS NULL AND (e.at > ${m.at} OR e.id > ${m.event}) AND e.kind IN ('state', 'question', 'answer', 'review', 'hint', 'error')
@@ -268,7 +268,7 @@ export class Store {
 
   /** Where the cards' history stands now, for `timeline` to go on from. */
   mark(): Mark {
-    // `all`: Drizzle's `get` reads a raw query's row as an array
+    
     const [{ event, card }] = this.orm.all<{ event: number; card: number }>(
       sql`SELECT (SELECT COALESCE(MAX(id), 0) FROM events) AS event, (SELECT COALESCE(MAX(rowid), 0) FROM cards) AS card`,
     ) as [{ event: number; card: number }];

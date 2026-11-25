@@ -1,6 +1,6 @@
-// Seismic's sign (seismic_logo.png, embedded) and its wordmark, "Seismic" in Newsreader SemiBold (the type of
-// the cards' titles) as outlines. `uv run scripts/logo.py` writes the data in logo/glyphs.ts and the files in
-// src/ui/logo/ (favicon, PNGs, the README's wordmark).
+
+
+
 import { GLYPH_SCALE, LETTERS, SIGN, WORD_W } from './logo/glyphs';
 
 export function Sign({ size = 32 }: { size?: number }) {

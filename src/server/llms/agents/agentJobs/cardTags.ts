@@ -1,7 +1,7 @@
-/**
- * The short tags (`K1`, `K2`…) a session calls cards by, and back: what an agent is told of cards,
- * and what it reports of them, goes by tag, so it never handles a card's id.
- */
+
+
+
+
 import type { Item } from '../../../../core/types';
 
 export class CardTags {

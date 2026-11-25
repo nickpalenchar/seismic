@@ -1,8 +1,8 @@
-/**
- * What the worker's tools, its briefing and `WorkerSupervisor` agree on: limits, the texts a tool answers
- * with, and the small readers and formatters of what the worker is told. A class with one default
- * instance (`workerConfig`), so a caller that is handed one can be given another.
- */
+
+
+
+
+
 import { z } from 'zod';
 import { MESSAGES } from '../core/messages';
 import type { Demo, Snooze } from '../core/types';
@@ -10,20 +10,20 @@ import { type Asked, toQuestion, withPick } from './advisor';
 import type { LandedState } from './workerSupervisor/workerSupervisor';
 
 export class WorkerConfig {
-  /** How many files a worker may name as its result at a handover. */
+  
   readonly maxResultFiles = 12;
 
-  /** An app's address as app_running takes it. */
+  
   readonly appUrl = /^https?:\/\/[^\s/]+/i;
 
-  /** What a tool answers with when the worker is to end its turn and wait for the reply. */
+  
   readonly endTurn = 'Recorded. End your turn now without further work; the reply arrives as your next message.';
 
-  /** What the worker hears once its work has landed and it still has things to wait for. */
+  
   readonly afterLanding =
     'Your workstation and this session stay until you end a turn with nothing left to wait for (a question, the restart); then both end. Commits you make here no longer land.';
 
-  /** The questions of a proposal (`propose_card`, `revise_proposal`) as the agent gives them. */
+  
   readonly proposalQuestionsSchema = z.array(z.object({ question: z.string(), options: z.array(z.string()).max(4).optional(), multiple: z.boolean().optional() })).max(5);
 
   /** What the card's row stores while landed work's worker finishes; null while nothing has landed. */

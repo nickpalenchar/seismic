@@ -75,8 +75,8 @@ export function onGitHub(url: string, hosts: () => string[] = ghHosts): boolean 
  */
 export function outsidePlanDir(dir: string, home: string = homedir()): string | null {
   const path = dir === '~' ? home : dir.startsWith('~/') || dir.startsWith('~\\') ? join(home, dir.slice(2)) : dir;
-  // forward slashes: a plan reference `C:\…` would read as one of the repository `C`
-  // without a slash at the end, but a root keeps its own (`/`, `C:/`)
+  
+  
   return isAbsolute(path) ? path.replaceAll('\\', '/').replace(/([^:/])\/+$/, '$1') : null;
 }
 
@@ -105,7 +105,7 @@ export function readPlanDocs(repoPath: string, adapter: RepoAdapter): { docs: Pl
     try {
       markdown = readFileSync(join(dir, f), 'utf8');
     } catch {
-      continue; // a directory named *.md, or gone since
+      continue; 
     }
     const doc = parsePlanDoc(file, markdown);
     if ('reason' in doc) others.push(doc);
@@ -120,7 +120,7 @@ export function readPlanDocs(repoPath: string, adapter: RepoAdapter): { docs: Pl
  * history of it. A card whose workstream the doc no longer lists takes its title from here.
  */
 export function planHistory(repoPath: string, path: string, max = 200): Workstream[] {
-  // with all of the doc as context, each commit's one hunk is the whole doc as the commit left it
+  
   const log = gitOrNull(repoPath, 'log', '-p', `--max-count=${max}`, '--unified=1000000', '--no-color', '--no-ext-diff', '--format=%x01', '--', path);
   if (!log) return [];
   return log.split('\x01').flatMap((commit) => {
@@ -150,7 +150,7 @@ export function watchPlanDocs(
   { watches = true, poll = safetyNetPoll }: { watches?: boolean; poll?: number } = {},
 ): () => void {
   const { dir, root } = planDirOf(repoPath, adapter);
-  /** The open watches, by directory and what of it they report. */
+  
   const open = new Map<string, () => void>();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let seen = poll ? planDirState(dir) : null;
@@ -179,7 +179,7 @@ export function watchPlanDocs(
           fire();
         }),
       );
-    // the nearest directory above, within the repository (or the folder's drive), for the next step down to the plan directory
+    
     let below = dir;
     let above = dirname(dir);
     while (!existsSync(above) && above.length > root.length) [below, above] = [above, dirname(above)];
@@ -205,12 +205,12 @@ export function watchPlanDocs(
   };
 }
 
-/**
- * On macOS a saturated fseventsd delivers events seconds late or not at all, even to a watch that
- * is live: it coalesces what it dropped into one event for a directory above, and Bun passes on
- * only events under the watched path. The plan directory is polled every few seconds there as a
- * safety net behind the watches.
- */
+
+
+
+
+
+
 const safetyNetPoll = process.platform === 'darwin' ? 2000 : 0;
 
 /** The plan docs' names, mtimes and sizes; null without the plan directory. */
@@ -229,13 +229,13 @@ function planDirState(dir: string): string | null {
   }
 }
 
-/**
- * On macOS a watch follows its path, so it stays good when its directory is removed and created
- * again, and is kept open while it is wanted: Bun has one FSEvents stream for all watches of the
- * process and starts it afresh for each new one, which drops the events of every watch until the
- * new stream is live (up to 200 ms on a busy machine, more when many open at once). Elsewhere a
- * watch belongs to the directory itself and is live at once, so it is opened afresh.
- */
+
+
+
+
+
+
+
 const watchKeepsPath = process.platform === 'darwin';
 
 /**
@@ -248,13 +248,13 @@ export function oldLinuxBun(platform: string = process.platform, version: string
   return platform === 'linux' && Bun.semver.order(version, '1.3.14') < 0;
 }
 
-/**
- * Bun before 1.3.14 on Linux delivers no events for a directory at a path that was watched before
- * and has since been removed and created again, even to a new watch
- * (https://github.com/oven-sh/bun/issues/42570). Such a directory is polled instead.
- */
+
+
+
+
+
 const watchIsInertAfterRecreate = oldLinuxBun();
-/** Each directory watched so far, with its inode then; and those seen gone since. */
+
 const watchedInodes = new Map<string, number>();
 const recreated = new Set<string>();
 

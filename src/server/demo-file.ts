@@ -1,5 +1,5 @@
-// A demo's files by path. Kept apart from demo-page.ts, whose font assets would otherwise reach every bundle that imports this
-// (the skills' scripts bundle repo.ts, and with it workstations.ts).
+
+
 
 import { realpathSync, statSync } from 'node:fs';
 import { resolve, sep } from 'node:path';

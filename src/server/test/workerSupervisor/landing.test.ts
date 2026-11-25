@@ -32,7 +32,7 @@ describe('landing through a pull request', () => {
     runtime.last.call('report', { status: 'Demo fertig, übergebe' });
     await runtime.last.call('ready_for_review', { summary: 'S', demo: artifact() });
     expect(board.item(c.id)!.review?.noChange).toBeUndefined();
-    // the line was about the work handed over: it would show again once the card is at work
+    
     expect(board.item(c.id)!.agent?.statusLine).toBeUndefined();
     await workers.approve(c.id);
     expect(state(c.id)).toBe('inPr');
@@ -45,7 +45,7 @@ describe('landing through a pull request', () => {
     await workers.start(c.id);
     const s = runtime.last;
     await s.call('ready_for_review', { summary: 'Demo aufgenommen, keine Code-Änderung.', demo: artifact() });
-    // the owner sees before approving that approval ends the card
+    
     expect(board.item(c.id)!.review?.noChange).toBe(true);
     s.emit({ type: 'idle' });
     await workers.approve(c.id);
@@ -55,7 +55,7 @@ describe('landing through a pull request', () => {
     expect(board.item(c.id)!.agent?.finishing).toBe(true);
     expect(s.inbox.at(-1)).toContain('nothing lands and there is no pull request: the card is done');
     expect(board.events(c.id).at(-1)!.text).toContain('done');
-    // a question while it finishes, answered, returns the card to done, not live
+    
     s.call('ask', { question: 'Stack stoppen?' });
     s.emit({ type: 'idle' });
     expect(state(c.id)).toBe('waiting:question');
@@ -66,7 +66,7 @@ describe('landing through a pull request', () => {
     expect(s.closed).toBe(true);
     expect(board.row(c.id).workstation).toBeNull();
     expect(spaces.list().every((w) => !w.card_id)).toBe(true);
-    // done counts as finished: it can be archived
+    
     board.archive([c.id]);
     expect(board.item(c.id)).toBeUndefined();
   });
@@ -84,7 +84,7 @@ describe('landing through a pull request', () => {
     s.emit({ type: 'idle' });
     await workers.approve(c.id);
     expect(state(c.id)).toBe('inPr');
-    // with work on the branch, it goes out as a pull request
+    
     expect(await s.call('close_unchanged', {})).toContain('holds commits');
     git(clone, 'reset', '--quiet', '--hard', 'HEAD~1');
     expect(await s.call('close_unchanged', {})).toContain('the card is done');
@@ -144,7 +144,7 @@ describe('a card whose own branch changes how work lands', () => {
 describe('landing on main from a clone of the remote', () => {
   beforeEach(() => {
     rmSync(dir, { recursive: true, force: true });
-    // the clone's origin is the remote, as one listed in the settings or made while work went out as pull requests
+    
     setup({ ...generic, land: 'main', workstations: 'clones' }, true);
   });
 
@@ -155,7 +155,7 @@ describe('landing on main from a clone of the remote', () => {
     writeFileSync(join(clone, 'k.ts'), 'k');
     git(clone, 'add', '.');
     git(clone, 'commit', '--quiet', '-m', 'Zählerstände als CSV');
-    // another card landed on the checkout's main meanwhile, which nobody pushed
+    
     writeFileSync(join(main, 'other.ts'), 'other');
     git(main, 'add', '.');
     git(main, 'commit', '--quiet', '-m', 'Andere Karte');
@@ -176,13 +176,13 @@ describe('landing on main from a clone of the remote', () => {
     await runtime.last.call('ready_for_review', { summary: 'S', demo: artifact() });
     runtime.last.emit({ type: 'idle' });
     expect(await workers.approve(c.id).catch((e) => e)).toMatchObject({ code: 'landMerge' });
-    // the card waits for the owner again, as a landing that failed
+    
     const blocked = board.item(c.id)!;
     expect(blocked.review?.blocked).toEqual({ files: ['k.ts'] });
     expect(needsYou(blocked)).toBe(true);
     expect(kindOf(blocked)).toBe('landing');
     await workers.fold(c.id, true);
-    // the same new file on both sides: the pick is the worker's to finish
+    
     expect(runtime.last.inbox.at(-1)).toContain('git cherry-pick --continue');
     writeFileSync(join(clone, 'k.ts'), 'k, with the owner’s');
     git(clone, 'add', '.');
@@ -227,7 +227,7 @@ describe('approving directly onto main where work goes out as a pull request', (
     await session.call('ready_for_review', { summary: 'S', demo: artifact() });
     session.emit({ type: 'idle' });
     const approved = workers.approve(c.id, { direct: true });
-    // the click ends the owner's turn: the card no longer needs them while the push runs
+    
     expect(board.item(c.id)).toMatchObject({ state: 'waiting', review: { landing: true } });
     expect(needsYou(board.item(c.id)!)).toBe(false);
     await approved;
@@ -239,7 +239,7 @@ describe('approving directly onto main where work goes out as a pull request', (
     expect(board.events(c.id).at(-1)).toMatchObject({ author: 'owner', text: 'Approved and pushed straight to main.' });
     expect(session.inbox.at(-1)).toContain('Seismic pushed it there without a pull request');
     expect(merged).toEqual([c.id]);
-    // the worker may finish what remains; then its clone is free again
+    
     session.emit({ type: 'idle' });
     expect(session.closed).toBe(true);
     expect(spaces.list().every((w) => !w.card_id)).toBe(true);
@@ -250,7 +250,7 @@ describe('approving directly onto main where work goes out as a pull request', (
     commitIn(clone, 'x.ts', 'X');
     await session.call('ready_for_review', { summary: 'S', demo: artifact() });
     pushElsewhere('y.ts', 'Y');
-    // the first push finds main moved once more, as when someone pushes while Seismic rebases
+    
     const hook = join(clone, '.git/hooks/pre-push');
     mkdirSync(join(clone, '.git/hooks'), { recursive: true });
     const other = join(dir, 'other-Y');
@@ -274,7 +274,7 @@ describe('approving directly onto main where work goes out as a pull request', (
     expect(board.events(c.id).at(-1)).toMatchObject({ kind: 'error', code: 'landConflict' });
     expect(session.inbox.at(-1)).toContain('conflicts in same.ts');
     expect(git(origin, 'log', '--format=%s', 'main').split('\n')).toEqual(['B', 'init']);
-    // the worker brings its branch up to date and hands over again
+    
     git(clone, 'reset', '--quiet', '--hard', 'origin/main');
     commitIn(clone, 'same.ts', 'A nach B');
     await session.call('ready_for_review', { summary: 'S', demo: artifact() });
@@ -309,7 +309,7 @@ describe('approving directly onto main where work goes out as a pull request', (
     pushElsewhere('same.ts', 'B');
     await workers.approve(c.id, { direct: true });
     const approvedAt = board.row(c.id).approved_at;
-    // the worker starts the rebase, stops on the conflict and hands over before finishing it
+    
     git(clone, 'fetch', '--quiet', 'origin');
     expect(() => git(clone, 'rebase', '--quiet', 'origin/main')).toThrow();
     await session.call('ready_for_review', { summary: 'S', demo: artifact() });
@@ -337,10 +337,10 @@ describe('approving directly onto main where work goes out as a pull request', (
     expect(err.message).toContain('protected branch');
     expect(state(c.id)).toBe('waiting:demo');
     expect(board.row(c.id).approved_at).toBeNull();
-    // the card is the owner's again
+    
     expect(needsYou(board.item(c.id)!)).toBe(true);
     expect(approvals(c.id)).toBe(0);
-    // approved the usual way, it goes out as a pull request
+    
     await workers.approve(c.id);
     expect(state(c.id)).toBe('inPr');
     expect(approvals(c.id)).toBe(1);
@@ -378,9 +378,9 @@ describe('approving directly onto main where work goes out as a pull request', (
 
 describe('the landed commit names the demo’s page', () => {
   const PAGE = 'Demo-Video: https://demos.example.dev/zahlerstande-exportieren-1/';
-  /** The cards approved, as the demo site heard of them; a card titled “Ohne Seite” has no page. */
+  
   let approvals: string[];
-  /** The cards whose work landed without a pull request, with what they shipped then, as the demo site heard of them. */
+  
   let landings: [string, string | null][];
   function withSite(adapter: Parameters<typeof setup>[0], withOrigin = false) {
     rmSync(dir, { recursive: true, force: true });
@@ -417,7 +417,7 @@ describe('the landed commit names the demo’s page', () => {
     expect(git(main, 'log', '-1', '--format=%B')).toBe(`Zählerstände als CSV\n\nDer Export liest alle Zähler.\n\nCo-Authored-By: Claude <noreply@anthropic.com>\n${PAGE}`);
     expect(git(main, 'log', '--format=%s', '-3').split('\n')).toEqual(['Zählerstände als CSV', 'Erste Hälfte', 'init']);
     expect(git(main, 'log', '-1', '--format=%an <%ae>')).toBe('T <t@example.com>');
-    // the page then links where it landed
+    
     expect(landings).toEqual([[c.id, JSON.stringify({ commit: git(main, 'rev-parse', 'HEAD'), base: git(main, 'rev-parse', 'HEAD~2') })]]);
   });
 
@@ -458,7 +458,7 @@ describe('the landed commit names the demo’s page', () => {
 
 describe('the landing message names the demo’s page', () => {
   const URL_ = 'https://demos.example.dev/zahlerstande-exportieren-1/';
-  /** Whether the repository has a demo site; on approval, the page goes out (`publishing`) unless `share` says otherwise. */
+  
   let site: boolean;
   let onApproval: (id: string) => void;
   function withSite(adapter: Parameters<typeof setup>[0] = { ...generic, land: 'main', workstations: 'clones' }) {
@@ -497,13 +497,13 @@ describe('the landing message names the demo’s page', () => {
     expect(state(c.id)).toBe('live');
     expect(session.inbox.at(-1)).toContain('is on main now');
     expect(session.inbox.at(-1)).toContain('Seismic tells you its address once it is online');
-    // the turn ends before the page is online: the session stays for it
+    
     session.emit({ type: 'idle' });
     expect(session.closed).toBe(false);
     expect(board.row(c.id).workstation).toBeTruthy();
     published(c.id);
     expect(session.inbox.at(-1)).toBe(`Your demo is online on a page of its own for the team: ${URL_}. Link it wherever you point people at this work (an issue you close, say).`);
-    // having heard it, its next turn's end finishes it
+    
     session.emit({ type: 'idle' });
     expect(session.closed).toBe(true);
     expect(board.row(c.id).landed).toBeNull();
@@ -525,7 +525,7 @@ describe('the landing message names the demo’s page', () => {
     const c = await handedOver();
     const session = runtime.last;
     await workers.approve(c.id);
-    // the page went out while nobody told the workers (a restart in between, say)
+    
     board.work(c.id, { demo: { share: { slug: 's', url: URL_, demos: [{ dir: demoDir(c.id), shown: { title: 'T', text: 'T', chapters: [], kind: 'html' } }] } } });
     session.emit({ type: 'idle' });
     expect(session.inbox.at(-1)).toContain(`shared with the team on a page of its own: ${URL_}`);
@@ -560,7 +560,7 @@ describe('the landing message names the demo’s page', () => {
     withSite({ ...generic, land: 'pr', workstations: 'clones' });
     const c = await handedOver(false);
     const session = runtime.last;
-    // the approval sees work (the commit is made after the handover), so it goes into a pull request
+    
     writeFileSync(join(board.row(c.id).workstation!, 'x.ts'), 'x');
     await workers.approve(c.id);
     expect(state(c.id)).toBe('inPr');
@@ -618,7 +618,7 @@ describe('the worker hears what became of its demo’s page', () => {
     expect(told).toStartWith(`The owner shared your demo with the team on a page of its own: ${URL_}.`);
     expect(told).toContain('a `Demo-Page: <url>` trailer on the commit that lands on main');
     expect(told).toEndWith('Is the demo linked in the commit?');
-    // heard once
+    
     expect(session.toolStep()).toBeUndefined();
     session.call('reply', { text: 'Yes.' });
     session.emit({ type: 'idle' });
@@ -681,9 +681,9 @@ describe('a prototype built on in a clone', () => {
     expect(git(path, 'branch', '--list', old)).toBe('');
     expect(git(path, 'log', '--format=%s', '-1')).toBe('Prototyp');
     expect(spaces.leasedBy(idea.id)).toBe(path);
-    // the only clone is the idea's now
+    
     expect(() => spaces.lease(board.create({ title: 'X', x: 0, y: 0 }).id, 'seismic/x')).toThrow('all are leased');
-    // a prototype without a workstation has nothing to build on
+    
     const bare = board.addPrototype(idea.id, 'Prototyp: leer', 'zeigen');
     expect(() => workers.buildOn(bare.id, board.item(idea.id)!)).toThrow(expect.objectContaining({ code: 'noWorkstation' }));
   });
@@ -706,7 +706,7 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
 
   test('landed and ticked off in the doc: live', async () => {
     const w = await handOver();
-    // the worker ticked it off on its branch
+    
     setDocs([{ ...doc, workstreams: [{ ...ws('W1'), done: true }, ws('W2')] }]);
     await workers.approve(w.id);
     runtime.last.emit({ type: 'idle' });
@@ -730,7 +730,7 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
   test('the last workstream lands and its doc goes: the plan stays while its worker finishes, then goes into the archive', async () => {
     const w = await handOver();
     const plan = board.snapshot().items.find((i) => i.kind === 'plan')!;
-    // the landing takes the done doc away
+    
     setDocs([]);
     await workers.approve(w.id);
     board.docsChanged();
@@ -781,7 +781,7 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
     test('a plan archived while its workstream finished comes back, and goes once its worker is done', async () => {
       const w = await landWaiting();
       const plan = board.snapshot().items.find((i) => i.kind === 'plan')!;
-      // as Seismic did before: archived at the landing, its worker unseen
+      
       store.cards.update(plan.id, { archived_at: new Date().toISOString() });
       const after = restart();
       expect(after.item(plan.id)).toBeDefined();
@@ -796,14 +796,14 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
   test('landed on main, the box still empty: once its worker is done, the card is done and a new card does the rest', async () => {
     const w = await handOver();
     await workers.approve(w.id);
-    // its worker still finishes: the card stays live until then
+    
     board.docsChanged();
     expect(state(w.id)).toBe('live');
     runtime.last.emit({ type: 'idle' });
     const commit = git(main, 'rev-parse', 'HEAD');
     expect(board.archived().find((i) => i.id === w.id)).toMatchObject({ state: 'live' });
     expect(board.events(w.id).at(-1)).toMatchObject({ author: 'seismic', text: 'Part landed; the plan doc keeps the workstream open. The rest continues on a new card.' });
-    // the handover stays in the log, the summary with it
+    
     expect(board.events(w.id).some((e) => e.text.includes('Approved'))).toBe(true);
 
     const rest = w1();
@@ -811,7 +811,7 @@ describe('a workstream whose plan doc keeps it open after its work landed', () =
     expect(rest).toMatchObject({ state: 'planned', from: w.id });
     await workers.start(rest.id);
     expect(state(rest.id)).toBe('working');
-    // a fresh branch from main, not the landed one
+    
     expect(git(board.row(rest.id).workstation!, 'rev-parse', 'HEAD')).toBe(commit);
     expect(runtime.last.inbox[0]).toContain(`A part of this workstream has landed already (commit ${commit.slice(0, 7)})`);
   });
@@ -841,7 +841,7 @@ describe('a workstream merged as a pull request, its box still empty', () => {
 
   test('stays live while the Lesestand lacks the merge commit, and is planned again once it holds it', async () => {
     const w = await inPr();
-    // the merge as GitHub made it, not yet on the Lesestand's main
+    
     git(main, 'checkout', '--quiet', '-b', 'merged');
     writeFileSync(join(main, 'config.ts'), 'export {}\n');
     git(main, 'add', '.');
@@ -856,11 +856,11 @@ describe('a workstream merged as a pull request, its box still empty', () => {
     git(main, 'merge', '--quiet', '--ff-only', 'merged');
     board.docsChanged();
     expect(board.archived().find((i) => i.id === w.id)).toMatchObject({ state: 'live' });
-    // the pull request is history now: the new card for the rest opens a new one
+    
     const rest = w1();
     expect(rest).toMatchObject({ state: 'planned', from: w.id });
     expect(rest.review?.pr).toBeUndefined();
-    // the landed card's clone returns to the pool once its worker is done
+    
     for (let i = 0; i < 100 && spaces.leasedBy(w.id); i++) await new Promise((r) => setTimeout(r, 20));
     await workers.start(rest.id);
     expect(runtime.last.inbox[0]).toContain('pull request #821 (https://github.com/acme/app/pull/821)');
@@ -914,7 +914,7 @@ describe('a workstation its card will not work in again goes back to the pool', 
   test('one left taken before Seismic started is freed when it starts', async () => {
     const w = w1();
     await stoppedWithWork(w.id);
-    // the doc was ticked off while an Seismic ran that did not free it; this one starts on the same database
+    
     const fresh = new Board(store, { id: 'c', name: 'C', repos: [{ id: 'home', name: 'Home', path: main, branch: 'main' }] }, () => ({ docs: [{ ...doc, workstreams: [{ ...ws('W1'), done: true }, ws('W2')] }], dirs: [] }));
     new WorkerSupervisor({ board: fresh, runtime, workstations: spaces, adapter: { ...generic, land: 'main', workstations: 'clones' } }).resumeAll();
     expect(spaces.leasedBy(w.id)).toBeNull();
@@ -940,7 +940,7 @@ describe('a workstation its card will not work in again goes back to the pool', 
     await flush();
     expect(spaces.leasedBy(c.id)).toBeNull();
     expect(spaces.leasable()).toBe(true);
-    // the pool the project shows has it free
+    
     expect(taken()).toEqual([]);
     board.restore(c.id);
     workers.restored(c.id);
@@ -996,7 +996,7 @@ describe('a workstation its card will not work in again goes back to the pool', 
   test('a finished card whose worker is done gives back the clone the pool still counts taken, at the latest when Seismic starts', async () => {
     const c = manual();
     await workers.start(c.id);
-    // closed as done, its worker through, and only the lease left behind (by an Seismic before this one)
+    
     store.cards.update(c.id, { state: 'done', landed: null });
     expect(spaces.leasable()).toBe(false);
     const fresh = restart();
@@ -1045,7 +1045,7 @@ describe('a workstation its card will not work in again goes back to the pool', 
     runtime.last.emit({ type: 'idle' });
     expect(state(w.id)).toBe('inPr');
     ticked();
-    // the lease is looked at once git is done preparing the clone
+    
     await until(() => state(w.id) === 'live');
     expect(merged).toEqual([w.id]);
     expect(runtime.last.inbox.at(-1)).toContain('Your pull request was merged');
@@ -1073,9 +1073,9 @@ describe('a workstation its card will not work in again goes back to the pool', 
     setup({ ...generic, land: 'pr', workstations: 'clones' });
     const w = w1();
     await approvedIntoPr(w.id);
-    // the worker opened the pull request without reporting it, and someone merged it by hand
+    
     ticked();
-    // the lease is looked at once git is done preparing the clone
+    
     await until(() => state(w.id) === 'live');
     expect(merged).toEqual([w.id]);
   });
@@ -1088,7 +1088,7 @@ describe('a workstation its card will not work in again goes back to the pool', 
     board.docsChanged();
     const w = board.snapshot().items.find((i) => i.plan?.label === 'W1' && board.row(i.id).plan_ref?.startsWith('/plans/'))!;
     const clone = await approvedIntoPr(w.id);
-    // the worker ticks its box in the folder, which takes effect at once, then opens the pull request
+    
     setDocs([{ ...outside, workstreams: [{ ...ws('W1'), done: true }] }]);
     board.docsChanged();
     await flush();
@@ -1107,16 +1107,16 @@ describe('a workstation its card will not work in again goes back to the pool', 
     board.docsChanged();
     const w = board.snapshot().items.find((i) => i.plan?.label === 'W1' && board.row(i.id).plan_ref?.startsWith('/plans/'))!;
     const clone = await stoppedWithWork(w.id);
-    // the worker ticked its box in the folder before it was stopped, which took effect at once
+    
     setDocs([{ ...outside, workstreams: [{ ...ws('W1'), done: true }] }]);
     board.docsChanged();
     await flush();
     expect(stopped(board.item(w.id)!)).toBe(true);
     expect(spaces.leasedBy(w.id)).toBe(clone);
     expect(board.events(w.id).map((e) => e.text)).not.toContain('Ticked off in the plan doc: workstation freed.');
-    // its plan, every box ticked, stays on the project with it
+    
     expect(board.item(w.parent!)).toBeDefined();
-    // started again, its work lands, and the box counts: the plan ends once its worker is done
+    
     await workers.start(w.id);
     expect(board.row(w.id).workstation).toBe(clone);
     await runtime.last.call('ready_for_review', { summary: 'S', demo: artifact() });

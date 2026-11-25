@@ -1,5 +1,5 @@
-// "Always allow" writes the rules into the repository: committed on its main branch, beside the
-// checkout as "For everyone, into the repository" does; in a folder without git, into its files.
+
+
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';

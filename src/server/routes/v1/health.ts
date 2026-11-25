@@ -1,6 +1,6 @@
 import { HttpRoute } from '../httpRoute';
 
-/** What answers a health check: always the same few bytes, however many projects and cards there are. */
+
 export interface HealthView {
   service: 'seismic';
   status: 'ok';

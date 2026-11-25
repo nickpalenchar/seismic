@@ -42,7 +42,7 @@ export function DiffTreeLayout({ rows, current, onPick, children }: { rows: Chan
   </div></Collapsible>;
 }
 
-/** A bar of the stacked Diff tab that folds what is below it: the tree, or a file's changes. */
+
 export const barTrigger = 'flex w-full min-w-0 items-center gap-2 py-1.5 px-2.5 rounded-md text-sm hover:bg-muted [&_svg]:shrink-0 [&_svg]:text-muted-foreground phone:min-h-11';
 
 /** What happened to a file, as a coloured letter. */
@@ -50,10 +50,10 @@ export function StatusBadge({ kind }: { kind: NonNullable<ChangeRow['kind']> }) 
   return <span className={cn('diff-status shrink-0 inline-flex items-center justify-center size-4 rounded-xs text-c-strong bg-c/22 font-mono text-2xs/none font-bold', kind, statusColour[kind])} title={t.diff.treeStatus[kind]} aria-label={t.diff.treeStatus[kind]}>{({ added: '+', deleted: '−', moved: '↪', modified: 'M' })[kind]}</span>;
 }
 
-/** A file or folder of the tree: the row's width, its name from the left; a fingertip's height on a narrow screen. */
+
 const treeButton = 'w-full justify-start min-h-[26px] py-1 px-1.5 [&_svg]:shrink-0 max-[760px]:min-h-11';
 
-/** What happened to a file, in the colour of that. */
+
 const statusColour: Record<NonNullable<ChangeRow['kind']>, string> = {
   added: 'c-approved',
   deleted: 'c-destructive',

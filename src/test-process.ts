@@ -1,13 +1,13 @@
 import { randomUUID } from 'node:crypto';
 
-// An unref'd listener must also remain reachable while the runner is alive.
+
 let owner: { port: number; token: string; server: Bun.TCPSocketListener<undefined> } | undefined;
 function lifetimePipe() {
   if (owner) return owner;
   const token = randomUUID();
   const sockets = new Set<Bun.Socket<undefined>>();
-  // The kernel closes every connection on runner death, including SIGKILL and unreaped exits.
-  // Neither the listener nor its connections should keep a finished runner alive.
+  
+  
   const server = Bun.listen({
     hostname: '127.0.0.1', port: 0,
     socket: {

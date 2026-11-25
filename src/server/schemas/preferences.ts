@@ -5,7 +5,7 @@ import { cards } from './cards/cards';
 import { changes, type Db, now } from './common';
 import { projects } from './projects';
 
-/** The owner's standing preferences on a project, proposed, in force or set aside. */
+
 export const preferences = sqliteTable('preferences', {
   id: integer().primaryKey(),
   projectId: text('project_id').notNull().references(() => projects.id),

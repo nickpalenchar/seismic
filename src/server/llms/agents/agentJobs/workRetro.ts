@@ -1,12 +1,12 @@
-/**
- * Looks back at how the workers worked, to make future runs cheaper (the work retrospective).
- * When a card's work ends, an excerpt of its runs (Claude's or Codex's, transcript.ts, no model) goes to a short session
- * that notes the friction in it; after WORK_RETRO_RAMP finished cards of a new repository (1, 2 more,
- * 4 more), then every WORK_RETRO_EVERY, or when the
- * owner asks, a session in that repository's checkout reads the notes since the last one and
- * proposes cards (a script, a skill), CLAUDE.md lines or values for the repository's settings for
- * friction that recurs across cards.
- */
+
+
+
+
+
+
+
+
+
 
 import { z } from 'zod';
 import { type CardEvent, PROPOSED_SETTINGS, type ProposedSetting } from '../../../../core/types';
@@ -24,23 +24,23 @@ import { proposeFrictionFixesSystem } from '../../prompts/proposeFrictionFixesSy
 export interface WorkRetroOptions {
   board: Board;
   runtime: AgentRuntime;
-  /** The checkout of a repository of the project, by its id. */
+  
   pathFor: (repo: string) => string;
-  /** The transcript file of a session, or null; under the SDK's projects directory, or among Codex's rollouts, by default. */
+  
   transcript?: (sessionId: string, cwd: string | null) => string | null;
-  /** After how many finished cards of a repository the retrospective runs; WORK_RETRO_EVERY by default. */
+  
   every?: number;
-  /** How many finished cards each of a repository's first retrospectives waits for; WORK_RETRO_RAMP by default. */
+  
   ramp?: number[];
-  /** The values of a repository's settings a retrospective may propose, as they apply now; none where they cannot be read. */
+  
   settingsFor?: (repo: string) => Record<ProposedSetting, string | string[]> | undefined;
-  /** The language of what lands in a repository (`language` of its settings), by its id; English when left out. */
+  
   repoLanguage?: (repo: string) => Language;
-  /** Whether it proposes cards ("Suggest new cards"); off, only CLAUDE.md lines and setting values. On without this. */
+  
   proposesCards?: () => boolean;
 }
 
-/** A card whose work ended, as read at that moment: what follows may delete or archive it. */
+
 interface Ended {
   id: string;
   title: string;
@@ -50,7 +50,7 @@ interface Ended {
 }
 
 export class WorkRetro {
-  /** Notes and retrospectives run one at a time, so a retrospective reads the notes of the card that completed its count. */
+  
   private chain: Promise<unknown> = Promise.resolve();
 
   constructor(private o: WorkRetroOptions) {}
@@ -117,15 +117,15 @@ export class WorkRetro {
   /** The excerpt of the card's runs, made into 0 to 3 friction notes by a short session; none without an excerpt. */
   private async notes(card: Ended): Promise<void> {
     const find = this.o.transcript ?? ((id, cwd) => findTranscript(id, cwd));
-    // a worker on another machine left its transcripts there
+    
     let there: ReturnType<typeof remote> = null;
     try {
       there = remote(card.workstation);
     } catch {
-      // a host no longer in the configuration: its runs are not read
+      
       return;
     }
-    // Codex runs on this machine only
+    
     const files = await Promise.all(card.sessions.map((s) => (there && !/^(codex|agy):/.test(s) ? there.host.transcript(s, there.path) : find(s, card.workstation))));
     const runs = files.map(excerptOf).filter((e): e is Excerpt => !!e);
     const text = excerptText(runs);
@@ -138,9 +138,9 @@ export class WorkRetro {
       brief: `The card: "${card.title}".${settings ? `\n\n${settings}` : ''}\n\nThe excerpt of its worker's ${runs.length > 1 ? `${runs.length} runs` : 'run'}:\n\n${text}`,
       ownerLanguage,
       notes,
-    }).run(this.o.runtime, { cwd: this.o.pathFor(card.repo), onLimit: waitQuietly }); // nobody waits for it
+    }).run(this.o.runtime, { cwd: this.o.pathFor(card.repo), onLimit: waitQuietly }); 
     this.o.board.addFriction(card.repo, card.id, notes);
-    // the owner sees on the card what was noted; a card deleted meanwhile has no log to show it
+    
     if (notes.length && this.o.board.item(card.id))
       this.o.board.log(card.id, 'state', 'koordinator', this.o.board.t.retro.friction(notes.map((n) => this.o.board.t.retro.note(n.what, n.cost, n.fix)).join('\n')));
   }
@@ -160,7 +160,7 @@ export class WorkRetro {
       if (told) b.notify({ text: b.t.retro.nothingToRead(name) });
       return;
     }
-    // the cards as tags, in the order their notes came
+    
     const tags = new Map<string, string>();
     for (const n of notes) if (![...tags.values()].includes(n.cardId)) tags.set(`K${tags.size + 1}`, n.cardId);
     const titles = new Map(notes.map((n) => [n.cardId, n.title]));
@@ -273,7 +273,7 @@ class NoteCardFrictionJob extends SeismicJob {
 class ProposeFrictionFixesJob extends SeismicJob {
   readonly name = 'proposeFrictionFixes';
   readonly description = "Proposes what would prevent the friction noted on a repository's cards.";
-  /** How many proposals it made. */
+  
   made = 0;
 
   constructor(
@@ -283,7 +283,7 @@ class ProposeFrictionFixesJob extends SeismicJob {
       b: Board;
       repo: string;
       name: string;
-      /** The tags the brief calls the cards by, and the cards' titles. */
+      
       tags: Map<string, string>;
       titles: Map<string, string>;
       ownerLanguage: string;
@@ -377,13 +377,13 @@ class ProposeFrictionFixesJob extends SeismicJob {
 export function earlierRuns(events: CardEvent[]): string[] {
   return events.flatMap((e) => {
     if (e.author !== 'seismic' || e.kind !== 'state') return [];
-    // the line that keeps an earlier run (`earlierRun`)
+    
     const m = /\(session ([\w-]+)\) is kept for the work retrospective/.exec(e.text);
     return m ? [m[1]!] : [];
   });
 }
 
-/** After how many finished cards of a repository the retrospective runs, the first few sooner, and at most how much it proposes. */
+
 export const WORK_RETRO_EVERY = 10;
 export const WORK_RETRO_RAMP = [1, 2, 4];
 const WORK_RETRO_PROPOSALS = 3;
@@ -394,7 +394,7 @@ const sinceKey = (repo: string) => `work_retro_since:${repo}`;
 const runsKey = (repo: string) => `work_retro_runs:${repo}`;
 
 
-/** What each setting a retrospective may propose is for, as the sessions read it. */
+
 const SETTING_MEANING: Record<ProposedSetting, string> = {
   checks: 'the commands a worker runs before it hands its work over',
   setup: 'the command that prepares a fresh workstation, e.g. installs dependencies',

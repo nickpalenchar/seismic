@@ -1,6 +1,6 @@
-// Workers on other machines, against a stand-in for `ssh` that runs the commands
-// on this machine (`fakeSsh`): git and files over the connection, a session's process, clones
-// there, and a session that resumes once a dropped connection is back.
+
+
+
 
 import { afterEach, beforeEach, describe, expect, setSystemTime, test } from 'bun:test';
 import { spawn, spawnSync } from 'node:child_process';
@@ -26,10 +26,10 @@ let name: string;
 const log = () => (existsSync(join(dir, 'net', 'log')) ? readFileSync(join(dir, 'net', 'log'), 'utf8') : '');
 
 beforeEach(() => {
-  // as `pwd -P` there names it
+  
   dir = realpathSync(mkdtempSync(join(tmpdir(), 'obeya-hosts-')));
   ssh = fakeSsh(join(dir, 'net'));
-  // a host of its own per test: what it prepared once is not prepared again
+  
   name = `box${Math.random().toString(36).slice(2, 8)}`;
   host = registerHost({ name, ssh: 'me@box', home: join(dir, 'home'), program: ssh, claudeToken: () => 'sk-claude' });
 });
@@ -64,7 +64,7 @@ describe('a workstation on a host', () => {
     expect(await file('a.txt')).toBe('one\ntwo\n');
     expect(await file('link.txt')).toBeNull();
     expect(await file('big.txt')).toBeNull();
-    // a read that fails after the checks is no empty version
+    
     writeFileSync(join(repo, 'locked.txt'), 'secret\n');
     chmodSync(join(repo, 'locked.txt'), 0);
     if (process.getuid?.() !== 0) expect(await file('locked.txt')).toBeNull();
@@ -103,7 +103,7 @@ describe('a workstation on a host', () => {
     await host.copyFrom(join(dir, 'there', 'demo'), copy);
     expect(readFileSync(join(copy, 'demo.mp4'), 'utf8')).toBe('video');
     await expect(host.copyFrom(join(dir, 'nothing'), copy)).rejects.toThrow();
-    // the worker names the directory: none leads out of the copies, whose place a copy takes
+    
     expect(() => host.localCopy('/../../..')).toThrow(HostError);
     expect(() => host.localCopy('/tmp/./x')).toThrow(HostError);
     await expect(host.copyFrom(join(dir, 'there', 'demo'), join(dir, 'home'))).rejects.toThrow(HostError);
@@ -135,7 +135,7 @@ describe('a session on a host', () => {
     });
     s.p.stdin.write('ping\n');
     expect(await s.exited).toBe(0);
-    // Seismic's directory there is in the host's home
+    
     const remoteDir = join(dir, 'net', 'home', '.seismic', 'remote');
     const [first, skill, got] = s.out().trim().split('\n');
     const [pwd, foo, home, token, url, plugin, held, seismicUrl, seismicHome, seismicHeld] = first!.split('|');
@@ -143,12 +143,12 @@ describe('a session on a host', () => {
     expect(foo).toBe("it's");
     expect(home).toBe(remoteDir);
     expect(token).toBe('sk-claude');
-    // a port there forwarded to Seismic's here
+    
     expect(url).toMatch(/^http:\/\/127\.0\.0\.1:\d{5}$/);
     expect(plugin).toBe(`${home}/plugin`);
-    // the narration voice Seismic holds needs no installation there
+    
     expect(held).toBe('1');
-    // both names are set there, for a plugin older than the rename
+    
     expect([seismicUrl, seismicHome, seismicHeld]).toEqual([url, home, '1']);
     expect(skill).toBe('a skill');
     expect(got).toBe('got ping');
@@ -161,7 +161,7 @@ describe('a session on a host', () => {
     let heard: number | null | undefined;
     const s = spawnSession({ command: 'true', args: [], env: {} }, undefined, (code) => (heard = code));
     expect(await s.exited).toBe(255);
-    // what has the runtime call it a lost connection rather than a failed session
+    
     expect(heard).toBe(255);
   });
 
@@ -184,7 +184,7 @@ describe('a session on a host', () => {
     expect(await s.exited).toBe(0);
     await ended;
     expect(s.out()).toContain('claude here');
-    // checked once: a pid given out again later is never taken for that session
+    
     expect(existsSync(legacy)).toBe(false);
   });
 
@@ -252,7 +252,7 @@ describe('a session on a host', () => {
 
   test.each([false, true])('leaves a reused PID alone with the same start second (no proc: %s)', async (noProc) => {
     if (noProc) {
-      // Exercise the ps fallback even on Linux. Only the proc path in the remote script changes.
+      
       const original = readFileSync(ssh, 'utf8');
       writeFileSync(ssh, original.replace('exec sh -c "$*"', `script=$(printf '%s' "$*" | sed 's@/proc/@/seismic-test-no-proc/@g'); exec sh -c "$script"`));
     }
@@ -290,8 +290,8 @@ describe('a session on a host', () => {
     const pids = join(dir, 'net', 'home', '.seismic', 'remote', 'sessions');
     const pidFile = join(pids, `${join(dir, 'ws').replace(/[^\w.-]+/g, '-')}.pid`);
     mkdirSync(pids, { recursive: true });
-    // the one left running
-    // marked as that session in its environment
+    
+    
     const left = spawn('sh', ['-c', 'sleep 30; echo claude', 'seismic-session-m1'], { env: { ...process.env, SEISMIC_REMOTE_SESSION: 'm1' } });
     const started = spawnSync('ps', ['-p', String(left.pid), '-o', 'lstart='], { encoding: 'utf8' }).stdout.trim().split(/\s+/).join(' ');
     writeFileSync(pidFile, `${left.pid} m1 ${started}\n`);
@@ -299,7 +299,7 @@ describe('a session on a host', () => {
     const s = spawnSession({ command: 'sh', args: ['-c', 'echo claude here'], env: {} });
     expect(await s.exited).toBe(0);
     await ended;
-    // a host that restarted gives out its pids again: the new session may have the one in the file
+    
     const wrapper = join(dir, 'net', 'same-pid');
     writeFileSync(wrapper, `#!/bin/sh\necho $$ m2 $(echo $(ps -p $$ -o lstart=)) > ${JSON.stringify(pidFile)}\nexec ${JSON.stringify(ssh)} "$@"\n`, { mode: 0o755 });
     const again = registerHost({ name: `${name}-again`, ssh: 'me@box', home: join(dir, 'home'), program: wrapper });
@@ -325,7 +325,7 @@ describe('a session on a host', () => {
     const settings = JSON.parse(sessionFiles(join(dir, 'home'), []).files!['demo.json']!()!);
     expect(settings.references).toEqual({ en: join(homedir(), 'voice', 'me.wav') });
     expect(settings.keyFile).toBeUndefined();
-    // a path of this machine: demos on the host go into its own ~/demos
+    
     expect(settings.directory).toBeUndefined();
   });
 });
@@ -348,14 +348,14 @@ describe('clones on a host', () => {
   test('are made there, leased after those here, and land through the remote', async () => {
     spaces.ensureClones(origin, 1);
     expect(await spaces.ensureHostClones(host, join(dir, 'far'), origin, 2, () => 'ghp_x')).toBeNull();
-    // made once: a second call finds them
+    
     expect(await spaces.ensureHostClones(host, join(dir, 'far'), origin, 2, () => 'ghp_x')).toBeNull();
     expect(spaces.list().map((w) => w.path)).toEqual([join(dir, 'ws', '1'), onHost(name, join(dir, 'far', '1')), onHost(name, join(dir, 'far', '2'))]);
-    // trusted by Claude Code, whose dialog nobody answers there
+    
     const trusted = JSON.parse(readFileSync(join(dir, 'net', 'home', '.claude.json'), 'utf8')).projects;
     expect(Object.keys(trusted)).toEqual([join(dir, 'far', '1'), join(dir, 'far', '2')]);
     expect(trusted[join(dir, 'far', '1')]).toEqual({ hasTrustDialogAccepted: true });
-    // the system's helper (macOS's keychain) reset by an empty one, then the token's
+    
     expect(Bun.spawnSync(['git', '-C', join(dir, 'far', '1'), 'config', '--local', '--get-all', 'credential.helper']).stdout.toString()).toMatch(/^\n!f\(\).*GH_TOKEN/);
     const [a, b] = [board.create({ title: 'A', x: 0, y: 0 }).id, board.create({ title: 'B', x: 0, y: 0 }).id];
     const here = spaces.lease(a, 'obeya/a');
@@ -375,7 +375,7 @@ describe('clones on a host', () => {
     expect('to' in landed && git(origin, 'log', '-1', '--format=%s', 'main')).toBe('far work');
     await spaces.discard(b, 'obeya/b');
     expect(git(local, 'branch', '--list', 'obeya/b')).toBe('');
-    // many git calls, each through the stand-in for ssh
+    
   }, 30_000);
 
   test('take a new card on the first machine with a free slot, here first', async () => {
@@ -394,7 +394,7 @@ describe('clones on a host', () => {
     const [a, b, c] = ['A', 'B', 'C'].map((title) => board.create({ title, x: 0, y: 0 }).id) as [string, string, string];
     await workers.start(a);
     expect(board.row(a).workstation).toBe(join(dir, 'ws', '1'));
-    // the slot here is taken by A at work, though a clone here is free
+    
     await workers.start(b);
     expect(board.row(b).workstation).toBe(onHost(name, join(dir, 'far', '1')));
     expect(() => workers.start(c)).toThrow(expect.objectContaining({ code: 'noSlot' }));
@@ -403,14 +403,14 @@ describe('clones on a host', () => {
       { name: HERE, here: true, slots: 1, total: 2, cards: [a], busy: [a], workstations: [{ path: join(dir, 'ws', '1'), card: a }, { path: join(dir, 'ws', '2') }] },
       { name, slots: 1, total: 2, cards: [b], busy: [b], workstations: [{ path: join(dir, 'far', '1'), card: b }, { path: join(dir, 'far', '2') }] },
     ]);
-    // A asks the owner and holds its clone, but no slot
+    
     const sa = runtime.sessions.find((s) => s.spec.cwd === board.row(a).workstation)!;
     await sa.call('ask', { question: 'Welche Farbe?' });
     sa.emit({ type: 'idle' });
     expect(spaces.leasable()).toBe(true);
     await workers.start(c);
     expect(board.row(c).workstation).toBe(join(dir, 'ws', '2'));
-    // the owner's question to a card whose work is over does not wait for a slot
+    
     const d = board.create({ title: 'D', x: 0, y: 0 }).id;
     const lease = spaces.lease(d, 'obeya/d', { overSlots: true });
     expect(lease.path).toBe(onHost(name, join(dir, 'far', '2')));
@@ -425,19 +425,19 @@ describe('clones on a host', () => {
     const tries = () => (existsSync(join(dir, 'net', 'tries')) ? readFileSync(join(dir, 'net', 'tries'), 'utf8').split('\n').length - 1 : 0);
     writeFileSync(join(dir, 'net', 'down'), '');
     const before = tries();
-    // not looked at yet: a card may take one, which is looked at again before it works there; the server does not wait for the host,
-    // whose looks have started but answer only later
+    
+    
     expect(spaces.leasable()).toBe(true);
     expect(host.unreachable).toBe(false);
-    // the looks find the host gone
+    
     await until(() => !spaces.leasable());
     expect(host.unreachable).toBe(true);
     const looked = tries();
     expect(looked).toBeGreaterThan(before);
-    // the next looks, at every change of the board, do not ask it again
+    
     for (let i = 0; i < 5; i++) expect(spaces.leasable()).toBe(false);
     expect(tries()).toBe(looked);
-    // a while later a look has it asked again, in the background
+    
     rmSync(join(dir, 'net', 'down'));
     setSystemTime(new Date(Date.now() + RECHECK_MS));
     try {
@@ -458,10 +458,10 @@ describe('clones on a host', () => {
     writeFileSync(join(dir, 'far', '3', 'notes.txt'), 'mine\n');
     expect(await spaces.ensureHostClones(host, join(dir, 'far'), origin, 0, () => undefined)).toBeNull();
     expect(spaces.list().map((w) => w.path)).toEqual([onHost(name, join(dir, 'far', '1'))]);
-    // a free clean one goes from the host's disk; one with work not landed stays, and the pool says so
+    
     await until(() => !existsSync(join(dir, 'far', '2')) && spaces.pool([]).some((h) => h.kept?.length));
     expect(spaces.pool([]).find((h) => h.name === name)?.kept).toEqual([join(dir, 'far', '3')]);
-    // while the host does not answer, the clone a card gives back stays; the next start looks again
+    
     writeFileSync(join(dir, 'net', 'down'), '');
     spaces.release(a);
     expect(spaces.list()).toEqual([]);
@@ -498,7 +498,7 @@ describe('a worker on a host', () => {
     first.emit({ type: 'session', id: 's1' });
     first.emit({ type: 'tool', name: 'Bash', input: { command: 'ls' } });
     first.emit({ type: 'idle' });
-    // the owner writes, and the connection drops before the worker takes the message
+    
     workers.message(card.id, 'Please add CSV too.');
     writeFileSync(join(dir, 'net', 'down'), '');
     first.emit({ type: 'lost', message: 'the connection was lost' });
@@ -509,18 +509,18 @@ describe('a worker on a host', () => {
     await until(() => runtime.sessions.length === 2);
     expect(runtime.last.spec.resume).toBe('s1');
     expect(runtime.last.inbox[0]).toContain('Please add CSV too.');
-    // at work when it dropped, it hears what happened
+    
     runtime.last.emit({ type: 'tool', name: 'Bash', input: { command: 'ls' } });
     runtime.last.emit({ type: 'lost', message: 'the connection was lost' });
     await until(() => runtime.sessions.length === 3);
     expect(runtime.last.inbox[0]).toContain('dropped');
-    // its turn ended, its background work (a render) running: that went with the session too
+    
     runtime.last.emit({ type: 'tool', name: 'Bash', input: { command: 'bun render.ts' } });
     runtime.last.emit({ type: 'idle', background: 1 });
     runtime.last.emit({ type: 'lost', message: 'the connection was lost' });
     await until(() => runtime.sessions.length === 4);
     expect(runtime.last.inbox[0]).toContain('dropped');
-    // its demo is made there, and served from its copy here
+    
     const demo = join(dir, 'far', 'demo');
     mkdirSync(demo);
     writeFileSync(join(demo, 'demo.mp4'), 'video');
@@ -530,7 +530,7 @@ describe('a worker on a host', () => {
     expect(shown.dir).toBe(host.localCopy(demo));
     expect(readFileSync(join(shown.dir, 'demo.mp4'), 'utf8')).toBe('video');
     expect(await runtime.last.call('ready_for_review', { summary: 'Done.', demo: { dir: join(dir, 'far', 'none'), chapters: [] } })).toContain('could not be copied');
-    // waiting for the owner, it takes in their words and waits for its background work, when the connection drops
+    
     runtime.last.emit({ type: 'idle' });
     workers.message(card.id, 'Noch ein Satz im Video.');
     runtime.last.emit({ type: 'tool', name: 'Bash', input: { command: 'bun render.ts' } });
@@ -553,7 +553,7 @@ describe('a worker on a host', () => {
     const workers = new WorkerSupervisor({ board, runtime, workstations: spaces, adapter: { ...generic, workstations: 'clones', land: 'pr' }, reconnectMs: 20 });
     const card = board.create({ title: 'Weit weg', body: 'Eine Wochenansicht.', x: 0, y: 0 });
     await workers.start(card.id);
-    // the host goes before the session reports an id: getting it ready failed
+    
     writeFileSync(join(dir, 'net', 'down'), '');
     runtime.last.emit({ type: 'lost', message: 'the connection was lost' });
     expect(board.events(card.id).some((e) => e.text.includes(`The connection to ${name} is gone`))).toBe(true);
@@ -611,20 +611,20 @@ describe('the app of a card on a host', () => {
     expect(opened).toMatch(/^http:\/\/localhost:\d+\/seite\?x=1$/);
     expect(new URL(opened).port).not.toBe(new URL(first).port);
     expect(await answers(opened)).toBe('erste');
-    // asked again, the same forward
+    
     expect(await workers.openApp(card.id)).toBe(opened);
     expect(forwards()).toHaveLength(1);
-    // a new address: the forward goes there instead
+    
     runtime.last.call('app_running', { url: app('zweite') });
     await closed(opened);
     const second = (await workers.openApp(card.id))!;
     expect(await answers(second)).toBe('zweite');
-    // the worker stops the app
+    
     runtime.last.call('app_running', { url: '' });
     await closed(second);
     expect(await workers.appUp(card.id)).toBe(false);
     expect(await workers.openApp(card.id)).toBeNull();
-    // the workstation goes with the card's work
+    
     runtime.last.call('app_running', { url: app('dritte') });
     const third = (await workers.openApp(card.id))!;
     expect(await answers(third)).toBe('dritte');
@@ -645,7 +645,7 @@ describe('the app of a card on a host', () => {
     rmSync(join(dir, 'net', 'down'));
     expect(await workers.openApp(card.id)).toBe(opened);
     expect(await answers(opened)).toBe('da');
-    // Seismic stops, and the forward with it
+    
     workers.shutdown();
     await closed(opened);
   }, 20_000);

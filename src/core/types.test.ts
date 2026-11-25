@@ -21,7 +21,7 @@ describe('openPerGroup', () => {
       ['a', 2],
       ['b', 1],
     ]);
-    // a group whose cards are all done has none open
+    
     expect(open.get('c')).toBeUndefined();
   });
 });
@@ -32,7 +32,7 @@ test("a plan's card counts its agent's answers that wait unread, asked in its sh
     talk({ askedIn: 'p', answer: 'W2 first.', unread: true }),
     talk({ askedIn: 'p', answer: 'Yes.', unread: true }),
     talk({ askedIn: 'q', answer: 'Read already.' }),
-    // asked of Seismic: its button counts it, not the plan's card
+    
     talk({ question: 'What is left?', answer: 'W3.', unread: true }),
   ]);
   expect([...unread]).toEqual([['p', 2]]);
@@ -47,7 +47,7 @@ describe('withClones', () => {
     const draft = [{ repos: [{ path: '/a' }, { path: '/b' }] }];
     const next = withClones(draft, saved, [at('clones', 'clones')], filled);
     expect(next).toEqual([{ repos: [{ path: '/a' }, { path: '/b', clones: CLONES }] }]);
-    // emptied again, it stays empty
+    
     expect(withClones([{ repos: [{ path: '/a' }, { path: '/b' }] }], saved, [at('clones', 'clones')], filled)).toBeNull();
   });
 
@@ -56,28 +56,28 @@ describe('withClones', () => {
     const resolved = [at('clones')];
     const added = withClones([{ repos: [{ path: '/b' }] }], [], resolved, filled)!;
     expect(added[0]!.repos[0]!.clones).toBe(CLONES);
-    // two existing clones beside it would make four: the dialog's 2 goes
+    
     const listed = withClones([{ repos: [{ path: '/b', clones: CLONES, workstations: ['/b2', '/b3'] }] }], [], resolved, filled);
     expect(listed).toEqual([{ repos: [{ path: '/b', workstations: ['/b2', '/b3'] }] }]);
-    // a blank line lists none
+    
     expect(withClones([{ repos: [{ path: '/b', workstations: ['/b2'] }] }], [], resolved, filled)).toBeNull();
     expect(withClones([{ repos: [{ path: '/b', workstations: [' '] }] }], [], resolved, filled)).toEqual([{ repos: [{ path: '/b', workstations: [' '], clones: CLONES }] }]);
   });
 
   test('never touches a count the owner typed or changed', () => {
     const resolved = [at('clones')];
-    // typed before listing existing ones
+    
     const typed = new Map() as FilledClones;
     withClones([{ repos: [{ path: '/b' }] }], [], resolved, typed);
     expect(withClones([{ repos: [{ path: '/b', clones: 3 }] }], [], resolved, typed)).toBeNull();
     expect(withClones([{ repos: [{ path: '/b', clones: 3, workstations: ['/b2'] }] }], [], resolved, typed)).toBeNull();
-    // typed while the dialog's count was out for existing clones
+    
     const back = new Map() as FilledClones;
     withClones([{ repos: [{ path: '/b' }] }], [], resolved, back);
     withClones([{ repos: [{ path: '/b', clones: CLONES, workstations: ['/b2'] }] }], [], resolved, back);
     expect(withClones([{ repos: [{ path: '/b', clones: 1, workstations: ['/b2'] }] }], [], resolved, back)).toBeNull();
     expect(withClones([{ repos: [{ path: '/b', clones: 1 }] }], [], resolved, back)).toBeNull();
-    // listed before the path was checked: nothing is filled in, and emptying the list fills it in
+    
     const first = new Map() as FilledClones;
     expect(withClones([{ repos: [{ path: '/b', workstations: ['/b2'] }] }], [], resolved, first)).toBeNull();
     expect(withClones([{ repos: [{ path: '/b', workstations: [] }] }], [], resolved, first)).toEqual([{ repos: [{ path: '/b', workstations: [], clones: CLONES }] }]);

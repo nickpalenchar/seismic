@@ -1,4 +1,4 @@
-// HTTP and WebSocket for the UI: one API per project under /api/c/<project>/.
+
 
 import type { ServerWebSocket } from 'bun';
 import { extensionSettings, serverExtensions as extensions } from '../extensions/server';
@@ -52,7 +52,7 @@ import { footerOf } from './llms/agents/agentJobs/writeWish';
 import { serving } from './owner';
 import { pageStall, type Stalls } from './stalls';
 
-// with `type: 'file'` a JSON import is the file's path (embedded in a compiled binary), which TypeScript types as its content
+
 const emojiData = emojiDataFile as unknown as string;
 const emojiMessages = emojiMessagesFile as unknown as string;
 
@@ -60,10 +60,10 @@ type Req = Request & { params: Record<string, string> };
 
 const notFound = () => new Response('Not found', { status: 404 });
 
-/** Card actions that moved to a URL of their own under `/api/v1/cards/:cardId/`. */
+
 const V1_ACTIONS = new Set<string>(['start', 'force', 'stop', 'approve', 'dequeue']);
 
-/** `?replyTo=` of a recording: a card's event (`7`), or a message of the sheet (`12.answer`). */
+
 /**
  * Whether a harness's model catalog is read. One that is not connected has none, except before any
  * harnesses were saved and any project exists: onboarding picks agents there that are saved only with the first project.
@@ -80,7 +80,7 @@ function replyParam(p: string | null): number | TalkRef | undefined {
   return m[2] ? { talk: Number(m[1]), part: m[2] as TalkRef['part'] } : Number(m[1]) || undefined;
 }
 
-/** What the server knows of an open page's WebSocket: its project, the page, and the paired device it is on, if another. */
+
 interface Socket {
   project: string;
   page: string;
@@ -89,11 +89,11 @@ interface Socket {
 
 export interface Voice {
   transcriber: Transcriber;
-  /** What voice in needs on this machine, for the settings sheet. */
+  
   setup?: VoiceSetup;
 }
 
-/** The projects a server serves: those that run now, and word whenever one starts, stops or changes (`Projects`). */
+
 export interface Served {
   all(): ProjectRuntime[];
   onChange?(fn: () => void): () => void;
@@ -110,7 +110,7 @@ function clipRoute(narration: NarrationHost, remote = false) {
     const request = parseClipRequest(await req.json().catch(() => null));
     if (typeof request === 'string') return Response.json({ code: 'invalid', error: request }, { status: 400 });
     if (remote && !request.inline) return Response.json({ code: 'invalid', error: 'inline must be true from another machine' }, { status: 400 });
-    // the clip waits its turn behind other renders' clips, maybe behind loading the model
+    
     srv.timeout(req, 0);
     const reply = await narration.clip(request);
     if (!request.inline || !('ok' in reply)) return Response.json(reply);
@@ -145,21 +145,21 @@ export function serve(
   restarter?: Restarter,
   narration?: NarrationHost,
   machine?: MachineSetup,
-  /** Stops Seismic as Ctrl-C does: once the workers paused, a second time at once. */
+  
   stop?: () => void,
-  /** The newer version of the app its shell has ready. */
+  
   updates = new AppUpdates(),
-  /** Who reaches Seismic from other devices; by default no one. */
+  
   access = new Access({ store: new Store(':memory:'), tailscale: new Tailscale(null) }),
-  /** What goes to the devices that turned notifications on. */
+  
   push = new Push({ store: access.store }),
-  /** New commits on the upstream of the checkout Seismic runs from; none for the app or the compiled binary. */
+  
   sources?: SourceUpdates,
-  /** The plans' usage limits for the bar, a meter per harness (Claude Code's first), fetched while the owner has it show them and a page is open. */
+  
   usage: UsageMeter[] = [],
-  /** Where the stalls of the pages go, beside the server's own. */
+  
   stalls?: Stalls,
-  /** What the Developer section may do here; nothing by default. */
+  
   developer: DeveloperView = { restart: false, rebuild: false, why: 'dev' },
 ) {
   const projects = Array.isArray(served) ? { all: () => served } : served;
@@ -200,8 +200,8 @@ export function serve(
   };
   const byId = new Map<string, ProjectRuntime>();
   const handOver = new HandOver();
-  // A shared server can serve several app windows and paired devices. Keep each one's draft
-  // and view state with the paired device and the address it originally opened.
+  
+  
   const handOverScope = (req: Request) => JSON.stringify([
     access.deviceOf(req) ?? null,
     req.headers.get('x-forwarded-host') ?? req.headers.get('host'),
@@ -209,7 +209,7 @@ export function serve(
   ]);
   const started = crypto.randomUUID();
   const sockets = new Map<string, Set<ServerWebSocket<Socket>>>();
-  // a device removed loses its open pages at once
+  
   access.onRemoved((device) => {
     for (const set of sockets.values()) for (const ws of set) if (ws.data.device === device) ws.close(4401, 'device removed');
   });
@@ -218,7 +218,7 @@ export function serve(
     const due = restarter?.due();
     if (!due) return byId.get(id)?.pendingRestart() ?? null;
     const here = due.waiting.filter((w) => w.project === id);
-    // the others by project, named, each card by its title: a project's page knows only its own cards
+    
     const elsewhere = new Map<string, { id: string; short?: string; title: string }[]>();
     const items = new Map<string, Item[]>();
     for (const w of due.waiting) {
@@ -235,9 +235,9 @@ export function serve(
       owner: due.owner,
     };
   };
-  /** What waits for the owner on each project: every page lists it in its navigation, the other projects' too. */
+  
   const waiting: Record<string, Waiting> = {};
-  /** Each project's part of it as last sent, to send it again only when it changed. */
+  
   const waitingSent: Record<string, string> = {};
   const waitingMessage = () => JSON.stringify({ type: 'waiting', waiting } satisfies ServerMessage);
   /** Takes in what waits on `c` now; whether that changed. */
@@ -263,16 +263,16 @@ export function serve(
   sources?.onChange(() => everyone(JSON.stringify({ type: 'source', source: sources.current() } satisfies ServerMessage)));
   const usageMessage = () => JSON.stringify({ type: 'usage', usage: usage.flatMap((m) => m.current() ?? []) } satisfies ServerMessage);
   for (const m of usage) m.onChange(() => everyone(usageMessage()));
-  /** What tells the usage meters a page closed, by page. */
+  
   const unwatch = new Map<string, () => void>();
-  /** What stops sending each project's changes to its pages. */
+  
   const detach = new Map<string, () => void>();
   const attach = (c: ProjectRuntime) => {
     byId.set(c.id, c);
     if (!sockets.has(c.id)) sockets.set(c.id, new Set());
     counted(c);
     const send = (msg: ServerMessage) => sendTo(c.id, msg);
-    /** The cards as last sent: what starts to wait for the owner after is pushed to their phone. */
+    
     let seen = new Map(c.board.items().map((i) => [i.id, i]));
     const offs = [
       c.board.onChange(() => {
@@ -294,14 +294,14 @@ export function serve(
         );
         const snapshot = c.board.snapshot();
         send({ type: 'snapshot', snapshot });
-        // what the switchers show of it (its repositories, whether they run as configured) may have changed
+        
         relist();
         if (counted(c, snapshot)) everyone(waitingMessage());
       }),
       c.board.onEvent((event) => send({ type: 'event', event })),
       c.board.onEventGone((cardId, id) => send({ type: 'eventGone', cardId, id })),
       c.board.onNotice((n) => send({ type: 'notice', ...n })),
-      // its repositories' agents restarted: what the switchers show of it may have changed with them
+      
       c.onPending(() => {
         send({ type: 'restart', restart: pending(c.id) });
         relist();
@@ -311,7 +311,7 @@ export function serve(
   };
   const projectList = () => projects.all().map((c) => c.board.project);
   const projectsMessage = (list: ProjectInfo[]) => JSON.stringify({ type: 'projects', projects: list } satisfies ServerMessage);
-  /** The list the pages' project switchers show, as it was last sent. */
+  
   let listed = '';
   /** Sends the projects to every page where they changed (one started, stopped, renamed, or with other repositories). */
   const relist = () => {
@@ -326,7 +326,7 @@ export function serve(
   };
   for (const c of projects.all()) attach(c);
   relist();
-  // a project started or stopped while Seismic runs: the pages of one that stopped go to another
+  
   projects.onChange?.(() => {
     const now = projects.all();
     for (const [id, c] of [...byId])
@@ -336,7 +336,7 @@ export function serve(
         byId.delete(id);
         delete waiting[id];
         delete waitingSent[id];
-        // the page asks for the projects, and goes to the first there is
+        
         for (const ws of sockets.get(id) ?? []) ws.close();
         sockets.delete(id);
       }
@@ -351,8 +351,8 @@ export function serve(
   };
 
   const handle = respond;
-  /** The project a card is on, by the card's row; none for one unknown, or deleted unless `deleted`. */
-  // the owner's system-level settings for /api/v1/settings: the usage meters and every project's cards follow what is saved
+  
+  
   const ownerSettings = config
     ? new OwnerSettings({
         home: config.home,
@@ -384,11 +384,11 @@ export function serve(
   /** Nothing the owner said came through: Whisper understood nothing (`null`), or heard nothing. */
   const unheard = (c: ProjectRuntime, text: string | null) => ({ confirm: text === null ? c.board.t.voice.notUnderstood : c.board.t.voice.nothingHeard, unheard: true });
 
-  /**
-   * A restart waits for what the owner said on the server's own count too, until its answer is
-   * written, whether or not the page that sent it still holds it off: one that came while Whisper
-   * wrote lost the words (until 2026-10-14).
-   */
+  
+
+
+
+
   let answering = 0;
   const holdingRestart =
     <T,>(fn: (c: ProjectRuntime, req: Req) => Promise<T>) =>
@@ -402,11 +402,11 @@ export function serve(
       }
     };
 
-  /**
-   * The recordings that arrived whole (`?sent=<id>`, the page's name for one): a page whose
-   * connection broke before the answer asks here whether Seismic has the command, and gives the field
-   * its words and screenshots back only when it has not. The newest few hundred; a restart forgets them.
-   */
+  
+
+
+
+
   const arrived = new Set<string>();
   const ARRIVED_KEPT = 500;
   const arrive = (id: string | null) => {
@@ -423,7 +423,7 @@ export function serve(
   };
   const transcribe = async (c: ProjectRuntime, audio: Blob) => {
     const dir = mkdtempSync(join(tmpdir(), 'seismic-voice-'));
-    // by what the browser recorded: a cloud service tells the format by the file's name
+    
     const file = join(dir, `speech.${/mp4|m4a|aac/.test(audio.type) ? 'mp4' : /wav/.test(audio.type) ? 'wav' : /ogg/.test(audio.type) ? 'ogg' : 'webm'}`);
     try {
       await Bun.write(file, audio);
@@ -432,7 +432,7 @@ export function serve(
       if (silence(text)) return console.log(`voice on ${c.id}: ${text}`), '';
       if (!looping(text) && !first.doubtful) return text;
       if (first.unprompted) return console.log(`voice ${looping(text) ? 'looped' : 'was unsure'} on ${c.id}: ${text.slice(0, 80)}`), null;
-      // the card titles talk Whisper into loops or guesses on a recording without speech: once more without them
+      
       console.log(`whisper ${looping(text) ? 'looped' : 'was unsure'} on ${c.id}: ${text.slice(0, 80)}; once more without the card titles`);
       const again = await transcriber.transcribe(file, '');
       const second = again.text.trim();
@@ -443,8 +443,8 @@ export function serve(
       rmSync(dir, { recursive: true, force: true });
     }
   };
-  // a planned card takes what is typed into its field for the agent that will take it on; spoken
-  // words go to the Koordinator, which starts it, snoozes it or takes it out of the queue
+  
+  
   const listens = (card: Item, input: Input) => agentListens(card) || (input.field === 'note' && holdsNotes(card));
   /**
    * What the owner said or typed: with an agent on the open card, straight to that agent (which
@@ -452,18 +452,18 @@ export function serve(
    * nothing it could write down, which nobody should guess from.
    */
   const heard = async (c: ProjectRuntime, text: string | null, focus: Focus, images: string[] = [], input: Input = {}) => {
-    // the owner sees only the confirmation; the transcript is for whoever reads the server's log
+    
     console.log(`heard on ${c.id}: ${text === null ? '(not understood)' : text || '(nothing)'}`);
-    // nothing heard or understood: screenshots shown with it stay in the browser for the next try
+    
     if (text === null || (!text && !(input.typed && images.length))) return unheard(c, text);
     const card = focus.card ? c.board.item(focus.card) : undefined;
     if (card && listens(card, input)) {
       c.tell(card.id, text, images, !input.typed, typeof input.replyTo === 'number' ? input.replyTo : undefined, input.spot);
-      // the card's conversation shows the words
+      
       return { confirm: '', quiet: true } satisfies Heard;
     }
     const h = await c.commander.hear(text, focus, images, input);
-    // the written confirmation goes out now, so the undo window starts now
+    
     if (h.token) c.commander.arm(h.token);
     return { ...h, ...(h.token ? { undoMs: c.commander.delayMs } : {}) };
   };
@@ -482,17 +482,17 @@ export function serve(
   const options = {
     port,
     hostname: '127.0.0.1',
-    // a voice command answers once transcribed and read: with Whisper on a CPU that can take longer than Bun's 10 s
+    
     idleTimeout: 120,
     development: development && { hmr: true, console: true },
     routes: guarded({
       ...extensionRoutes,
       ...uiRoutes(development),
-      // the RESTful API, one file per URL under routes/v1/
+      
       ...bunRoutes(v1Routes({ projectOfCard, ownerSettings, configuration: config })),
-      // a browser on this machine signing in with a one-time link (owner.ts)
+      
       '/login': { GET: (req, srv) => access.loginRoute(req, srv) },
-      // such a link, for whoever holds the owner's key (the app's shell, a second start, scripts); `next`: where it leads; `once`: for one browser
+      
       '/api/login-link': {
         POST: async (req, srv) => {
           if (!access.isLocal(req, srv)) return onlyHere();
@@ -500,26 +500,26 @@ export function serve(
           return Response.json({ url: access.owner.link(new URL(req.url).origin, typeof next === 'string' ? next : '/', once === true) });
         },
       },
-      // another device pairing: the address in the QR code (`?code=`), or the code typed into the page it got
+      
       '/pair': { GET: (req, srv) => access.pairRoute(req, srv), POST: (req, srv) => access.pairRoute(req, srv) },
-      // the desktop app's shell pairing over HTTP: the code for a one-time link that pairs the window it opens
+      
       '/api/pair': { POST: (req, srv) => access.pairApi(req, srv) },
-      // "From other devices": the setting, what the network allows, the devices; only on this machine
+      
       '/api/access': {
         GET: (req, srv) => (access.isLocal(req, srv) ? handle(() => access.view()) : Response.json({ local: false })),
         PUT: async (req, srv) => (access.isLocal(req, srv) ? handle(async () => access.save(await req.json())) : onlyHere()),
       },
       '/api/access/pair': { POST: (req, srv) => (access.isLocal(req, srv) ? handle(() => access.pair()) : onlyHere()) },
       '/api/access/devices/:id': { DELETE: (req, srv) => (access.isLocal(req, srv) ? handle(() => ({ removed: access.remove(req.params.id) })) : onlyHere()) },
-      // the web app on a phone's home screen: the icons of its manifest (manifest.webmanifest, which the
-      // page's bundle carries), its service worker (sw.ts), and the device's push subscription (`on`:
-      // Seismic has one for this device); pushes go only to paired devices
+      
+      
+      
       '/icons/180.png': { GET: () => new Response(Bun.file(icon180), { headers: { 'cache-control': 'max-age=86400' } }) },
       '/icons/512.png': { GET: () => new Response(Bun.file(icon512), { headers: { 'cache-control': 'max-age=86400' } }) },
-      // Emojibase's data for the canvas dialog's emoji picker (src/ui/components/emoji-picker.tsx), so it needs no network
+      
       '/emojibase/en/data.json': { GET: () => new Response(Bun.file(emojiData), { headers: { 'content-type': 'application/json', 'cache-control': 'max-age=86400' } }) },
       '/emojibase/en/messages.json': { GET: () => new Response(Bun.file(emojiMessages), { headers: { 'content-type': 'application/json', 'cache-control': 'max-age=86400' } }) },
-      // pdf.js's worker, fonts and decoders, where the page draws a PDF itself (src/ui/pdf.tsx)
+      
       '/pdfjs/*': { GET: (req) => servePdfjs(req) },
       '/sw.js': { GET: () => new Response(`(${worker.toString()})();\n`, { headers: { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-cache' } }) },
       '/api/push': {
@@ -537,11 +537,11 @@ export function serve(
           return device ? handle(() => push.unsubscribe(device)) : onlyDevices();
         },
       },
-      // Desktop shells from before /api/v1/health recognize this marker in their health check.
+      
       '/api/projects': { GET: () => Response.json(projectList(), { headers: { 'x-seismic': 'projects' } }) },
-      // what waits for the owner on each project, for a page without a project's connection (the feedback log, an address naming none)
+      
       '/api/waiting': { GET: () => Response.json(waiting satisfies Record<string, Waiting>) },
-      // the Activity log, newest first: the project's lines, or every project's (`all`); `before` pages back from a line's id
+      
       '/api/activity': {
         GET: (req) =>
           handle(() => {
@@ -558,7 +558,7 @@ export function serve(
             return { entries: entries.sort((x, y) => y.id - x.id), more } satisfies ActivityPage;
           }),
       },
-      // the chats with Seismic on every project that runs, the latest first
+      
       '/api/chats': {
         GET: () => {
           const names = new Map(projects.all().map((c) => [c.board.project.id, c.board.project.name]));
@@ -582,10 +582,10 @@ export function serve(
           'cache-control': 'no-store',
         } });
       } },
-      // Seismic's configuration: read, checked while the owner edits it, and saved (Seismic then starts again)
-      // the owner has the restart of a repository's agents that waits for them go ahead at once
+      
+      
       '/api/c/:project/restart': { POST: on(async (c) => ({ restarting: await c.restartNow() })) },
-      // the project's own settings, from the sliders in the bar: read with Configuration's models they fall back on, saved into the configuration
+      
       '/api/c/:project/settings': {
         GET: on((c) => (config ? { settings: c.settings(), agents: agentsView(config.home).agents, harnesses: machine?.harnesses() } satisfies ProjectSettingsView : notFound())),
         PUT: on(async (c, req) => {
@@ -594,30 +594,30 @@ export function serve(
           return { settings: c.settings(), agents: agentsView(config.home).agents, harnesses: machine?.harnesses() } satisfies ProjectSettingsView;
         }),
       },
-      // the project's repositories as configured, from its settings sheet: read with their check, and one saved at a time
+      
       '/api/c/:project/repos': {
         GET: on((c) => (config ? config.projectView(c.id) : notFound())),
         PUT: on(async (c, req) => (config ? config.saveRepo(c.id, await req.json()) : notFound())),
       },
-      // "Archive project" from its settings sheet: it leaves the configuration, its cards kept
+      
       '/api/c/:project/archive-project': { POST: on(async (c) => (config ? config.archiveProject(c.id) : notFound())) },
-      // "Initialize" at the project's demo site: its path on the site, with the empty overview, deployed
+      
       '/api/c/:project/demo-site': { GET: on((c) => c.siteState() ?? null) },
       '/api/c/:project/demo-site/init': { POST: on(async (c, req) => c.initSite(await req.json()) ?? null) },
-      // the owner pauses the project's agents at work (and holds its queue), or resumes its paused ones
+      
       '/api/c/:project/pause': { POST: on((c) => c.pauseAgents()) },
       '/api/c/:project/resume': { POST: on((c) => c.resumeAgents()) },
-      // the owner has a restart that waits for workers go ahead at once
+      
       '/api/restart': {
         POST: () =>
           handle(() => {
             const due = !!restarter?.due();
-            // after the answer is out: the restart stops this server
+            
             if (due) setTimeout(() => restarter!.now(), 100);
             return { restarting: due };
           }),
       },
-      // the Developer section: what it may do here, and the restart or rebuild the owner asks for there
+      
       '/api/developer': { GET: () => handle(() => developer) },
       '/api/developer/:what': {
         POST: (req) =>
@@ -625,22 +625,22 @@ export function serve(
             const what = req.params.what;
             if ((what !== 'restart' && what !== 'rebuild') || !restarter || !developer[what])
               return Response.json({ code: 'invalid', error: `Seismic cannot ${what} itself here` }, { status: 409 });
-            // after the answer is out: a restart with no worker to wait for stops this server at once
+            
             setTimeout(() => restarter.request(what === 'rebuild' ? 'rebuild' : 'owner'), 100);
             return { requested: what };
           }),
       },
-      // the app quitting, or anything that cannot send a signal (Windows has no SIGTERM): Ctrl-C over HTTP
+      
       '/api/stop': {
         POST: () =>
           handle(() => {
             if (!stop) return { stopping: false };
-            // after the answer is out: when no worker is busy, the stop ends this server
+            
             setTimeout(stop, 100);
             return { stopping: true };
           }),
       },
-      // every response the owner gave on agents' work, on every project: the performance dashboard groups them
+      
       '/api/feedback': { GET: () => handle(() => projects.all()[0]?.board.allFeedback() ?? []) },
       '/api/agents/harnesses': { GET: needs(machine, (m) => m.harnessAvailability()) },
       '/api/harnesses': {
@@ -649,8 +649,8 @@ export function serve(
       },
       '/api/agents/codex-models': { GET: needs(config, (c) => offersCatalog(c, 'codex', machine) ? codexModels() : []) },
       '/api/agents/agy-models': { GET: needs(config, (c) => offersCatalog(c, 'agy', machine) ? agyModels() : []) },
-      // this machine's demo sites: listed, added (set up at a host or entered by hand, once a publish there
-      // went through), connected with another machine's code, removed from this machine
+      
+      
       '/api/demo-sites': {
         GET: needs(sites, (x) => x.view()),
         POST: needs(sites, async (x, req) => x.add(await req.json())),
@@ -659,8 +659,8 @@ export function serve(
       '/api/demo-sites/seen': { POST: needs(sites, (x) => (x.seen(), x.view())) },
       '/api/demo-sites/connect': { POST: needs(sites, async (x, req) => x.connect(await req.json())) },
       '/api/demo-sites/code': { GET: needs(sites, (x, req) => x.code(new URL(req.url).searchParams.get('url') ?? '')) },
-      // GitHub for a site in a repository's folder: the repositories gh's login can push to, one read
-      // for a folder (its Pages, the address, the push check, its size), and how a site's changes go in
+      
+      
       '/api/demo-sites/github/repos': { GET: needs(sites, (x) => x.repos()) },
       '/api/demo-sites/github/repo': {
         GET: needs(sites, (x, req) => {
@@ -669,7 +669,7 @@ export function serve(
         }),
       },
       '/api/demo-sites/mode': { POST: needs(sites, async (x, req) => x.mode(await req.json())) },
-      // "Suggest tags" at a demo site's tags: started, followed, and taken into the field
+      
       '/api/tag-proposal': {
         GET: needs(config, (_, req) => {
           const path = new URL(req.url).searchParams.get('path') ?? '';
@@ -678,17 +678,17 @@ export function serve(
         POST: needs(config, async (c, req) => ({ job: proposeTagsFor(c.home, await req.json()) })),
         DELETE: needs(config, (_, req) => (tagProposals.doneWith(new URL(req.url).searchParams.get('path') ?? ''), {})),
       },
-      // what Seismic's own voice in needs here, and installing it
+      
       '/api/voice-setup': { GET: needs(setup, (s) => s.view()) },
       '/api/voice-setup/install': { POST: needs(setup, (s) => s.install()) },
       '/api/voice-setup/measure': { POST: needs(setup, (s) => s.measure()) },
-      // a cloud service for voice in: tested and used (PUT), or back to this machine (DELETE)
+      
       '/api/voice-setup/cloud': {
         PUT: needs(setup, async (s, req) => s.useCloud(await req.json())),
         DELETE: needs(setup, (s) => s.useLocal()),
       },
-      // the setup assistant: what Seismic needs on this machine, installed, logged in; then the first project
-      // `?sections=needed,codex`: only those sections, each as soon as it is checked
+      
+      
       '/api/setup': { GET: needs(machine, (m, req) => m.view(new URL(req.url).searchParams.get('sections')?.split(',').filter(Boolean) as MachineSectionId[] | undefined)) },
       '/api/setup/install': { POST: needs(machine, async (m, req) => m.install(await req.json())) },
       '/api/setup/login': { POST: needs(machine, async (m, req) => m.login(await req.json())) },
@@ -696,11 +696,11 @@ export function serve(
       '/api/setup/identity': { POST: needs(machine, async (m, req) => m.identity(await req.json())) },
       '/api/setup/folder': { POST: needs(machine, async (m, req) => m.folder(await req.json())) },
       '/api/setup/repo': { POST: needs(machine, async (m, req) => m.repo(await req.json())) },
-      // setting up git in a folder that has none: what the first commit holds, then the commit
+      
       '/api/setup/git-preview': { POST: needs(machine, async (m, req) => m.gitPreview(await req.json())) },
       '/api/setup/git': { POST: needs(machine, async (m, req) => m.gitSetup(await req.json())) },
       '/api/setup/project': { POST: needs(machine, async (m, req) => m.project(await req.json())) },
-      // the system's folder dialog, open as long as the owner takes
+      
       '/api/setup/pick': {
         POST: async (req, srv) => {
           if (!machine) return notFound();
@@ -709,9 +709,9 @@ export function serve(
           return handle(() => machine.pick(typeof prompt === 'string' ? prompt : ''));
         },
       },
-      // the demo settings: narration language and voice, read by every render
-      // a voice as the owner chooses it: checked, installed (in the background), heard in a sample;
-      // and what else a render needs on this machine
+      
+      
+      
       '/api/demo-settings/check': { POST: needs(config, async (c, req) => c.checkDemo(await req.json())) },
       '/api/demo-settings/setup': { POST: needs(config, async (c, req) => c.demoSetup(await req.json())) },
       '/api/demo-settings/install': { POST: needs(config, async (c, req) => c.installDemoVoice(await req.json())) },
@@ -725,14 +725,14 @@ export function serve(
           );
         },
       },
-      // a demo's narration clip, in the voice Seismic holds loaded across renders (narration.ts)
+      
       '/api/narration/clip': { POST: narration ? clipRoute(narration) : notFound },
-      // "For everyone, into the repository": a repository's settings for this machine into its .seismic/settings.json
+      
       '/api/config/share-settings': { POST: needs(config, async (c, req) => c.shareSettings(await req.json())) },
-      // a repository's commands, new or changed on its default branch, confirmed by the owner: they count from now on
+      
       '/api/config/trust': { POST: needs(config, async (c, req) => (c.trust(await req.json()), {})) },
-      // what the configuration amounts to and what is wrong with it: as saved, or a draft as the owner edits it
-      // "Try again": what did not start as the configuration has it tries again
+      
+      
       '/api/config/retry': { POST: needs(config, (c) => c.retry()) },
       '/api/config/check': {
         GET: needs(config, (c) => c.checkSaved()),
@@ -740,22 +740,22 @@ export function serve(
       },
       '/api/c/:project/project': { GET: on((c) => c.board.snapshot()) },
       '/api/c/:project/cards': { POST: on(async (c, req) => c.board.create((await req.json()) as NewCard, undefined, 'owner')) },
-      // from "Configuration", for a repository without settings of its own: the card that writes them
+      
       '/api/c/:project/adapter-setup': { POST: on(async (c, req) => c.adapterSetupCard(String(((await req.json()) as { repo?: unknown }).repo))) },
-      // from the note on a plan directory: the card that prepares one of its docs as a plan, started
+      
       '/api/c/:project/prepare-plan-doc': {
         POST: on(async (c, req) => {
           const { repo, file } = ((await req.json()) ?? {}) as { repo?: unknown; file?: unknown };
           return c.preparePlanDoc(String(repo), String(file));
         }),
       },
-      // the owner moved the note on a repository's plan directory
+      
       '/api/c/:project/plan-dirs/:repo': {
         PATCH: on(async (c, req) => c.board.movePlanDirNote(req.params.repo!, await req.json())),
       },
-      // a card's changes and its deletion: /api/v1/cards/:cardId (routes/v1/cards/_cardId.ts)
-      // groups: a new one with its first cards (and a colour, when one comes back), a new name, the
-      // end of one, and cards put into one (`group: null`: none)
+      
+      
+      
       '/api/c/:project/groups': {
         POST: on(async (c, req) => {
           const { name, cards, hue } = ((await req.json()) ?? {}) as { name?: string; cards?: string[]; hue?: number };
@@ -766,8 +766,8 @@ export function serve(
         PATCH: on(async (c, req) => c.board.renameGroup(req.params.id!, (((await req.json()) ?? {}) as { name?: string }).name)),
         DELETE: on((c, req) => c.board.deleteGroup(req.params.id!)),
       },
-      // canvases: a new one (with an icon), a new name, icon (`null`: none) or place in the order (`position`, from 1),
-      // the end of an empty one, and cards moved onto one
+      
+      
       '/api/c/:project/canvases': {
         GET: on((c) => c.board.canvases()),
         POST: on(async (c, req) => {
@@ -795,42 +795,42 @@ export function serve(
         POST: on(async (c, req) => { const { from, to, anchor } = await req.json() as { from: string; to: string; anchor?: import('../core/types').ManualAnchor }; c.board.connect(from, to, false, anchor); }),
         DELETE: on(async (c, req) => { const { from, to } = await req.json() as { from: string; to: string }; c.board.connect(from, to, true); }),
       },
-      // the archive, newest first; posting archives every finished card of the owner's
+      
       '/api/c/:project/archive': { GET: on((c) => c.board.archived()), POST: on((c) => ({ ids: c.board.archiveDone() })) },
       '/api/c/:project/cards/:id/act': {
         POST: on(async (c, req) => {
           const a = (await req.json()) as CardAction;
-          // the actions with a URL of their own (`routes/v1/cards/_cardId/`) are not taken here as well
+          
           if (a && V1_ACTIONS.has(a.action)) throw new BadRequest('invalid', `${a.action} goes through POST /api/v1/cards/:cardId/${a.action === 'force' ? 'start' : a.action}`);
           return c.press(req.params.id!, a);
         }),
       },
-      // a script acting as the card's agent, in a scratch Seismic whose workers are idle (scripts/scratch-seismic.ts --say)
+      
       '/api/c/:project/cards/:id/stand-in': { POST: on(async (c, req) => ({ result: await c.standIn(req.params.id!, (await req.json()) as Parameters<typeof c.standIn>[1]) })) },
       '/api/c/:project/cards/:id/events': { GET: on((c, req) => c.board.events(req.params.id!)) },
-      // the owner's responses on the card's approved work, and a new one (`{ answer, handover?, facets? }`); the same handover again replaces its answer
+      
       '/api/c/:project/cards/:id/feedback': {
         GET: on((c, req) => c.board.feedback(req.params.id!)),
         POST: on(async (c, req) => c.board.giveFeedback(req.params.id!, await req.json().catch(() => null))),
       },
-      // the skills the owner can ask the card's agent for by `/name`, for the field's menu
+      
       '/api/c/:project/cards/:id/skills': { GET: on((c, req) => c.skillsOf(req.params.id!)) },
-      // a screenshot for a message: uploaded first, the message then names it by id
+      
       '/api/c/:project/images': {
         POST: on(async (c, req) => ({ id: c.images.save(new Uint8Array(await req.arrayBuffer()), req.headers.get('content-type') ?? '') })),
       },
-      // a file of another kind for a message: Seismic keeps it, and the field gets its path (`?name`: what it was called)
+      
       '/api/c/:project/files': {
         POST: on(async (c, req) => {
           if (Number(req.headers.get('content-length')) > MAX_FILE_BYTES) throw new BadRequest('fileTooLarge', `a file may have at most ${MAX_FILE_BYTES} bytes`);
           return { path: c.files.save(new Uint8Array(await req.arrayBuffer()), new URL(req.url).searchParams.get('name') ?? '') };
         }),
       },
-      // a file of another kind dropped in a browser: where it lies on this machine, if Seismic finds exactly one that fits
+      
       '/api/c/:project/files/find': {
         POST: on(async (_c, req) => ({ path: await findDropped((await req.json()) as Dropped) })),
       },
-      // an image dropped in the app, which names it by its path: its bytes, for the page to attach it as a screenshot
+      
       '/api/c/:project/files/local': {
         GET: on((_c, req) => {
           const image = localImage(new URL(req.url).searchParams.get('path') ?? '');
@@ -844,18 +844,18 @@ export function serve(
           return file ? new Response(Bun.file(file), { headers: { 'cache-control': 'private, max-age=31536000, immutable' } }) : notFound();
         },
       },
-      // what the card's work changes: its files with lines added and removed, with `?full` the diff too
+      
       '/api/c/:project/cards/:id/diff': { GET: on((c, req) => c.diff(req.params.id!, new URL(req.url).searchParams.has('full'))) },
-      // one file of the card's change as it was and as it is, for the diff to show the lines around its hunks (`?probe`: just whether both are there)
+      
       '/api/c/:project/cards/:id/versions': {
         GET: on(async (c, req) => {
           const q = new URL(req.url).searchParams;
           const v = await c.cardFileVersions(req.params.id!, q.get('path') ?? '');
-          // `probe`: only whether each version is there to show, so the page can offer expanding without carrying the files
+          
           return v && q.has('probe') ? { old: v.old !== null, new: v.new !== null } : v;
         }),
       },
-      // the app running in the card's workstation: whether it answers, and the owner opening it to try it by hand
+      
       '/api/c/:project/cards/:id/app': { GET: on((c, req) => c.appUp(req.params.id!)) },
       '/api/c/:project/cards/:id/app/open': {
         GET: async (req) => {
@@ -871,11 +871,11 @@ export function serve(
         },
       },
       '/api/c/:project/cards/:id/plan': { GET: on((c, req) => c.board.planDoc(req.params.id!)) },
-      // a plan's decisions and the idea it came from
+      
       '/api/c/:project/cards/:id/history': { GET: on((c, req) => c.board.planHistory(req.params.id!)) },
-      // the frame an idea's mock is written into
+      
       '/api/mock-frame': { GET: () => serveMockFrame() },
-      // an HTML artifact's page may load files from folders beside it
+      
       '/api/c/:project/cards/:id/demo/*': {
         GET: (req) => {
           try {
@@ -887,7 +887,7 @@ export function serve(
           }
         },
       },
-      // a demo a later handover replaced, which the owner went back to
+      
       '/api/c/:project/cards/:id/demos/:n/*': {
         GET: (req) => {
           try {
@@ -901,7 +901,7 @@ export function serve(
           }
         },
       },
-      // a file the card's work made or changed, for its left column; `?download` to save it
+      
       '/api/c/:project/cards/:id/files/*': {
         GET: (req) => {
           try {
@@ -914,7 +914,7 @@ export function serve(
           }
         },
       },
-      // opens a file of the card's work with the system's app (`show`: in its folder), on this machine only: from another device the browser downloads it
+      
       '/api/c/:project/cards/:id/open': {
         POST: (req, srv) =>
           access.isLocal(req, srv)
@@ -925,9 +925,9 @@ export function serve(
               })(req)
             : onlyHere(),
       },
-      // "Make it a card": a looked-up thread moves onto a Question card
+      
       '/api/c/:project/threads/:thread/card': { POST: on((c, req) => c.answers.toCard(Number(req.params.thread))) },
-      // a file a looked-up answer comes with; `?download` to save it
+      
       '/api/c/:project/threads/:thread/files/*': {
         GET: (req) => {
           try {
@@ -940,7 +940,7 @@ export function serve(
           }
         },
       },
-      // opens an answer's file (`file`), or its thread's directory, with the system's app
+      
       '/api/c/:project/threads/:thread/open': {
         POST: (req, srv) =>
           access.isLocal(req, srv)
@@ -950,31 +950,31 @@ export function serve(
               })(req)
             : onlyHere(),
       },
-      // the app's shell, every few seconds while it has a newer version of the app ready
+      
       '/api/app-update': {
         GET: () => Response.json(updates.current()),
         POST: async (req) =>
           handle(async () => {
             const body = await req.json();
-            // a shell installed from a checkout has built itself anew there: in place as landed code is, so installed the same way, without asking
+            
             if (body?.rebuilt === true) return (restarter?.request('update'), { updating: !!restarter });
             return updates.report(body);
           }),
       },
-      // the Mac app's shell finds this Seismic running without the app that started it, so without the
-      // system's permissions for it (the local network): it ends once the workers paused, and the shell
-      // starts it again under itself (desktop/src/main.rs, `orphaned`)
+      
+      
+      
       '/api/app-takeover': {
         POST: () =>
           handle(() => {
-            // with no worker to wait for, this server ends right after the answer
+            
             restarter?.request('takeover');
             return { taking: !!restarter };
           }),
       },
-      // a shell installed from a checkout has built itself anew while this Seismic runs on without it (started
-      // from a terminal), every few seconds until it starts again: it waits while the owner dictates or
-      // watches a video, as a restart does; `kept`: whether the page handed over when the shell asked
+      
+      
+      
       '/api/app-rebuilt': {
         POST: (req) =>
           handle(async () => {
@@ -982,81 +982,81 @@ export function serve(
             return { now: !restarter?.owner().length, kept: handOver.has(handOverScope(req), kept) };
           }),
       },
-      // what a reload keeps, from the page before the shell started again to the page after
+      
       '/api/app-rebuilt/handover': {
         GET: (req) => Response.json(handOver.read(handOverScope(req))),
         POST: (req) => handle(async () => (handOver.give(handOverScope(req), await req.json()), { ok: true })),
         DELETE: (req) => (handOver.taken(handOverScope(req), new URL(req.url).searchParams.get('token')), new Response(null, { status: 204 })),
       },
-      // the owner installs it: once the workers paused, Seismic ends for the shell to install it and start again
+      
       '/api/app-update/install': {
         POST: () =>
           handle(() => {
             const update = updates.current();
             if (!restarter || !update || update.download) throw new BadRequest('invalid', 'no update the app can install');
-            // after the answer is out: with no worker to wait for, the update ends this server at once
+            
             setTimeout(() => restarter.request('update'), 100);
             return { updating: true };
           }),
       },
-      // new commits on the upstream of the checkout Seismic runs from
+      
       '/api/source-update': { GET: () => Response.json(sources?.current() ?? null) },
-      // the owner pulls them: a fast-forward of the checkout, after which the self-update restarts Seismic once the workers paused
+      
       '/api/source-update/pull': { POST: needs(sources, async (s) => (await s.pull(), { source: s.current() })) },
-      // a demo as a file to pass on, where the repository has no share target (`?as=zip|html`)
+      
       '/api/c/:project/cards/:id/export': {
         GET: on(async (c, req) => {
           const as = new URL(req.url).searchParams.get('as');
           if (as !== 'zip' && as !== 'html') throw new BadRequest('invalid', 'as must be zip or html');
-          // which of the card's demos, by its handover (`?demo=`); the latest without
+          
           const demo = Number(new URL(req.url).searchParams.get('demo') ?? NaN);
           const f = await c.sharing.export(req.params.id!, as, Number.isInteger(demo) ? demo : undefined);
           return new Response(f.data, { headers: { 'content-type': f.type, 'content-disposition': `attachment; filename="${f.name}"`, 'cache-control': 'no-store' } });
         }),
       },
-      // what the owner said (audio), for the open card's agent or the Koordinator; the body is the
-      // recording, or a form with it (`audio`) and the words typed in the field before it (`text`)
+      
+      
       '/api/c/:project/voice': {
         POST: on(holdingRestart(async (c, req) => {
-          // screenshots shown with the recording (`?image=<id>`, repeated), checked before transcribing
+          
           const params = new URL(req.url).searchParams;
           const images = params.getAll('image');
           c.images.resolve(images);
-          // `?replyTo=<event>`: said in reply to that message of the open card's conversation; with
-          // no card open, `?replyTo=<exchange>.<part>` to that message of the sheet (`TalkRef`)
+          
+          
           const replyTo = replyParam(params.get('replyTo'));
           const form = req.headers.get('content-type')?.startsWith('multipart/form-data') ? await req.formData() : null;
           const audio = form ? form.get('audio') : await req.blob();
           if (!(audio instanceof Blob)) throw new BadRequest('invalid', 'audio expected');
           arrive(params.get('sent'));
-          // a browser sends a form's line breaks as CRLF: they go on as typed
+          
           const field = form?.get('text');
           const typed = typeof field === 'string' ? field.replace(/\r\n/g, '\n') : undefined;
           let text: string | null;
           try {
             text = await transcribe(c, audio);
           } catch (e) {
-            // the cloud service failed or refused: the owner reads why under the mic, and the words stay in the field
+            
             if (!(e instanceof CloudError)) throw e;
             console.error(`voice on ${c.id}: ${e.service} failed: ${e.message}`);
             return { confirm: c.board.t.voice.cloudFailed(e.service, e.message), unheard: true };
           }
-          // `?listen`: dictated into a field, the words go back to it and nowhere else
+          
           if (params.has('listen')) {
             console.log(`dictated on ${c.id}: ${text === null ? '(not understood)' : text || '(nothing)'}`);
             return text ? { confirm: '', quiet: true, text } : unheard(c, text);
           }
-          // what stood in the field goes first; nothing heard sends nothing, the field keeps it
+          
           const words = text && typed?.trim() ? `${typed.trim()}${/\n/.test(typed.trim()) ? '\n\n' : ' '}${text}` : text;
-          // `?at=<seconds>&still=<image>&demo=<handover>`: said about that place in the open card's demo video (`demo`: an earlier one)
+          
           const at = params.get('at');
           const demo = Number(params.get('demo') || NaN);
           const spot = at !== null && at !== '' ? { at: Number(at), ...(params.get('still') ? { still: params.get('still')! } : {}), ...(Number.isInteger(demo) ? { demo } : {}) } : undefined;
           return heard(c, words, focusOf(req, c), images, { ...(replyTo ? { replyTo } : {}), ...(spot ? { spot } : {}) });
         })),
       },
-      // the owner started speaking: transcription and the Koordinator get ready meanwhile
-      // whether the recording the page named `?sent=<id>` arrived, for a page that lost the answer
+      
+      
       '/api/c/:project/voice/arrived/:id': { GET: on((_c, req) => ({ arrived: arrived.has(req.params.id!) })) },
       '/api/c/:project/voice/warm': {
         POST: on((c) => {
@@ -1066,23 +1066,23 @@ export function serve(
       },
       '/api/c/:project/command': {
         POST: on(async (c, req) => {
-          // `field`: typed into that field of the open card rather than into the Koordinator's sheet
-          // `replyTo`: typed in reply to that message of the open card's conversation, or with no card open of the sheet (`TalkRef`)
-          // `spot`: typed about that place in the open card's demo video
+          
+          
+          
           const { text, images, field, replyTo, spot, chat, requestId } = (await req.json()) as { text: string; images?: string[]; field?: unknown; replyTo?: unknown; spot?: SpotInput; chat?: number; requestId?: unknown };
           if (chat !== undefined && (!Number.isSafeInteger(chat) || !c.board.hasChat(chat))) throw new BadRequest('invalid', 'chat must belong to this project');
           if (requestId !== undefined && (typeof requestId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId))) throw new BadRequest('invalid', 'invalid request id');
-          // a screenshot alone may speak for itself to the open card's agent
+          
           const card = focusOf(req).card;
           const open = card ? c.board.item(card) : undefined;
           const toAgent = !!open && listens(open, isField(field) ? { field } : {});
           if (typeof text !== 'string' || (!text.trim() && !(toAgent && images?.length))) throw new BadRequest('emptyText', 'text must be a non-empty string');
-          // screenshots pasted into the typed command go to the cards it creates or concerns
+          
           c.images.resolve(images);
           return heard(c, text.trim(), focusOf(req, c), images ?? [], { typed: true, ...(typeof requestId === 'string' ? { requestId } : {}), ...(chat !== undefined ? { chat } : {}), ...(isField(field) ? { field } : {}), ...(typeof replyTo === 'number' || isTalkRef(replyTo) ? { replyTo } : {}), ...(spot ? { spot } : {}) });
         }),
       },
-      // a wish or a bug for Seismic's makers: the issue's text as a small job writes it, for the owner to check and open on GitHub
+      
       '/api/c/:project/wish': {
         POST: on(async (c, req) => {
           const { said, answer, title, body, images, app } = ((await req.json()) ?? {}) as Record<string, unknown>;
@@ -1116,7 +1116,7 @@ export function serve(
         }),
       },
       '/api/c/:project/preferences/:id/reject': { POST: on((c, req) => click(c, c.rejectRule(Number(req.params.id)))) },
-      // a value for a repository's setting the work retrospective proposed: taken on this machine or for everyone (`where`), or rejected
+      
       '/api/c/:project/setting-proposals/:id/take': {
         POST: on(async (c, req) => {
           const { where, value } = (await req.json().catch(() => ({}))) as { where?: unknown; value?: unknown };
@@ -1124,21 +1124,21 @@ export function serve(
         }),
       },
       '/api/c/:project/setting-proposals/:id/reject': { POST: on((c, req) => click(c, c.rejectSetting(Number(req.params.id)))) },
-      // "Erneut teilen" for many outdated pages at once (or, with `tags`, the pages without tags): `count` of them, the newest demos first, or all (null)
+      
       '/api/c/:project/reshare': {
         POST: on(async (c, req) => {
           const { count, tags } = (await req.json().catch(() => ({}))) as { count?: number | null; tags?: unknown };
           if (count != null && !(Number.isInteger(count) && count > 0)) throw new BadRequest('invalid', 'count must be a positive integer or null');
-          // `tags`: the pages without tags, tagged and shared again ("N pages without tags")
+          
           c.sharing.reshareMany(count ?? null, tags === true);
         }),
-        // "Ausblenden": puts away what the finished run says, and the notice of outdated pages until a newer change
+        
         DELETE: on((c) => c.sharing.dismissResharing()),
       },
       '/api/c/:project/reshare/stop': { POST: on((c) => c.sharing.stopResharing()) },
-      // the card's latest demo was narrated anew in its directory (the demo skill's `--revoice`)
+      
       '/api/c/:project/cards/:id/demo-rebuilt': { POST: on((c, req) => c.sharing.rebuilt(req.params.id!)) },
-      // the owner has the Koordinator's sheet in view: the answers waiting there are read; with `ids`, those a plan's sheet shows
+      
       '/api/c/:project/talk/read': {
         POST: on(async (c, req) => {
           const { ids } = (await req.json().catch(() => ({}))) as { ids?: unknown };
@@ -1146,7 +1146,7 @@ export function serve(
           c.board.readTalk(ids as number[] | undefined);
         }),
       },
-      // the owner starts a new chat with Seismic, or (`id`) goes back to an earlier one
+      
       '/api/c/:project/chat': {
         POST: on(async (c, req) => {
           const { id } = (await req.json().catch(() => ({}))) as { id?: unknown };
@@ -1170,7 +1170,7 @@ export function serve(
           return c.board.enterChat(forAnswer === true);
         }),
       },
-      // the owner no longer wants the step the Koordinator waits on a card for ("Stop waiting")
+      
       '/api/c/:project/talk/:id/unwait': {
         POST: on(async (c, req) => ({ stopped: c.commander.unwait(Number(req.params.id), String(((await req.json().catch(() => ({}))) as { card?: unknown }).card ?? '')) })),
       },
@@ -1187,7 +1187,7 @@ export function serve(
         if (!c) return ws.close();
         sockets.get(c.id)!.add(ws);
         ws.send(JSON.stringify({ type: 'hello', server: started, ...(oldLinuxBun() ? { oldBun: Bun.version } : {}) } satisfies ServerMessage));
-        // what the bar shows comes before the snapshot, which draws the bar: it is there from the first frame
+        
         ws.send(JSON.stringify({ type: 'restart', restart: pending(c.id) } satisfies ServerMessage));
         ws.send(JSON.stringify({ type: 'update', update: updates.current() } satisfies ServerMessage));
         ws.send(JSON.stringify({ type: 'source', source: sources?.current() ?? null } satisfies ServerMessage));
@@ -1196,12 +1196,12 @@ export function serve(
           const closed = usage.map((m) => m.watch());
           unwatch.set(ws.data.page, () => closed.forEach((f) => f()));
         }
-        // A page opening or reconnecting may have missed project changes. Give it the current
-        // list before the snapshot and waiting counts let it rely on this connection.
+        
+        
         ws.send(projectsMessage(projectList()));
         ws.send(JSON.stringify({ type: 'snapshot', snapshot: c.board.snapshot() } satisfies ServerMessage));
         ws.send(waitingMessage());
-        // a page that reloads within a command's undo window offers "Undo" again
+        
         for (const n of c.commander.undoable()) ws.send(JSON.stringify({ type: 'notice', ...n } satisfies ServerMessage));
       },
       close: (ws: ServerWebSocket<Socket>) => {
@@ -1209,20 +1209,20 @@ export function serve(
         unwatch.get(ws.data.page)?.();
         unwatch.delete(ws.data.page);
         restarter?.hold(ws.data.page);
-        // a phone's last page closed: it no longer holds pushes off
+        
         const { device } = ws.data;
         if (device && ![...sockets.values()].some((set) => [...set].some((w) => w.data.device === device))) push.away(device);
       },
-      // the owner watching a demo video or dictating in this page holds a restart off
+      
       message: (ws: ServerWebSocket<Socket>, text: string | Buffer) => {
         try {
           const msg = JSON.parse(String(text)) as ClientMessage;
           if (msg.type === 'ping') return void ws.send(JSON.stringify({ type: 'pong' } satisfies ServerMessage));
           if (msg.type === 'hold' && Array.isArray(msg.hold)) restarter?.hold(ws.data.page, msg.hold.filter((h) => h === 'video' || h === 'voice'));
           if (msg.type === 'back') byId.get(ws.data.project)?.ownerBack();
-          // back from the terminal, say, where the owner committed what stood in the way of a pull, or pulled
+          
           if (msg.type === 'back') void sources?.check(false);
-          // A paired device in view holds off only its own pushes.
+          
           const { device } = ws.data;
           if (device && (msg.type === 'back' || msg.type === 'here')) push.onDevice(device);
           if (msg.type === 'away' && device) push.away(device);
@@ -1243,7 +1243,7 @@ export function serve(
   };
   const server = Bun.serve(options);
   serving(server, access.owner);
-  // another VPN's address: the same routes there too, in plain HTTP
+  
   let other: Bun.Server<Socket> | null = null;
   void access
     .start(server.port!, (address) => {

@@ -1,7 +1,7 @@
-// The phone view's environment: mounted once by its controller. Keep ph-view/ph-panel and the
-// sibling microphone/toast structure: the landscape strip and keyboard CSS use that contract.
-// Composer already preserves focus on Send/screenshots (first tap acts); Demo uses
-// useFullscreen, Notify owns the push prompt, and Toasts aside enables swipe dismissal.
+
+
+
+
 import { useEffect, useState } from 'react';
 import { phoneInUse } from './api';
 import { enterBreaksLines } from './composer';
@@ -28,14 +28,14 @@ export function usePhoneEnvironment() {
   useEffect(tapOpensKeyboard, []);
 }
 
-/** The kinds of input the keyboard comes up for; a date or a time opens the phone's own picker instead. */
+
 const TYPED = new Set(['text', 'search', 'email', 'url', 'tel', 'password', 'number']);
 
 /** Whether the element is a text field: one the keyboard comes up for. */
 const typesText = (el: unknown): el is HTMLTextAreaElement | HTMLInputElement =>
   el instanceof HTMLTextAreaElement || (el instanceof HTMLInputElement && TYPED.has(el.type));
 
-/** How much shorter than the tallest seen the screen gets while the keyboard is up; a browser's bars sliding in and out take less. */
+
 const KEYBOARD_PX = 150;
 
 /**
@@ -68,7 +68,7 @@ function watchKeyboard() {
   };
 }
 
-/** Longer than this, or moved further, a touch is no tap: a long press selects, a swipe scrolls. */
+
 const TAP_MS = 400;
 const TAP_PX = 10;
 
@@ -97,7 +97,7 @@ function tapOpensKeyboard() {
     e.preventDefault();
     const { field } = tap;
     const at = document.caretPositionFromPoint?.(finger.clientX, finger.clientY);
-    // the keyboard closed with the phone's own button left the focus in the field: focusing it anew brings the keyboard up
+    
     if (document.activeElement === field) field.blur();
     field.focus();
     if (at?.offsetNode === field) field.setSelectionRange(at.offset, at.offset);
@@ -110,29 +110,29 @@ function tapOpensKeyboard() {
   };
 }
 
-/**
- * A view of the phone's (the list, an open card, a conversation's panel), fixed over the screen, clear of
- * its notch and rounded corners. Turned, the microphone has a strip of its own at the right (`--ph-side`).
- * A phone's browser zooms into a text field written smaller than 16 px: every field in it is 16 px.
- */
+
+
+
+
+
 export const viewClass =
   'ph-view fixed overscroll-contain [-webkit-overflow-scrolling:touch] pt-[env(safe-area-inset-top)] pr-[max(14px,env(safe-area-inset-right))] pl-[max(14px,env(safe-area-inset-left))] ph-landscape:[--ph-side:calc(112px+env(safe-area-inset-right))] ph-landscape:pr-(--ph-side) [&_:is(textarea,select,input,[data-slot=select-trigger])]:text-base';
 
-/**
- * The list and an open card: the page scrolls, with the microphone's room under its end, and fades
- * out under the microphone (not with the phone turned, nor while the keyboard is up: the field has its
- * own microphone then). Under a panel lower than the screen it scrolls on until all of it can stand
- * above the panel (`--ph-panel`: the panel's height). It scrolls only up and down: whatever comes out
- * wider than the screen (a row of label chips, a long word) is cut off, never panned to sideways.
- */
+
+
+
+
+
+
+
 export const pageClass = `${viewClass} inset-0 overflow-y-auto overflow-x-hidden pb-[calc(157px+env(safe-area-inset-bottom))] ph-landscape:pb-[calc(24px+env(safe-area-inset-bottom))] [&:has(~.ph-panel)]:pb-[max(calc(157px+env(safe-area-inset-bottom)),calc(var(--ph-panel,0px)+20px))] ph-landscape:[&:has(~.ph-panel)]:pb-[max(calc(24px+env(safe-area-inset-bottom)),calc(var(--ph-panel,0px)+20px))] after:content-[''] after:fixed after:inset-x-0 after:bottom-0 after:h-[calc(87px+env(safe-area-inset-bottom))] after:z-4 after:bg-[linear-gradient(transparent,var(--background)_65%)] after:pointer-events-none ph-landscape:after:hidden [.ph-kb_&]:after:hidden`;
 
-/**
- * The bar at a view's top, across the screen and sticking while the page scrolls under it; with the
- * phone turned slimmer and reaching across the microphone's strip. `ph-bar` stays for the chats' head in it.
- */
+
+
+
+
 export const barClass =
   'ph-bar sticky top-0 z-5 flex items-center gap-2.5 min-h-[52px] -mx-3.5 px-3.5 bg-background border-b border-border ph-landscape:min-h-[42px] ph-landscape:mr-[calc(-1*var(--ph-side))] ph-landscape:pr-[max(14px,env(safe-area-inset-right))]';
-/** The list's and the card's bar; the list's scrolls away with the phone turned. */
+
 export const pageBarClass = `${barClass} py-1.5 ph-landscape:py-1`;
 

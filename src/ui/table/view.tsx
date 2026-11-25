@@ -1,8 +1,8 @@
-// The Table view: the project's cards as rows of shadcn's data table (on @tanstack/react-table),
-// a full-page view beside Parked. A toolbar above it searches titles and filters by state,
-// priority and canvas; a click on a column's head sorts by it, a second reverses; "Columns" hides
-// and shows columns. Sort, filters and hidden columns are kept per project in this browser. A click
-// on a row (or Enter on it) opens the card as anywhere else, unfolding from its row (`els`).
+
+
+
+
+
 
 import { type ColumnDef, flexRender, getCoreRowModel, type SortingState, type Updater, useReactTable } from '@tanstack/react-table';
 import { cn } from 'cn';
@@ -34,11 +34,11 @@ interface Props {
   canvases: Canvas[];
   groups: Group[];
   repos: RepoRef[];
-  /** The card open now, whose row is marked. */
+  
   open?: string;
   onOpen: (i: Item) => void;
   onClose: () => void;
-  /** Where a card opened from the view unfolds from and folds back to. */
+  
   els: Map<string, HTMLElement>;
 }
 
@@ -214,10 +214,10 @@ function TablePage({ project, items, canvases, groups, repos, open, onOpen, onCl
   );
 }
 
-/** A faceted filter of the toolbar (shadcn's data-table pattern): a dashed button that opens the options to pick, each with how many rows it would show. */
+
 interface Option {
   value: string;
-  /** What the option's search matches. */
+  
   text: string;
   label: ReactNode;
 }

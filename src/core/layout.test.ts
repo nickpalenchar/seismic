@@ -10,9 +10,9 @@ describe('freeSpotNear', () => {
 
   test('moves out of a plan to the nearest side', () => {
     const plan = { x: 0, y: 0, w: 1000, h: 600 };
-    // wanted near the right edge: right of the plan is nearer than below it
+    
     expect(freeSpotNear({ x: 800, y: 300 }, [300, 136], [plan])).toEqual({ x: 1020, y: 300 });
-    // wanted near the bottom: below it
+    
     expect(freeSpotNear({ x: 400, y: 500 }, [300, 136], [plan])).toEqual({ x: 400, y: 620 });
   });
 
@@ -33,7 +33,7 @@ describe('freeSpotNear', () => {
 
   test('inside the view: a free spot in view wins over a nearer one partly out of it', () => {
     const view = { x: 0, y: 0, w: 1200, h: 800 };
-    // a column filling the view's right side: right of it is nearer, but out of view
+    
     const taken = [{ x: 700, y: 0, w: 400, h: 800 }];
     const at = freeSpotNear({ x: 800, y: 300 }, [300, 136], taken, view);
     expect(at).toEqual({ x: 700 - 300 - GAP, y: 300 });
@@ -58,7 +58,7 @@ describe('shapeOf', () => {
   test('a workstream whose agent still works after the landing stays at the size of a task', () => {
     expect(shapeOf({ ...ws, state: 'live', agent: { finishing: true } })).toBe('task');
     expect(shapeOf({ ...ws, state: 'done', agent: { finishing: true } })).toBe('task');
-    // once its agent is done, it shrinks
+    
     expect(shapeOf({ ...ws, state: 'live', agent: { finishing: false } })).toBe('chip');
   });
 
@@ -76,7 +76,7 @@ describe('arranging workstreams by their dependencies', () => {
   });
 
   test('within a column the cards follow the rows of what they build on', () => {
-    // y builds on b (second row), x on a (first row): x comes first although the plan names y first
+    
     const { layers } = dependencyColumns([ws('a'), ws('b'), ws('y', ['b']), ws('x', ['a'])]);
     expect(layers[1]).toEqual([['x', 'y']]);
   });
@@ -97,7 +97,7 @@ describe('arranging workstreams by their dependencies', () => {
     const pos = arrangeWorkstreams([...many, ws('z', ['e'])]);
     expect(pos.get('a')).toEqual({ x: PLAN_PAD, y: PLAN_HEAD });
     expect(pos.get('e')).toEqual({ x: PLAN_PAD + 300 + GAP, y: PLAN_HEAD });
-    // the next depth after a wider gap than between the two columns of one
+    
     expect(pos.get('z')!.x - pos.get('e')!.x).toBeGreaterThan(300 + GAP);
   });
 

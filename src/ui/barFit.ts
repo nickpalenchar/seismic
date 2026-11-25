@@ -1,7 +1,7 @@
-// The top bar's buttons always fit into it, however wide the window, the sheet beside it, the project's
-// name, and whichever buttons are showing. The bar gives up what it can spare in steps until
-// its contents fit (the `data-[fit~=…]` variants on the bar's parts, in App.tsx and nav.tsx, say what each step hides), measured rather than guessed from the bar's
-// width: the same width holds a short branch or a long one, one machine's clones or three.
+
+
+
+
 
 import { type RefObject, useLayoutEffect } from 'react';
 

@@ -17,7 +17,7 @@ test('without a query every project is listed, the open one last', () => {
 
 test('a name that starts with the query comes first, then a word of it, the name containing it, a repository, the letters in order', () => {
   const ladder = [project('e', 'Cobra Art'), project('f', 'Zed', ['cranberry']), project('g', 'Scrap'), project('h', 'Paper Crane'), project('i', 'Crane Works')];
-  // each one matches the way its place says, and none a better way: "Scrap" holds "cra" inside its one word, "Cobra Art" only c, r and a in order
+  
   expect(switcherResults(ladder, 'cra', 'x').map((p) => p.name)).toEqual(['Crane Works', 'Paper Crane', 'Scrap', 'Zed', 'Cobra Art']);
 });
 
@@ -91,7 +91,7 @@ test('the project list goes out as soon as it is read, while what waits is still
   await Bun.sleep(0);
   expect(r.out.projects?.map((p) => p.id)).toEqual(['b']);
   expect(r.out.waiting).toBeUndefined();
-  // counted against the fresh list: a project gone from it counts nothing
+  
   r.waiting.settle({ a: oneWaiting('gone'), b: oneWaiting('here') });
   await r.done;
   expect({ ...r.out.waiting }).toEqual({ b: 1 });

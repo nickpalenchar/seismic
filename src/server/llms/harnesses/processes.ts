@@ -1,6 +1,6 @@
-/**
- * Native PTYs can start a new process group: killing the app-server's group is not sufficient.
- */
+
+
+
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
@@ -42,7 +42,7 @@ export class WindowsProcessSnapshot {
   ) {}
 
   private budget() { return this.first ? 15_000 : 3_000; }
-  // A later snapshot can also be cold after PowerShell's startup cache is evicted.
+  
   private retry(r: Run) { return !this.first && r.error?.code === 'ETIMEDOUT'; }
 
   read(): ProcessInfo[] {
@@ -94,14 +94,14 @@ export function linuxProcessStat(stat: string, boot = linuxBootId()): ProcessInf
   const end = stat.lastIndexOf(')');
   if (open < 1 || end <= open) return;
   const pid = Number(stat.slice(0, open));
-  // Fields after comm start with state (3); ppid is 4, pgrp 5, starttime 22.
+  
   const fields = stat.slice(end + 1).trim().split(/\s+/);
   const parent = Number(fields[1]), group = Number(fields[2]), born = fields[19];
   if (!Number.isSafeInteger(pid) || pid <= 0 || !Number.isSafeInteger(parent) || parent < 0 || !Number.isSafeInteger(group) || group <= 0 || !born || !/^\d+$/.test(born)) return;
   return { pid, parent, group, born: boot ? `${boot}:${born}` : born };
 }
 
-/** The rows read, and the processes that refused to be read, for whoever needs one of them. */
+
 interface Table { rows: ProcessInfo[]; denied: Map<number, unknown> }
 
 function linuxProcess(name: string, read: () => string, denied: Table['denied']): ProcessInfo[] {
@@ -110,8 +110,8 @@ function linuxProcess(name: string, read: () => string, denied: Table['denied'])
     return p && p.pid === Number(name) ? [p] : [];
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code ?? '';
-    if (['ENOENT', 'ESRCH'].includes(code)) return []; // exited during the snapshot
-    if (['EACCES', 'EPERM'].includes(code)) { denied.set(Number(name), error); return []; } // unrelated or unobservable
+    if (['ENOENT', 'ESRCH'].includes(code)) return []; 
+    if (['EACCES', 'EPERM'].includes(code)) { denied.set(Number(name), error); return []; } 
     throw error;
   }
 }
@@ -122,7 +122,7 @@ function rowsFor(table: Table, required: Set<number>): ProcessInfo[] {
   return table.rows;
 }
 
-// Some procfs configurations omit inaccessible processes from directory listings.
+
 const linuxNames = (listed: string[], required: Set<number>) => new Set([...listed, ...[...required].map(String)]);
 
 const psArgs = ['-axo', 'pid=,ppid=,pgid=,lstart='];
@@ -178,7 +178,7 @@ export function sharedSnapshot(take: (required: Set<number>) => Promise<Table>) 
     if (!waiting) {
       const batch: { required: Set<number>; table?: Promise<Table> } = { required: new Set() };
       batch.table = tail.then(async () => {
-        // Callers whose operations are still a few promise hops away in this turn join as well.
+        
         await new Promise((resolve) => setImmediate(resolve));
         if (waiting === batch) waiting = undefined;
         return take(batch.required);
@@ -283,7 +283,7 @@ export class AgentProcesses {
 
   private signature() { return [...this.owned.values()].map((p) => `${p.pid}:${p.born}`).join('|'); }
 
-  /** Called with the identities observed so far whenever that set has changed. */
+  
   onChange?: (observed: { pid: number; born: string }[]) => void;
 
   track(pids?: number[]): Promise<void> {
@@ -291,8 +291,8 @@ export class AgentProcesses {
       await this.establish();
       const before = this.signature();
       const table = await this.table();
-      // A snapshot also captures descendants of terminals we already know, before their parent
-      // exits and they are reparented. No process is adopted just because Codex supplied its PID.
+      
+      
       for (const pid of pids ?? table.keys()) {
         const info = table.get(pid);
         let p = info;
@@ -304,12 +304,12 @@ export class AgentProcesses {
           p = table.get(p.parent);
         }
         if (info && p && ((p.pid === this.parent && this.rootBorn !== undefined && p.born === this.rootBorn) || this.owned.get(p.pid)?.born === p.born)) {
-          // A reported leaf proves the entire observed path, not just the leaf. Retain that path
-          // so the intermediate processes remain attributable after the root dies.
+          
+          
           for (const member of chain.reverse()) this.owned.set(member.pid, member);
         }
       }
-      // Keep registered identities until transport exit, including descendants whose leader ended.
+      
       if (this.signature() !== before) this.onChange?.(this.observed());
     });
   }
@@ -342,8 +342,8 @@ export class AgentProcesses {
   kill(): Promise<void> {
     return this.then(async () => {
       if (!this.owned.size) return;
-      // One refused signal (EPERM) must not leave the rest alive: every target is signalled, the
-      // identities that could not be are kept for a later attempt, and the first failure is reported.
+      
+      
       const { signalled, failure } = await terminateAsync(this.owned.values(), await this.table());
       for (const pid of signalled) this.owned.delete(pid);
       if (failure === undefined) this.owned.clear();
@@ -365,7 +365,7 @@ export function terminate(owned: Iterable<ProcessInfo>, table: Map<number, Proce
   let failure: unknown;
   for (const p of [...targets.values()].reverse()) {
     if (process.platform === 'win32') {
-      // 128: no such process, i.e. it is already gone. Anything else (denied, timed out) is owed.
+      
       const r = spawnSync('taskkill.exe', ['/PID', String(p.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore', timeout: 3000 });
       if (r.status !== 0 && r.status !== 128) { failure ??= r.error ?? new Error(`taskkill failed for ${p.pid} (${r.status})`); continue; }
     } else {
@@ -397,7 +397,7 @@ export async function terminateAsync(owned: Iterable<ProcessInfo>, table: Map<nu
   let failure: unknown;
   for (const p of [...targetsOf(owned, table).values()].reverse()) {
     const status = await taskkill(p.pid);
-    // 128: no such process, i.e. it is already gone. Anything else (denied, timed out) is owed.
+    
     if (status !== 0 && status !== 128) { failure ??= new Error(`taskkill failed for ${p.pid} (${status})`); continue; }
     signalled.push(p.pid);
   }

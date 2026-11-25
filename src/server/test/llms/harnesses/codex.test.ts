@@ -89,7 +89,7 @@ test('execution tools are exposed and callable with a single Seismic prefix', as
     const run = await wire.server('item/tool/call', { callId: 'run', namespace: null, tool: 'seismic_run', arguments: { command: 'pwd' } });
     expect(run).toMatchObject({ success: true, contentItems: [{ text: expect.stringContaining('exit code 0') }] });
     const git = await wire.server('item/tool/call', { callId: 'git', namespace: null, tool: 'seismic_git', arguments: { args: ['status'] } });
-    // success alone says only that the tool returned text; git's exit code and output say it ran
+    
     expect(git).toEqual({ success: true, contentItems: [{ type: 'inputText', text: expect.any(String) }] });
     const text = (git as { contentItems: { text: string }[] }).contentItems[0]!.text;
     expect(text).toContain('exit code 0');
@@ -262,7 +262,7 @@ test('owner permits only the individual action and a pending permission aborts o
   await until(() => wire.n === 1);
   expect(await wire.server('item/commandExecution/requestApproval', { availableDecisions: ['accept', 'acceptForSession'] })).toEqual({ decision: 'accept' });
   expect(await wire.server('item/commandExecution/requestApproval', { availableDecisions: ['acceptForSession'] })).toEqual({ decision: 'decline' });
-  // a granted network request is that command's network alone: no session-wide host, no amendment
+  
   const network = { command: 'pnpm install', networkApprovalContext: { host: 'registry.npmjs.org', protocol: 'https' }, proposedNetworkPolicyAmendments: [{ host: 'registry.npmjs.org', action: 'allow' }] };
   const offered = ['accept', 'acceptForSession', { applyNetworkPolicyAmendment: { network_policy_amendment: { host: 'registry.npmjs.org', action: 'allow' } } }, 'cancel'];
   expect(await wire.server('item/commandExecution/requestApproval', { ...network, availableDecisions: offered })).toEqual({ decision: 'accept' });
@@ -306,7 +306,7 @@ test('a usage limit lifts when the used-up window Codex reported resets, else at
   const { wire, events } = fixture();
   await until(() => wire.n === 1);
   const reset = Math.floor(Date.now() / 1000) + 600;
-  // account-wide, not the thread's; a window not used up says nothing about this limit
+  
   wire.handlers.notification('account/rateLimits/updated', { rateLimits: { limitId: 'codex', primary: { usedPercent: 100, windowDurationMins: 300, resetsAt: reset }, secondary: { usedPercent: 40, windowDurationMins: 10080, resetsAt: reset + 86400 } } });
   wire.complete('turn-1', 'failed', { message: 'You’ve hit your usage limit.', codexErrorInfo: 'usageLimitExceeded' });
   await until(() => events.some((e) => e.type === 'error'));
@@ -318,10 +318,10 @@ test('a usage limit lifts when the used-up window Codex reported resets, else at
   expect(said('9:05 AM')).toBe(new Date(2026, 10, 4, 9, 5).getTime());
   expect(said('Nov 5th, 2026 10:38 PM')).toBe(new Date(2026, 10, 5, 22, 38).getTime());
   expect(codexLimit('You’ve hit your usage limit.', [], now)).toEqual({});
-  // a limit reported reached whose update lags the refusal
+  
   expect(codexLimit('limit', [{ limitId: 'codex', rateLimitReachedType: 'rateLimitReached', primary: { usedPercent: 99, resetsAt: now / 1000 + 300 } }], now)).toEqual({ resetsAt: now + 300_000 });
   expect(codexLimit('limit', [{ limitId: 'codex', rateLimitReachedType: null, primary: { usedPercent: 99, resetsAt: now / 1000 + 300 } }], now)).toEqual({});
-  // a reset already past is no answer
+  
   expect(codexLimit('limit', [{ limitId: 'codex', primary: { usedPercent: 100, resetsAt: now / 1000 - 5 } }], now)).toEqual({});
 });
 
@@ -471,9 +471,9 @@ test('the sandbox is workspace-write unless SEISMIC_CODEX_SANDBOX lifts it', () 
     expect(said).toEqual([]);
     expect(codexSandbox({ OBEYA_CODEX_SANDBOX: 'danger-full-access' })).toBe('danger-full-access');
     expect(codexSandbox({ SEISMIC_CODEX_SANDBOX: 'danger-full-access' })).toBe('danger-full-access');
-    // the new name wins over the old one
+    
     expect(codexSandbox({ SEISMIC_CODEX_SANDBOX: 'workspace-write', OBEYA_CODEX_SANDBOX: 'danger-full-access' })).toBe('workspace-write');
-    // anything else keeps the sandbox, and says so
+    
     expect(codexSandbox({ SEISMIC_CODEX_SANDBOX: 'off' })).toBe('workspace-write');
     expect(codexSandbox({ SEISMIC_CODEX_SANDBOX: 'read-only' })).toBe('workspace-write');
     expect(said.filter((m) => m.includes('neither'))).toHaveLength(2);
@@ -583,7 +583,7 @@ test('the usage limits Codex reports: each window of each limit, its own first, 
       { kind: 'session_scoped', group: 'session', scope: 'GPT-5.3-Codex-Spark', percent: 96, severity: 'critical' },
     ],
   });
-  // an app-server that names no limits by id: the one it reports
+  
   expect(codexUsageOf({ rateLimits: snapshot('codex', null, { usedPercent: 17, windowDurationMins: 10080, resetsAt: null }) }, at).limits).toEqual([
     { kind: 'weekly_all', group: 'weekly', percent: 17, severity: 'normal' },
   ]);
@@ -607,7 +607,7 @@ test('Codex signed out shows no usage, and the next round asks a fresh app-serve
   expect(wires[0]!.closed).toBe(true);
   signedIn = true;
   expect((await source.fetch())?.limits[0]?.percent).toBe(5);
-  // the app-server stays for the rounds after
+  
   expect((await source.fetch())?.limits[0]?.percent).toBe(5);
   expect(wires).toHaveLength(2);
   source.close();

@@ -1,10 +1,10 @@
-/**
- * What an Seismic that crashed leaves behind: the processes its agent sessions started. A running
- * Seismic records, per session, the identities (pid and creation time) of the processes it observed
- * and holds an exclusive lease on that record; the next Seismic on the same home finds records whose
- * lease nobody holds any more, ends the processes that still are the recorded ones, and removes
- * the record. Best-effort cleanup, not containment.
- */
+
+
+
+
+
+
+
 import { Database } from 'bun:sqlite';
 import { randomUUID } from 'node:crypto';
 import { lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSync, statSync, unlinkSync } from 'node:fs';
@@ -21,15 +21,15 @@ const observed = z.object({ pid: z.number().int().positive().safe(), born: z.str
 const recordSchema = z.object({
   version: z.literal(1),
   generation: generationId,
-  /** Where the identities mean something: the same machine, boot and PID namespace as the sweep. */
+  
   host: z.string().min(1),
   boot: z.string().min(1),
   namespace: z.string().min(1),
-  /** The Seismic server that held the lease; for the report only. */
+  
   owner: z.number().int().positive().safe(),
-  /** What the session was, for the report; never a command line or a credential. */
+  
   label: z.string().max(300),
-  /** The working directory of the session: a new session there waits for the old one to be accounted for. */
+  
   cwd: z.string().max(1000),
   processes: z.array(observed),
 }).strict();
@@ -53,12 +53,12 @@ export function environment(): Environment | undefined {
       const boot = r.status === 0 ? r.stdout.trim() : '';
       return boot ? { host: hostname(), boot, namespace: 'host' } : undefined;
     }
-  } catch { /* unknown is not permission */ }
+  } catch {  }
   return undefined;
 }
 
 function files(root: string, id: string) {
-  generationId.parse(id); // never accept a path as a generation
+  generationId.parse(id); 
   return { lease: join(root, `${id}.lease.sqlite`), record: join(root, `${id}.json`) };
 }
 
@@ -66,13 +66,13 @@ function files(root: string, id: string) {
 function acquire(file: string): Database | undefined {
   let db: Database | undefined;
   try {
-    // Never create a lease here: that would make a second ownership domain.
+    
     if (!lstatSync(file).isFile()) return;
     db = new Database(file, { create: false, readwrite: true });
     db.exec('PRAGMA busy_timeout = 0; BEGIN IMMEDIATE');
     return db;
   } catch {
-    try { db?.close(); } catch { /* unknown, never assume the lease is held */ }
+    try { db?.close(); } catch {  }
     return;
   }
 }
@@ -88,24 +88,24 @@ async function atomicRecord(file: string, record: SessionRecord) {
       await fd.sync();
     } finally { await fd.close(); }
     await rename(temporary, file);
-    // Persist the directory entry as well: a failure is not a successful publication.
+    
     const directory = await open(dirname(file), 'r');
     try { await directory.sync(); } finally { await directory.close(); }
-  } finally { try { await unlink(temporary); } catch { /* renamed or not created */ } }
+  } finally { try { await unlink(temporary); } catch {  } }
 }
 
-/** A running session's side: the lease, and the record kept current while it owns processes. */
+
 export interface Generation {
   readonly id: string;
-  /** Records the identities observed so far. Resolves after durable publication; rejects if it cannot be written. */
+  
   publish(processes: Observed[]): Promise<void>;
-  /** Everything the session started has ended: the record goes. */
+  
   finish(): Promise<void>;
-  /** Cleanup could not be completed: keep the record, free the lease, so a later sweep tries again. */
+  
   abandon(): Promise<void>;
 }
 
-/** The leases held, by session: a lease dropped by the garbage collector would be a lease released. */
+
 const live = new Map<string, Database>();
 
 export class SessionRegistry {
@@ -128,7 +128,7 @@ export class SessionRegistry {
     const paths = files(this.root, id);
     try {
       await mkdir(this.root, { recursive: true, mode: 0o700 });
-      // Created exactly once: lease files are never replaced while a contender may hold one.
+      
       await writeFile(paths.lease, '', { mode: 0o600, flag: 'wx' });
       lease = new Database(paths.lease, { create: false, readwrite: true });
       await chmod(paths.lease, 0o600);
@@ -138,8 +138,8 @@ export class SessionRegistry {
       const held = lease;
       let open = true;
       live.set(id, held);
-      // Independent sessions write independently. Within one session, even a failed write must
-      // finish before its successor or lease release, so stale writes cannot resurrect a record.
+      
+      
       let pending = Promise.resolve();
       const serial = (fn: () => Promise<void>) => {
         const next = pending.then(fn);
@@ -162,7 +162,7 @@ export class SessionRegistry {
           open = false;
           return closing = serial(async () => {
             try {
-              // Remove under the lease, after all outstanding publications have settled.
+              
               for (const file of [paths.record, paths.lease]) {
                 try { await unlink(file); } catch (error) {
                   if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
@@ -178,8 +178,8 @@ export class SessionRegistry {
         },
       };
     } catch (error) {
-      try { lease && release(lease); } catch { /* closed below */ }
-      for (const file of [paths.record, paths.lease]) try { await unlink(file); } catch { /* not created */ }
+      try { lease && release(lease); } catch {  }
+      for (const file of [paths.record, paths.lease]) try { await unlink(file); } catch {  }
       warn(`Session not recorded, so a crash of Seismic could not be cleaned up after: ${messageOf(error)}`);
       return;
     }
@@ -244,29 +244,29 @@ export class SessionRegistry {
 
   /** With `end: false` a record whose processes still run is left as it is, unrecovered, rather than ended. */
   private sweep(id: string, paths: ReturnType<typeof files>, env: Environment | null, options: Parameters<SessionRegistry['recover']>[0] & { end?: boolean }): Recovery {
-    // A file that cannot be removed is an error (the sweep reports it and the record stays), not a success.
+    
     const remove = () => { for (const file of [paths.record, paths.lease]) try { unlinkSync(file); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; } };
     let record: SessionRecord;
     try { record = recordSchema.parse(JSON.parse(readFileSync(paths.record, 'utf8'))); }
     catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        // No record: finished (its owner removes the record before the lease), or just created.
+        
         const young = Date.now() - statSync(paths.lease).mtimeMs < (options.orphanAgeMs ?? 60_000);
         if (young) return { generation: id, outcome: 'unknown', detail: 'lease without a record, too young to judge' };
         remove();
         return { generation: id, outcome: 'cleared', detail: 'lease without a record' };
       }
-      // Only a record that is there and wrong is quarantined; one that cannot be read right now is retried.
+      
       if (!(error instanceof SyntaxError || error instanceof z.ZodError)) return { generation: id, outcome: 'unknown', detail: `record unreadable for now: ${messageOf(error)}` };
       const quarantine = join(this.root, 'quarantine');
       mkdirSync(quarantine, { recursive: true, mode: 0o700 });
-      for (const file of [paths.record, paths.lease]) try { renameSync(file, join(quarantine, file.slice(this.root.length + 1))); } catch { /* absent */ }
+      for (const file of [paths.record, paths.lease]) try { renameSync(file, join(quarantine, file.slice(this.root.length + 1))); } catch {  }
       return { generation: id, outcome: 'quarantined', detail: `record unreadable or of another version: ${messageOf(error)}` };
     }
     if (!env) return { generation: id, outcome: 'unknown', detail: 'process identities cannot be compared on this platform', label: record.label };
     if (record.host !== env.host || record.namespace !== env.namespace) return { generation: id, outcome: 'unknown', detail: 'recorded on another host or PID namespace', label: record.label };
     if (record.boot !== env.boot) {
-      // Nothing of an earlier boot is running.
+      
       remove();
       return { generation: id, outcome: 'cleared', detail: 'recorded before the last boot', label: record.label };
     }
@@ -276,8 +276,8 @@ export class SessionRegistry {
     const alive = owned.filter((o) => sameRecorded(before.get(o.pid), o));
     if (!alive.length) { remove(); return { generation: id, outcome: 'cleared', detail: 'nothing of it is running', label: record.label }; }
     if (options.end === false) return { generation: id, outcome: 'unrecovered', detail: `still running: ${alive.map((a) => a.pid).join(', ')}`, label: record.label };
-    // The group of a recorded leader is read from the table, not the record: a group number is
-    // only trusted for a process verified at this moment.
+    
+    
     const { failure } = (options.kill ?? ((o, t) => terminate(o, t, false)))(owned, before);
     const deadline = Date.now() + (options.settleMs ?? 2000);
     let remaining = alive;
@@ -299,18 +299,18 @@ const sameRecorded = (current: ProcessInfo | undefined, o: ProcessInfo) => !!cur
 
 export interface Recovery {
   generation: string;
-  /**
-   * recovered: its processes were ended and the record removed. cleared: nothing to end.
-   * busy: a live owner holds it. unrecovered: still running, kept for a later sweep.
-   * quarantined / unknown: left alone.
-   */
+  
+
+
+
+
   outcome: 'recovered' | 'cleared' | 'busy' | 'unrecovered' | 'quarantined' | 'unknown';
   detail: string;
   label?: string;
   killed?: number[];
 }
 
-/** The registry this Seismic's sessions record into; set by the server at start. */
+
 let active: SessionRegistry | undefined;
 export function useSessionRegistry(registry: SessionRegistry | undefined) { active = registry; }
 export function sessionRegistry() { return active; }

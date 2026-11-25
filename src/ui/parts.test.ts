@@ -10,7 +10,7 @@ test('a follow-up shows the dashed line to its card only while no wait joins the
   const placed = [origin, next].map((item) => ({ item, b: { x: item.x, y: item.y, w: 300, h: 136 } }));
   const lines = (waits: [string, string][]) => (renderToStaticMarkup(createElement(Links, { placed, waits, standsFor: (id: string) => id })).match(/<path/g) ?? []).length;
   expect(lines([])).toBe(1);
-  // whichever of the two waits for the other, its arrow already joins them
+  
   expect(lines([['o', 'n']])).toBe(0);
   expect(lines([['n', 'o']])).toBe(0);
   expect(lines([['x', 'n']])).toBe(1);
@@ -21,7 +21,7 @@ const points = (d: string) => (d.match(/-?[\d.]+,-?[\d.]+/g) ?? []).map((p) => p
 
 test('a link with a head stops at its base and runs into it square to the card, however short or bent', () => {
   const a = { x: 0, y: 0, w: 300, h: 136 };
-  // beside each other, close and far apart sideways: ends 15 short of the left side, last leg level
+  
   for (const b of [{ x: 330, y: 110, w: 300, h: 136 }, { x: 380, y: 130, w: 300, h: 136 }, { x: 1000, y: 0, w: 300, h: 136 }]) {
     const [start, c1, c2, end] = points(linkPath(a, b, 15));
     expect(start).toEqual([300, 68]);
@@ -31,7 +31,7 @@ test('a link with a head stops at its base and runs into it square to the card, 
     expect(c2[0]).toBeLessThan(end[0]);
     expect(c1[0]).toBeGreaterThan(start[0]);
   }
-  // above each other, the waiting card above and to the left: ends 15 below its bottom, last leg upward
+  
   const [start, , c2, end] = points(linkPath(a, { x: -200, y: -170, w: 300, h: 136 }, 15));
   expect(start).toEqual([150, 0]);
   expect(end).toEqual([-50, -34 + 15]);
@@ -45,7 +45,7 @@ test("an arrow's button sits in its middle, or beside a card the arrow passes un
   const mid = linkSpot(a, b, 15, [a, b], 14);
   expect(mid.x).toBeCloseTo((300 + 680) / 2 - 7.5, 0);
   expect(mid.y).toBeCloseTo((68 + 408) / 2, 0);
-  // a third card right on the middle: the button moves along the arrow until it is clear of it
+  
   const c = { x: 340, y: 170, w: 300, h: 136 };
   const p = linkSpot(a, b, 15, [a, b, c], 14);
   expect(p.x < c.x - 14 || p.x > c.x + c.w + 14 || p.y < c.y - 14 || p.y > c.y + c.h + 14).toBe(true);

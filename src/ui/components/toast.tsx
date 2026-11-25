@@ -1,7 +1,7 @@
-// The toasts in the stack above the microphone (bottom right on the project, above the microphone
-// on the phone), all in one list: confirmations, what the server is still at, warnings, and a line
-// for each spoken or typed command. Which of them replace and which stack, how long each stays and
-// how long it offers "Undo" is said per toast; one component draws them all.
+
+
+
+
 
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { toast as sonner } from 'sonner';
@@ -13,29 +13,29 @@ import { Button } from './button';
 import { Callout, CalloutDescription } from './callout';
 import { Toaster } from './sonner';
 
-/**
- * The column the toasts stand in (`#acks`), with what else stands above the microphone (the rating's
- * stars, the notification prompt): the bottom right corner of the project, left of a docked panel
- * (`--side`) and above the canvases' tab strip where there is one.
- */
+
+
+
+
+
 export const acksClass =
   'fixed right-[calc(var(--side,0px)+var(--spacing)*3.5)] [transition:right_.45s_cubic-bezier(.3,.9,.3,1)] resizing:transition-none bottom-11.5 [:root:has(#canvas-tabs)_&]:bottom-21.5 z-90 flex flex-col items-end gap-1.5 pointer-events-none';
 
-/**
- * On the phone the column is centred above the microphone, as wide as the screen; with the phone
- * turned it takes the width the microphone's strip leaves, and with a conversation's panel open
- * (`--ph-field`: how far its field's top stands above the screen's bottom) it stands above the field.
- */
+
+
+
+
+
 export const phoneAcksClass =
   'fixed left-1/2 right-auto [transform:translateX(-50%)] transition-none bottom-[calc(91px+env(safe-area-inset-bottom))] w-[calc(100vw-24px)] z-90 flex flex-col items-center gap-1.5 pointer-events-none [.ph-panel~&]:bottom-[calc(var(--ph-field,0px)+10px)] ph-landscape:bottom-[calc(14px+env(safe-area-inset-bottom))] ph-landscape:w-[calc(100vw-112px-env(safe-area-inset-right)-24px)] ph-landscape:[.ph-panel~&]:bottom-[calc(var(--ph-field,0px)+10px)]';
 
-/**
- * What a toast is: a confirmation (dark), what the server is still at (dark, turning), a warning
- * (light with a ring, stays until dismissed), or a command's line (muted while read, then dark).
- */
+
+
+
+
 export type ToastKind = 'confirm' | 'wait' | 'warning' | 'command';
 
-/** A "Go to card" on a toast: hidden while that card is open, and the toast goes once it is clicked. */
+
 export interface ToastGo {
   id: string;
   label: string;
@@ -46,30 +46,30 @@ export interface Toast {
   id: number;
   kind: ToastKind;
   text: string;
-  /** The card it is about, named in bold in front of the text while another card is open. */
+  
   card?: { id: string; title: string };
-  /** A command's line while it is still read: muted, turning. */
+  
   reading?: boolean;
-  /** "Undo", offered while set; the action decides what becomes of the toast. */
+  
   undo?: () => unknown;
-  /** "Go to card", one button per card, once "Undo" is no longer offered. */
+  
   go?: ToastGo[];
-  /** "Dismiss". */
+  
   dismiss?: boolean;
-  /** At most one toast per slot: a new one takes the place of the one there. */
+  
   slot?: string;
 }
 
 export interface ToastInit extends Omit<Toast, 'id'> {
-  /** Gone this long from now; without it the toast stays until replaced or dismissed. */
+  
   stayMs?: number;
-  /** "Undo" goes this long from now, the toast staying. */
+  
   undoMs?: number;
-  /** Called once the toast is gone, whatever took it. */
+  
   onGone?: () => void;
 }
 
-/** The timers a store runs on: the browser's, or a test's. */
+
 export interface Clock {
   set: (fn: () => void, ms: number) => unknown;
   clear: (handle: unknown) => void;
@@ -112,7 +112,7 @@ export function toastStore(onChange: (list: Toast[]) => void = () => {}, clock: 
     const old = init.slot ? list.find((x) => x.slot === init.slot) : undefined;
     list = [...list.filter((x) => x !== old), { id, ...toast(init) } as Toast];
     time(id, init);
-    // whoever made the old one hears it is gone once the new one stands, whatever they do then
+    
     if (old) gone(old.id);
     changed();
     return id;
@@ -157,7 +157,7 @@ export function useToasts() {
   return { store, list };
 }
 
-/** In this browser the owner has swiped a toast aside: they no longer nudge. */
+
 const SWIPED = 'seismic.swipedAside';
 let nextToastBridge = 0;
 
@@ -176,7 +176,7 @@ function swipedOnce(): boolean {
  */
 export function Toasts({ toasts, open, aside = false }: { toasts: ReturnType<typeof useToasts>; open?: string; aside?: boolean }) {
   const { store, list } = toasts;
-  // Each project has its own numeric store ids, while Sonner keeps one module-wide store.
+  
   const bridge = useMemo(() => ++nextToastBridge, []);
   const shown = useRef(new Set<number>());
   useEffect(() => () => {
@@ -189,7 +189,7 @@ export function Toasts({ toasts, open, aside = false }: { toasts: ReturnType<typ
       sonner.custom(() => <ToastLine toast={x} open={open} aside={aside} onGone={() => store.remove(x.id)} />, {
         id: `${bridge}:${x.id}`,
         duration: Infinity,
-        // Sonner also reports a toast it took away for the store; only one still in the store was swiped
+        
         onDismiss: () => {
           if (!store.has(x.id)) return;
           if (aside) {
@@ -252,7 +252,7 @@ function toastClass(x: Toast, { wrap, phone, nudge }: { wrap: boolean; phone: bo
         : 'bg-foreground text-background py-3 px-4 text-base',
     x.kind === 'wait' && ['[--track:--alpha(var(--background)/25%)]', spinner('before:size-3 before:[border-color:var(--background)_var(--track)_var(--track)_var(--track)]')],
     wrap && !warning ? 'flex-wrap gap-x-2 gap-y-2.5 [&>span]:basis-full' : 'gap-3.5',
-    // the phone's toasts are swiped aside: a finger dragging one selects nothing
+    
     phone && 'swipeable select-none',
     nudge && !x.reading && 'nudge animate-[toast-nudge_.9s_.7s_ease-in-out]',
   );
@@ -289,7 +289,7 @@ export function ToastLine({ toast: x, open, aside, onGone }: { toast: Toast; ope
   const go = x.undo ? [] : (x.go ?? []).filter((c) => c.id !== open);
   const several = go.length > 1;
   const warning = x.kind === 'warning';
-  // until the owner has swiped one aside, each nudges aside and back once as a hint
+  
   const nudge = aside && !swipedOnce();
   const words = (
     <>
@@ -297,7 +297,7 @@ export function ToastLine({ toast: x, open, aside, onGone }: { toast: Toast; ope
       {x.text}
     </>
   );
-  // a warning is the warning callout, its words across its full width and its buttons below them on the right
+  
   if (warning)
     return (
       <Callout kind="warn" className={cn(toastClass(x, { wrap: true, phone: aside, nudge }), 'block rounded-lg text-base', several && 'several')}>

@@ -1,8 +1,8 @@
-// Inline markdown as plan docs use it: `code`, **bold**, *emphasis* and _emphasis_, ~~strike~~, [links](url),
-// and bare web addresses, as agents write them in their messages; ![images](bild.png) where the
-// document says where its images are served (`DocImages`), else their text.
-// An asterisk opens emphasis only before a non-space and closes it only after one, so `5 * 3` and
-// a list's `* ` stay as they are; neither may touch a word outside, so `a*b*c` stays too.
+
+
+
+
+
 
 import { type ComponentProps, createContext, type ReactNode, useContext, useState } from 'react';
 
@@ -13,11 +13,11 @@ const FENCE = /^\s*(```|~~~)/;
 const HEADING = /^(#{1,6})\s+(.*?)\s*#*\s*$/;
 const RULE = /^\s*([-*_])(\s*\1){2,}\s*$/;
 
-/**
- * Where a document's images are served, by the address its markdown gives (`![…](bild.png)`); null
- * for one it does not serve. Without it an image shows as its text: a message or a plan doc loads
- * nothing from the web or the disk.
- */
+
+
+
+
+
 export const DocImages = createContext<((src: string) => string | null) | null>(null);
 
 /**
@@ -34,10 +34,10 @@ function bareUrl(s: string): string {
   }
 }
 
-/**
- * How a link to a card's address (`/p/<project>/c/<code>`) shows: as a smart link where the text
- * is shown among the project's cards; null for a link it does not take, which shows as its text.
- */
+
+
+
+
 export const CardRefs = createContext<((href: string, text: string) => ReactNode | null) | null>(null);
 
 export function Inline({ md }: { md: string }) {
@@ -66,7 +66,7 @@ function render(md: string, inLink = false, image: Images = null, ref: Refs = nu
     } else if (bare !== undefined) {
       const url = bareUrl(bare);
       end = m.index + url.length;
-      // shown without its scheme, which says nothing in a sentence
+      
       out.push(inLink ? url : <a key={k++} className="link" href={url} target="_blank" rel="noreferrer">{url.replace(/^https?:\/\/(www\.)?/, '')}</a>);
     } else if (/^https?:/.test(href!) && !inLink) out.push(<a key={k++} className="link" href={href} target="_blank" rel="noreferrer">{render(text!, true, image)}</a>);
     else {
@@ -133,7 +133,7 @@ function inlinePlain(md: string): string {
   return md.replace(TOKEN, (_, code, bold, strike, em, star, text, _href, bare, alt) => code ?? bare ?? inlinePlain(bold ?? strike ?? em ?? star ?? text ?? alt ?? ''));
 }
 
-// ------------------------------------------------------------------ whole documents
+
 
 export type Block =
   | { t: 'h'; level: number; text: string }
@@ -179,7 +179,7 @@ export function blocks(md: string, { breaks = false } = {}): Block[] {
       out.push({ t: 'hr' });
       i++;
     } else if (/^\s*>/.test(line)) {
-      // a document's quote runs on through lazily continued lines of a paragraph
+      
       const quote: string[] = [];
       for (; i < lines.length; i++) {
         const l = lines[i]!;
@@ -196,8 +196,8 @@ export function blocks(md: string, { breaks = false } = {}): Block[] {
       out.push(sep ? { t: 'table', head: rows[0]!, rows: rows.slice(2) } : { t: 'table', head: [], rows });
     } else if (LIST_ITEM.test(line)) {
       const start = i;
-      // a list runs on through indented and lazily continued lines, and across a blank line before
-      // another item or an indented line
+      
+      
       for (i++; i < lines.length; i++) {
         const l = lines[i]!;
         if (LIST_ITEM.test(l) || /^\s+\S/.test(l)) continue;
@@ -312,10 +312,10 @@ export function Table({ head, rows }: { head: string[]; rows: string[][] }) {
   );
 }
 
-/**
- * A plan doc read like a document: its headings, lists with open and done items (the one it was opened for
- * tinted), code, quotes, rules and tables.
- */
+
+
+
+
 const docClass = [
   'doc [font-family:var(--font)] text-base leading-[1.55] [overflow-wrap:anywhere]',
   '[&_h2]:text-2xl [&_h2]:leading-[1.2] [&_h2]:mt-6 [&_h2]:mb-2.5 [&_h2]:mx-0 [&_h3]:text-xl [&_h3]:leading-[1.25] [&_h3]:mt-6 [&_h3]:mb-2 [&_h3]:mx-0',

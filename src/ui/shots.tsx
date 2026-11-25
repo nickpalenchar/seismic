@@ -1,7 +1,7 @@
-// Screenshots in what the owner writes: pasted, dropped or picked, scaled down so the agent can
-// read them, uploaded at once; shown as thumbnails that grow large over the page on a click, where
-// those not sent yet take marks (marks.ts). Other files dropped go into the text by their path, for
-// the agent to read them (`fileTo`).
+
+
+
+
 
 import { beginAttachment } from './attachmentSwitch';
 import { cn } from 'cn';
@@ -23,7 +23,7 @@ import { Button, CloseButton } from './components/button';
 import { Tooltip } from './components/tooltip';
 import { Spinner } from './components/spinner';
 
-/** The longest side the model looks at in detail; larger screenshots only cost upload and context. */
+
 export const MAX_SIDE = 2000;
 
 /** The images among pasted or dropped files. */
@@ -33,7 +33,7 @@ const isImage = (f: File) => f.type.startsWith('image/');
 /** A screenshot as the agent reads it: at most MAX_SIDE on its long side, PNG, or JPEG when that is too large. */
 export async function prepareImage(file: Blob): Promise<Blob> {
   const bmp = await createImageBitmap(file).catch(() => null);
-  // not an image the browser can read: the server says so
+  
   if (!bmp) return file;
   const scale = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
   if (scale === 1 && IMAGE_TYPES[file.type] && file.size <= MAX_IMAGE_BYTES) return file;
@@ -66,9 +66,9 @@ export async function attachTo(key: string, files: File[], added?: () => void) {
   let arrived = 0;
   if (!files.length) return arrived;
   updateDraft(key, (d) => ({ error: '', uploading: d.uploading + files.length, uploadingImages: d.uploadingImages + files.length }));
-  // a switch to another project meanwhile: they go to the draft of the project they were added on
+  
   const into = draftIn(key);
-  // stored with the project they were added on, also once the owner has switched to another
+  
   const project = shownProject();
   for (const { f, signal, finish } of files.map(f => ({ f, ...beginAttachment() }))) {
     let ok = false;
@@ -127,12 +127,12 @@ export async function fileTo(key: string, files: File[], put: (path: string) => 
   return arrived;
 }
 
-/** How many fields of their own have been made in this page, which numbers the next. */
+
 let fields = 0;
-/**
- * The field of its own shown now under each key, whose callbacks hear what an upload begun in an
- * earlier one of the same name brings (its card closed and opened again, say).
- */
+
+
+
+
 const shownFields = new Map<string, { change: { current?: (ids: string[]) => void }; put: { current?: (path: string) => void } }>();
 
 /**
@@ -143,22 +143,22 @@ const shownFields = new Map<string, { change: { current?: (ids: string[]) => voi
  * go in by their path (`fileTo`): into the draft's text, or by `put` for a field that keeps its text itself.
  */
 export function useShotInput({ draft, name, initial = [], onChange, off = false, put }: { draft?: string; name?: string; initial?: string[]; onChange?: (ids: string[]) => void; off?: boolean; put?: (path: string) => void } = {}) {
-  // a key of this field's own: by its name, else one no field shown later takes again (as `useId` may, at the same place)
+  
   const [own] = useState(() => name ?? String(++fields));
   const key = draft ?? `shots:${own}`;
   const busy = () => {
     const d = draftOf(key);
     return d.uploading > 0 || d.marking.length > 0;
   };
-  // a field of its own starts with its screenshots, unless an earlier one of its name is still adding to them
+  
   useState(() => !draft && !busy() && updateDraft(key, { images: initial }));
   const change = useRef(onChange);
   change.current = onChange;
   const putRef = useRef(put);
   putRef.current = put;
-  // an upload or marking still under way when the field goes (its card closed, another project shown)
-  // ends in the field of its name shown by then, else in this one, so the card hears all its
-  // screenshots and not only the late one; the draft goes once no field shows it and nothing is under way
+  
+  
+  
   const live = () => shownFields.get(key) ?? { change, put: putRef };
   const settle = () => {
     if (!draft && !shownFields.has(key) && !busy()) dropDraft(key);
@@ -169,7 +169,7 @@ export function useShotInput({ draft, name, initial = [], onChange, off = false,
     shownFields.set(key, mine);
     return () => {
       if (shownFields.get(key) === mine) shownFields.delete(key);
-      // after a field of the same name shown in its place at once (the card's layout changing) has taken it over
+      
       queueMicrotask(settle);
     };
   }, [key]);
@@ -229,7 +229,7 @@ export function useShotInput({ draft, name, initial = [], onChange, off = false,
         const next = await api.uploadImage(await markedImage(imageUrl(original), marks), project, signal);
         if (signal.aborted) return;
         ok = true;
-        // a switch to another project meanwhile: the marked image takes the original's place in the draft kept for the one it was marked on
+        
         if (!draft.here()) return draft.update((d) => ({ images: d.images.map((x) => (x === id ? next : x)) }));
         setMarkup(next, { original, marks });
         into(next);
@@ -243,7 +243,7 @@ export function useShotInput({ draft, name, initial = [], onChange, off = false,
     },
     /** After sending: the field is empty again, or without those sent while more were added. */
     clear: (sent?: string[]) => updateDraft(key, (d) => ({ images: sent ? d.images.filter((id) => !sent.includes(id)) : [] })),
-    /** For the element screenshots may be dropped on. */
+    
     drop: {
       onDragOver: (e: DragEvent) => {
         if (off || !e.dataTransfer.types.includes('Files')) return;
@@ -298,7 +298,7 @@ export function ShotStrip({ shots }: { shots: ShotInput }) {
         </span>
       ))}
       {filesUploading > 0 && <span className="c-file-loading self-center text-muted-foreground text-xs" role="status">{t.shots.uploading}</span>}
-      {/* after the first screenshot picked from disk: pasting works too, until confirmed */}
+      { }
       {shots.pasteHint && (
         <div className="c-paste-hint basis-full flex items-center gap-3 py-2 px-2.5 rounded-xs bg-working/8 text-sm leading-[1.4] [&_p]:m-0 [&_p]:flex-1" role="note">
           <p>{t.shots.pasteHint(pasteKeys())}</p>
@@ -314,7 +314,7 @@ export function ShotStrip({ shots }: { shots: ShotInput }) {
 
 /** The button in the text field's corner that picks screenshots from disk. */
 export function AttachButton({ shots, title = t.shots.attach, className }: { shots: ShotInput; title?: string; className?: string }) {
-  // the field the cursor stood in when the picker opened
+  
   const typing = useRef<HTMLElement | null>(null);
   /**
    * Back from the picker (an image picked or none), the cursor goes back into that field: a phone took
@@ -343,7 +343,7 @@ export function AttachButton({ shots, title = t.shots.attach, className }: { sho
         icon={<ImageIcon size={18} strokeWidth={1.75} aria-hidden="true" />}
         label={title}
         className={className}
-        // the cursor stays in the field: on a phone the keyboard stays up, and the field does not jump away from under the finger
+        
         onClick={() => {
           const el = document.activeElement;
           typing.current = el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement ? el : null;
@@ -357,7 +357,7 @@ export function AttachButton({ shots, title = t.shots.attach, className }: { sho
         multiple
         hidden
         onChange={(e) => {
-          // once they have arrived, the hint that pasting is quicker
+          
           void shots.attach(imageFiles(e.target.files)).then((n) => n && pickedShots(shots.key));
           e.target.value = '';
           back();
@@ -408,7 +408,7 @@ function useEnlarge(shots?: ShotInput) {
   };
 }
 
-/** Set once the owner put a mark on a screenshot: the hint on how goes. */
+
 const MARKS_KNOWN = 'seismic-marks-known';
 
 /** The marks over the image, in its pixels (`w`×`h`), and the frame being drawn (`drawing`). */
@@ -433,7 +433,7 @@ function MarkLayer({ marks, w, h, drawing }: { marks: Mark[]; w: number; h: numb
         const b = badgeOf(m, s);
         const frame = roundedRect(m.x, m.y, m.w, m.h, b.frame);
         const badge = roundedRect(b.x, b.y, b.side, b.side, b.corners);
-        // the white rim around frame and badge first, then their red over it, so none runs between them
+        
         return (
           <g key={i} strokeLinejoin="round">
             <path d={frame} fill="none" stroke={EDGE} strokeWidth={s.line + 2 * s.edge} />
@@ -457,7 +457,7 @@ function MarkLayer({ marks, w, h, drawing }: { marks: Mark[]; w: number; h: numb
  */
 function Lightbox({ src, thumb, marking, onClose }: { src: string; thumb: HTMLImageElement; marking?: { marks: Mark[]; done: (marks: Mark[]) => void }; onClose: () => void }) {
   const img = useRef<HTMLImageElement>(null);
-  /** The marks, laid over the image: its size and place, kept in step with it. */
+  
   const layer = useRef<SVGSVGElement>(null);
   const [closing, setClosing] = useState(false);
   const [marks, setMarks] = useState(marking?.marks ?? []);
@@ -493,7 +493,7 @@ function Lightbox({ src, thumb, marking, onClose }: { src: string; thumb: HTMLIm
     const r = thumb.getBoundingClientRect();
     if (!thumb.isConnected || !r.width || !el.naturalWidth) return null;
     const { box, inset } = behindThumb({ left: r.left, top: r.top, width: r.width, height: r.height }, el.naturalWidth / el.naturalHeight);
-    // where it stands large, untransformed (the lightbox covers the window from its corner)
+    
     const large: Box = { left: el.offsetLeft, top: el.offsetTop, width: el.offsetWidth, height: el.offsetHeight };
     return { transform: onto(box, large), clipPath: `inset(${inset.y * 100}% ${inset.x * 100}%)` };
   };
@@ -504,7 +504,7 @@ function Lightbox({ src, thumb, marking, onClose }: { src: string; thumb: HTMLIm
     marking?.done(marksRef.current);
     const to = onThumb();
     if (!to) return onClose();
-    // from where it is, also when still growing
+    
     const { transform, clipPath } = getComputedStyle(img.current!);
     for (const el of moving()) {
       el.getAnimations().forEach((a) => a.cancel());
@@ -514,7 +514,7 @@ function Lightbox({ src, thumb, marking, onClose }: { src: string; thumb: HTMLIm
   };
   const closeRef = useRef(close);
   closeRef.current = close;
-  // grows out of its thumbnail, which stays hidden while it is out
+  
   useLayoutEffect(() => {
     const el = img.current!;
     const grow = () => {
@@ -523,7 +523,7 @@ function Lightbox({ src, thumb, marking, onClose }: { src: string; thumb: HTMLIm
       const from = onThumb();
       if (from) for (const x of moving()) x.animate([from, { transform: 'none', clipPath: 'inset(0)' }], { duration: motionMs(ZOOM_MS), easing: ZOOM_EASE });
     };
-    // a resized window resizes the image, and the marks with it
+    
     const resized = new ResizeObserver(place);
     resized.observe(el);
     if (el.complete) grow();
@@ -538,7 +538,7 @@ function Lightbox({ src, thumb, marking, onClose }: { src: string; thumb: HTMLIm
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeRef.current();
-      // the undo of the marks, not of the text field behind
+      
       if (marking && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         e.stopPropagation();
@@ -550,7 +550,7 @@ function Lightbox({ src, thumb, marking, onClose }: { src: string; thumb: HTMLIm
   }, []);
   const drawing = drag && drag.moved >= CLICK_PX ? markOf(drag.a, drag.b, drag.moved) : null;
   return createPortal(
-    // a click here is not one on the card or field the thumbnail sits in
+    
     <div
       className={cn(
         'lightbox group/lb fixed inset-0 z-1000 bg-slate-950/80 flex items-center justify-center py-[4vh] px-[4vw] cursor-zoom-out animate-[dim_.38s_ease-out] transition-[background-color] duration-[380ms] [&>img]:max-w-full [&>img]:max-h-full [&>img]:rounded-xs [&>img]:shadow-lift [&>img]:bg-white [&>img]:origin-top-left',

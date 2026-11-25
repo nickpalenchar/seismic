@@ -1,8 +1,8 @@
-// A repository Seismic creates for a card that is to be built in one that does not exist yet: the
-// folder where there is none, then git as "Hier ein git-Repository einrichten" sets it up (the
-// default .gitignore, a first commit under git's name and e-mail), local only. A folder that is a
-// repository already is taken as it is. What it did can be taken back while the steps after it
-// (the project, the move) fail.
+
+
+
+
+
 
 import { existsSync, mkdirSync, realpathSync, rmdirSync, rmSync, statSync } from 'node:fs';
 import { dirname, isAbsolute, resolve } from 'node:path';
@@ -15,11 +15,11 @@ import type { Messages } from '../core/messages';
 type Words = Messages['newRepo'];
 
 export interface MadeRepo {
-  /** The folder, absolute. */
+  
   path: string;
-  /** Seismic set git up in it (false: it was a repository already). */
+  
   made: boolean;
-  /** Takes back what was done: the folder where Seismic created it, else git and the `.gitignore` it wrote. */
+  
   undo: () => void;
 }
 
@@ -57,17 +57,17 @@ export function makeRepo(path: string, t: Words): MadeRepo {
   if (existed && !statSync(path).isDirectory()) throw new BadRequest('newRepoPath', t.notFolder(path));
   if (existed) {
     const top = git(path, 'rev-parse', '--show-toplevel');
-    // git names the folder by its real path (on macOS the temp directory's /private/var, say)
+    
     if (top && realpathSync(top) === realpathSync(path)) return { path, made: false, undo: () => {} };
     if (top) throw new BadRequest('newRepoPath', t.inside(path, top));
   } else {
-    // the nearest folder that exists decides whether the new one would lie inside a repository
+    
     let up = dirname(path);
     while (!existsSync(up) && dirname(up) !== up) up = dirname(up);
     const top = existsSync(up) && statSync(up).isDirectory() ? git(up, 'rev-parse', '--show-toplevel') : null;
     if (top) throw new BadRequest('newRepoPath', t.inside(path, top));
   }
-  // the topmost folder Seismic creates, to remove again
+  
   let created: string | null = null;
   if (!existed) {
     let top = path;
@@ -77,7 +77,7 @@ export function makeRepo(path: string, t: Words): MadeRepo {
   }
   const gitignore = `${path}/.gitignore`;
   const hadIgnore = existsSync(gitignore);
-  // the folder itself, then the folders above it Seismic created, as long as nothing else came into them
+  
   const removeCreated = () => {
     rmSync(path, { recursive: true, force: true });
     for (let up = dirname(path); created && up.length >= created.length; up = dirname(up)) {

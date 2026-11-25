@@ -14,7 +14,7 @@ let shop: Board;
 let website: Board;
 let server: ReturnType<typeof serve>;
 
-// two projects on one store, as Seismic runs them: a card's URL names no project, a deleted card's neither
+
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'seismic-restore-route-'));
   const store = new Store(':memory:');

@@ -1,9 +1,9 @@
-// Collapsible: a fold with a trigger and a region (shadcn/ui's, ours from then on), in place of a native
-// `<details>`. The trigger is a button with `aria-expanded` and `aria-controls`; the region leaves the
-// page while closed. `marker` puts the disclosure chevron (lucide ChevronRight closed, turned down open) before the trigger's
-// text, as the finding folds and the pull request threads show it; without it the children pass through
-// untouched, so `asChild` still gets the single element Radix's Slot needs. Spacing belongs to the container,
-// which reaches the parts through their `data-slot`.
+
+
+
+
+
+
 
 import { cn } from 'cn';
 import { Collapsible as CollapsiblePrimitive } from 'radix-ui';

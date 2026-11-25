@@ -9,6 +9,6 @@ test('the bar shows one limit per group: the one most used', () => {
   const all = limit('weekly_all', 'weekly', 30);
   const fable = limit('weekly_scoped', 'weekly', 64);
   expect(headline([session, all, fable])).toEqual([session, fable]);
-  // on a tie the first
+  
   expect(headline([all, { ...fable, percent: 30 }])).toEqual([all]);
 });

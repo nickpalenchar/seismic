@@ -1,7 +1,7 @@
-// The Koordinator's sheet: the conversation, with the height the sheet has, and below it sections
-// that open and close: the rules it learned and proposes, with the values for repositories'
-// settings the work retrospective proposes, and the owner's preferences; shared demos to bring
-// up to date at once.
+
+
+
+
 
 import { cn } from 'cn';
 import { conversationBox, conversationList, headClass } from './cardClasses';
@@ -44,33 +44,33 @@ import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 interface Props {
   on: boolean;
   entry: 'default' | 'type' | 'answer';
-  /** The project, whose sections stay open or closed as the owner left them. */
+  
   project: string;
   projectName: string;
-  /** A command typed in the sheet, maybe in reply to a message of it: read like a spoken one; the conversation shows it at once. */
+  
   onTell: (text: string, images?: string[], replyTo?: Reply['to'], destination?: { project: string; chat: number; requestId?: string }) => Promise<unknown>;
   items: Item[];
   preferences: Preference[];
-  /** Values for repositories' settings the work retrospective proposes. */
+  
   settings: SettingProposal[];
-  /** The project's repositories, whose CLAUDE.md a proposal may go into. */
+  
   repos: RepoRef[];
   talk: Talk[];
-  /** The chat the owner talks in now, and the project's chats. */
+  
   chat: number;
   chatModel?: ChatModel;
   chats: Chat[];
   reshare?: Reshare;
   onOpen: (i: Item) => void;
-  /** Opens the configuration dialog at a repository's setting. */
+  
   onConfig: (repo: string, setting: string) => void;
-  /** A chat of another project was opened: that project's sheet. */
+  
   onProject: (project: string) => void;
-  /** Closes the sheet. */
+  
   onClose: () => void;
 }
 
-/** The field to write in under a conversation of the sheets. */
+
 const tellClass = 'tell mt-1 mx-0 mb-1.5';
 
 export function KoordinatorSheet({ on, entry, project, projectName, items, repos, talk, chat, chatModel, chats, reshare, onOpen, onTell, onProject, onClose }: Props) {
@@ -93,7 +93,7 @@ export function KoordinatorSheet({ on, entry, project, projectName, items, repos
     };
   }, [on, project, entry, attempt]);
   useEffect(() => {
-    // Another tab can change the current chat while this request is in flight.
+    
     if (selected && !selected.ready && chat === selected.chat) {
       setOpening({ ...selected, ready: true });
     }
@@ -103,9 +103,9 @@ export function KoordinatorSheet({ on, entry, project, projectName, items, repos
   }, [ready, on, entry]);
 
   return (
-    // a column: the conversation takes the height the sheet has, the field to write in under it, then the
-    // sections that open and close; an open section takes from the conversation down to 200px, below that
-    // the sheet scrolls
+    
+    
+    
     <Docked ref={sheet} id="ksheet" on={on} className="flex flex-col [&>*]:flex-none [&>:is(.conv,.talk.fresh-chat)]:flex-[1_1_0] [&>:is(.conv,.talk.fresh-chat)]:min-h-[200px] [&>:is(.conv,.talk.fresh-chat)]:max-h-none [&>:is(.conv,.talk.fresh-chat)]:max-w-none [&>:is(.conv,.talk.fresh-chat)]:mt-0 [&>:is(.conv,.talk.fresh-chat)]:mb-1 [&>:is(.conv,.talk.fresh-chat)]:mx-0">
       <ChatsHead title={<h2 className={sheetTitleClass}>{t.koordinator.title}</h2>} project={project} projectName={projectName} chat={chat} chats={chats} talk={talk} disabled={!ready} onProject={onProject} onClose={onClose} />
       {ready ? (
@@ -174,7 +174,7 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
   const modelTask = useRef<Promise<void>>(Promise.resolve());
   const choiceRef = useRef(choice);
   choiceRef.current = choice;
-  // The websocket may echo the choice before the request finishes.
+  
   useEffect(() => {
     if (choice?.chat === chat && choice.model === chatModel) setChoice(null);
   }, [chat, chatModel, choice]);
@@ -204,7 +204,7 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
     setPending((current) => current.filter((entry) => entry.project !== project || !echoed(entry.id, all)));
   }, [all, project]);
   useEffect(() => {
-    // opened for an answer that waits in another chat, with none in this one: that chat opens
+    
     const waits = all.findLast((x) => x.unread && x.chat !== undefined && x.chat !== chat);
     if (autoOpenUnread && on && waits && !talk.some((x) => x.unread)) api.openChat(waits.chat!).catch(console.error);
   }, [on, autoOpenUnread]);
@@ -218,7 +218,7 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
         </div>
       )}
       {!talk.length && !waiting.length && !chats.some((c) => c.id === chat) && beforeComposer}
-      {/* a command in writing, for when speaking is not possible; its screenshots go to the cards it creates or concerns */}
+      { }
       <Composer className={tellClass} draft={draft} placeholder={t.voice.typePlaceholder} seismic optimistic onSend={send} />
       <label className="chat-model flex items-center gap-2 mt-0 mx-0 mb-1.5 text-muted-foreground text-xs">{t.koordinator.chatModel}
         <Select value={model} disabled={!setting || (harness !== 'claude' && !models)} onValueChange={chooseModel}>
@@ -237,7 +237,7 @@ function PendingMessage({ text, images }: { text: string; images?: string[] }) {
   return <Msg by="owner" who={t.author.owner} className="opacity-75"><Body md={text} /><Shots ids={images} /><LoaderCircle className="size-4 animate-spin" aria-label="Sending" /></Msg>;
 }
 
-/** Where the project has seen a review card: the hint on "Review PR #5" is no longer shown. */
+
 const REVIEW_KNOWN = 'seismic-review-pr-known';
 
 /**
@@ -272,7 +272,7 @@ export function PlanTalk({ on, plan, talk, items, onOpen }: { on: boolean; plan:
   const draft = cardDraft(plan.id);
   const [error, setError] = useState('');
   const end = useFollowInSheet(talk);
-  // answers that waited unread (the plan's card said so) are where the sheet opens, below the workstreams
+  
   const waited = fresh[0];
   useEffect(() => {
     if (waited !== undefined) end.current?.querySelector('.msg.fresh')?.scrollIntoView({ block: 'start', behavior: scrollBehavior() });
@@ -307,7 +307,7 @@ export function PlanTalk({ on, plan, talk, items, onOpen }: { on: boolean; plan:
  */
 function useFollowInSheet(talk: Talk[]) {
   const box = useRef<HTMLElement>(null);
-  // whether the end of the conversation is in view, as the owner last scrolled the sheet
+  
   const inView = useRef(true);
   useEffect(() => {
     const el = box.current;
@@ -319,7 +319,7 @@ function useFollowInSheet(talk: Talk[]) {
     return () => see.disconnect();
   }, []);
   const last = talk.at(-1);
-  // what changes once the owner asks and once an answer comes
+  
   const key = `${last?.id}:${last?.answer !== undefined}`;
   const seen = useRef(key);
   useEffect(() => {
@@ -367,22 +367,22 @@ function useRead(on: boolean, talk: Talk[], read: (ids: number[]) => Promise<unk
 function Conversation({ talk, fresh, items, onOpen, draft, sheetOf, pending = [] }: { talk: Talk[]; fresh: number[]; items: Item[]; onOpen: (i: Item) => void; draft: string; sheetOf?: string; pending?: { id: string; text: string; images?: string[] }[] }) {
   const box = useRef<HTMLDivElement>(null);
   if (!talk.length) return null;
-  // every change on the project brings a new snapshot: only what the owner just said takes the
-  // conversation back to its end, so they can read further up in the meantime
+  
+  
   return (
-    // a plan's conversation grows in its sheet, which scrolls: no scrollbar of its own
+    
     <Scroll className={cn(conversationBox, sheetOf && 'max-h-none overflow-visible mb-1')} contentClassName={conversationList} boxRef={box} said={talk.at(-1)?.id} entries={talk} scrolling={!sheetOf}>
       {talk.map((x) => {
-        // the owner replies to one of the exchange's messages
+        
         const reply = (part: TalkRef['part'], by: TalkQuote['by'], text: string) => () => {
           const q = { talk: x.id, part, by, text };
           setReply(draft, { to: { talk: x.id, part }, quote: talkQuote(q) });
         };
-        // a thread moved onto a Question card goes on there, while the card is on the project; once it
-        // is done (archived) or deleted, its answers stand here again
+        
+        
         const card = x.movedTo ? items.find((i) => i.id === x.movedTo) : undefined;
         const asked = x.askedIn && x.askedIn !== sheetOf ? items.find((i) => i.id === x.askedIn) : undefined;
-        // a card left for another project, built there in a new repository: a line with a link to it there
+        
         if (x.moved)
           return (
             <div key={x.id} className={`${noteClass} ev-state`}>
@@ -394,7 +394,7 @@ function Conversation({ talk, fresh, items, onOpen, draft, sheetOf, pending = []
           );
         return (
           <Fragment key={x.id}>
-            {/* Seismic took a step up by itself, once a card it waited on got there or the answer it looked up for it came in: no words of the owner's */}
+            { }
             {x.after ? (
               <div className={`${noteClass} ev-state`}>
                 {clock(x.at)} · {t.koordinator.after(x.after.title, x.after.met, x.after.state)}
@@ -417,7 +417,7 @@ function Conversation({ talk, fresh, items, onOpen, draft, sheetOf, pending = []
             ) : (
               <Msg
                 by="koordinator"
-                // what waited unread: the reply, unless an answer to look up follows it
+                
                 className={x.undone ? 'undone' : fresh.includes(x.id) && !x.question ? 'fresh' : undefined}
                 who={t.author.koordinator}
                 agent={x.replyAgent}
@@ -431,18 +431,18 @@ function Conversation({ talk, fresh, items, onOpen, draft, sheetOf, pending = []
                 {x.waits?.map((w) => <WaitLine key={w.card} talk={x.id} wait={w} card={items.find((i) => i.id === w.card)} onOpen={onOpen} />)}
               </Msg>
             )}
-            {/* the cards its actions created, each an action of its own with the card's cover, apart from what is said */}
+            { }
             {!x.undone && x.made?.map((m) => (
               <MadeCover key={m.card} made={m} who={t.author.koordinator} what={(c) => (c?.state === 'idea' ? t.koordinator.madeIdea : t.koordinator.madeTask)} items={items} open={onOpen} />
             ))}
-            {/* a line leads to the Question card the thread goes on at */}
+            { }
             {card ? (
               <div className="moved mt-0.5 mb-2">
                 <ThreadCard thread={x.thread!} card={card} onOpen={onOpen} />
               </div>
             ) : (
               <>
-                {/* a question it looked up: the answer follows the acknowledgement */}
+                { }
                 {x.question && x.answer === undefined && (
                   <Msg by={x.askedIn ? 'plan' : 'koordinator'} className="thinking" who={t.author[x.askedIn ? 'plan' : 'koordinator']} agent={x.lookUpAgent}>
                     <div className="hint">{x.limitedUntil ? t.koordinator.lookUpLimited(clock(x.limitedUntil)) : t.koordinator.lookingUp}</div>
@@ -727,7 +727,7 @@ export function SettingRow({ p, items, repo, onOpen, onConfig, project }: { p: S
   );
 }
 
-/** How many of the outdated shared demos to share again at once: the newest few, or all. */
+
 const RESHARE_COUNTS = [10, 20, 50, 100];
 
 /**
@@ -738,7 +738,7 @@ function ReshareBox({ r, items, onOpen }: { r: Reshare; items: Item[]; onOpen: (
   const counts = RESHARE_COUNTS.filter((n) => n < r.outdated);
   const [pick, setPick] = useState<number | 'all'>();
   const [error, act] = useAct();
-  // the newest 20 unless the owner picks otherwise; null is all of them
+  
   const chosen = pick === 'all' ? null : pick !== undefined && counts.includes(pick) ? pick : (counts.find((n) => n >= 20) ?? null);
   const run = r.run;
   const going = !!run && run.left > 0;
@@ -782,7 +782,7 @@ function ReshareBox({ r, items, onOpen }: { r: Reshare; items: Item[]; onOpen: (
                 })}
               </span>
             )}
-            {/* beside the notice of outdated pages, its "Ausblenden" puts both away; a run tagging pages goes alone */}
+            { }
             {(going || run.tags || !r.outdated) && (
               <span className={prefActionsClass}>
                 {going ? (
@@ -802,7 +802,7 @@ function ReshareBox({ r, items, onOpen }: { r: Reshare; items: Item[]; onOpen: (
           <li className={proposalRowClass}>
             <span className={proposalTextClass}>{s.outdated(r.outdated)}</span>
             <span className={occasionClass}>{s.outdatedHint}</span>
-            {/* the list's rows in the type of the row it stands in */}
+            { }
             {r.changes && <PageChangeList changes={r.changes} className="basis-full m-0 [&>li]:items-start [&>li]:text-sm [&>li]:cursor-default" />}
             <span className={prefActionsClass}>
               {counts.length > 0 && (

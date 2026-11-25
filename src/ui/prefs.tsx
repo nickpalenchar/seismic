@@ -1,5 +1,5 @@
-// The preferences dialog (language, theme, motion, what is running), from the left menu's Settings
-// (nav.tsx), in the style of the configuration (config.tsx), which keeps what sets up the work.
+
+
 
 import { useEffect, useState } from 'react';
 import type { ConfigView, Preference, RepoRef } from '../core/types';
@@ -15,10 +15,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';
 import { cn } from 'cn';
 import * as K from './configClasses';
 
-/** The dialog's sections, in the order its list shows them. */
+
 type PrefsSection = 'appearance' | 'rules' | 'about';
 const SECTIONS: PrefsSection[] = ['appearance', 'rules', 'about'];
-// the section shown, per tab: a new language reloads the page, and the dialog comes back at it
+
 const SECTION_KEY = 'seismic-prefs-section';
 
 const showPrefsSection = (s: PrefsSection) => sessionStorage.setItem(SECTION_KEY, s);

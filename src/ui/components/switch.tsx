@@ -1,6 +1,6 @@
-// A single on/off setting: a sliding switch (shadcn/ui's Switch, on Radix Switch). Put it in a
-// `CheckLabel` with its text so a click on the text flips it too. On a touch screen it is larger,
-// sized for a finger rather than a mouse pointer.
+
+
+
 
 import { cn } from 'cn';
 import { Switch as SwitchPrimitive } from 'radix-ui';

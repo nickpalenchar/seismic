@@ -1,4 +1,4 @@
-// What “Always allow” says on the card.
+
 
 import type { Language } from '../../core/locale';
 

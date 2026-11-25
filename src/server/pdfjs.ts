@@ -1,6 +1,6 @@
-// pdf.js, its worker and the files it loads, for a browser that shows no PDF in a frame (a phone's):
-// the page draws a card's PDF with pdf.js there (src/ui/pdf.tsx), fetched from here only then, as
-// Bun bundles a page into one script. Embedded like the icons, so the compiled binary carries them.
+
+
+
 
 import { PDFJS_BASE } from '../core/files';
 import pdfjs from 'pdfjs-dist/legacy/build/pdf.min.mjs' with { type: 'file' };

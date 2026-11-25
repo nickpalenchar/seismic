@@ -1,7 +1,7 @@
-/**
- * The share of a card's demo: its page for colleagues on its project's demo site. `PATCH` sets
- * "Share on approval" (`{ onApproval }`) and answers with the card as its project shows it.
- */
+
+
+
+
 import type { Item } from '../../../../../core/types';
 import { BadRequest } from '../../../../board';
 import { HttpRoute, type RouteRequest } from '../../../httpRoute';

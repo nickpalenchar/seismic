@@ -1,11 +1,11 @@
-// Tags of a shared demo page, from the vocabulary its project names for its demo site: a
-// few dimensions, each with its values, which workers and Seismic's reading session choose from and
-// add nothing to. A page carries per dimension zero or more of its values; a dimension it has no
-// key for has none chosen yet, and one holding a value the vocabulary no longer has counts as
-// chosen by nobody either, so it is chosen again.
-//
-// A card's page takes each dimension from the first of these that has it: the owner's choice by
-// hand, the newest of its demos whose worker gave it, Seismic's reading session.
+
+
+
+
+
+
+
+
 
 import type { PageTags } from './types';
 

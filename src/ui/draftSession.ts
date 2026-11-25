@@ -1,4 +1,4 @@
-// Drafts must remain available to the restart snapshot even when a browser store is full.
+
 const overflows = new WeakMap<Storage, Map<string, string | null>>();
 const unavailable = new Map<string, string | null>();
 const overflow = () => {
@@ -53,7 +53,7 @@ export const draftSession = {
 
 /** A late reply fills missing entries, including in stores that have already opened them. */
 export function prepareSessionHandOver(restored?: ReadonlySet<string>) {
-  // Consuming a one-time entry or editing and then clearing a draft must not bring it back.
+  
   const occupied = new Set([...sessionWithDrafts().map(([key]) => key), ...(restored ?? [])]);
   pendingHandovers.add(occupied);
   return {

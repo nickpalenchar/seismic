@@ -1,6 +1,6 @@
-// A card named in a text (what a queued card waits for, the card a follow-up comes from): a link
-// that opens it in place of what is open, as long as it is on the project. Its address is the card's,
-// so a click with a modifier opens it in a tab of its own.
+
+
+
 import { useContext } from 'react';
 import type { Item } from '../core/types';
 import { cardPath } from './address';
@@ -15,7 +15,7 @@ import { Badge } from './components/badge';
 export function CardLink({ card, title, onOpen }: { card: Item | undefined; title?: string; onOpen?: (i: Item) => void }) {
   const cards = useContext(Cards);
   const text = plain(title ?? card?.title ?? '');
-  // an archived card is not on the project to unfold from
+  
   if (!card || card.archivedAt) return <>{text}</>;
   return <CardFace item={card} size="inline" title={text} href={cardPath(projectOf(card.id), card)} onOpen={() => (onOpen ?? cards.open)(card)} />;
 }
@@ -25,7 +25,7 @@ const MARK = '\u0000';
 /** A sentence of the strings that names cards: `text` gets a mark for each name, which becomes the card's link. */
 export function Naming({ text, cards, onOpen }: { text: (...names: string[]) => string; cards: { card: Item | undefined; title?: string }[]; onOpen?: (i: Item) => void }) {
   const parts = text(...cards.map((_, k) => `${MARK}${k}${MARK}`)).split(MARK);
-  // the parts alternate: text, the number of a name, text, …
+  
   return (
     <>
       {parts.map((x, k) => {
