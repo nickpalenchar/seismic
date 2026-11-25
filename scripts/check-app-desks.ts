@@ -189,6 +189,12 @@ let rejectHealth = false;
 let rejectedHealthChecks = 0;
 let dropPage = false;
 let pageError: 'http' | 'legacy' | undefined;
+// A proxy's own page: at every workspace route, or behind a redirect to /maintenance; hideTiming
+// gives it the timing entries of older webviews, which omit the HTTP status; cache lets the
+// browser keep it, and the redirect, for ten minutes.
+let placeholder: { redirect: boolean; hideTiming: boolean; cache?: boolean } | undefined;
+let signedOut = false;
+let placeholdersServed = 0;
 const startProxy = (port = proxyPort) => {
   return Bun.serve<{ upstream: WebSocket }>({
     port,
@@ -209,6 +215,17 @@ const startProxy = (port = proxyPort) => {
         const held = nextPage;
         nextPage = undefined;
         await held();
+      }
+      if (placeholder && req.headers.get('accept')?.includes('text/html')) {
+        if (placeholder.redirect && url.pathname !== '/maintenance') {
+          const cache = placeholder.cache ? { 'cache-control': 'max-age=600' } : { 'cache-control': 'no-store' };
+          return new Response(null, { status: 302, headers: { location: new URL('/maintenance', req.url).href, ...cache } });
+        }
+        // The root element and manifest any web app has.
+        placeholdersServed++;
+        const timing = placeholder.hideTiming ? '<script>performance.getEntriesByType = () => []</script>' : '';
+        const page = `${timing}<title>Down for maintenance</title><link rel="manifest" href="/manifest.webmanifest"><div id="root">Back soon</div>`;
+        return new Response(page, { headers: { 'content-type': 'text/html', 'cache-control': placeholder.cache ? 'max-age=600' : 'no-store' } });
       }
       if (pageError && req.headers.get('accept')?.includes('text/html')) {
         
@@ -236,6 +253,8 @@ const startProxy = (port = proxyPort) => {
         return Response.json({ now: false, kept: false });
       }
       const headers = new Headers(req.headers);
+      // The browser without its device cookie: Seismic answers with its pairing form.
+      if (signedOut) headers.delete('cookie');
       headers.set('x-forwarded-for', '100.64.0.7');
       headers.set('x-forwarded-host', `${HOST}:${port}`);
       headers.set('x-forwarded-proto', 'http');
@@ -329,7 +348,7 @@ if (location.origin === ${JSON.stringify(REMOTE)}) {
     ...(window.seismicSnapshotSession?.() ?? Object.entries(sessionStorage)),
     ...(window.seismicDraftOverflow ?? []),
   ]);
-  const out = { ...identity, kind: 'remote', href: location.href, mounted: !!document.getElementById('root')?.firstElementChild, handedOver: window.seismicApp?.handedOver, previousSession: entries.get('check-workspace-session') ?? null, previousDraft: entries.get('seismic-drafts-check') ?? null, previousWish: entries.get('seismic-wish-check') ?? null, previousConfig: entries.get('seismic-config-draft-check') ?? null };
+  const out = { ...identity, kind: 'remote', href: location.href, mounted: !!document.getElementById('root')?.firstElementChild, responseStatus: performance.getEntriesByType('navigation')[0]?.responseStatus, handedOver: window.seismicApp?.handedOver, previousSession: entries.get('check-workspace-session') ?? null, previousDraft: entries.get('seismic-drafts-check') ?? null, previousWish: entries.get('seismic-wish-check') ?? null, previousConfig: entries.get('seismic-config-draft-check') ?? null };
   out.previousOverflowDraft = JSON.parse(entries.get('seismic-drafts-quota-check') ?? '{}')['card:q']?.text;
   out.previousOverflowConfig = JSON.parse(entries.get('seismic-config-draft-project:quota-check') ?? '{}').name;
   out.restoredInMemory = sessionStorage.getItem('seismic-drafts-quota-check') === null && out.previousOverflowDraft !== undefined;
@@ -1174,6 +1193,98 @@ async function checkApp() {
     }
     await reconnect();
   });
+  await check('a same-origin placeholder page shows recovery until the workspace returns', async () => {
+    await select('local', 'local');
+    const route = String((await select(id, 'remote')).href);
+    await select('local', 'local');
+    // Opening follows a cacheable redirect to the placeholder. The load check waits for the
+    // placeholder's own report, with the HTTP status the engine gave it.
+    placeholder = { redirect: true, hideTiming: false, cache: true };
+    const seen = Promise.withResolvers<void>(), served = placeholdersServed;
+    let held = false;
+    onHealth = async () => { if (placeholdersServed > served && !held) { held = true; await seen.promise; } };
+    try {
+      const before = reports.length;
+      send('open_desk', { id });
+      const page = await until('the placeholder to report', 20_000, () =>
+        reports.slice(before).find((r) => r.kind === 'remote' && new URL(String(r.href)).pathname === '/maintenance'));
+      seen.resolve();
+      // WebKit gives no responseStatus; where the engine gives one, the 2xx branch rejected the page.
+      expect((page.responseStatus ?? 200) === 200 && page.mounted === false, JSON.stringify(page));
+      const status = await report('status', before, 40_000);
+      expect((await desks()).problem === 'notLoaded', JSON.stringify(status));
+      onHealth = undefined;
+      // Try again gets it at the route itself, without the HTTP status in its timing entry, then
+      // behind the redirect again, which the cache keeps for the route.
+      for (const shape of [{ redirect: false, hideTiming: true, cache: true }, { redirect: true, hideTiming: false, cache: true }]) {
+        placeholder = shape;
+        const retried = reports.length;
+        send('retry_desk');
+        const again = await report('status', retried, 40_000);
+        expect(again.label === status.label && (await desks()).problem === 'notLoaded', JSON.stringify({ shape, again }));
+      }
+    } finally {
+      placeholder = undefined;
+      onHealth = undefined;
+      seen.resolve();
+    }
+    const remote = await reconnect();
+    expect(remote.href === route && remote.mounted === true && (await desks()).problem === null, `${route} → ${JSON.stringify(remote)}`);
+    return route;
+  });
+  await check('a newer navigation outranks the failed check of the page before it', async () => {
+    await select('local', 'local');
+    const route = String((await select(id, 'remote')).href);
+    const plain = route.replace(/#.*$/, '');
+    let probes = 0;
+    const held = Promise.withResolvers<void>(), page = Promise.withResolvers<void>();
+    placeholder = { redirect: false, hideTiming: false };
+    onHealth = async () => { if (++probes === 1) await held.promise; };
+    try {
+      // The workspace reloads into a placeholder; its check waits on the server.
+      const before = reports.length;
+      send('check_eval', { js: 'location.reload()' });
+      await until('the placeholder to report', 20_000, () =>
+        reports.slice(before).find((r) => r.kind === 'remote' && r.mounted === false));
+      await until('the check of the placeholder to wait on the server', 5000, () => probes >= 1);
+      // The owner moves on to the workspace while that check still waits: its page is slow.
+      placeholder = undefined;
+      nextPage = () => page.promise;
+      const moved = reports.length;
+      send('check_eval', { js: `location.replace(${JSON.stringify(plain)})` });
+      await sleep(500);
+      held.resolve();
+      await sleep(2500);
+      expect(!reports.slice(moved).some((r) => r.kind === 'status'), 'the older check left the page on its way');
+      page.resolve();
+      const remote = await until('the newer page to report', 20_000, () =>
+        reports.slice(moved).find((r) => r.kind === 'remote' && r.mounted === true));
+      await sleep(1000);
+      expect(remote.href === plain && displayed()?.kind === 'remote' && (await desks()).problem === null, JSON.stringify(remote));
+    } finally {
+      placeholder = undefined;
+      onHealth = undefined;
+      nextPage = undefined;
+      held.resolve();
+      page.resolve();
+    }
+  });
+  await check("a signed-out workspace keeps its pairing form in the window", async () => {
+    await select('local', 'local');
+    signedOut = true;
+    try {
+      const page = await select(id, 'remote');
+      const form = await run('check_eval', { js: "!!document.querySelector('form[action=\"/pair\"] input[name=\"code\"]')" });
+      expect(form.value === true && page.mounted === false && page.projects === 401, JSON.stringify({ form, page }));
+      // The load check runs as the page finishes: the form is still the page after it.
+      await sleep(3000);
+      expect(displayed()?.kind === 'remote' && displayed()?.label === page.label && (await desks()).problem === null, JSON.stringify(displayed()));
+    } finally {
+      signedOut = false;
+    }
+    await select('local', 'local');
+    await select(id, 'remote');
+  });
   await check('a workspace that goes away while its page loads shows status, also after Try again', async () => {
     await select('local', 'local');
     dropPage = true;
@@ -1444,6 +1555,23 @@ async function checkApp() {
       await rejectBundledNavigations(['/', '/index.html', '/index.html?updating', '/status.html?x', '/other.html'], `${bundleOrigin}/status.html`);
     } finally {
       proxy.server = startProxy();
+    }
+    await reconnect();
+  });
+  await check("a reload of the workspace that never finishes shows status after the patience", async () => {
+    await select('local', 'local');
+    await select(id, 'remote');
+    // The server goes away and the owner reloads: the load fails without a Finished event and
+    // leaves the page before in place. Late in the run: the reload drops drafts held in memory.
+    proxy.server!.stop(true);
+    proxy.server = undefined;
+    try {
+      const before = reports.length;
+      send('check_eval', { js: 'location.reload()' });
+      const status = await report('status', before, 40_000);
+      expect((await desks()).problem === 'unreachable', JSON.stringify(status));
+    } finally {
+      proxy.server ??= startProxy();
     }
     await reconnect();
   });

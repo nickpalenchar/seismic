@@ -55,6 +55,60 @@ use tauri::{
 use crate::{open_in_browser, open_outside, seismic_env};
 use placed::Placed;
 
+/// When each webview last started loading a document at its origin, and the page it shows: a
+/// load check that began before that start describes a page on its way out. WebView2 asks the
+/// shell about the main frame alone (`loading_since`); WebKit asks about frames too.
+#[cfg(windows)]
+static NAVIGATIONS: Mutex<Option<HashMap<String, Navigations>>> = Mutex::new(None);
+
+#[cfg(windows)]
+#[derive(Default)]
+struct Navigations {
+  started: Option<Instant>,
+  shown: Option<Url>,
+}
+
+#[cfg(windows)]
+fn navigation_started(label: &str) -> Option<Instant> {
+  NAVIGATIONS.lock().unwrap().as_ref().and_then(|all| all.get(label)?.started)
+}
+
+#[cfg(windows)]
+fn navigations(label: &str, update: impl FnOnce(&mut Navigations)) {
+  update(NAVIGATIONS.lock().unwrap().get_or_insert_default().entry(label.to_string()).or_default());
+}
+
+/// Whether the webview is loading a document that began after `basis`. WebKit tells whether its
+/// main frame loads; WebView2 has no such flag, but asks the shell about main-frame navigations
+/// alone, so their start answers.
+pub fn loading_since(webview: &Webview, basis: Instant) -> bool {
+  #[cfg(windows)]
+  {
+    navigation_started(webview.label()).is_some_and(|started| started > basis)
+  }
+  #[cfg(not(windows))]
+  {
+    let _ = basis;
+    let (send, receive) = std::sync::mpsc::channel();
+    let asked = webview.with_webview(move |webview| {
+      // SAFETY: Tauri calls this with its live WKWebView on the main thread.
+      #[cfg(target_os = "macos")]
+      let loading = unsafe { (*webview.inner().cast::<objc2_web_kit::WKWebView>()).isLoading() };
+      #[cfg(target_os = "linux")]
+      let loading = webkit2gtk::WebViewExt::is_loading(&webview.inner());
+      let _ = send.send(loading);
+    });
+    asked.is_ok() && receive.try_recv().unwrap_or(false)
+  }
+}
+
+/// A move to a fragment of the page shown loads no document; WebKit asks about it all the same.
+#[cfg(windows)]
+fn same_document(shown: Option<&Url>, url: &Url) -> bool {
+  let bare = |u: &Url| { let mut u = u.clone(); u.set_fragment(None); u };
+  url.fragment().is_some() && shown.is_some_and(|shown| bare(shown) == bare(url))
+}
+
 /// The origin a webview shows for its life.
 #[derive(Clone, PartialEq, Eq)]
 pub enum Own {
@@ -325,6 +379,7 @@ pub fn create(app: &AppHandle, placed: Option<&Placed>) -> tauri::Result<Window>
 pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, handed_over: bool) -> tauri::Result<Webview> {
   let local = matches!(own, Own::Local(_));
   let (navigation, loaded) = (own.clone(), own.clone());
+  let (starting, navigating) = (app.clone(), label.to_string());
   let handoff = Arc::new(Handoff::default());
   let popup_handoff = handoff.clone();
   let popup = own.clone();
@@ -370,7 +425,14 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
     .initialization_script(include_str!("controls.js"))
     .initialization_script(if cfg!(target_os = "linux") { include_str!("linux_ipc.js") } else { "" })
     .on_navigation(move |url| match decide_navigation(&navigation, &handoff, url, Instant::now()) {
-      Navigation::Allow => true,
+      Navigation::Allow => {
+        if navigation.at(url) {
+          #[cfg(windows)]
+          navigations(&navigating, |n| if !same_document(n.shown.as_ref(), url) { n.started = Some(Instant::now()) });
+          crate::desks::navigation_started(&starting, &navigating);
+        }
+        true
+      }
       Navigation::OpenInBrowser => {
         open_in_browser(url.as_str());
         false
@@ -409,6 +471,8 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
       true
     })
     .on_page_load(move |webview, payload| {
+      #[cfg(windows)]
+      navigations(webview.label(), |n| n.shown = Some(payload.url().clone()));
       if let PageLoadEvent::Finished = payload.event() {
         let own_page = loaded.at(payload.url());
         if own_page {
@@ -485,6 +549,10 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
 pub fn close(webview: &Webview) -> tauri::Result<()> {
   #[cfg(target_os = "macos")]
   microphone::uninstall(webview);
+  #[cfg(windows)]
+  if let Some(all) = NAVIGATIONS.lock().unwrap().as_mut() {
+    all.remove(webview.label());
+  }
   webview.close()
 }
 
@@ -527,13 +595,15 @@ fn guard_frames(webview: &Webview, own: Own) -> tauri::Result<()> {
 pub fn shows_workspace(webview: &Webview, origin: &str, timeout: Duration) -> bool {
   let (send, receive) = std::sync::mpsc::channel();
   // The navigation entry describes this response, including redirects and the device cookie.
-  // Older engines omit responseStatus. Recognize the workspace and its signed-out pairing form.
+  // Older engines omit responseStatus. Recognize the workspace and its signed-out pairing form:
+  // a proxy can answer the workspace route with a page of its own while /api/projects is healthy.
   let script = format!(r#"(() => {{
     if (location.origin !== {}) return false;
     const status = performance.getEntriesByType('navigation')[0]?.responseStatus || 0;
     if ((!status || status === 401) && document.querySelector('form[action="/pair"] input[name="code"]')) return true;
-    return status ? status >= 200 && status < 300 :
-      !!(document.getElementById('root') && document.querySelector('link[rel="manifest"]'));
+    const workspace = !!(document.getElementById('root') && document.querySelector('link[rel="manifest"]')
+      && document.querySelector('meta[name="apple-mobile-web-app-title"][content="Seismic"]'));
+    return workspace && (!status || (status >= 200 && status < 300));
   }})()"#, serde_json::json!(origin));
   if webview.eval_with_callback(script, move |value| { let _ = send.send(value); }).is_err() {
     return false;
@@ -660,6 +730,17 @@ mod tests {
       assert!(browser_target_at(bundle, bundled_url_at(bundle, "/status.html"), &local).is_none());
     }
     assert_eq!(browser_target(bundled_url("/status.html"), &remote).unwrap().as_str(), "https://[fd7a::2]:4417/");
+  }
+
+  #[cfg(windows)]
+  #[test]
+  fn a_move_to_a_fragment_of_the_shown_page_loads_no_document() {
+    let shown = Url::parse("https://studio/p/lab?view=canvas").unwrap();
+    let at = |u: &str| Url::parse(u).unwrap();
+    assert!(same_document(Some(&shown), &at("https://studio/p/lab?view=canvas#new-anchor")));
+    assert!(!same_document(Some(&shown), &at("https://studio/p/lab?view=canvas")));
+    assert!(!same_document(Some(&shown), &at("https://studio/maintenance#new-anchor")));
+    assert!(!same_document(None, &at("https://studio/p/lab?view=canvas#new-anchor")));
   }
 
   #[test]

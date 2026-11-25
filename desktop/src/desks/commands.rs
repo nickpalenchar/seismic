@@ -281,6 +281,7 @@ pub async fn retry_desk(app: AppHandle, webview: Webview) -> Result<(), String> 
     }
     let start = Url::parse(&format!("{origin}{}", active.next)).map_err(|e| e.to_string())?;
     active.problem = None;
+    active.revalidated = false;
     let token = views.load();
     views.active.as_mut().ok_or("unknown")?.loading = Some(token);
     drop(views);

@@ -446,11 +446,21 @@ Safety rules:
   same replacement again to one still bringing the credential it was made from, until the
   replacement is presented or retired. An expired or unknown link says it did not pair, even to
   a browser paired before (2026-11-23).
-- A passing health check does not prove that the page loads: the server can go away in between. The
-  shell treats a workspace page as shown once its document is at its origin and the server answers
-  again, checked when the load finishes or after 15 seconds (WebKit reports no event for a failed
-  load), and otherwise shows the status page. Selecting this machine's workspace first asks its
-  server for a sign-in link, since the shell keeps the port while that server stops (2026-11-24).
+- A passing health check does not prove that the page loads: the server can go away in between, and
+  a proxy can forward the health check while answering the workspace route with a maintenance or
+  placeholder page of its own, also with status 200 or a redirect. The shell treats a workspace
+  page as shown once the server answers again and the document at its origin is Seismic's own
+  (its root, manifest and `apple-mobile-web-app-title` "Seismic", with a 2xx status where the
+  engine reports one) or its `401` pairing form, checked when each load finishes or 15 seconds
+  after it starts, whoever started it (WebKit reports no event for a failed load, which leaves the
+  page before in place), and otherwise shows the status page. Only a page so verified becomes the
+  route Try again opens. Before a rejected page at the origin gives way to the status page, the
+  workspace route is fetched once past the cache and opened again: a plain navigation or reload
+  reuses a placeholder, or a redirect to one, that the proxy let the cache keep. A failed check yields to a document load that began after it, whose own event or
+  patience decides: WebKit's loading flag tells, which frames do not set; WebView2 has none, but
+  asks the shell about main-frame navigations alone, so their start tells (2026-11-24).
+  Selecting this machine's workspace first asks its server for a sign-in link, since the shell
+  keeps the port while that server stops (2026-11-24).
 - Desktop workspace health checks carry no device cookie. The shell asks `GET /api/v1/health`,
   a fixed answer (`{ service: "seismic", status: "ok" }`) whose size does not grow with the
   workspace, and reads at most 4 KiB of it. It recognizes that answer only with `status: "ok"`,
