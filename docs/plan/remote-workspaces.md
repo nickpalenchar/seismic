@@ -30,7 +30,7 @@ Three rules carry the design:
 
 - [x] **W1:** Spike on all three webviews (WKWebView, WebView2, WebKitGTK). Prove that a second window opened at a one-time login link keeps the device cookie for later loads at that origin over HTTP and HTTPS, that the navigation hook keeps the window on its origin (redirects and frames included), and that shell commands are scoped to their window and the caller's effective origin. Before W3 starts, verify a WKWebView mitigation for opaque-origin callers and the HTTPS cookie path on the remaining engines.
 - [x] **W2:** Server side. `POST /api/pair` with the one-time login link; device cookies per scheme and port, with the renewal rules (bring back the device-cookie commits from `backup/desktop-architecture`: per-scheme names, explicit-code redemption, the `device_renewals` credential handover); the handover's new cookie gets a name of its own, so late answers cannot overwrite a newer one; tests with two Seismics on one host paired by one cookie jar. Independent of W1.
-- [ ] **W3:** Shell. The workspace list and its file, one window per workspace with its fixed capability, enforcement of the caller's effective origin, the navigation guard, the shell's health check before a window opens and the status page when it fails, reopening windows after a relaunch, the macOS menu. The microphone is granted to listed origins only (bring back that commit). Builds on W1 and W2.
+- [x] **W3:** Shell. The saved workspace list, one native window with a fresh origin-scoped webview on each switch, effective-origin enforcement, navigation guards, health checks and recovery, workspace restoration after relaunch, the macOS Workspace menu, and microphone access scoped to the displayed workspace's origin. Builds on W1 and W2.
 - [x] **W4:** Pages. The workspaces page and cog dialog on this machine's page, the switcher in every page's left menu, the setup's first step ("How do you want to use Seismic?" with "On this machine" and "Remote connection", on this machine's first start only; a remote Seismic without projects goes straight on to set itself up). shadcn/ui parts, strings in `src/ui/strings.ts`, the phone view untouched. The UI work of the backup branch (wrapping long addresses, "Learn more" outside the radio label, "Delete workspace" in the cog's dialog alone) carries over as decisions, not as code.
 - [ ] **W5:** Windows and Linux. The app check in CI on WebView2 (bring back that commit) covers pairing, switching in the same window and canceling a selection when its workspace is removed; a Linux run in its container. User guide page in `docs/site/` and its sidebar entry. Demo video of the whole feature on a Mac.
 - [ ] **W6:** Move the decisions and constraints into a design chapter (`docs/design/desktop-workspaces.md`, linked from `docs/design.md`) and delete this plan doc.
@@ -167,8 +167,10 @@ wry 0.57.3, the versions the spike verified.
   each visited workspace's last page and unsent drafts. Older snapshots retain their routes and
   drafts. The focused window in an older snapshot supplies the initial selection.
 - **Closing:** macOS hides the app window. Closing it on Windows or Linux quits the app.
-- **Microphone and drops:** the current webview's own origin receives the microphone. The app
-  exposes local file paths only to this machine's workspace.
+- **Microphone and drops:** the shell brought forward the platform-specific media permission
+  handlers from the first attempt. Only the current webview's own workspace origin can receive
+  the microphone, and the bundled pages have no grant. The app exposes local file paths only to
+  this machine's workspace.
 - **macOS menu:** the Workspace menu lists workspaces (⌃⌘1 … 9) and marks the current one.
   “New Workspace…” opens this machine's workspaces page with the form (W4).
 
