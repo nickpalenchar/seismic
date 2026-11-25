@@ -1,7 +1,7 @@
 import { afterAll, expect, test } from 'bun:test';
 import { waitUp } from './wait-up';
 
-// a server that answers 503 until `readyAt`, like one whose port is open before it is ready
+
 let readyAt = Infinity;
 const server = Bun.serve({ port: 0, fetch: () => new Response(null, { status: Date.now() >= readyAt ? 200 : 503 }) });
 const url = `http://127.0.0.1:${server.port}/`;

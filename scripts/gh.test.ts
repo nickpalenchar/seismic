@@ -4,9 +4,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { githubRepo } from './gh';
 
-// gh.ts in a checkout whose origin each test sets, against a fake gh on PATH that logs each call
-// with the token and repository it got, so nothing on GitHub is touched; gh has logins for the
-// accounts in FAKE_LOGINS
+
+
+
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gh-test-'));
 afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
 const checkout = path.join(dir, 'checkout');

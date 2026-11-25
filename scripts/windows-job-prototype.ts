@@ -1,17 +1,17 @@
-// Experimental Windows process boundary, not used by Seismic: each session in a Job Object of its own.
-// A job is inherited by every process created inside it, detached or in a new console alike, and
-// TerminateJobObject ends all of its members (and those of jobs nested in it) by the job's handle, so
-// nothing is looked up by pid. With JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE the kernel also ends them when
-// the last handle closes, which is when the caller dies: no sweep is needed after a crash.
-// Gated launch: Bun cannot create a process suspended, so the caller starts a gate (this script, run
-// with `gate`) that waits until it finds itself in the named job, which the caller assigns it to by
-// the handle of a process it started and that is still waiting, and only then starts the agent with
-// the gate's own stdio; the agent and everything it starts are in the job from their first
-// instruction. The gate stays the agent's parent and exits with its code.
-// What it does not hold: a process created by another process outside the job on the agent's
-// behalf (WMI's Win32_Process.Create, the task scheduler, a service, an already running app handed a
-// request) is not in it. Breakaway (CREATE_BREAKAWAY_FROM_JOB) needs JOB_OBJECT_LIMIT_BREAKAWAY_OK,
-// which this job does not set. See docs/plan/codex-runtime.md ("Platform process boundaries").
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { dlopen, FFIType, ptr, type Pointer } from 'bun:ffi';
@@ -52,13 +52,13 @@ export type Unavailable = { boundary: 'none'; reason: string };
 
 export interface Job {
   name: string;
-  /** Pids in the job now, nested jobs' members included. */
+  
   members(): number[];
-  /** How many processes in the job are running. */
+  
   active(): number;
-  /** Ends every process in the job. */
+  
   kill(): void;
-  /** Gives up the caller's handle: with kill-on-close, the members end now unless another handle is open. */
+  
   close(): void;
 }
 
@@ -67,9 +67,9 @@ export function createJob(name = `seismic-${randomUUID()}`, killOnClose = true):
   const k = kernel32();
   const handle = k.CreateJobObjectW(null, ptr(wide(`Local\\${name}`))) as Pointer | null;
   if (!handle) throw new Error(`CreateJobObjectW failed (${lastError()})`);
-  // a job of that name existed already: someone else's, never ours to use
+  
   if (lastError() === ERROR_ALREADY_EXISTS) { k.CloseHandle(handle); throw new Error(`job ${name} exists already`); }
-  // JOBOBJECT_EXTENDED_LIMIT_INFORMATION on x64: 144 bytes, BasicLimitInformation.LimitFlags at 16
+  
   const limits = new ArrayBuffer(144);
   new DataView(limits).setUint32(16, killOnClose ? JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE : 0, true);
   if (!k.SetInformationJobObject(handle, JobObjectExtendedLimitInformation, ptr(limits), 144)) {
@@ -84,7 +84,7 @@ export function createJob(name = `seismic-${randomUUID()}`, killOnClose = true):
       name,
       members() {
         if (!open) return [];
-        // JOBOBJECT_BASIC_PROCESS_ID_LIST: two DWORDs, then ULONG_PTRs
+        
         const room = 1024;
         const list = new ArrayBuffer(8 + 8 * room);
         if (!k.QueryInformationJobObject(handle, JobObjectBasicProcessIdList, ptr(list), list.byteLength, null)) throw new Error(`QueryInformationJobObject failed (${lastError()})`);
@@ -94,7 +94,7 @@ export function createJob(name = `seismic-${randomUUID()}`, killOnClose = true):
       },
       active() {
         if (!open) return 0;
-        // JOBOBJECT_BASIC_ACCOUNTING_INFORMATION: ActiveProcesses at 40
+        
         const info = new ArrayBuffer(48);
         if (!k.QueryInformationJobObject(handle, JobObjectBasicAccountingInformation, ptr(info), 48, null)) throw new Error(`QueryInformationJobObject failed (${lastError()})`);
         return new DataView(info).getUint32(40, true);
@@ -146,9 +146,9 @@ export function inJob(name: string, pid?: number): boolean {
  */
 export function startBreakingAway(commandLine: string): { pid: number } | { error: number } {
   const k = kernel32();
-  const startup = new ArrayBuffer(104); // STARTUPINFOW on x64
+  const startup = new ArrayBuffer(104); 
   new DataView(startup).setUint32(0, 104, true);
-  const info = new ArrayBuffer(24); // PROCESS_INFORMATION
+  const info = new ArrayBuffer(24); 
   const CREATE_BREAKAWAY_FROM_JOB = 0x01000000, CREATE_NO_WINDOW = 0x08000000;
   if (!k.CreateProcessW(null, ptr(wide(commandLine)), null, null, 0, CREATE_BREAKAWAY_FROM_JOB | CREATE_NO_WINDOW, null, null, ptr(startup), ptr(info))) return { error: lastError() };
   const view = new DataView(info);
@@ -176,7 +176,7 @@ export async function launchInJob(
     if (!child.pid) throw new Error('the gate did not start');
     assign(made.handle, child.pid);
   } catch (error) {
-    // the gate never ran anything: it waits for the job, and dies with the handle it waits on
+    
     child.kill();
     made.job.close();
     return { boundary: 'none', reason: String(error) };
@@ -184,7 +184,7 @@ export async function launchInJob(
   return { boundary: 'job', child, job: made.job };
 }
 
-// The gate: waits until it is in the named job, then runs the agent with its own stdio.
+
 if (import.meta.main && process.argv[2] === 'gate') {
   const [, , , name, command, ...args] = process.argv;
   const deadline = Date.now() + 10_000;

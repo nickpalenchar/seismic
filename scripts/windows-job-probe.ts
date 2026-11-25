@@ -1,17 +1,17 @@
-// What a Job Object holds on this Windows machine, measured; it proves no containment elsewhere.
-// bun scripts/windows-job-probe.ts [case ...], each case printing one JSON line:
-//   codex-close-tracker, codex-close-job: a real Codex app-server (SEISMIC_CODEX, or `codex` on the
-//     PATH; no model turn, no login needed) starts Python heartbeats with `thread/shellCommand`: one
-//     in the shell's tree, and three started detached (DETACHED_PROCESS, a process group of their
-//     own) by launchers that stay, exit after 1.5 s, or exit at once. Then the session ends: through
-//     today's tracker alone (processes.ts, taskkill /T), or with the app-server in a job
-//     (scripts/windows-job-prototype.ts) that is then terminated.
-//   codex-host-death-tracker, codex-host-death-job: the same, but the process holding the transport
-//     (Seismic's stand-in) is killed; the job's kill-on-close is all that runs.
-//   escapes: an agent in a job tries the ways out an unprivileged process has.
-// Also says whether the probe itself already runs in a job (a terminal's, the CI runner's), in which
-// case every job it makes is nested. An unrelated canary runs throughout; everything the probe
-// started is ended at the end of each case.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -22,7 +22,7 @@ import { assign, createJob, inAnyJob, inJob, launchInJob } from './windows-job-p
 const read = (file: string) => { try { return readFileSync(file, 'utf8').trim(); } catch { return ''; } };
 const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
 const until = async (check: () => boolean, ms = 60_000) => { const end = Date.now() + ms; while (!check() && Date.now() < end) await Bun.sleep(100); return check(); };
-// a file a just-ended process held can stay locked a moment longer
+
 const remove = (dir: string) => { try { rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }); } catch (error) { console.error(`left ${dir}: ${error}`); } };
 const taskkill = (pid: number) => spawnSync('taskkill.exe', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
 const python = (process.env.SEISMIC_PYTHON ?? process.env.OBEYA_PYTHON) ?? 'python';
@@ -71,7 +71,7 @@ if (mode === 'driver') {
   const started = await c.request<{ thread: { id: string } }>('thread/start', { cwd: repo, approvalPolicy: 'never', sandbox: 'danger-full-access' });
   await c.request('thread/shellCommand', { threadId: started.thread.id, command: `${python} job.py launch` });
   await until(() => JOBS.every((j) => existsSync(join(repo, `${j}.pid`))), 30_000);
-  await Bun.sleep(3000); // the tracker samples every 500 ms, through PowerShell
+  await Bun.sleep(3000); 
   if (made) writeFileSync(join(dir!, 'job.json'), JSON.stringify({ name: made.job.name, members: made.job.members().length }));
   writeFileSync(join(dir!, 'ready'), '1');
   if (kind!.startsWith('codex-close')) {
@@ -105,7 +105,7 @@ async function codexCase(kind: string) {
     const job = existsSync(join(dir, 'job.json')) ? JSON.parse(read(join(dir, 'job.json'))) as { name: string; members: number } : undefined;
     for (const j of JOBS) pids[j] = Number(read(join(repo, `${j}.pid`)));
     const before = jobState(repo, pids, job?.name);
-    if (kind.startsWith('codex-host-death')) driver.kill(); // TerminateProcess: no cleanup of its own
+    if (kind.startsWith('codex-host-death')) driver.kill(); 
     else writeFileSync(join(dir, 'go'), '1');
     await driverGone;
     await Bun.sleep(3000);
@@ -127,7 +127,7 @@ async function escapes() {
   const dir = mkdtempSync(join(tmpdir(), 'seismic-job-escapes-'));
   const task = `seismic-escape-${process.pid}`;
   const canary = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { stdio: 'ignore', windowsHide: true });
-  // paths and names come by the environment, so no Windows path is quoted in code within code
+  
   const agent = `
     const { spawn, spawnSync } = require('node:child_process');
     const fs = require('node:fs');

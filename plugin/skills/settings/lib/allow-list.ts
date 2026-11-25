@@ -1,10 +1,10 @@
-// Shows the allow list of the repository in the working directory as it stands in the checkout
-// (the `Bash` rules of `.claude/settings.json`, committed or not), the way Seismic applies it to its
-// workers once the owner trusted it: which rules there are, which of them let through more than a
-// command (a whole program, anything at all), and for each command given as an argument whether the
-// list covers it. `--codex` also writes `.codex/rules/seismic.rules`, the list's form for Codex's own
-// rule engine, for Codex run outside Seismic. Exits with 1 when the file does not read or a command
-// given is not covered. Run with Bun (`bun allow-list.ts [--codex] ['<command>' …]`).
+
+
+
+
+
+
+
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';

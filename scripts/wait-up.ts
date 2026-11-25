@@ -1,8 +1,8 @@
-// Waiting for a server that was just started. Code from `git archive` starts cold, without Bun's
-// transpile cache, and on a busy machine takes well over half a minute to answer; so the wait is
-// long as long as the process lives, and ends at once when it exits.
 
-/** Not up: `exit` is the process's exit code, or null when it still runs after `limit` ms. */
+
+
+
+
 export type Up = { up: true } | { up: false; exit: number | null; waited: number };
 
 export async function waitUp(

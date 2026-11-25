@@ -1,15 +1,15 @@
-// Runs the Linux scope prototype's tests and probe (scripts/linux-scope-prototype.test.ts,
-// scripts/linux-scope-probe.ts) in a Docker container that boots systemd, in each of
-// the situations a user manager can be in, and prints one JSON line per run. Needs Docker that can run
-// a privileged container with cgroup v2 (Docker Desktop does); nothing is left running afterwards.
-//   bun scripts/boundary-matrix.ts [--codex]
-// Image: Debian 13 (systemd 257) on the Bun image; native Ubuntu runners with older systemd are
-// .github/workflows/process-boundary.yml's.
-// Situations: `bus` (manager and D-Bus), `no-dbus` (manager without a bus daemon: dbus stopped, its
-// socket gone), `ro-cgroup` (a mount namespace in which /sys/fs/cgroup is read-only, the manager
-// unchanged), `no-manager` (a user without lingering, so no user manager runs), and `unprivileged` (an
-// ordinary container: no systemd, read-only cgroupfs). `--codex` also installs the Codex CLI of the
-// version SEISMIC_MATRIX_CODEX names (0.162.0 by default) and runs the probe's real Codex cases.
+
+
+
+
+
+
+
+
+
+
+
+
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
@@ -29,7 +29,7 @@ function dockerfile(base: string) {
   return [
     `FROM ${base}`,
     'RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends systemd systemd-sysv dbus dbus-user-session libpam-systemd python3 util-linux ca-certificates && rm -rf /var/lib/apt/lists/*',
-    // `worker` lingers, so its user manager starts at boot; `nolinger` has none
+    
     'RUN useradd -m -u 1500 worker && useradd -m -u 1501 nolinger && mkdir -p /var/lib/systemd/linger && touch /var/lib/systemd/linger/worker',
     'STOPSIGNAL SIGRTMIN+3',
     'CMD ["/sbin/init"]',
@@ -65,7 +65,7 @@ for (const image of images) {
     const versions = sh(['docker', 'exec', name, 'sh', '-c', 'systemctl --version | head -1; uname -r; . /etc/os-release; echo $PRETTY_NAME']).out.trim().split('\n');
     report(image, '-', 'boot', { systemd: versions[0], kernel: versions[1], os: versions[2] });
 
-    // bus
+    
     report(image, 'bus', 'tests', tests(sh(asWorker(name, [RUNTIME], TEST)).out));
     for (const p of probe(sh(asWorker(name, [RUNTIME], 'bun scripts/linux-scope-probe.ts kill breakaway nested')).out)) report(image, 'bus', 'probe', p);
     if (codex) {
@@ -74,14 +74,14 @@ for (const image of images) {
       else for (const p of probe(sh(asWorker(name, [RUNTIME, `SEISMIC_CODEX=${installed}`], 'bun scripts/linux-scope-probe.ts codex-close-tracker codex-close-scope codex-host-death-tracker codex-host-death-scope')).out)) report(image, 'bus', 'codex', p);
     }
 
-    // ro-cgroup: the manager still moves the process; only this namespace's cgroupfs is read-only
+    
     const ro = `unshare -m sh -c 'mount --bind /sys/fs/cgroup /sys/fs/cgroup && mount -o remount,bind,ro /sys/fs/cgroup && exec setpriv --reuid=1500 --regid=1500 --init-groups env HOME=/home/worker ${RUNTIME} PATH=$PATH sh -c "cd /w && bun scripts/linux-scope-probe.ts kill"'`;
     for (const p of probe(sh(['docker', 'exec', name, 'sh', '-c', ro]).out)) report(image, 'ro-cgroup', 'probe', p);
 
-    // no-manager: a user whose manager does not run
+    
     for (const p of probe(sh(['docker', 'exec', '-u', 'nolinger', '-w', '/w', '-e', 'XDG_RUNTIME_DIR=/run/user/1501', name, 'bun', 'scripts/linux-scope-probe.ts', 'kill']).out)) report(image, 'no-manager', 'probe', p);
 
-    // no-dbus, last: it stops the bus for good
+    
     sh(asWorker(name, [RUNTIME], 'systemctl --user stop dbus.socket dbus.service; mv /run/user/1500/bus /run/user/1500/bus.off'));
     const bus = sh(asWorker(name, [RUNTIME], 'systemctl --user is-active dbus.service; ls /run/user/1500')).out.trim().replace(/\n/g, ' ');
     report(image, 'no-dbus', 'state', { dbus: bus });
@@ -92,7 +92,7 @@ for (const image of images) {
   }
 }
 
-// unprivileged: an ordinary container, as CI or a dev container runs Seismic
+
 const plain = sh(['docker', 'run', '--rm', '--init', '-u', '1500', '-e', 'HOME=/tmp', '-v', `${ROOT}:/w:ro`, '-w', '/w', `seismic-boundary-${images[0]}`, 'sh', '-c', `grep cgroup /proc/self/mounts; ${TEST}; bun scripts/linux-scope-probe.ts kill`]);
 report(images[0]!, 'unprivileged', 'mounts', { cgroupfs: plain.out.split('\n').filter((l) => l.startsWith('cgroup')).join('; ') });
 report(images[0]!, 'unprivileged', 'tests', tests(plain.out));

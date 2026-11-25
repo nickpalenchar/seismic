@@ -15,7 +15,7 @@ describe('the video timeline', () => {
   test('a frame is held until the next one, less the cut, and one seen only inside the cut is dropped', () => {
     const frames = [frame(99), frame(105), frame(120), frame(130), frame(145)];
     const held = frameDurations(frames, 100, 150, [{ from: 110, to: 140 }]);
-    // f105 runs to the cut; f120 shows only inside it; f130 is the last state before it ends.
+    
     expect(held.map((h) => h.file)).toEqual(['f99', 'f105', 'f130', 'f145']);
     expect(held.map((h) => +h.seconds.toFixed(3))).toEqual([5, 5, 5, 5]);
   });
@@ -42,7 +42,7 @@ describe('the video timeline', () => {
       for (let i = 0; i < CLOCK.bits; i++) row.fill((code >> (CLOCK.bits - 1 - i)) & 1 ? 0 + blur : 255 - blur, i * CLOCK.cell, (i + 1) * CLOCK.cell);
       return row;
     };
-    // painted at 1791458523.78, handed over 2.3 s later
+    
     expect(readClock(strip(1791458523.78, 30), 1791458526.08)).toBeCloseTo(1791458523.78, 2);
     const grey = strip(1791458523.78);
     grey[4] = 128;
@@ -55,20 +55,20 @@ describe('the video timeline', () => {
   });
 
   test('a frame handed over after one painted later is left out', () => {
-    // the third was painted before the second: it shows the page as it was before
+    
     const frames = onPaintTime([frame(100.1), frame(100.2), frame(100.3), frame(100.4)], [100.0, 100.15, 100.01, 100.2]);
     expect(frames.map((f) => f.file)).toEqual(['f100.1', 'f100.2', 'f100.4']);
     expect(frames.map((f) => f.t)).toEqual([100.0, 100.15, 100.2]);
   });
 
   test('a frame whose clock reads hours earlier is misread, not late: it stays, on its stamp less the last delay', () => {
-    // a strip under the white veil reads as all white, hours before the take
+    
     const frames = onPaintTime([frame(100.1), frame(100.2), frame(100.3), frame(100.4)], [100.0, 100 - 43000, null, 100.3]);
     expect(frames.map((f) => +f.t.toFixed(3))).toEqual([100.0, 100.1, 100.2, 100.3]);
   });
 
   test('a frame whose clock reads after it was handed over is misread: it stays, on its stamp less the last delay', () => {
-    // a strip read from the wrong row: hours after the take, which put every frame after its end
+    
     const frames = onPaintTime([frame(100.1), frame(100.2), frame(100.3)], [100.0, 100 + 43000, 100.2]);
     expect(frames.map((f) => +f.t.toFixed(3))).toEqual([100.0, 100.1, 100.2]);
     expect(frameDurations(frames, 100, 101, []).map((h) => h.file)).toEqual(['f100.1', 'f100.2', 'f100.3']);

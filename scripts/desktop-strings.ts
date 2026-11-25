@@ -1,11 +1,11 @@
-// The strings of the pages the desktop shell bundles (desktop/ui/), written from src/ui/strings.ts
-// (`desktopPages`) into desktop/ui/strings.js. Those pages load from the app itself before any server
-// answers, so they cannot ask one for their text, and Tauri embeds desktop/ui as it is: the file is
-// committed, and scripts/desktop-strings.test.ts fails while it lags behind strings.ts.
-//
-//   bun scripts/desktop-strings.ts
-//
-// A function there becomes a template with {0}, {1} … for its arguments; the page fills them in.
+
+
+
+
+
+
+
+
 
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';

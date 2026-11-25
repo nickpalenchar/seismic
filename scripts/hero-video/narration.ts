@@ -1,7 +1,7 @@
-// What the hero video says, scene by scene, in the order `demo.ts` plays them. Spoken in the owner's
-// ElevenLabs voice (eleven_v4), which reads the audio tags in square brackets; captions leave them out.
-// `command` is what the owner says into the microphone, `dictation` what they say into Seismic's text
-// field, `comments` holds what they say about the demo video: the same clip goes into Seismic's voice input.
+
+
+
+
 
 export const narration = {
   project:

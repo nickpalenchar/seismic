@@ -1,9 +1,9 @@
-// The repository's social preview on GitHub (the picture a link to github.com/nickpalenchar/seismic shows
-// when it is shared): 1280×640, the wordmark and the site's headline beside the site's screenshot of
-// the project (`site/img/project.png`), in the site's palette and type. GitHub's API cannot set it: the
-// owner uploads the PNG under the repository's Settings → General → Social preview.
-//
-//   bun scripts/social-preview.ts [out.png]     (default dist/social-preview.png; needs Google Chrome)
+
+
+
+
+
+
 
 import { mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -31,7 +31,7 @@ const html = `<!doctype html>
   <img class="project shot" src="img/project.png" alt="">
 </body></html>`;
 
-// the page and the site's files from one origin, so the browser loads its fonts
+
 const server = Bun.serve({
   port: 0,
   fetch: (req) => {

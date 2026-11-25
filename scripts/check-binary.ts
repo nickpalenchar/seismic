@@ -1,22 +1,22 @@
-// Checks a compiled Seismic (`bun run build`) on this machine, the way someone without Bun or a
-// checkout would use it: a scratch repository with its own settings (`.seismic/settings.json`) and
-// demo site, the binary started as `seismic` starts (supervised), and then what it hands to other
-// processes. Runs on macOS, Linux and Windows.
-//
-//   bun scripts/check-binary.ts <seismic> [--voice] [--demo] [--worker] [--port <n>] [--keep]
-//
-// Always: the project answers, the settings show the version and no checkout, the repository's own
-// settings are read, the demo setup finds Playwright among the resources, and a script run with the
-// binary's Bun (`BUN_BE_BUN`) runs. --voice installs Piper and Whisper through
-// the settings, speaks a sentence in the demo voice (tts.py from the resources) and gives it to
-// Seismic as a voice command; what Whisper heard must match. --demo renders a short demo of the
-// project with the skill's director from the resources (Node, a browser, ffmpeg and uv needed).
-// --worker starts a card with a real agent on the Claude Code `SEISMIC_CLAUDE` names, else the
-// machine's own, which commits a file and hands over an HTML artifact that is then shared on the
-// repository's demo site (served from the scratch directory). The Koordinator's answer to the voice command needs a Claude
-// login as well; without --worker it is not waited for. Prints one line per check; exits 1 when
-// one failed. --keep leaves the scratch directory and the server running. With CHECK_ARTIFACTS set,
-// a failed render leaves its screenshot and the server's log in that directory.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { type Subprocess } from 'bun';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
@@ -40,7 +40,7 @@ const port = Number(opt('port') ?? 4499);
 const base = `http://127.0.0.1:${port}`;
 const win = process.platform === 'win32';
 
-// what is waited for here takes minutes: asked every 2 s
+
 const until: typeof untilEvery = (what, ms, fn) => untilEvery(what, ms, fn, 2000);
 const api = async (path: string, init?: RequestInit & { json?: unknown }) => {
   const res = await fetch(`${base}${path}`, {
@@ -54,8 +54,8 @@ const api = async (path: string, init?: RequestInit & { json?: unknown }) => {
 };
 const json = async <T = any>(path: string, init?: RequestInit & { json?: unknown }) => (await (await api(path, init)).json()) as T;
 
-// the scratch repository: a plan doc, its own settings with a demo site, and the site's deploy
-// script, which copies the site to `deployed` under Seismic's home, where the site is served from
+
+
 const dir = realpathSync(mkdtempSync(join(tmpdir(), 'seismic-check-')));
 const repo = join(dir, 'repo');
 const home = join(dir, 'home');
@@ -100,7 +100,7 @@ writeFileSync(configFile, JSON.stringify([{ name: 'Check', repos: [{ path: repo,
 writeFileSync(join(home, 'settings.json'), JSON.stringify({ language: 'en' }));
 writeFileSync(join(home, 'demo.json'), JSON.stringify({ language: 'en', voice: 'piper' }));
 
-// the binary, supervised as `seismic` runs without --dev
+
 const log = join(dir, 'server.log');
 const env = { ...process.env, SEISMIC_HOME: home, SEISMIC_SUPERVISED: undefined, OBEYA_SUPERVISED: undefined };
 let server: Subprocess | undefined;
@@ -152,7 +152,7 @@ await check("the site's deploy script runs on the binary's Bun", async () => {
   const p = Bun.spawnSync([binary, join(repo, 'deploy.ts'), site], { cwd: dir, env: { ...env, BUN_BE_BUN: '1' }, stdout: 'pipe', stderr: 'pipe' });
   expect(p.exitCode === 0, `exit ${p.exitCode}: ${p.stderr.toString()}`);
   expect(existsSync(join(deployed, 'index.html')), 'nothing deployed');
-  // the site the worker's demo goes to starts empty
+  
   rmSync(deployed, { recursive: true, force: true });
   return p.stdout.toString().trim();
 });
@@ -167,7 +167,7 @@ if (args.includes('--voice')) {
     expect(!view.job?.error, view.job?.error);
     const missing = (view.items as { id: string; state: string }[]).filter((i) => i.state !== 'ok');
     expect(!missing.length, `still missing: ${JSON.stringify(missing)}`);
-    // the demo voice (Piper) too, which speaks the sentence heard below
+    
     await api('/api/demo-settings/install', { json: { language: 'en', voice: 'piper' } });
     const done = await until('the demo voice is installed', 30 * 60_000, async () => /voice piper installed|installing the voice piper failed.*/.exec(logText())?.[0]);
     expect(!/failed/.test(done), done);
@@ -205,7 +205,7 @@ await runDemo(
     );
     const p = Bun.spawnSync(['node', join(demo, 'demo.ts')], { cwd: demo, env, stdout: 'pipe', stderr: 'pipe' });
     const out = p.stdout.toString() + p.stderr.toString();
-    // what the browser showed when it failed, for a run on a machine one cannot look at (CHECK_ARTIFACTS)
+    
     const shot = join(demo, '.work', 'failure.png');
     if (p.exitCode !== 0 && process.env.CHECK_ARTIFACTS && existsSync(shot)) {
       mkdirSync(process.env.CHECK_ARTIFACTS, { recursive: true });
@@ -237,7 +237,7 @@ if (args.includes('--worker')) {
       if (it?.state === 'waiting' && it.need === 'question') throw new Error(`the agent asks: ${JSON.stringify(it.question)}`);
       return it?.state === 'waiting' && it;
     });
-    // the one clone of the project's one repository
+    
     const workstations = join(home, 'workspaces');
     const clone = join(workstations, readdirSync(workstations)[0]!, '1');
     const branchLog = Bun.spawnSync(['git', '-C', clone, 'log', '--oneline', '-1', '--', 'hello.txt'], { stdout: 'pipe' }).stdout.toString().trim();

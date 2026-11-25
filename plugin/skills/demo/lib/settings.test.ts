@@ -12,7 +12,7 @@ describe('demo settings', () => {
   test('without a file, a demo is narrated by Piper in English', () => {
     writeFileSync(join(home, 'settings.json'), JSON.stringify({ language: 'en' }));
     expect(readDemoSettings(home)).toEqual({ language: 'en', voice: 'piper' });
-    // a file without a language takes it from there too
+    
     writeFileSync(join(home, 'demo.json'), JSON.stringify({ voice: 'say' }));
     expect(readDemoSettings(home)).toEqual({ language: 'en', voice: 'say' });
   });
@@ -43,7 +43,7 @@ describe('demo settings', () => {
     expect(demoDirectory(readDemoSettings(home))).toBe(demos);
     expect(demoDirectory({})).toBe(join(homedir(), 'demos'));
     expect(demoDirectory({ directory: '~/work/demos' })).toBe(join(homedir(), 'work', 'demos'));
-    // a relative path would land wherever the agent works
+    
     expect(demoDirectory({ directory: 'demos' })).toBe(join(homedir(), 'demos'));
     expect(describeDemoSettings({ language: 'en', voice: 'piper', directory: demos }, undefined)).toContain(`directory: ${demos}`);
   });
@@ -67,7 +67,7 @@ describe('demo settings', () => {
     writeFileSync(join(repo, '.seismic', 'settings.json'), JSON.stringify({ demo: { language: 'en' } }));
     expect(repositoryLanguage({}, join(repo, 'src', 'deep'))).toEqual({ language: 'en', from: 'repository', file: join(repo, '.seismic', 'settings.json') });
     expect(repositoryLanguage({ DEMO_LANGUAGE: 'en' }, join(repo, 'src'))).toEqual({ language: 'en', from: 'seismic' });
-    // a language Seismic does not speak is none
+    
     writeFileSync(join(repo, '.seismic', 'settings.json'), JSON.stringify({ demo: { language: 'fr' } }));
     expect(repositoryLanguage({ DEMO_LANGUAGE: 'fr' }, repo)).toBeUndefined();
     const saved = { language: 'en', voice: 'qwen3', ownVoice: true, references: { en: '/en.wav' } } as const;
@@ -89,9 +89,9 @@ describe('demo settings', () => {
     expect(narrationPerson({})).toBe('third');
     expect(describeDemoSettings({ language: 'en', voice: 'piper' }, undefined)).toContain('in English');
     expect(describeDemoSettings({ language: 'en', voice: 'command', ownVoice: true }, undefined)).toContain('person: first');
-    // another voice for one render is nobody's own, unless the settings say so
+    
     expect(describeDemoSettings({ language: 'en', voice: 'command', ownVoice: true }, '/tmp/x.wav')).toContain('person: third');
-    // a clone without a clip for the language speaks with a stock speaker
+    
     expect(narrationPerson({ language: 'en', voice: 'qwen3', ownVoice: true })).toBe('third');
     expect(narrationPerson({ language: 'en', voice: 'qwen3', ownVoice: true, references: { en: '/en.wav' } })).toBe('first');
   });

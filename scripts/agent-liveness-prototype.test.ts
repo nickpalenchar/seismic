@@ -30,7 +30,7 @@ writeFileSync(${JSON.stringify(pidFile)},String(c.pid));setInterval(()=>{},1000)
   let pid = 0;
   try {
     await until(() => { pid = numberAt(pidFile); return pid > 1 && numberAt(beatFile) > 2; });
-    await Bun.sleep(250); // let the supervisor observe the separately grouped child
+    await Bun.sleep(250); 
     expect(alive(pid)).toBe(true);
     const exited = new Promise<void>((resolve) => supervisor.once('close', () => resolve()));
     (supervisor.stdio[3] as Writable).end();
@@ -45,7 +45,7 @@ writeFileSync(${JSON.stringify(pidFile)},String(c.pid));setInterval(()=>{},1000)
 }, 10_000);
 
 test.skipIf(process.platform === 'win32')('an agent that exits at once does not leave a same-group child behind', async () => {
-  // Before the supervisor's first snapshot sees it: only the agent's group still reaches it.
+  
   const dir = mkdtempSync(join(tmpdir(), 'seismic-liveness-fast-exit-'));
   const pidFile = join(dir, 'pid');
   const worker = testProcessCode(`import {spawn} from 'node:child_process';import {writeFileSync} from 'node:fs';
@@ -84,15 +84,15 @@ writeFileSync(${JSON.stringify(leafFile)},String(c.pid));process.stdin.resume();
   try {
     const agent = await s.agent;
     await until(() => { agentPid = numberAt(agentFile); leafPid = numberAt(leafFile); return agentPid > 1 && leafPid > 1; });
-    // the transport's process identity is the agent's own, not the supervisor's
+    
     expect(agent.pid).toBe(agentPid);
     expect(agent.pid).not.toBe(s.supervisor.pid);
-    await Bun.sleep(300); // let the supervisor observe and report the separately grouped leaf
+    await Bun.sleep(300); 
     let heldAtExit = false;
     s.supervisor.once('exit', () => heldAtExit = !stdoutClosed);
     s.supervisor.kill('SIGKILL');
     await s.done;
-    expect(heldAtExit).toBe(true); // waiting for the pipes to close would have waited forever
+    expect(heldAtExit).toBe(true); 
     await until(() => !alive(agentPid) && !alive(leafPid));
     expect(alive(canary.pid!)).toBe(true);
   } finally {
@@ -181,7 +181,7 @@ writeFileSync(${JSON.stringify(childFile)},String(c.pid));setInterval(()=>{},100
         return record.processes.some((p) => p.pid === rootPid) && record.processes.some((p) => p.pid === childPid);
       } catch { return false; }
     });
-    expect(inspectGeneration(dir, id).state).toBe('unknown'); // supervisor holds lease
+    expect(inspectGeneration(dir, id).state).toBe('unknown'); 
     const exited = new Promise<void>((resolve) => supervisor.once('exit', () => resolve()));
     supervisor.kill('SIGKILL'); await exited;
     const report = inspectGeneration(dir, id);

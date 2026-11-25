@@ -1,17 +1,17 @@
-// What happens to an app a real Claude or Codex worker started when its agent, or Seismic, dies?
-// bun scripts/harness-crash-probe.ts [claude|codex ...] [agent-death|seismic-death|seismic-restart ...] [--out <file>]
-// For each harness and case it stages a scratch Seismic with real workers (scripts/scratch-seismic.ts,
-// its own repository and SEISMIC_HOME), starts one card whose worker runs `python3 job.py` (a heartbeat
-// that leaves for a session and process group of its own; the launcher exits after three seconds)
-// and asks a question. Once parking has asked the trusted `app.keep` (which logs and keeps the app)
-// it SIGKILLs the worker's agent process or the Seismic server (seismic-restart: and then starts an
-// Seismic again on the same home, whose startup sweep ends what the crash left, sessionRegistry.ts),
-// waits, and records what still runs:
-// heartbeat, agent, server, an unrelated canary, the card and the settings commands that ran. Then
-// it ends every process it started or saw under the server, and checks nothing of them is left.
-// Each line printed (and appended to --out) is one case as JSON; `status` is `measured`, `blocked`
-// (the worker never got there: not logged in, refused, timed out) or `failed` (the probe broke).
-// It reports what it saw on this machine with these CLI versions; it proves no containment.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -21,7 +21,7 @@ import { Database } from 'bun:sqlite';
 const ROOT = join(import.meta.dir, '..');
 const read = (file: string) => { try { return readFileSync(file, 'utf8').trim(); } catch { return ''; } };
 const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
-// the heartbeat rewrites its tick file ten times a second: a read in between finds it empty
+
 const tickIn = (dir: string) => { for (let i = 0; i < 20; i++) { const t = read(join(dir, 'app.tick')); if (t) return Number(t); Bun.sleepSync(5); } return 0; };
 const real = (path: string) => { try { return realpathSync(path); } catch { return path; } };
 
@@ -40,9 +40,9 @@ const descendants = (root: number, rows = table()) => {
   return rows.filter((p) => p.pid !== root && found.has(p.pid));
 };
 const cwdOf = (pid: number) => spawnSync('lsof', ['-a', '-p', String(pid), '-d', 'cwd', '-Fn'], { encoding: 'utf8' }).stdout.split('\n').find((l) => l.startsWith('n'))?.slice(1) ?? '';
-// a number seen earlier may belong to another program by now: only signal what still looks like ours
+
 const stillOurs = (p: Proc) => table().some((q) => q.pid === p.pid && q.command === p.command);
-// every heartbeat working under `dir`, however many a worker started: the job's command names no path
+
 const heartbeats = (dir: string) => table().filter((p) => p.command.includes('job.py') && real(cwdOf(p.pid)).startsWith(real(dir)));
 const kill = (pid: number, signal: NodeJS.Signals = 'SIGKILL') => { try { process.kill(pid, signal); return true; } catch { return false; } };
 
@@ -74,7 +74,7 @@ function versions() {
   const v = (cmd: string) => spawnSync(cmd, ['--version'], { encoding: 'utf8', env: probeEnv() }).stdout.trim();
   return { claude: v(claudeCli()), codex: v(codexCli()), bun: Bun.version, os: `${process.platform} ${spawnSync('uname', ['-r'], { encoding: 'utf8' }).stdout.trim()}` };
 }
-// Seismic runs Codex from PATH; a wrapper there (a terminal app's shim, say) would stand between the server and the app-server
+
 const plainPath = () => (process.env.PATH ?? '').split(delimiter).filter((d) => !d.includes('cli-shims')).join(delimiter);
 const codexCli = () => (process.env.SEISMIC_CODEX ?? process.env.OBEYA_CODEX) ?? Bun.which('codex', { PATH: plainPath() }) ?? 'codex';
 const claudeCli = () => Bun.which('claude', { PATH: plainPath() }) ?? 'claude';
@@ -91,7 +91,7 @@ async function run(harness: Harness, kind: Case) {
     dir: join(work, 'scratch'),
   };
   writeFileSync(join(work, 'stage.json'), JSON.stringify(stage));
-  // unrelated to everything else: a session of its own, never a descendant of the server
+  
   const canary = spawn('python3', ['-c', 'import time\nwhile True: time.sleep(1)'], { detached: true, stdio: 'ignore' });
   canary.unref();
   const result: Record<string, unknown> = { harness, kind };
@@ -123,7 +123,7 @@ async function run(harness: Harness, kind: Case) {
     await api('/api/v1/settings/agents', { worker }, 'PUT');
     await api(`/api/v1/cards/${id}/start`, {});
 
-    // the worker started the heartbeat, asked, and parking asked app.keep, which kept it
+    
     const ready = () => {
       const c = card();
       const w = c?.workstation;
@@ -140,7 +140,7 @@ async function run(harness: Harness, kind: Case) {
     job = Number(read(join(workstation, 'app.pid')));
     const rows = table();
     seen = descendants(s.pid, rows);
-    // the worker's agent: the server's own child working in the card's workstation (the Koordinator's works elsewhere)
+    
     agent = seen.find((p) => p.ppid === s.pid && /claude|codex/.test(p.command) && real(cwdOf(p.pid)) === real(workstation));
     if (!agent) throw new Error(`no agent process in ${workstation} among ${JSON.stringify(seen.filter((p) => p.ppid === s.pid))}`);
     const jobRow = rows.find((p) => p.pid === job);
@@ -164,13 +164,13 @@ async function run(harness: Harness, kind: Case) {
     result.after = {
       appAlive: alive(job),
       ticksDuring8s: after - tick,
-      // a heartbeat started after the crash writes the same files
+      
       appPidNow: Number(read(join(workstation, 'app.pid'))),
       heartbeats: heartbeats(work).map((p) => ({ pid: p.pid, ppid: p.ppid, pgid: p.pgid })),
       agentAlive: alive(agent.pid),
       serverAlive: alive(s.pid),
       canaryAlive: alive(canary.pid!),
-      // what else that ran under the server outlives it (the Koordinator's session, a helper)
+      
       survivors: seen.filter((p) => p.pid !== job && alive(p.pid) && stillOurs(p)).map((p) => ({ pid: p.pid, command: p.command.slice(0, 100) })),
       card: card(),
       events: (db.query('select kind, author, substr(text, 1, 160) as text from events where card_id = ? and id > ? order by id').all(id, lastEvent) as unknown[]),
@@ -179,7 +179,7 @@ async function run(harness: Harness, kind: Case) {
       serverLog: read(join(s.dir, 'server.log')).split('\n').filter((l) => /error|exit|died|stopp|kill|park/i.test(l)).slice(-12),
     };
     if (kind === 'seismic-restart') {
-      // the same home, as a supervisor would start it again after the crash
+      
       const log = openSync(join(s.dir, 'server.log'), 'a');
       const again = spawn(process.execPath, ['src/server/main.ts', '--config', join(s.dir, 'projects.json'), '--port', String(s.port), '--dev'], {
         cwd: ROOT, env: { ...probeEnv(), SEISMIC_HOME: home }, detached: true, stdio: ['ignore', log, log],
@@ -213,7 +213,7 @@ async function run(harness: Harness, kind: Case) {
     return Object.assign(result, { status: 'failed', why: (e as Error).message });
   } finally {
     db?.close();
-    // everything this case started or saw, whatever the case left running
+    
     const left: string[] = [];
     if (staged && alive(staged.pid)) {
       seen.push(...descendants(staged.pid));

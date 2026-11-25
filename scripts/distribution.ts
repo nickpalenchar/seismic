@@ -1,8 +1,8 @@
-// What Seismic puts out. Its app goes out as GitHub releases (docs/release.md): the release status
-// (scripts/release-status.ts) stops at DISTRIBUTION first. This repository's own site (site/) and its
-// hero video do not go out: seismic.im is built from the separate seismic-site repository, so the
-// scripts that would publish them stop at SITE; their tests run them in a temp checkout with a copy
-// of this file that says yes.
+
+
+
+
+
 export const DISTRIBUTION = true;
 export const SITE = false;
 

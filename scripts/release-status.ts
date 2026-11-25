@@ -1,19 +1,19 @@
-// What a release is decided from (the release skill, `.claude/skills/release/SKILL.md`, and
-// docs/release.md): what a run of `git` and `gh` shows, in one place, with what stands in the way.
-//
-//   bun scripts/release-status.ts
-//       whether distribution is switched on, the last version tag and the commits since then that
-//       change what runs, the version to propose and whether CHANGELOG.md has its section yet, how
-//       far GitHub's main is behind, the latest release and drafts left over, and whether the
-//       secrets the build workflow signs with are there.
-//   bun scripts/release-status.ts draft <tag>
-//       what the build workflow's draft release for <tag> holds: every installer, update and
-//       signature, SHA256SUMS, and a latest.json of the tag's version that names every platform.
-//
-// It reads `main` and asks GitHub about the checkout's origin as the account that owns it (with
-// the token of its gh login, without switching the account gh has active), through
-// scripts/gh.ts. It changes nothing,
-// and exits with 1 when something stands in the way.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -23,36 +23,36 @@ import { CHECKOUT, ghEnv } from './gh';
 import { candidate, RELEASE, RUNS, section, type Latest } from './release';
 
 const MAIN = 'main';
-/** What the build workflow signs with (docs/release.md); APPLE_NOTARY_ISSUER only with a team key. */
+
 export const SECRETS = ['APPLE_CERTIFICATE', 'APPLE_CERTIFICATE_PASSWORD', 'APPLE_NOTARY_KEY', 'APPLE_NOTARY_KEY_ID', 'TAURI_SIGNING_PRIVATE_KEY'];
 
-/** A gh call: its output, or null when it failed. */
+
 export type Gh = (args: string[]) => string | null;
 
 type Commit = { hash: string; date: string; subject: string };
 
 export type Status = {
-  /** package.json's version in the checkout. */
+  
   version: string;
-  /** The last version tag on main (release candidates aside) and its date. */
+  
   tag?: { name: string; date: string };
-  /** The commits since the tag that change what runs, newest first, and how many there are in all. */
+  
   changes: Commit[];
   commits: number;
-  /** The version to propose: package.json's when it is past the tag (a release candidate's own version: 0.2.0-rc.1 → 0.2.0), else the next minor one. */
+  
   propose: string;
-  /** Whether `v<propose>` is a tag already, here or on GitHub. */
+  
   tagTaken: boolean;
-  /** Whether CHANGELOG.md has a section for `propose` (step 2 writes it). */
+  
   changelog: boolean;
-  /** GitHub's main against ours: commits it lacks, commits only it has (both null: it has some never fetched here). */
+  
   github: { behind: number | null; ahead: number | null } | null;
-  /** The latest release, and drafts left over (a release candidate's draft is no left-over: it stays one). */
+  
   latest: string | null;
   drafts: string[];
-  /** Secrets the build needs that GitHub does not have (null: they could not be read). */
+  
   missing: string[] | null;
-  /** What stands in the way. */
+  
   problems: string[];
 };
 
@@ -107,7 +107,7 @@ export function status(cwd: string, gh: Gh): Status {
   const log = git(cwd, 'show', `${MAIN}:CHANGELOG.md`);
   const changelog = !!log && section(log, propose) !== null;
 
-  // ls-remote reads GitHub's main without fetching it
+  
   const theirs = git(cwd, 'ls-remote', 'origin', `refs/heads/${MAIN}`)?.split('\t')[0];
   let github: Status['github'] = null;
   if (!theirs) problems.push(`GitHub's ${MAIN} could not be read.`);
@@ -133,7 +133,7 @@ export function status(cwd: string, gh: Gh): Status {
   return { version, tag, changes, commits: all, propose, tagTaken, changelog, github, latest, drafts, missing, problems };
 }
 
-/** How many of the commits the report names. */
+
 const LISTED = 40;
 
 /** A time in the local zone, git's and GitHub's (UTC) alike: 2026-10-12 11:16. */

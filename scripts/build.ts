@@ -1,17 +1,17 @@
-// Seismic as one file: the server compiled with Bun (`Bun.build` with `compile`) into a binary that needs
-// no Bun and no checkout, with the UI and SQLite in it, and beside it the resources other
-// processes run or import (src/server/resources.ts): the plugin with the demo skill and the
-// Playwright it records with, and the voice sidecars;
-// the skills' scripts that read a repository's settings (`recipe.ts`, `check.ts`) are bundled with them in place.
-//
-//   bun scripts/build.ts [<target>…] [--all] [--out <dir>]
-//
-// Targets: darwin-arm64, darwin-x64, linux-x64, linux-arm64, windows-x64; by default this
-// machine's. Each goes into <out>/seismic-<version>-<target>/ (default out: dist/), holding `seismic`
-// (`seismic.exe`) and `resources/`. Bun compiles for another platform too, fetching that platform's
-// Bun once. A macOS binary is signed ad hoc on a Mac: as Bun writes it, macOS kills it at start.
-// Claude Code is not part of it: the binary runs the machine's own installation
-// (`claudeExecutable` in src/server/runtime.ts).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
@@ -45,17 +45,17 @@ function resources(dir: string) {
   const notTests = (src: string) => !/\.test\.ts$|__pycache__|\.DS_Store$/.test(src);
   cpSync(join(ROOT, 'plugin'), join(dir, 'plugin'), { recursive: true, filter: notTests });
   cpSync(join(ROOT, 'voice'), join(dir, 'voice'), { recursive: true, filter: notTests });
-  // the director imports it from the plugin, which finds it up the tree as it does in the checkout
+  
   cpSync(join(ROOT, 'node_modules', 'playwright-core'), join(dir, 'node_modules', 'playwright-core'), { recursive: true, dereference: true });
-  // the plugin's TypeScript runs on plain Node, which reads it as ES modules by this
+  
   writeFileSync(join(dir, 'package.json'), `${JSON.stringify({ name: 'seismic-resources', version: pkg.version, private: true, type: 'module' }, null, 2)}\n`);
   cpSync(join(ROOT, 'LICENSE'), join(dir, 'LICENSE'));
-  // the settings skill reads the reference up the tree, as in the checkout
+  
   cpSync(join(ROOT, 'docs', 'site', 'reference', 'settings.md'), join(dir, 'docs', 'site', 'reference', 'settings.md'));
   for (const script of ['plugin/skills/demo/lib/recipe.ts', 'plugin/skills/settings/lib/check.ts', 'plugin/skills/settings/lib/allow-list.ts'])
     run([process.execPath, 'build', script, '--target', 'bun', '--outfile', join(dir, script)]);
-  // A compiled binary's embedded modules cannot be imported by a separate process. Bundle the
-  // liveness supervisor and its dependencies into a real resource executable by Seismic's Bun.
+  
+  
   mkdirSync(join(dir, 'scripts'), { recursive: true });
   run([process.execPath, 'build', 'scripts/agent-liveness-prototype.ts', '--target', 'bun', '--outfile', join(dir, 'scripts', 'agent-liveness.js')]);
 }
@@ -67,10 +67,10 @@ for (const target of targets) {
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   const binary = join(dir, target.startsWith('windows') ? 'seismic.exe' : 'seismic');
-  // Bun (1.3.12) leaves a copy of its runtime in the working directory (`.<hex>.bun-build`): there it goes
+  
   process.chdir(dir);
-  // the UI it carries is bundled now, not when it is served: as `bun start` serves it, React's production build,
-  // its CSS through Tailwind (src/ui/tailwind.css)
+  
+  
   const built = await Bun.build({
     entrypoints: [join(ROOT, 'src/server/main.ts')],
     compile: { target: `bun-${target}` as Bun.Build.CompileTarget, outfile: binary },

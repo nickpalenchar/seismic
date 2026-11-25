@@ -1,18 +1,18 @@
-// Experimental Linux process boundary, not used by Seismic: each session in a transient systemd user
-// scope of its own. `systemd-run --user --scope` has the user manager move systemd-run's own process
-// into a new cgroup and only then execs the command in place (same pid, same stdio), so no agent
-// code runs outside it: the launch is gated by construction. A shell in between reports the cgroup it
-// finds itself in on a private pipe (fd 3), closes it and execs the agent, which is how the caller
-// learns that the scope holds: systemd-run that cannot reach a manager exits before running anything,
-// and the caller may then start the agent without a scope (the existing tracking, processes.ts).
-// Ending the session writes `cgroup.kill` (Linux 5.14+, cgroup v2), which the kernel applies to
-// every member at once, forks during the kill included; no pid is looked up, so nothing races reuse.
-// Where that file cannot be written (a read-only cgroupfs, an older kernel), `systemctl --user kill`
-// asks the manager instead. A scope outlives the caller's death, and its unit name (random per
-// session) is not given to anything else while it exists, so a later sweep can end it by name.
-// What it does not hold: a process that asks the manager for a unit of its own (systemd-run, D-Bus
-// activation) or moves itself to another cgroup the user owns leaves it. See docs/plan/codex-runtime.md
-// ("Platform process boundaries").
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -23,11 +23,11 @@ export type Unavailable = { boundary: 'none'; reason: string };
 
 export interface Scope {
   unit: string;
-  /** The scope's cgroup, relative to the cgroup2 mount. */
+  
   cgroup: string;
-  /** Pids in the scope now (empty once it is gone). */
+  
   members(): number[];
-  /** Ends every process in the scope; says which way it took. */
+  
   kill(): 'cgroup.kill' | 'systemctl' | 'gone';
 }
 
@@ -51,9 +51,9 @@ export function killScope(unit: string, cgroup: string, env: NodeJS.ProcessEnv =
     return 'cgroup.kill';
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
-    // the scope emptied and was collected in between
+    
     if (code === 'ENOENT' && !existsSync(`${CGROUP_ROOT}${cgroup}`)) return 'gone';
-    // EROFS: cgroupfs mounted read-only here; ENOENT: no cgroup.kill (before 5.14); EACCES: not ours to write
+    
     if (!['EROFS', 'ENOENT', 'EACCES', 'EPERM'].includes(code ?? '')) throw error;
   }
   const r = spawnSync('systemctl', ['--user', 'kill', '--signal=SIGKILL', unit], { env, encoding: 'utf8', timeout: 5000 });
@@ -61,7 +61,7 @@ export function killScope(unit: string, cgroup: string, env: NodeJS.ProcessEnv =
   return 'systemctl';
 }
 
-// fd 3 is the report pipe: the shell writes its cgroup there, closes it and execs the agent.
+
 const GATE = 'cat /proc/self/cgroup >&3 || exit 125; exec 3>&-; exec "$@"';
 
 /**
@@ -85,7 +85,7 @@ export async function launchInScope(
   });
   const report = child.stdio[3] as NodeJS.ReadableStream;
   let stderr = '';
-  // systemd-run's own complaint, when it cannot start the scope, goes to the agent's stderr
+  
   if (stdio[2] === 'pipe') child.stderr!.on('data', (chunk: Buffer) => { if (stderr.length < 4000) stderr += chunk.toString(); });
   const reported = await new Promise<string | undefined>((resolve) => {
     let text = '';
@@ -99,8 +99,8 @@ export async function launchInScope(
     return { boundary: 'none', reason: `systemd-run exited (${code})${stderr.trim() ? `: ${stderr.trim()}` : ''}` };
   }
   if (!cgroup.endsWith(`/${unit}`)) {
-    // not where we asked to be: refuse to call it ours, and stop what started
-    try { process.kill(-child.pid!, 'SIGKILL'); } catch { /* gone */ }
+    
+    try { process.kill(-child.pid!, 'SIGKILL'); } catch {  }
     return { boundary: 'none', reason: `started in ${cgroup}, not in ${unit}` };
   }
   return {

@@ -1,24 +1,24 @@
-// Checks the installed app (scripts/build-app.ts) on this machine, in the webview it has here
-// (WKWebView, WebView2, WebKitGTK): what the page needs from the webview, and how the shell starts,
-// shares and stops Seismic.
-//
-//   bun scripts/check-app.ts <the app's program> [--fake-mic] [--screenshot <png>] [--keep]
-//
-// The program is Seismic.app/Contents/MacOS/seismic, seismic.exe where the installer put it, the AppImage,
-// or /usr/bin/seismic from the .deb. On a scratch repository and a scratch home it checks:
-//   - the app starts its server and its window shows the project, which knows it runs in the app;
-//   - the microphone: the page gets a stream without being asked, and records it as src/ui/recorder.ts
-//     does (MediaRecorder; on Linux Web Audio's samples). --fake-mic gives WebView2 Chromium's fake
-//     device, for a machine without one; on Linux a PulseAudio source is needed, not a sink's
-//     monitor (WebKitGTK lists none): module-sine-source will do;
-//   - a demo video (H.264 and AAC in MP4, as the demo skill renders it) plays;
-//   - the preferences offer "Open in browser" (--screenshot takes the window with them open);
-//   - starting the app a second time brings the first to the front and ends;
-//   - `POST /api/stop` ends the server and then the app, and the home has no entry left;
-//   - with an Seismic already running on the home (started from a terminal), the app opens a window
-//     on it instead of starting another, and quitting the app leaves it running.
-// The page reports through SEISMIC_APP_CHECK (desktop/src/main.rs), which imports this script's module.
-// Prints one line per check; exits 1 when one failed. Needs ffmpeg (for the video) and git.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { type Subprocess } from 'bun';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -36,10 +36,10 @@ if (!programArg) {
 const program = resolve(programArg);
 const win = process.platform === 'win32';
 
-// the page reports in moments: asked every 250 ms
+
 const until: typeof untilEvery = (what, ms, fn) => untilEvery(what, ms, fn, 250);
 
-// ---------------------------------------------------------------- a scratch repository and home
+
 const dir = mkdtempSync(join(tmpdir(), 'seismic-app-check-'));
 const repo = join(dir, 'repo');
 const home = join(dir, 'home');
@@ -55,7 +55,7 @@ git('-c', 'user.name=Check', '-c', 'user.email=check@example.com', 'commit', '-q
 mkdirSync(home);
 writeFileSync(join(home, 'projects.json'), JSON.stringify([{ name: 'App check', repos: [{ path: repo }] }]));
 
-// a demo video as the skill renders one: H.264 and AAC in MP4
+
 const video = join(dir, 'demo.mp4');
 const ff = Bun.spawnSync(
   ['ffmpeg', '-v', 'error', '-f', 'lavfi', '-i', 'testsrc=size=640x360:rate=30', '-f', 'lavfi', '-i', 'sine=frequency=440', '-t', '3', '-vf', 'format=yuv420p', '-c:v', 'libx264', '-c:a', 'aac', '-b:a', '96k', '-movflags', '+faststart', video],
@@ -66,7 +66,7 @@ if (ff.exitCode !== 0) {
   process.exit(2);
 }
 
-// ---------------------------------------------------------------- what the page runs, and where it reports
+
 const reports: Record<string, unknown>[] = [];
 const MODULE = `
 const report = (r) => fetch(new URL('/result', import.meta.url), { method: 'POST', body: JSON.stringify(r) });
@@ -157,7 +157,7 @@ const env: Record<string, string> = {
   ...(process.env as Record<string, string>),
   SEISMIC_HOME: home,
   SEISMIC_APP_CHECK: `${harness.url.href}check.js`,
-  // a port of its own, so a running Seismic on this machine is not in the way
+  
   SEISMIC_PORT: String(4600 + Math.floor(Math.random() * 300)),
   ...(args.includes('--fake-mic') && win ? { WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: '--use-fake-device-for-media-stream' } : {}),
 };
@@ -201,7 +201,7 @@ async function screenshot(pid: number, file: string) {
 let app: Subprocess | undefined;
 let server: Subprocess | undefined;
 try {
-  // ---------------------------------------------------------------- the app with its own server
+  
   app = startApp();
   let url = '';
   await check('the app starts its server', async () => {
@@ -259,7 +259,7 @@ try {
     return `the app ended with ${code}`;
   });
 
-  // ---------------------------------------------------------------- an Seismic from a terminal on the same home
+  
   const sidecar = [join(dirname(program), win ? 'seismic-server.exe' : 'seismic-server'), resolve(dirname(program), '..', 'lib', 'Seismic', 'seismic-server')].find((f) => existsSync(f)) ?? '';
   if (existsSync(sidecar)) {
     reports.length = 0;

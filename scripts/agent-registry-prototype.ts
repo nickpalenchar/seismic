@@ -1,7 +1,7 @@
-// Report-only experiment. Not integrated with Seismic and not a process-killing authority.
-// Use only a private, local scratch directory: path hardening and filesystem guarantees are not established.
-// A per-generation SQLite write lock is a kernel-backed lease on supported local filesystems.
-// Separate files keep record commits independent of the long-lived lease transaction.
+
+
+
+
 import { Database } from 'bun:sqlite';
 import { randomUUID } from 'node:crypto';
 import { chmodSync, closeSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -18,7 +18,7 @@ export type Inspection = { pid: number; state: 'match' | 'different' | 'missing-
 export type Report = { state: 'unknown'; reason: string } | { state: 'inspectable'; record: RegistryRecord; processes: Inspection[] };
 
 function paths(root: string, id: string) {
-  generation.parse(id); // never accept a path as a generation
+  generation.parse(id); 
   return { lease: join(root, `${id}.lease.sqlite`), record: join(root, `${id}.json`) };
 }
 
@@ -30,7 +30,7 @@ export function processIdentity(pid: number): ProcessIdentity | undefined {
     const own = statSync('/proc/self/ns/pid', { bigint: true });
     const ns = statSync(`/proc/${pid}/ns/pid`, { bigint: true });
     if (own.dev !== ns.dev || own.ino !== ns.ino) return;
-    // the boot is a field of its own: the start stays the bare ticks
+    
     const info = linuxProcessStat(readFileSync(`/proc/${pid}/stat`, 'utf8'), '');
     if (!boot || !info || info.pid !== pid) return;
     return { pid, boot, namespace: `${ns.dev}:${ns.ino}`, start: info.born };
@@ -41,13 +41,13 @@ export function processIdentity(pid: number): ProcessIdentity | undefined {
 function acquire(file: string): Database | undefined {
   let db: Database | undefined;
   try {
-    // Never create a missing lease while inspecting: that could create a second ownership domain.
+    
     if (!lstatSync(file).isFile()) return;
     db = new Database(file, { create: false, readwrite: true });
     db.exec('PRAGMA busy_timeout = 0; BEGIN IMMEDIATE');
     return db;
   } catch {
-    try { db?.close(); } catch { /* unknown, never assume the lease is held */ }
+    try { db?.close(); } catch {  }
     return;
   }
 }
@@ -63,10 +63,10 @@ function atomicRecord(file: string, record: RegistryRecord) {
       fsyncSync(fd);
     } finally { closeSync(fd); }
     renameSync(temporary, file);
-    // Persist the directory entry as well as the file. Failure is not a successful publication.
+    
     const directory = openSync(dirname(file), 'r');
     try { fsyncSync(directory); } finally { closeSync(directory); }
-  } finally { try { unlinkSync(temporary); } catch { /* renamed or not created */ } }
+  } finally { try { unlinkSync(temporary); } catch {  } }
 }
 
 /** The caller must keep this handle alive while it owns the generation. */
@@ -75,7 +75,7 @@ export function createGeneration(root: string, supervisor: ProcessIdentity) {
   mkdirSync(root, { recursive: true, mode: 0o700 });
   const id = randomUUID();
   const files = paths(root, id);
-  // Create exactly once; lease files are never deleted or replaced while a contender may hold one.
+  
   writeFileSync(files.lease, '', { mode: 0o600, flag: 'wx' });
   const lease = new Database(files.lease, { create: false, readwrite: true });
   chmodSync(files.lease, 0o600);

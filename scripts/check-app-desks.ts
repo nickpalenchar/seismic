@@ -1,18 +1,18 @@
-// Checks the app's remote workspaces (docs/plan/remote-workspaces.md, desktop/src/desks/) in the
-// webview of this machine, against a second Seismic that counts as remote: a proxy in front of it
-// forwards as `tailscale serve` does, so it answers the shell as another machine would.
-//
-//   bun scripts/check-app-desks.ts <the app's program> [--ipv6] [--legacy-mic] [--debug-failures] [--minimized-takeover] [--keep]
-//   Add --same-port-takeover or --quit-during-takeover for an isolated takeover check.
-//   With --same-port-takeover, --failed-same-port-navigation simulates an uncommitted load.
-//
-// The program: a build from scripts/build-app.ts, or a debug build of the shell, which runs this
-// checkout's server. On a Mac it has to be an app bundle: WKWebView keeps the cookies of a bare
-// program for its run alone, so a pairing would not outlast the relaunch. In desktop/:
-//   bun x tauri build --debug --bundles app --config '{"identifier":"im.seismic.desks-check","bundle":{"externalBin":null,"resources":null}}'
-// then target/debug/bundle/macos/Seismic.app/Contents/MacOS/seismic. The check pairs, switches
-// among workspaces, handles offline recovery and restores drafts through updates. It observes
-// the native window count and the webview labels independently of the workspace list.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { type Subprocess } from 'bun';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -39,7 +39,7 @@ const quitDuringTakeover = args.includes('--quit-during-takeover');
 if (quitDuringTakeover && (process.platform !== 'darwin' || samePortTakeover)) {
   throw new Error('--quit-during-takeover requires macOS and a different-port takeover');
 }
-// On newer macOS, a debug app can exercise Big Sur's fail-closed path with real WebKit.
+
 const forceLegacyMic = args.includes('--legacy-mic');
 const legacyMic = process.platform === 'darwin' && (forceLegacyMic || Number(release().split('.')[0]) <= 20);
 
@@ -48,18 +48,18 @@ const [home, remoteHome] = [join(dir, 'home'), join(dir, 'remote-home')];
 mkdirSync(home);
 mkdirSync(remoteHome);
 
-// A real project supplies the desktop composer and its paste/upload path.
+
 const repo = join(dir, 'lab');
 mkdirSync(repo);
 Bun.spawnSync(['git', 'init', '-q', repo]);
 for (const workspaceHome of [home, remoteHome]) {
   writeFileSync(join(workspaceHome, 'projects.json'), JSON.stringify([{ name: 'Lab', repos: [{ path: repo }] }]));
 }
-// Take the launcher out of reach for one relaunch, even where a running executable is locked.
+
 const launcherDir = join(dir, 'launcher');
 symlinkSync(dirname(process.execPath), launcherDir, 'junction');
 
-// ---------------------------------------------------------------- the remote Seismic, behind a proxy
+
 const free = () => {
   const s = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch: () => new Response() });
   const port = s.port!;
@@ -75,8 +75,8 @@ const remote = Bun.spawn(['bun', join(ROOT, 'src', 'server', 'main.ts'), '--port
 });
 const asOwner = (path: string, init: RequestInit = {}) => fetch(`${remoteUrl}${path}`, { ...init, headers: { ...ownerHeaders(remoteHome), 'content-type': 'application/json', ...init.headers } });
 
-// Localhost is a secure context for media capture. Forwarded headers make this a remote
-// device to the server, even though the webview and both servers are on the same machine.
+
+
 const proxy: { server?: ReturnType<typeof Bun.serve> } = {};
 const useIPv6 = args.includes('--ipv6');
 const HOST = useIPv6 ? '[::1]' : 'localhost';
@@ -176,7 +176,7 @@ let onHealth: (() => Promise<void>) | undefined;
 let remoteBusy = false;
 let busyChecks = 0;
 let seedDraft = true;
-// The next page request finds the remote gone, after its health check answered.
+
 let nextPage: (() => Promise<void>) | undefined;
 let liveComposer = false;
 let reconnectRemote: (() => void) | undefined;
@@ -211,7 +211,7 @@ const startProxy = (port = proxyPort) => {
         await held();
       }
       if (pageError && req.headers.get('accept')?.includes('text/html')) {
-        // Older webviews omit the HTTP status from navigation timing entries.
+        
         const timing = pageError === 'legacy' ? "<script>performance.getEntriesByType = () => []</script>" : '';
         return new Response(timing + '<title>Service unavailable</title>', { status: 503, headers: { 'content-type': 'text/html' } });
       }
@@ -221,7 +221,7 @@ const startProxy = (port = proxyPort) => {
         proxy.server = undefined;
         return new Promise<Response>(() => {});
       }
-      // the shell's health check: its route, and the projects of a Seismic from before it
+      
       const health = ['/api/v1/health', '/api/projects'].includes(url.pathname) && req.headers.get('user-agent')?.startsWith('ureq/');
       if (onHealth && health) {
         server.timeout(req, 0);
@@ -251,7 +251,7 @@ const startProxy = (port = proxyPort) => {
       }
       const body = req.method === 'GET' || req.method === 'HEAD' ? undefined : await req.arrayBuffer();
       const res = await fetch(`${remoteUrl}${url.pathname}${url.search}`, { method: req.method, headers, body, redirect: 'manual' });
-      // fetch has decoded the body already
+      
       const back = new Headers(res.headers);
       back.delete('content-encoding');
       back.delete('content-length');
@@ -285,7 +285,7 @@ const startProxy = (port = proxyPort) => {
 };
 const code = async () => ((await (await asOwner('/api/access/pair', { method: 'POST' })).json()) as { code: string }).code;
 
-// ---------------------------------------------------------------- what the pages run, and where they report
+
 type Done = { id: number; ok: boolean; value?: unknown; error?: string };
 const todo: { id: number; label: string; kind: string; cmd: string; args?: unknown }[] = [];
 const done = new Map<number, Done>();
@@ -463,7 +463,7 @@ const decideAttachment = async (button: string) => {
   })()`;
   await until('the three attachment choices', 6000, async () => (await run('check_eval', { js })).value === true);
 };
-// Hold the local composer at the response boundary so it can finish even after its server goes away.
+
 const holdLocalScreenshot = async (image: string) => {
   const js = `(() => {
     const realFetch = window.fetch;
@@ -501,7 +501,7 @@ const pairAfterUpload = async (cmd: 'add_desk' | 'pair_desk', args: Record<strin
     expect(result.error === 'cancelled' && pairRequests === attempts, JSON.stringify(result));
     const retry = send(cmd, args);
     await decideAttachment('Switch after upload');
-    // The one-minute link cannot age while the upload is held because the POST hasn't happened.
+    
     await sleep(400);
     expect(pairRequests === attempts && !done.has(retry), 'the code was spent while the attachment was pending');
     onHealth = () => { probe.resolve(); return answer.promise; };
@@ -516,7 +516,7 @@ const pairAfterUpload = async (cmd: 'add_desk' | 'pair_desk', args: Record<strin
     if (!uploadReleased) await releaseLocalScreenshot();
   }
 };
-// A destination whose health check fails in passing refuses the pairing without redeeming the code.
+
 const healthFailsOnce = async (cmd: 'add_desk' | 'pair_desk', args: Record<string, string>) => {
   const [attempts, previous] = [pairRequests, rejectedHealthChecks];
   rejectHealth = true;
@@ -557,12 +557,12 @@ const env: Record<string, string> = {
   SEISMIC_HOME: home,
   SEISMIC_APP_CHECK: `${harness.url.href}check.js`,
   SEISMIC_APP_CHECK_BUNDLED: '1',
-  // WebKit's mock microphone on a Mac without one (desktop/src/window/microphone/macos.rs)
+  
   SEISMIC_APP_CHECK_FAKE_MIC: '1',
   ...(legacyMic && forceLegacyMic ? { SEISMIC_APP_CHECK_LEGACY_MIC: '1' } : {}),
   ...(process.platform === 'win32' ? { WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: '--use-fake-device-for-media-stream' } : {}),
   SEISMIC_PORT: String(samePortTakeover ? oldPort : 4600 + Math.floor(Math.random() * 300)),
-  // the debug shell runs this checkout's server
+  
   SEISMIC_CHECKOUT: ROOT,
   SEISMIC_BUN: join(launcherDir, basename(process.execPath)),
 };
@@ -589,7 +589,7 @@ const appApi = async (path: string, body?: object) => {
 };
 const relaunch = async () => {
   const res = await appApi('/api/app-update', { rebuilt: true }).catch((error) => {
-    // The server can finish shutting down before it sends the response. The next shell must report.
+    
     if (error.code !== 'ECONNRESET') throw error;
     return null;
   });
@@ -604,7 +604,7 @@ async function checkApp() {
   expect(on.ok, `the remote's access: ${on.status} ${await on.text()}`);
   proxy.server = startProxy();
 
-  // ---------------------------------------------------------------- pairing from this machine's page
+  
   terminal = Bun.spawn([process.execPath, join(ROOT, 'src', 'server', 'main.ts'), '--port', String(oldPort)], {
     env,
     stdout: 'ignore',
@@ -651,7 +651,7 @@ async function checkApp() {
         (await run('check_eval', { js: "!!document.querySelector('[role=alertdialog]')" })).value === true);
       const replacement = entry();
       expect(replacement && new URL(replacement.url).port !== String(oldPort), 'no replacement server');
-      // Send the same standard termination request as macOS Quit, to this scratch app alone.
+      
       const quit = Bun.spawnSync(['swift', '-e', `
         import AppKit
         guard NSRunningApplication(processIdentifier: ${app!.pid})?.terminate() == true else { exit(1) }
@@ -670,7 +670,7 @@ async function checkApp() {
       await until('the old document to receive the new server hello', 15_000, async () =>
         (await run('check_eval', { js: 'window.checkReconnected === true' })).value === true);
     } else {
-      // Keep the upload held long enough for another attachment poll.
+      
       await sleep(400);
     }
     const kept = await run('check_eval', { js: "!document.querySelector('[role=alertdialog]') && !!window.releaseScreenshot" });
@@ -678,8 +678,8 @@ async function checkApp() {
     const workspacesDuringReload = samePortTakeover && !failedSamePortNavigation;
     if (workspacesDuringReload) {
       send('open_desk', { id: 'local', page: '/workspaces?new' });
-      // The request supersedes the earlier attachment check. Release the upload
-      // only after the new check has reached the still-visible old document.
+      
+      
       await decideAttachment('Go back');
     }
     if (failedSamePortNavigation) writeFileSync(join(home, 'check-local-navigation-not-committed'), '');
@@ -822,7 +822,7 @@ async function checkApp() {
       unrelatedPairing = false;
     }
   });
-  // Whichever Add comes first redeems the code refused here.
+  
   const addition = { address: REMOTE, name: 'Studio', code: await code() };
   await check('Add keeps the code usable when the health check fails', async () => {
     await healthFailsOnce('add_desk', addition);
@@ -843,11 +843,11 @@ async function checkApp() {
       expect(saved.list.some((w) => w.id === id && w.url === REMOTE), 'the new workspace was not saved');
     });
   }
-  // after the injected failed open, the first pairing is Pair again, with a code of its own
+  
   const pairing = id ? { id, code: await code() } : addition;
   const pairBefore = reports.length;
   const attempts = pairRequests;
-  // without the injected failure, the same code as the refused Add
+  
   await pairAfterUpload(id ? 'pair_desk' : 'add_desk', pairing);
   const first = await report('remote', pairBefore) as Record<string, { ok: boolean; value?: unknown; error?: string }>;
   id ||= (first.desks!.value as Desks).current!;
@@ -903,7 +903,7 @@ async function checkApp() {
       return frame!.result;
     });
   }
-  // The destination reports success because switching retires the invoking document.
+  
   const select = async (id: string, kind: string, waitForLocalServer = false) => {
     const before = reports.length;
     const previous = displayed();
@@ -954,7 +954,7 @@ async function checkApp() {
     const again = { id, code: await code() };
     await healthFailsOnce('pair_desk', again);
     const [before, attempts] = [reports.length, pairRequests];
-    // the window switches away from the page that asked, so the remote page reports the outcome
+    
     send('pair_desk', again);
     const remote = await report('remote', before, 15_000);
     expect(String(remote.href).startsWith(`${REMOTE}/`) && remote.projects === 200, JSON.stringify(remote));
@@ -979,7 +979,7 @@ async function checkApp() {
       onHealth = undefined;
       release.resolve();
     }
-    // the code is still good
+    
     const before = reports.length;
     send('pair_desk', again);
     const remote = await report('remote', before, 15_000);
@@ -1093,7 +1093,7 @@ async function checkApp() {
     }
     const restored = await report('remote', before, 20_000);
     expect(restored.windows === 1 && restored.projects === 200 && restored.previousOverflowDraft === OVERFLOW_DRAFT, JSON.stringify(restored));
-    // The selected remote can restore before the server on this machine has started.
+    
     await select('local', 'local', true);
     const local = await run('check_eval', { js: "new Map(window.seismicSnapshotSession?.() ?? Object.entries(sessionStorage)).get('seismic-drafts-check')" });
     expect(local.value === 'Draft on this machine', JSON.stringify(local));
@@ -1182,7 +1182,7 @@ async function checkApp() {
     const status = await report('status', before, 40_000);
     expect(status.windows === 1, JSON.stringify(status));
     expect((await desks()).problem === 'unreachable', 'the status page has no problem to show');
-    // No document ran at the attempted origin. The shell must be able to park its backup.
+    
     await select('local', 'local');
     const offline = await select(id, 'status');
     const again = reports.length;
@@ -1198,11 +1198,11 @@ async function checkApp() {
     const remote = await reconnect();
     expect(remote.label === restored.label && remote.projects === 200, JSON.stringify(remote));
   });
-  // Pausing the server takes SIGSTOP, which Windows lacks: there this check does not run.
+  
   if (process.platform === 'win32') console.log("- selecting this machine while its server does not answer keeps the current workspace: not on Windows, which cannot pause a process");
   else await check("selecting this machine while its server does not answer keeps the current workspace", async () => {
     const remote = displayed()!;
-    // The process that listens: the server's entry names the process that started it.
+    
     const port = new URL(entry()!.url).port;
     const pid = Number(Bun.spawnSync(['lsof', '-ti', `tcp:${port}`, '-sTCP:LISTEN']).stdout.toString().trim().split('\n')[0]);
     expect(pid > 0, `nothing listens on ${port}`);
@@ -1355,7 +1355,7 @@ async function checkApp() {
       await Promise.race([hit.promise, sleep(5000).then(() => { throw new Error('no upload'); })]);
       const selection = send('open_desk', { id: 'local' });
       await decideAttachment('Switch after upload');
-      // Keep the same server and port, but make a new sign-in request fail.
+      
       renameSync(key, key + '.held');
       try {
         release.resolve();
@@ -1388,7 +1388,7 @@ async function checkApp() {
         const before = reports.length;
         send('open_desk', { id: 'local', page: next });
         await until('the previous destination to be superseded', 5000, () => done.get(original)?.error === 'superseded');
-        // The new destination asks what to do with the same pending upload.
+        
         await decideAttachment('Switch after upload');
         release.resolve();
         await until(`the local page at ${next}`, 10_000, () => reports.slice(before).find((r) => {

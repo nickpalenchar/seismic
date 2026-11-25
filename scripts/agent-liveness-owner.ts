@@ -1,8 +1,8 @@
-// Experimental caller side of `agent-liveness-prototype.ts`, not used by Seismic. It holds the
-// liveness pipe (the supervisor cleans up when this process dies) and adopts every identity the
-// supervisor reports, so that when the supervisor dies instead, this side signals what it saw:
-// the agent itself (reparented, possibly still holding this process's pipes) and its descendants.
-// Both sides sample; neither closes the window before a process is first observed.
+
+
+
+
+
 import { spawn, type ChildProcess, type StdioNull, type StdioPipe } from 'node:child_process';
 import { join } from 'node:path';
 import type { Readable, Writable } from 'node:stream';
@@ -11,13 +11,13 @@ import { AgentProcesses } from '../src/server/llms/harnesses/processes';
 export interface Identity { pid: number; born: string }
 
 export interface Supervised {
-  /** The supervisor; the agent inherits its stdio 0–2, so these are the agent's streams. */
+  
   supervisor: ChildProcess;
-  /** The agent's own identity, distinct from the supervisor's, reported before its code runs. */
+  
   agent: Promise<Identity>;
-  /** Ends the liveness pipe: the supervisor kills the agent and what it observed, then exits. */
+  
   close(): void;
-  /** Settles once the supervisor has exited and every identity it reported has been signalled; rejects if that is not known. */
+  
   done: Promise<void>;
 }
 
@@ -47,7 +47,7 @@ export function superviseAgent(
   void agent.catch(() => {});
   let first = true;
   let buffer = '';
-  // Each report is adopted at once: while the process still has that identity, it stays owed.
+  
   function receive(text: string) {
     buffer += text;
     const lines = buffer.split('\n');
@@ -63,14 +63,14 @@ export function superviseAgent(
   const reportsClosed = new Promise<void>((resolve) => reports.once('close', resolve));
   const done = new Promise<void>((resolve, reject) => {
     supervisor.once('error', (error) => { rejectAgent(error); reject(error); });
-    // `exit`, not `close`: the agent may still hold the supervisor's stdio after the supervisor died.
+    
     supervisor.once('exit', async () => {
-      // Only the supervisor writes reports; its death ends them. Read what it wrote before dying.
-      // A stream still open then may hold identities that would arrive too late to be signalled.
+      
+      
       const closed = await Promise.race([reportsClosed.then(() => true), Bun.sleep(1000).then(() => false)]);
       if (!closed) { failure ??= new Error('The supervisor\'s report pipe stayed open after its exit'); reports.destroy(); }
       if (first) rejectAgent(new Error('The supervisor reported no agent'));
-      // Queued after every adoption, so it signals all that were reported.
+      
       await tracker?.kill().catch((error: unknown) => { failure ??= error; });
       (supervisor.stdio[3] as Writable).destroy();
       if (failure === undefined) resolve(); else reject(failure);

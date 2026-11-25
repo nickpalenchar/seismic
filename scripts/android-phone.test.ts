@@ -39,17 +39,17 @@ test('says what is wrong with a command line', () => {
 });
 
 test('turns an element centre in CSS pixels into the device pixels under it', () => {
-  const page = { left: 0, top: 210, right: 1080, bottom: 2339 }; // below Chrome's toolbar, 420 dpi
+  const page = { left: 0, top: 210, right: 1080, bottom: 2339 }; 
   const vv = { left: 0, top: 0, height: 811, scale: 1 };
   expect(toDevice({ x: 206, y: 400, dpr: 2.625, vv }, page)).toEqual({ x: 541, y: 1260 });
-  // in fullscreen the page starts at the screen's corner
+  
   expect(toDevice({ x: 10, y: 10, dpr: 2.625, vv }, { left: 0, top: 0, right: 2400, bottom: 1080 })).toEqual({ x: 26, y: 26 });
-  // pinch-zoomed twice and panned: what lies at the visual viewport's corner is at the page's corner
+  
   expect(toDevice({ x: 100, y: 300, dpr: 2, vv: { left: 100, top: 250, height: 200, scale: 2 } }, page)).toEqual({ x: 0, y: 410 });
 });
 
 test('finds the page on the screen in a view hierarchy', () => {
-  const p = { x: 0, y: 0, dpr: 2.625, vv: { left: 0, top: 0, height: 498.29, scale: 1 } }; // the keyboard open
+  const p = { x: 0, y: 0, dpr: 2.625, vv: { left: 0, top: 0, height: 498.29, scale: 1 } }; 
   const chrome = (inner: string) => `<?xml version='1.0' ?><hierarchy rotation="0">
     <node index="0" class="android.widget.FrameLayout" package="com.android.chrome" bounds="[0,0][1080,2400]">
       <node index="0" resource-id="com.android.chrome:id/compositor_view_holder" class="android.widget.FrameLayout" package="com.android.chrome" bounds="[0,63][1080,1517]">
@@ -61,7 +61,7 @@ test('finds the page on the screen in a view hierarchy', () => {
       <node index="0" class="android.webkit.WebView" package="com.android.chrome" bounds="[40,600][400,900]" />
     </node>`;
   expect(pageOnScreen(chrome(webView), p)).toEqual({ left: 0, top: 210, right: 1080, bottom: 1518 });
-  // without the page's node (after a turn of the screen): as high as the visual viewport, above the keyboard
+  
   expect(pageOnScreen(chrome(''), p)).toEqual({ left: 0, top: 209, right: 1080, bottom: 1517 });
   expect(pageOnScreen('<hierarchy><node class="android.widget.FrameLayout" bounds="[0,0][1080,2400]" /></hierarchy>', p)).toBeUndefined();
 });

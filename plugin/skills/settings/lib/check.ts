@@ -1,9 +1,9 @@
-// Checks the settings of the repository in the working directory as they stand in the checkout
-// (`.seismic/settings.json`, else `.obeya/`; committed or not), the way Seismic will read them once they are on the
-// default branch: every field is known and of the right type (the problems the configuration sheet
-// reports), and no adapter module is left. Prints what Seismic makes
-// of them, the docs in the plan directory among it: which are plans and which are not, and why;
-// exits with 1 when something is wrong. Run with Bun (`bun check.ts`).
+
+
+
+
+
+
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';

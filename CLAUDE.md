@@ -16,11 +16,14 @@ from the `docs-vlatest` tag (`docs/release.md`, Publishing the docs). They descr
 not how it is built; a change users notice updates them in the same change.
 
 - Bun + TypeScript throughout; tests with `bun test --parallel` (a file per process, from Bun 1.4 on;
-  older Bun ignores the flag and runs them one after the other), types with `bun run typecheck`
-  (which also runs `bun run lint`: oxlint's rules-of-hooks over `src/ui`, nothing else).
-  When the suite fails only from machine load or timing, don't ask to rerun it: hand over and say
-  which failing tests were unrelated. When it hangs or stalls, stop it and go on to the demo and
-  handover without asking: say there that the tests were skipped.
+  older Bun ignores the flag and runs them one after the other). `bun run validate` runs Knip,
+  TypeScript, and repo-wide Oxlint. During development, `bun run lint` checks changed files and
+  `bun run lint --all` checks the whole repo.
+- `bun install` sets up the Lefthook Git pre-commit hook. It lints staged JavaScript and TypeScript
+  paths and runs Knip and TypeScript across the project. Keep the checks passing throughout
+  development. Fix failures at the source and rerun the checks before committing. Do not bypass
+  hooks, suppress diagnostics, or weaken checks to get a commit through. If a check is blocked
+  by the environment, report the blocker and the check that remains unverified.
 - Never wait with `sleep` or polling chains in the foreground (`sleep 25; …`, `until curl …; sleep 3`):
   a hook blocks them. Run long commands (`bun test --parallel`, `bun run typecheck`, a scratch Seismic
   start) with run_in_background or Monitor and wait for the notification; for a short wait on a port

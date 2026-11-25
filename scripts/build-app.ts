@@ -1,34 +1,34 @@
-// Seismic as an app: the compiled server (scripts/build.ts) as the sidecar of the Tauri shell in desktop/,
-// bundled into what installs on this platform: a DMG on macOS (the app inside signed ad hoc, or with
-// a Developer ID and notarised, see below), an NSIS installer on Windows, an AppImage and a .deb on
-// Linux (both unsigned).
-//
-//   bun scripts/build-app.ts [<target>] [--bundles <dmg,app,nsis,appimage,deb>] [--config <json>] [--debug] [--verbose]
-//
-// --config merges into desktop/tauri.conf.json for this build (scripts/check-update.ts gives the app
-// another version and another updater that way).
-//
-// The target is this machine's by default (see scripts/build.ts); another needs Rust's target for it
-// and Tauri's tools for cross-building. Needs Rust (rustup) and, on Linux, WebKitGTK's development
-// files (libwebkit2gtk-4.1-dev and the rest Tauri lists). The bundles end up in
-// desktop/target/[<triple>/]release/bundle/.
-//
-// With TAURI_SIGNING_PRIVATE_KEY set (and TAURI_SIGNING_PRIVATE_KEY_PASSWORD, if the key has one),
-// it also signs what Tauri's updater installs, each with a `.sig` beside it: Seismic.app.tar.gz on
-// macOS (packed here), the NSIS installer on Windows, the AppImage on Linux (a .deb is not updated).
-// It signs them itself: Tauri's own update artifacts need the updater plugin's configuration, and
-// its signature of the AppImage would be of the one without the server.
-//
-// On macOS, with a Developer ID Application certificate it signs the app with it instead of ad hoc:
-// the shell and the server with the hardened runtime and desktop/entitlements.plist, then the DMG.
-// The certificate is in the keychain, named by APPLE_SIGNING_IDENTITY ("Developer ID Application:
-// Name (TEAMID)"), or (in CI) in APPLE_CERTIFICATE as a base64 .p12 with APPLE_CERTIFICATE_PASSWORD,
-// which Tauri imports into a keychain of its own. With an App Store Connect API key it then has the
-// DMG notarised (one submission covers the app and the server inside) and staples the ticket to the
-// DMG and to the app beside it, which the updater's archive packs: APPLE_NOTARY_KEY (the .p8, its
-// contents or its path), APPLE_NOTARY_KEY_ID, and APPLE_NOTARY_ISSUER for a team key (an
-// individual key has none). docs/release.md says how to get them. Tauri's own notarisation is not
-// used: it notarises the app but not the DMG, and needs an issuer.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -88,7 +88,7 @@ function output(cmd: string[], cwd = ROOT): string {
   return said;
 }
 
-// a workflow passes an absent secret as an empty variable, which Tauri would take for a certificate
+
 const APPLE = ['APPLE_SIGNING_IDENTITY', 'APPLE_CERTIFICATE', 'APPLE_CERTIFICATE_PASSWORD', 'APPLE_NOTARY_KEY', 'APPLE_NOTARY_KEY_ID', 'APPLE_NOTARY_ISSUER'];
 for (const name of APPLE) if (!process.env[name]) delete process.env[name];
 
@@ -98,20 +98,20 @@ run([process.execPath, 'scripts/build.ts', target, '--out', dist]);
 const built = join(dist, `seismic-${pkg.version}-${target}`);
 const exe = os === 'windows' ? '.exe' : '';
 
-// where tauri.conf.json takes them from: the sidecar by Tauri's naming, the resources as they are
+
 mkdirSync(join(APP, 'binaries'), { recursive: true });
 cpSync(join(built, `seismic${exe}`), join(APP, 'binaries', `seismic-server-${triple}${exe}`));
 rmSync(join(APP, 'staged'), { recursive: true, force: true });
 cpSync(join(built, 'resources'), join(APP, 'staged', 'resources'), { recursive: true });
-// on Linux the server goes among the resources (desktop/tauri.linux.conf.json), not into usr/bin
+
 if (os === 'linux') cpSync(join(built, 'seismic'), join(APP, 'staged', 'seismic-server'));
 
 const cross = target !== here;
 const out = join(APP, 'target', ...(cross ? [triple] : []), args.includes('--debug') ? 'debug' : 'release', 'bundle');
-// a bundle of an earlier build is no part of this one (the AppImage's AppDir would be reused)
+
 rmSync(out, { recursive: true, force: true });
 const developerId = os === 'darwin' && !!(process.env.APPLE_SIGNING_IDENTITY || process.env.APPLE_CERTIFICATE);
-// without a name, Tauri takes the certificate's own (null removes the ad hoc "-" of tauri.conf.json)
+
 const signing = developerId ? ['--config', JSON.stringify({ bundle: { macOS: { signingIdentity: process.env.APPLE_SIGNING_IDENTITY ?? null } } })] : [];
 const tauri = (bundles: string, ...more: string[]) =>
   run(
@@ -120,13 +120,13 @@ const tauri = (bundles: string, ...more: string[]) =>
     { CI: 'true' },
   );
 const wanted = bundles.split(',');
-// the updater's archive is of the app, which a DMG's build does not leave in bundle/macos
+
 if (os === 'darwin' && process.env.TAURI_SIGNING_PRIVATE_KEY && !wanted.includes('app')) wanted.unshift('app');
 if (wanted.includes('appimage')) {
   if (wanted.length > 1) tauri(wanted.filter((b) => b !== 'appimage').join(','));
-  // linuxdeploy sets the library path of every program in the AppDir, which breaks Bun's compiled
-  // binary (its code sits after the ELF's end): the AppImage is built without the server, which goes
-  // into the AppDir afterwards, and packed again
+  
+  
+  
   tauri('appimage', '--config', JSON.stringify({ bundle: { resources: { 'staged/seismic-server': null } } }));
   const appdir = join(out, 'appimage', `Seismic.AppDir`);
   const server = join(appdir, 'usr', 'lib', 'Seismic', 'seismic-server');
@@ -164,13 +164,13 @@ function notarise() {
       fail(`notarisation ${answer.id}: ${answer.status}`);
     }
     console.log(`notarised (${answer.id})`);
-    // the DMG's ticket covers the app inside it, so the app beside it (there when the updater's
-    // archive is made of it; Tauri removes it after a DMG alone) staples from it too
+    
+    
     for (const file of [...(dmg ? [dmg] : []), ...(existsSync(app) ? [app] : [])]) {
       persist(['xcrun', 'stapler', 'staple', file]);
       persist(['xcrun', 'stapler', 'validate', file]);
     }
-    // what Gatekeeper says on the user's Mac, of the DMG and of the app in it: "source=Notarized Developer ID"
+    
     const assess = (...check: string[]) => {
       const said = output(['spctl', '--assess', '-vv', ...check]);
       if (!said.includes('Notarized Developer ID')) fail(`Gatekeeper: ${said}`);
@@ -195,7 +195,7 @@ if (process.env.TAURI_SIGNING_PRIVATE_KEY) {
   const sign = (file: string) => run([process.execPath, 'x', 'tauri', 'signer', 'sign', file], APP);
   const one = (sub: string, end: string) => endingIn(join(out, sub), end) ?? fail(`no ${end} in ${join(out, sub)} to sign for the updater`);
   if (os === 'darwin') {
-    // as Tauri packs it: the app at the archive's top, without macOS's ._ files
+    
     run(['tar', '-czf', 'Seismic.app.tar.gz', 'Seismic.app'], join(out, 'macos'), { COPYFILE_DISABLE: '1' });
     sign(join(out, 'macos', 'Seismic.app.tar.gz'));
   } else if (os === 'windows' && wanted.includes('nsis')) sign(one('nsis', '-setup.exe'));

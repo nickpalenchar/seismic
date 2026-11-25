@@ -1,17 +1,17 @@
-// Paused with this repository's site (SITE in scripts/distribution.ts): seismic.im is built from the
-// seismic-site repository now, so only `--poster-only` runs.
-// Publishes a rendered hero video to seismic.im: uploads `demo.mp4`, `captions.vtt` and
-// `chapters.vtt` from the render's directory as `hero.mp4`, `hero.vtt` and `hero.chapters.vtt` of
-// the release `site-media`, with `hero.loop.gif`, the README's loop cut from the video (creating the
-// release the first time, replacing the assets after that), then runs the Pages workflow, which
-// fetches them into site/media/. It acts on the checkout's origin as the account that owns it, without
-// switching the account gh has active (scripts/gh.ts). With `--poster` it first takes the poster
-// (`site/img/hero-poster.jpg`) again from the new video; it is in git and goes out with the next
-// push of main. `--poster-only` takes it and uploads nothing: a release commits it before its video
-// goes out
-// (.claude/skills/release/SKILL.md).
-//
-//   node scripts/hero-video/publish.ts [--poster | --poster-only]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -20,17 +20,17 @@ import { sitePaused } from '../distribution.ts';
 import { ghEnv } from '../gh.ts';
 
 const RELEASE = 'site-media';
-// the demo settings only without HERO_OUT: its test runs this script alone, outside a checkout
+
 const OUT = process.env.HERO_OUT ?? path.join((await import('../../plugin/skills/demo/lib/settings.ts')).demoDirectory(), 'seismic-hero');
 const posterOnly = process.argv.includes('--poster-only');
 const poster = posterOnly || process.argv.includes('--poster');
 
-// The README's loop: the project at work, from a few seconds into the scene `from` to a few seconds
-// into the scene `until` (named by their chapters, so it follows a new render), sped up, its last
-// frame held a moment before it starts again, as a GIF: GitHub plays no video in a README, but a GIF.
+
+
+
 const LOOP = { from: ['Your wall', 3], until: ['The agent starts', 5.5], speed: 1.5, hold: 1.5, width: 1280, fps: 12 } as const;
 
-// The start of each chapter in seconds, by its title
+
 function chapterStarts(vtt: string): Map<string, number> {
   const starts = new Map<string, number>();
   for (const m of vtt.matchAll(/^(?:(\d+):)?(\d+):(\d+(?:\.\d+)?) -->.*\r?\n(.+)$/gm)) {
@@ -66,7 +66,7 @@ for (const f of [video, captions, chapters]) {
   if (!fs.existsSync(f)) fail(`missing ${f}: render first (scripts/hero-video/README.md)`);
 }
 
-// the poster alone stays on this machine; uploading waits for the site
+
 const paused = sitePaused('Publishing the hero video');
 if (paused && !posterOnly) fail(paused);
 
@@ -89,7 +89,7 @@ try {
   fail((e as Error).message);
 }
 
-// gh names an asset after its file, so the files go up under their site names from a temp directory
+
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'hero-publish-'));
 try {
   const files = [path.join(tmp, 'hero.mp4'), path.join(tmp, 'hero.vtt'), path.join(tmp, 'hero.chapters.vtt'), path.join(tmp, 'hero.loop.gif')] as const;

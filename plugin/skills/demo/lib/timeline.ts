@@ -1,8 +1,8 @@
-// The video's timeline: the recording runs in real time, but stretches in which the demo only waits
-// (an agent thinking, a build) are cut out of it (`Director.skip`). Everything placed on the video
-// (frames, narration, chapters, captions) goes through `videoTime`.
 
-/** A stretch of real time, in seconds since the epoch, that the video leaves out. */
+
+
+
+
 export interface Cut {
   from: number;
   to: number;
@@ -35,7 +35,7 @@ export function untagged(say: string) {
     .trim();
 }
 
-/** The clock strip `overlay.js` paints: its cells, their size and where it sits. */
+
 export const CLOCK = { bits: 24, cell: 3, left: 2, bottom: 3 };
 
 /**
@@ -56,10 +56,10 @@ export function readClock(row: Uint8Array, stamp: number): number | null {
   return (code + k * span) / 100;
 }
 
-/**
- * How much earlier than the frame before a frame can have been painted and still be late, not
- * misread; and how much after its own stamp (the clocks of page and screencast may differ a little).
- */
+
+
+
+
 const LATE = 1;
 
 /**

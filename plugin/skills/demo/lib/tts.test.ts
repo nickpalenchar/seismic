@@ -1,7 +1,7 @@
-// The line protocol between `tts.py` and a voice that stays loaded (`qwen3.py --serve`), against
-// fake voices: one that counts its starts, one that dies, and Qwen3's own server with a fake
-// mlx-audio that prints where the protocol runs; and the same voice held by Seismic across renders
-// (`src/server/narration.ts`). Python through uv, as a render runs it.
+
+
+
+
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { spawn, spawnSync } from 'node:child_process';
@@ -20,12 +20,12 @@ const python = (args: string[], env: Record<string, string> = {}, input?: string
     timeout: 60_000,
   });
 
-/**
- * A voice that serves until its stdin ends, writing a short silent WAV per request. Given a second
- * argument, it is loaded only once that file exists. `FAKE_HANG_AT` gives no answer to that
- * request, as a stuck Qwen3 voice did; it reports a sentence done first. Given the script as
- * written, it says it heard the text as said.
- */
+
+
+
+
+
+
 const FAKE_VOICE = String.raw`
 import json, os, sys, time, wave
 log = os.environ.get("FAKE_LOG") or sys.argv[1]
@@ -93,9 +93,9 @@ describe('a voice that stays loaded', () => {
   test('gets the script without its audio tags, which only ElevenLabs v3 and v4 read, and a pause tag as silence', () => {
     writeFileSync(join(dir, 'jobs.json'), JSON.stringify([{ id: 's0', text: 'Eins. [short pause] Zwei [whispers] drei. [long pause] Vier.' }]));
     expect(narrate().status).toBe(0);
-    // the parts between the pauses one by one, other tags left out
+    
     expect(log()).toEqual(['start', 'en:Eins.', 'en:Zwei drei.', 'en:Vier.', 'end']);
-    // three parts of 0.1 s with 0.5 s and 1.5 s of silence between them
+    
     const clip = JSON.parse(readFileSync(join(dir, 'out', 'tts.json'), 'utf8')).clips[0];
     expect(clip.seconds).toBeCloseTo(2.3, 2);
   });
@@ -143,10 +143,10 @@ describe('a voice Seismic holds', () => {
   let host: NarrationHost;
   let server: ReturnType<typeof serveNarration>;
   beforeEach(() => {
-    // the voice loads at once; a test that removes `go` holds it
+    
     writeFileSync(go(), '');
     host = new NarrationHost({ argv: () => [...UV, join(dir, 'voice.py'), join(dir, 'log'), go()] });
-    // the narration server, as Seismic gives its workers in `SEISMIC_URL`
+    
     server = serveNarration(host);
     const spec = JSON.parse(readFileSync(join(dir, 'spec.json'), 'utf8'));
     writeFileSync(join(dir, 'spec.json'), JSON.stringify({ ...spec, host: { speaker: 'ryan' } }));
@@ -157,8 +157,8 @@ describe('a voice Seismic holds', () => {
   });
 
   test('loads once for parallel renders, which take turns clip by clip, and stays loaded for the next', async () => {
-    // the voice loads once both renders asked for their first clip: on a busy machine the second
-    // render's Python started after the first's three clips were done
+    
+    
     rmSync(go());
     const clip = host.clip.bind(host);
     let asked = 0;
@@ -168,7 +168,7 @@ describe('a voice Seismic holds', () => {
     expect([a.status, b.status]).toEqual([0, 0]);
     expect(a.stderr).toMatch(/synthesised by Seismic in [\d.]+ s/);
     for (const out of ['a', 'b']) expect(JSON.parse(readFileSync(join(dir, out, 'tts.json'), 'utf8')).clips).toHaveLength(3);
-    // the second render's clips came between the first's
+    
     const clips = log().slice(1);
     expect(clips.toSorted()).toEqual(['en:Drei.', 'en:Drei.', 'en:Eins.', 'en:Eins.', 'en:Zwei.', 'en:Zwei.']);
     expect(clips.slice(0, 2)).toEqual(['en:Eins.', 'en:Eins.']);
@@ -177,9 +177,9 @@ describe('a voice Seismic holds', () => {
     expect(log().filter((l) => l === 'start')).toHaveLength(1);
   }, 60_000);
 
-  // the lock is held here with flock, which Windows lacks
+  
   test.skipIf(process.platform === 'win32')('a render does not wait for the machine to synthesise through Seismic, and falls back to its own voice without Seismic', async () => {
-    // another render holds the lock, as one with a model of its own does
+    
     const lock = join(dir, 'tts.lock');
     const holder = spawn(UV[0]!, [...UV.slice(1), '-c', `import fcntl, sys, time\nf = open(${JSON.stringify(lock)}, "a+b")\nfcntl.flock(f, fcntl.LOCK_EX)\nprint("held", flush=True)\ntime.sleep(60)`]);
     await new Promise((resolve) => holder.stdout.once('data', resolve));
@@ -200,7 +200,7 @@ describe('a voice Seismic holds', () => {
 
 describe('qwen3.py --serve', () => {
   test('loads once, answers line by line, keeps library output off the protocol, and survives a bad request', async () => {
-    // A fake mlx-audio that prints on stdout from Python and from C level, as the real one does.
+    
     const pkg = join(dir, 'fake', 'mlx_audio', 'tts');
     mkdirSync(pkg, { recursive: true });
     writeFileSync(join(dir, 'fake', 'mlx_audio', '__init__.py'), '');
@@ -253,7 +253,7 @@ def load_model(repo):
     expect(existsSync(join(dir, 'b.wav'))).toBe(false);
   });
   test('makes a sentence again that ran on to its last frame, and fails the clip when it keeps doing so', () => {
-    // A fake mlx-audio that, for its first FAKE_RUNON calls, never ends the sentence: it fills every frame it may.
+    
     const pkg = join(dir, 'fake', 'mlx_audio', 'tts');
     mkdirSync(pkg, { recursive: true });
     writeFileSync(join(dir, 'fake', 'mlx_audio', '__init__.py'), '');
@@ -286,7 +286,7 @@ def load_model(repo):
     const once = serve(1);
     expect(once.status).toBe(0);
     expect(once.stdout).toContain('"ok": true');
-    // frames for a slow reading of 21 characters and 3 s more, asked twice
+    
     expect(log()).toEqual(['Click Reauthenticate. 70', 'Click Reauthenticate. 70']);
     expect(once.stderr).toContain('qwen3: ran on to 6 s in attempt 1: Click Reauthenticate.');
     rmSync(join(dir, 'log'));
@@ -298,8 +298,8 @@ def load_model(repo):
   });
 
   test('hears each sentence back and makes one it stumbled over again; the take that differs least is kept', () => {
-    // A fake mlx-audio that runs on for its first FAKE_RUNON calls, and a fake Parakeet that hears
-    // what FAKE_HEARD lists, one transcript per take: the transcripts are Parakeet's of real takes.
+    
+    
     const pkg = join(dir, 'fake', 'mlx_audio', 'tts');
     mkdirSync(pkg, { recursive: true });
     writeFileSync(join(dir, 'fake', 'mlx_audio', '__init__.py'), '');
@@ -355,31 +355,31 @@ def load_model(name, quantization, sess_options, providers):
     const stumbled = 'Before the fix, the error showed in the last failed box with a reauthentip uh reauthentipite button.';
     const wrongSound = 'Before the fix, the error showed in the last failed box with a reauthentipate button.';
     const clean = 'Before the fix the error show in the last failed box with a reauthenticate button.';
-    // a stumble is made again; Parakeet's own "show" for "showed" is no reason to
+    
     const again = serve([stumbled, clean]);
     expect(again.takes).toBe(2);
     expect(again.reply).toMatchObject({ ok: true, heard: [{ script, heard: clean }] });
     expect(again.reply.heard[0]).not.toHaveProperty('misheard');
     expect(again.stderr).toContain('qwen3: stumbled in attempt 1');
-    // a single wrong sound is not a stumble: kept at once, the word named
+    
     const once = serve([wrongSound]);
     expect(once.takes).toBe(1);
     expect(once.reply.heard).toEqual([{ script, heard: wrongSound, misheard: [['Reauthenticate', 'reauthentipate']] }]);
-    // a stumble in every take keeps the least of them and says so, without failing the clip
+    
     const babble = 'Before the fix, the error show in the last failed box with a reauthentip re auth a re a reauthentia reauth reauthentio button.';
     const always = serve([babble, stumbled, babble, babble, babble]);
     expect(always.takes).toBe(5);
     expect(always.reply).toMatchObject({ ok: true, heard: [{ script, heard: stumbled, stumbled: true }] });
     expect(existsSync(join(dir, 'a.wav'))).toBe(true);
-    // runs on and stumbles share the attempts; a take that ran on is never kept
+    
     const mixed = serve([stumbled], { FAKE_RUNON: '4' });
     expect(mixed.takes).toBe(5);
     expect(mixed.reply).toMatchObject({ ok: true, heard: [{ heard: stumbled, stumbled: true }] });
-    // a take the recognition fails on is not kept over one it heard
+    
     const failing = serve([stumbled, null]);
     expect(failing.takes).toBe(2);
     expect(failing.reply).toMatchObject({ ok: true, heard: [{ heard: stumbled, stumbled: true }] });
-    // without Parakeet the sentences go unheard, and the reply says why
+    
     rmSync(join(dir, 'fake', 'onnx_asr.py'));
     const deaf = serve([]);
     expect(deaf.takes).toBe(1);
@@ -387,13 +387,13 @@ def load_model(name, quantization, sess_options, providers):
   });
 
   test('compares letters: numbers said as the other text has them, spaces, punctuation and audio tags left out', () => {
-    // Parakeet's transcripts of real takes beside their scripts
+    
     const cases: [string, string, string][] = [
       ['en', 'It took two thousand five hundred runs, on the twenty-first day.', 'It took 2,500 runs, on the 21st day.'],
-      // a wrong sound, a garbled word, a stumble
+      
       ['en', 'Click the Reauthenticate button.', 'Click the reauthentipate button.'],
       ['en', 'Click the Reauthenticate button.', 'Click the reauthentip uh reauthentipite button.'],
-      // a short sentence not said at all
+      
       ['en', 'Click save.', ''],
     ];
     const r = python(
@@ -446,7 +446,7 @@ def load_model(repo):
     expect(new TextDecoder().decode((await out.read()).value)).toContain('"ready": true');
     p.stdin.write(`${JSON.stringify({ text: 'Ein Satz.', out: join(dir, 'a.wav'), id: 1 })}\n`);
     p.stdin.end();
-    // Seismic stops while the clip is made: nobody reads the answer
+    
     await out.cancel();
     expect(await p.exited).toBe(0);
     expect(await new Response(p.stderr).text()).not.toContain('BrokenPipeError');

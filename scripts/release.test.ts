@@ -87,7 +87,7 @@ Quits cleanly now.
 The first release.
 `;
 
-// made once: git calls are what makes these tests slow
+
 let made: string | undefined;
 function history() {
   return (made ??= makeHistory());
@@ -122,18 +122,18 @@ test('the commits since the version tag before that change what runs, with the d
   const since = commits(repo, 'v0.2.0');
   expect(since.map((c) => [c.subject, c.demos])).toEqual([
     ['Quit faster', [{ kind: 'page', url: 'https://demos.example/quit/' }]],
-    // a demo on the machine that made it is no link
+    
     ['Quit cleanly', [{ kind: 'video', url: 'https://demos.example/quit/' }]],
     ['Faster project', [{ kind: 'video', url: 'https://demos.example/faster/' }]],
   ]);
-  // without a tag: since the last version tag, up to HEAD
+  
   expect(commits(repo).map((c) => c.subject)).toEqual(['Unreleased']);
-  // the first release has the whole history
+  
   expect(commits(repo, 'v0.1.0').map((c) => c.subject)).toEqual(['First']);
 
   const text = material(since, 'Since v0.1.0 up to v0.2.0');
   expect(text).toStartWith('# Since v0.1.0 up to v0.2.0: 3 commits that change what runs, 2 demos\n');
-  // a demo behind two commits names both under it
+  
   expect(text).toMatch(/- page https:\/\/demos\.example\/quit\/\n {2}- \S+ \w{8} Quit faster\n {2}- \S+ \w{8} Quit cleanly\n- video https:\/\/demos\.example\/faster\//);
 });
 
@@ -164,7 +164,7 @@ test('the notes are the changelog’s section, how to install, and every commit 
   expect(lines.filter((l) => l.startsWith('- Quit cleanly'))[0]).toMatch(/^- Quit cleanly \(\[\w{7}\]\(https:\/\/github\.com\/someone\/seismic\/commit\/\w{40}\)\) · \[demo\]\(https:\/\/demos\.example\/quit\/\)$/);
   expect(lines).toContain('[The full comparison](https://github.com/someone/seismic/compare/v0.1.0...v0.2.0).');
   expect(text).toEndWith('</details>\n');
-  // the first release links the history instead of folding it
+  
   expect(notes(repo, 'v0.1.0', 'someone/seismic', CHANGELOG)).toEndWith('\n[All commits](https://github.com/someone/seismic/commits/v0.1.0) up to this first release.\n');
   expect(() => notes(repo, 'v0.3.0', 'someone/seismic', CHANGELOG)).toThrow('no section for v0.3.0');
 });
@@ -175,7 +175,7 @@ test('the bar gets the start of the section, without a heading cut off from its 
   const many = ['Twenty changes.', '### New', ...Array.from({ length: 8 }, (_, i) => `- New ${i + 1}`), '', '### Fixed', ...Array.from({ length: 12 }, (_, i) => `- Fix ${i + 1}`)].join('\n');
   const shown = latest(dir, 'v0.2.0', 'someone/seismic', new Date(), many).notes!.split('\n');
   expect(shown).toEqual(['Twenty changes.', '### New', ...Array.from({ length: 8 }, (_, i) => `- New ${i + 1}`), '- … and 12 more']);
-  // a paragraph or an entry wrapped over lines is one line
+  
   expect(latest(dir, 'v0.2.0', 'someone/seismic', new Date(), 'What it\nbrings.\n\n### New\n- One,\n  wrapped\n- Two').notes).toBe('What it brings.\n### New\n- One, wrapped\n- Two');
   expect(latest(dir, 'v0.2.0', 'someone/seismic', new Date())).not.toHaveProperty('notes');
 });
@@ -215,7 +215,7 @@ test('a release candidate counts from the tag before it; a release from the rele
   expect(tagBefore(repo, 'v0.2.0-rc.2')).toBe('v0.2.0-rc.1');
   expect(tagBefore(repo, 'v0.2.0')).toBe('v0.1.0');
   expect(tagBefore(repo, 'v0.3.0-rc.1')).toBe('v0.2.0');
-  // what the next release's section is written from: since the last release, its candidates included
+  
   expect(tagBefore(repo)).toBe('v0.2.0');
   expect(commits(repo).map((c) => c.subject)).toEqual(['Unreleased']);
   expect(commits(repo, 'v0.2.0').map((c) => c.subject)).toEqual(['Quit faster', 'Quit cleanly', 'Faster project']);
@@ -232,12 +232,12 @@ test('a release candidate needs no section in the changelog; its notes say what 
 
   const text = notes(repo, 'v0.2.0-rc.2', 'someone/seismic', CHANGELOG);
   expect(text).toStartWith('Release candidate 2 for Seismic 0.2.0, for trying it out before it is released.');
-  // the section of 0.2.0 is the release's, not its candidate's
+  
   expect(text).not.toContain('Quits cleanly now.');
   expect(text.split('\n')).toContain('<summary>All commits since v0.2.0-rc.1 (1)</summary>');
-  // a candidate with no tag before it links the history as a candidate's
+  
   expect(notes(repo, 'v0.0.1-rc.1', 'someone/seismic', CHANGELOG)).toEndWith('/commits/v0.0.1-rc.1) up to this first release candidate.\n');
-  // a candidate with a section of its own shows it after what it is
+  
   const own = notes(repo, 'v0.2.0-rc.2', 'someone/seismic', '## 0.2.0-rc.2\n\nTry the new quit.\n');
   expect(own).toContain('it updates to the next release.\n\nTry the new quit.\n\n### Installing');
 });

@@ -1,10 +1,10 @@
-// What a demo needs on this machine, checked: Node, Playwright and a browser to record with,
-// ffmpeg (with libx264) to cut, uv for the Python parts (it brings Python itself), and the voice of
-// the settings. Each missing piece comes with how to install it on this platform. Seismic's configuration dialog shows the check, and a render runs it before anything
-// else, so it stops at once with the whole list instead of minutes in.
-//
-// Run on its own (`node setup.ts`), it prints the check and exits 1 when something is missing.
-// Plain Node with type stripping, like the director; Seismic's server (Bun) imports it too.
+
+
+
+
+
+
+
 
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
@@ -18,25 +18,25 @@ import { installState, voiceProblem, voiceSpec } from './voices.ts';
 /** The Seismic checkout the skill lives in (or the app's resources): Playwright comes from its `node_modules`. */
 const root = () => lib('..', '..', '..', '..');
 
-/** Node runs the director's TypeScript without flags from here on. */
+
 export const NODE_MIN = [22, 18] as const;
 
 export type SetupId = 'node' | 'playwright' | 'browser' | 'ffmpeg' | 'uv' | 'voice';
 
 export interface SetupItem {
   id: SetupId;
-  /**
-   * `ok`: there. `missing`: it does not work without it. `later`: fetched on first use, which
-   * takes a while (Seismic's speech recognition).
-   */
+  
+
+
+
   state: 'ok' | 'missing' | 'later';
-  /** What was found: a version, a path, the voice's missing parts. */
+  
   found?: string;
-  /** What it lacks when something is there but does not do (Node too old, ffmpeg without libx264). */
+  
   need?: string;
-  /** About this many megabytes still to download (`later`, a voice to install). */
+  
   mb?: number;
-  /** How to install it here: commands to run in a terminal, and a page that says more. */
+  
   install?: { commands: string[]; url?: string };
 }
 
@@ -46,7 +46,7 @@ export interface SetupCheck {
   items: SetupItem[];
 }
 
-/** Which Linux a package hint is for, from `/etc/os-release`. */
+
 export type LinuxFamily = 'apt' | 'dnf' | 'pacman' | null;
 
 export function linuxFamily(osRelease = readOsRelease()): LinuxFamily {
@@ -80,7 +80,7 @@ export function installHint(id: SetupId, platform: string, arch: string, family:
     case 'browser': {
       if (mac) return { commands: ['brew install --cask google-chrome'], url: 'https://www.google.com/chrome/' };
       if (win) return { commands: ['winget install Google.Chrome'], url: 'https://www.google.com/chrome/' };
-      // Google builds Chrome for Linux on x64 only; elsewhere Playwright's own Chromium records.
+      
       const chromium = `cd "${root()}" && npx playwright-core install --with-deps chromium`;
       return arch === 'x64' ? { commands: [chromium], url: 'https://www.google.com/chrome/' } : { commands: [chromium] };
     }
@@ -88,7 +88,7 @@ export function installHint(id: SetupId, platform: string, arch: string, family:
       if (mac) return { commands: ['brew install ffmpeg'], url: 'https://ffmpeg.org/download.html' };
       if (win) return { commands: ['winget install Gyan.FFmpeg'], url: 'https://ffmpeg.org/download.html' };
       if (family === 'apt') return { commands: ['sudo apt install ffmpeg'] };
-      // Fedora's own ffmpeg-free has no libx264; RPM Fusion's ffmpeg has.
+      
       if (family === 'dnf') return { commands: ['sudo dnf install ffmpeg --allowerasing'], url: 'https://rpmfusion.org/Configuration' };
       if (family === 'pacman') return { commands: ['sudo pacman -S ffmpeg'] };
       return { commands: [], url: 'https://ffmpeg.org/download.html' };
@@ -135,7 +135,7 @@ async function browser(platform: string, env: NodeJS.ProcessEnv, playwright: str
   }
   if (!playwright) return null;
   try {
-    // the CommonJS module by its path: Node gives its exports as `default` only, Bun by name too
+    
     const mod = (await import(pathToFileURL(playwright).href)) as typeof import('playwright-core') & { default?: typeof import('playwright-core') };
     const own = (mod.chromium ?? mod.default?.chromium)?.executablePath();
     return own && fs.existsSync(own) ? own : null;
@@ -154,7 +154,7 @@ function resolvePlaywright(): string | null {
 
 export interface SetupOptions {
   env?: NodeJS.ProcessEnv;
-  /** Leave out what only the recording needs (browser, Playwright): `node demo.ts --narration`. */
+  
   narrationOnly?: boolean;
   home?: string;
 }
@@ -197,10 +197,10 @@ export async function checkSetup(s: DemoSettings, o: SetupOptions = {}): Promise
   items.push(uv ? { id: 'uv', state: 'ok', found: uv } : missing('uv'));
 
   const voice = installState(s, o.home);
-  // a worker on another machine than Seismic: Seismic holds a voice that stays loaded on its own machine (SEISMIC_URL)
+  
   const spec = voiceSpec(s, o.home);
   const held = (env.SEISMIC_HOLDS_VOICE ?? env.OBEYA_HOLDS_VOICE) === '1' && !!(env.SEISMIC_URL ?? env.OBEYA_URL) && spec.kind === 'command' && !!spec.host;
-  // a setting no install mends (a speaker the model lacks) comes first, without install commands
+  
   const problem = voiceProblem(s);
   if (problem) items.push({ id: 'voice', state: 'missing', found: `${s.voice}: ${problem}` });
   else if (held) items.push({ id: 'voice', state: 'ok', found: `${s.voice} (held by Seismic)` });

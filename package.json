@@ -5,6 +5,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
+    "postinstall": "lefthook install",
     "start": "bun scripts/start.ts",
     "dev": "bun scripts/start.ts --hot",
     "start:dev:throwaway": "bun scripts/throwaway.ts",
@@ -25,6 +26,7 @@
     "@types/react-dom": "^19.3.0",
     "drizzle-kit": "^0.31.11",
     "knip": "^6.48.0",
+    "lefthook": "^2.2.3",
     "oxlint": "^1.94.0",
     "typescript": "^7.0.2"
   },

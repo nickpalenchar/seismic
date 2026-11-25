@@ -1,11 +1,11 @@
-// Publishes the user docs (docs/site/): moves the docs-vlatest tag to a commit on GitHub's main and
-// pushes it. The push runs .github/workflows/docs-publish.yml, which has seismic-site deploy with
-// the docs at the tag (docs/release.md, Publishing the docs).
-//
-//   bun scripts/publish-docs.ts [<commit>] [--force]      (or `just publish-docs`)
-//       <commit> defaults to GitHub's main (origin/main, fetched first) and must be on it: the
-//       site pulls the tag from GitHub. Stops without a change when docs/site/ is the same at
-//       <commit> as at the tag; --force moves the tag anyway, for a redeploy of the same docs.
+
+
+
+
+
+
+
+
 import { spawnSync } from 'node:child_process';
 import { CHECKOUT, githubRepo } from './gh';
 
@@ -29,7 +29,7 @@ export function publishDocs(cwd: string, { commit: wanted, force = false }: { co
   const remote = git('ls-remote', 'origin', `refs/tags/${TAG}`);
   if (!remote.ok) return refused(`could not read ${TAG} on origin: ${remote.err}`);
   const tagged = remote.out.split(/\s+/)[0] || null;
-  // the tag as GitHub has it, which a local one moved by hand may not be
+  
   if (tagged && !git('fetch', '--quiet', 'origin', `+refs/tags/${TAG}:refs/tags/${TAG}`).ok) {
     return refused(`could not fetch ${TAG} from origin`);
   }

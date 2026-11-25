@@ -1,20 +1,20 @@
-// Checks that the app's own window keeps its unsent drafts when its shell starts again beside a
-// server started from a terminal (desktop/src/update.rs, `start_again`), the path a new build of a
-// shell installed from a checkout takes. The page hands what a reload keeps to the server, and the
-// shell samples the drafts itself before it exits; the new page restores both.
-//
-//   bun scripts/check-app-restart-drafts.ts <the app's program> [--keep]
-//
-// The program: a debug build of the shell, which runs this checkout's server; on a Mac an app bundle
-// (scripts/check-app-desks.ts tells how to build one), with an identifier of its own
-// (`"identifier":"im.seismic.restart-drafts-check"`): a running app of the same identifier takes
-// over a second launch, which then ends at once. It checks, against a scratch home and a
-// terminal server:
-//   - a relaunch restores the draft and the view state, and the new page frees the server's copy;
-//   - with the relaunched webview's handover response held, the canvas opens with the native
-//     snapshot alone and keeps it even if the response never delivers the server copy;
-//   - when a server-only draft and view arrive after the canvas opens, the editor and view are
-//     restored, and editing the draft persists it.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -47,7 +47,7 @@ const free = () => {
   return port;
 };
 
-// ---------------------------------------------------------------- what the page runs, and where it reports
+
 type Report = { page: string; handedOver?: boolean; draft: string | null; view: string | null };
 type Handover = { token: string; entries: [string, string][] };
 type Gate = { captured?: Handover; response: ReturnType<typeof Promise.withResolvers<boolean>> };
@@ -126,13 +126,13 @@ const writeDraft = (draft: string) => run(`(() => {
   return JSON.parse(sessionStorage.getItem('seismic-drafts-lab')).seismic.text;
 })()`);
 
-// ---------------------------------------------------------------- the terminal's server and the app beside it
+
 const port = free();
 const local = `http://127.0.0.1:${port}`;
 const lease = join(dir, 'app-lease');
 writeFileSync(lease, '');
-// Intercept the actual webview GET at the HTTP response boundary. The original route still
-// authenticates the request and reads the real copy. Control requests bypass the gate.
+
+
 const preload = join(dir, 'gate.js');
 writeFileSync(preload, `
 const serve = Bun.serve;
@@ -159,7 +159,7 @@ const env: Record<string, string> = {
   SEISMIC_APP_CHECK: `${harness.url.href}check.js`,
   SEISMIC_APP_CHECK_LEASE: lease,
   SEISMIC_PORT: String(free()),
-  // the debug shell runs this checkout's server
+  
   SEISMIC_CHECKOUT: ROOT,
 };
 const terminal = Bun.spawn([process.execPath, '--preload', preload, join(ROOT, 'src', 'server', 'main.ts'), '--dev', '--idle-workers', '--port', String(port)], { env, stdout: 'ignore', stderr: keep ? 'inherit' : 'ignore' });
@@ -178,8 +178,8 @@ async function relaunch(draft: string) {
 
 try {
   await until('the terminal server to answer', 60_000, async () => (await fetch(`${local}/api/projects`, { headers: ownerHeaders(home) })).ok);
-  // The shell starts again only while its window is in front or hidden (`may_relaunch`): hidden,
-  // it does so without taking the focus of whoever uses the machine, and stays hidden after.
+  
+  
   writeFileSync(join(home, 'app-windows.json'), JSON.stringify({ at: Date.now(), windows: [{
     desk: 'local', x: 40, y: 40, width: 900, height: 700, visible: false, next: '/',
   }] }));
@@ -253,10 +253,10 @@ try {
     }
   });
 } finally {
-  // Every debug shell started by this run, including an in-flight relaunch, has this lease.
+  
   rmSync(lease, { force: true });
   if (app && (await exited(app, 5_000)) === null) app.kill();
-  // The terminal is a single child (no supervisor) on this scratch home.
+  
   terminal.kill();
   await exited(terminal, 5_000);
   harness.stop(true);

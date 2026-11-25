@@ -1,21 +1,27 @@
-// A throwaway Seismic with this checkout's code: in a fresh temp directory, an empty SEISMIC_HOME and a
-// new git repository as its only project, on a free port. Nothing of it touches ~/.seismic,
-// ~/.seismic-dev or a repository another Seismic plans (two Seismics on one repository would make
-// worktrees and land on its main side by side); the directory is removed once the server ends.
-//
-//   bun run start:dev:throwaway [--keep] [--setup] [<main.ts args>]
-//
-// --keep leaves the directory behind (its path is printed) to look at after the server ended.
-// --setup starts without a project, so the page shows the setup assistant of a first start (the
-// repository is still made, for the assistant to pick).
-// Further arguments go to src/server/main.ts as with `bun start` (its header describes them);
-// repositories given there replace the scratch one. The server runs with --dev: it does not
-// restart when this checkout commits. For cards staged in given states, see scratch-seismic.ts.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { machineAddresses } from '../src/server/remote';
 
 const root = resolve(import.meta.dir, '..');
 
@@ -47,7 +53,8 @@ if (import.meta.main) {
   let args = process.argv.slice(2);
   const keep = args.includes('--keep');
   const setup = args.includes('--setup');
-  args = args.filter((a) => a !== '--keep' && a !== '--setup');
+  const lan = args.includes('--lan');
+  args = args.filter((a) => a !== '--keep' && a !== '--setup' && a !== '--lan');
 
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'seismic-throwaway-')));
   const home = join(dir, 'home');
@@ -55,17 +62,23 @@ if (import.meta.main) {
   mkdirSync(home, { mode: 0o700 });
   scratchRepo(repo);
   const port = String(await freePort());
-  // without repositories on the command line, the projects come from the home's projects.json
+  
   if (!setup && !args.some((a) => !a.startsWith('-')))
     writeFileSync(join(home, 'projects.json'), JSON.stringify([{ name: 'Scratch', repos: [{ path: repo }] }], null, 2) + '\n');
 
+  if (lan) {
+    const address = machineAddresses()[0];
+    if (!address) throw new Error('--lan: this machine has no network address besides loopback');
+    writeFileSync(join(home, 'settings.json'), JSON.stringify({ remote: { via: 'address', address } }, null, 2) + '\n');
+    console.error(`Network address: http://${address.includes(':') ? `[${address}]` : address}:${port} (the login link below uses it)`);
+  }
   console.error(`Throwaway Seismic in ${dir} (home, repo), port ${port}; ${keep ? 'kept' : 'removed'} once it ends`);
   const child = Bun.spawn(['bun', join(root, 'src/server/main.ts'), '--dev', ...args], {
     cwd: root,
-    env: { ...process.env, SEISMIC_HOME: home, SEISMIC_PORT: port },
+    env: { ...process.env, SEISMIC_HOME: home, SEISMIC_PORT: port, ...(lan ? { SEISMIC_LAN_LOGIN: '1' } : {}) },
     stdio: ['inherit', 'inherit', 'inherit'],
   });
-  // Ctrl-C reaches the whole foreground group already; a kill of this process must reach the server too
+  
   for (const signal of ['SIGINT', 'SIGTERM'] as const) process.on(signal, () => child.kill(signal));
   const code = await child.exited;
   if (keep) console.error(`Kept: ${dir}`);

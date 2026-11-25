@@ -1,17 +1,17 @@
-// The voice providers: what each needs installed, how Seismic installs it, and the spec `tts.py`
-// synthesises with. Every voice is text in, WAV out. A local one runs as a command (Piper, the
-// Qwen3-TTS helper `qwen3.py`, macOS `say`, the owner's own command), once per clip, or once per
-// render for one that can stay loaded (Qwen3-TTS), which a running Seismic holds loaded across
-// renders instead (`src/server/narration.ts`); a hosted one is an HTTP request `tts.py`
-// makes from a template (Gemini, OpenAI, ElevenLabs, Azure, or the owner's own endpoint).
-//
-// Piper and Qwen3-TTS are installed on request into `voices/` in Seismic's home, each in a Python
-// environment of its own made by uv; Piper's voice files go beside it, Qwen3's models into the
-// Hugging Face cache, where a model downloaded before is found again. Run on its own,
-// `node voices.ts status` says whether the voice of the settings is installed and
-// `node voices.ts install` installs it, for a session without Seismic.
-//
-// Plain Node with type stripping, like the director.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -21,17 +21,17 @@ import { isMain, lib } from './here.ts';
 import { type DemoSettings, demoSettingsHere, expandHome, type NarrationLanguage, seismicHome, referenceOf, SERVICES } from './settings.ts';
 import { BUILT_IN_CLONES, DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, QWEN3_STOCK_SPEAKER, qwen3Speaker } from './voice-choices.ts';
 
-/** Piper's voices: one per language unless the settings name another. */
+
 export const PIPER_VOICES: Record<NarrationLanguage, string> = { en: 'en_US-ryan-high' };
 const PIPER_BASE = 'https://huggingface.co/rhasspy/piper-voices/resolve/main';
-/** Qwen3-TTS: a stock speaker from the CustomVoice model (`voice-choices.ts`), or a clone of a clip with the Base model. */
+
 export { QWEN3_SPEAKER };
 /** A built-in clone's clip, as the demo skill ships it. */
 export const builtInClip = (file: string) => lib('..', 'voices', file);
-/**
- * Qwen3-TTS hears each sentence back with Parakeet, as Seismic's voice input does (`qwen3.py`): onnx-asr
- * on the CPU, its model in the Hugging Face cache, fetched there on the voice's first start.
- */
+
+
+
+
 const QWEN3_EAR = 'onnx-asr[cpu,hub]';
 /** Apple Silicon runs Qwen3-TTS on MLX; elsewhere it is PyTorch, in practice only with a GPU. */
 export const onMlx = () => process.platform === 'darwin' && process.arch === 'arm64';
@@ -39,47 +39,47 @@ const qwen3Model = (clone: boolean) =>
   onMlx()
     ? `mlx-community/Qwen3-TTS-12Hz-1.7B-${clone ? 'Base' : 'CustomVoice'}-bf16`
     : `Qwen/Qwen3-TTS-12Hz-1.7B-${clone ? 'Base' : 'CustomVoice'}`;
-/** `say`'s voice per language when the settings name none. */
+
 export const SAY_VOICES: Record<NarrationLanguage, string> = { en: 'Samantha' };
 
-/** A Qwen3 voice: a clone of a reference clip (its transcript beside it), or a stock speaker told how to speak (`style`). */
+
 export interface HeldVoice {
   reference?: string;
   speaker?: string;
   style?: string;
 }
 
-/** What `tts.py` gets: a command to run per clip, or a service to call. */
+
 export type VoiceSpec =
   | {
       kind: 'command';
-      /** Run directly, `{out}` replaced by the WAV to write; or `shell`, through the shell, with `$DEMO_WAV`. */
+      
       argv?: string[];
       shell?: string;
-      /** For the clip cache: changes when the voice does. */
+      
       tag: string;
-      /** Loads a large model: one such synthesis at a time on the machine. */
+      
       heavy: boolean;
-      /**
-       * Reads every word by the rules of the narration language (Piper through espeak-ng, `say`):
-       * `tts.py` gives it English terms respelt, from the language's lexicon and the script's marks.
-       */
+      
+
+
+
       respell?: boolean;
-      /**
-       * The voice's own lexicons (`lexicon.<name>.<language>.json`) for words it cannot read as
-       * written: `tts.py` gives it those respelt. Marks stay for the voices that respell.
-       */
+      
+
+
+
       lexicon?: string;
-      /**
-       * The voice can stay loaded: this command starts once per render and answers clip by clip
-       * over its stdin and stdout (the protocol is in `qwen3.py`). Without it, `argv` or `shell`
-       * runs once per clip.
-       */
+      
+
+
+
+
       serve?: string[];
-      /**
-       * Seismic can hold this voice loaded across renders: `tts.py` asks Seismic for each clip when
-       * `SEISMIC_URL` is set, and serves it itself otherwise (or when Seismic does not answer).
-       */
+      
+
+
+
       host?: HeldVoice;
     }
   | {
@@ -87,18 +87,18 @@ export type VoiceSpec =
       service: (typeof SERVICES)[number] | 'http';
       url?: string;
       voiceName?: string;
-      /** How to speak, for a service that takes instructions (Gemini, OpenAI). */
+      
       style?: string;
-      /** The environment variable `tts.py` reads the key from before `keyFile` (`KEY_ENV`). */
+      
       keyEnv: string;
       keyFile?: string;
     };
 
-/** Something a voice needs on this machine before it can speak. */
+
 export interface Component {
-  /** Shown to the owner: what is downloaded. */
+  
   label: string;
-  /** About this many megabytes, downloaded and on disk. */
+  
   mb: number;
   installed: () => boolean;
   install: (log: (line: string) => void) => Promise<void>;
@@ -108,7 +108,7 @@ export const voicesHome = (home = seismicHome()) => path.join(home, 'voices');
 const envPython = (dir: string) =>
   path.join(dir, 'env', process.platform === 'win32' ? 'Scripts' : 'bin', process.platform === 'win32' ? 'python.exe' : 'python');
 const INSTALLED = '.seismic-installed';
-/** The marker's name before the rename: an environment installed then still counts (migration shim). */
+
 const OLD_INSTALLED = '.obeya-installed';
 
 function piperVoice(s: DemoSettings) {
@@ -192,7 +192,7 @@ async function download(url: string, file: string, log: (line: string) => void) 
   fs.renameSync(`${file}.part`, file);
 }
 
-/** The names of what a voice needs, in the narration language: the settings show them as missing. */
+
 const PART_WORDS: Record<NarrationLanguage, { piperVoice: (name: string) => string; model: (repo: string) => string }> = {
   en: { piperVoice: (name) => `Piper voice ${name}`, model: (repo) => `Model ${repo}` },
 };
@@ -317,7 +317,7 @@ export function voiceSpec(s: DemoSettings, home = seismicHome()): VoiceSpec {
       return { kind: 'command', argv: ['say', '-v', voice, '-o', '{out}', '--file-format=WAVE', '--data-format=LEI16@24000', '-f', '-'], tag: `say|${voice}`, heavy: false, respell: true };
     }
     case 'command':
-      // The owner's command may load a large model (a clone does), so it takes the machine's turn.
+      
       return { kind: 'command', shell: s.command ?? '', tag: `command|${s.command ?? ''}`, heavy: true };
     case 'http':
       return { kind: 'http', service: 'http', url: s.url, keyEnv: KEY_ENV.http, keyFile };
@@ -326,7 +326,7 @@ export function voiceSpec(s: DemoSettings, home = seismicHome()): VoiceSpec {
   }
 }
 
-/** The environment variable a service reads its key from before the key file. */
+
 export const KEY_ENV: Record<(typeof SERVICES)[number] | 'http', string> = {
   gemini: 'GEMINI_API_KEY',
   openai: 'OPENAI_API_KEY',
@@ -335,7 +335,7 @@ export const KEY_ENV: Record<(typeof SERVICES)[number] | 'http', string> = {
   http: 'DEMO_TTS_API_KEY',
 };
 
-/** A sentence to hear a voice by in the settings, in the narration language. */
+
 export const SAMPLE_TEXT: Record<NarrationLanguage, string> = {
   en: 'This is how the voice sounds in a demo: the card now shows the link, and one click opens the page.',
 };
@@ -364,13 +364,13 @@ export function ttsArgs(spec: VoiceSpec, lockFile = TTS_LOCK) {
   return ['run', '--quiet', '--no-project', 'python', lib('tts.py'), ...lock];
 }
 
-/**
- * One large model loaded by a render at a time on the machine: each loaded a voice model, and
- * parallel demos from several agents swapped the machine to a halt. `tts.py --lock` holds it
- * (flock, on Windows a byte-range lock) from the moment it loads a model itself; a voice Seismic
- * holds takes no lock, so parallel renders synthesise turn by turn through Seismic. The system drops
- * the lock when its holder dies, so no stale lock survives a crash.
- */
+
+
+
+
+
+
+
 export const TTS_LOCK = path.join(os.homedir(), '.cache', 'demo-skill', 'tts.lock');
 
 if (isMain(import.meta.filename)) {

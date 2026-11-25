@@ -1,14 +1,14 @@
-// The demo settings: in which language a demo is narrated and by which voice, so the person it
-// speaks in follows, and the directory demos go into. Seismic's settings sheet edits them; they live in `demo.json` under Seismic's home
-// (`SEISMIC_HOME`, else `~/.seismic`), where a session without Seismic finds them as well. Missing
-// entries take the defaults; the language without one is the owner's conversation language. A
-// repository may name the language of its own demos (`demo.language` of its `.seismic/settings.json`):
-// Seismic gives it to its workers as `DEMO_LANGUAGE`, and a session without Seismic finds it in the
-// repository it runs in.
-//
-// Run on its own (`node settings.ts`), it prints the settings in effect for the agent writing a
-// demo's narration. Plain Node with type stripping, like the director: no imports without
-// extensions, no Bun APIs.
+
+
+
+
+
+
+
+
+
+
+
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -18,58 +18,58 @@ import { conversationLanguageIn } from './language.ts';
 import { allowsDemo, HANDOVER_ARTIFACTS, type HandoverArtifact } from './artifacts.ts';
 import { type Language, LANGUAGE_NAMES, LANGUAGES } from './locale.ts';
 
-/** The language a demo is narrated in: one Seismic speaks. */
+
 export type NarrationLanguage = Language;
-/**
- * The voice providers (`voices.ts` turns each into what `tts.py` runs). Local models Seismic
- * installs on request (`piper`, the default, and `qwen3`), macOS `say`, the owner's own command or
- * HTTP endpoint, and templates for four hosted services.
- */
+
+
+
+
+
 export const VOICES = ['piper', 'qwen3', 'say', 'command', 'http', 'gemini', 'openai', 'elevenlabs', 'azure'] as const;
 export type VoiceKind = (typeof VOICES)[number];
-/** The hosted services `tts.py` has a template for. */
+
 export const SERVICES = ['gemini', 'openai', 'elevenlabs', 'azure'] as const satisfies readonly VoiceKind[];
 
 export interface DemoSettings {
-  /** Language of the narration, its captions and the report page. */
+  
   language: NarrationLanguage;
-  /** Who speaks: one of `VOICES`. */
+  
   voice: VoiceKind;
-  /**
-   * The voice is the owner's own (a clone behind a command, a cloned voice at a service), so the
-   * narration speaks in the first person.
-   */
+  
+
+
+
   ownVoice?: boolean;
-  /** `command`: run through the shell, the text on stdin; it writes the WAV to `$DEMO_WAV`. */
+  
   command?: string;
-  /** `http`: the endpoint; `openai`: another base URL; `azure`: the region or the endpoint. */
+  
   url?: string;
-  /** Which of the provider's voices: a Piper voice, a Qwen3 speaker, a `say` voice, a service's voice. */
+  
   voiceName?: string;
-  /**
-   * `qwen3`: a clip to clone per narration language (`.wav`, its exact transcript beside it as
-   * `.txt`) instead of a speaker. A clone speaks best in the language of its clip, so each language
-   * has its own; one without a clip is spoken by a speaker.
-   */
+  
+
+
+
+
   references?: Partial<Record<NarrationLanguage, string>>;
-  /**
-   * How the narration should sound, for the voices that take instructions (a Qwen3 stock speaker,
-   * Gemini, OpenAI); `DEFAULT_STYLE` (`voice-choices.ts`) when left out.
-   */
+  
+
+
+
   style?: string;
-  /** A service's API key, in a file; the service's environment variable takes precedence. */
+  
   keyFile?: string;
-  /** Where demos go, each into a directory of its own: an absolute path or one from `~`; `DEFAULT_DEMO_DIRECTORY` when left out. */
+  
   directory?: string;
-  /**
-   * How many days after a demo's last render Seismic keeps the frames it was cut from (`.work/frames`),
-   * which only re-voicing needs; `always` keeps them. Left out: Seismic's default (see `demo-space.ts`).
-   */
+  
+
+
+
   keepFrames?: number | 'always';
-  /**
-   * Which artifacts a handover may bring on this machine, for every repository that names none
-   * (`demo.artifacts` of its settings); all of `HANDOVER_ARTIFACTS` when left out.
-   */
+  
+
+
+
   artifacts?: HandoverArtifact[];
 }
 
@@ -140,7 +140,7 @@ export function readDemoSettings(home = seismicHome()): DemoSettings {
   }
 }
 
-/** Where a repository's language for its demos comes from: Seismic, or the repository's own settings. */
+
 export type LanguageSource = 'seismic' | 'repository';
 
 /**
@@ -153,7 +153,7 @@ export function repositoryLanguage(env: Record<string, string | undefined> = pro
   if (given) return { language: given, from: 'seismic' };
   for (let dir = path.resolve(cwd); ; dir = path.dirname(dir)) {
     if (fs.existsSync(path.join(dir, '.git'))) {
-      // `.seismic/` first, then `.obeya/` (a repository from before the rename)
+      
       const file = ['.seismic', '.obeya'].map((d) => path.join(dir, d, 'settings.json')).find((f) => fs.existsSync(f)) ?? path.join(dir, '.seismic', 'settings.json');
       try {
         const language = LANGUAGES.find((l) => l === (JSON.parse(fs.readFileSync(file, 'utf8')) as { demo?: { language?: unknown } }).demo?.language);
@@ -188,7 +188,7 @@ export function withVoice(s: DemoSettings, voice: string | undefined): DemoSetti
   if (voice.endsWith('.wav')) return { language: s.language, voice: 'qwen3', references: { [s.language]: voice } };
   const kind = VOICES.find((v) => v === voice);
   if (!kind) throw new Error(`unknown voice "${voice}"; use ${VOICES.join(', ')} or a .wav`);
-  // another provider is not the owner's own voice just because the saved one is
+  
   const { ownVoice: _, ...rest } = s;
   return { ...rest, voice: kind };
 }

@@ -1,35 +1,35 @@
-// What a release holds, for the build workflow (.github/workflows/build.yml) and the release skill
-// (.claude/skills/release/SKILL.md): each platform's build collects its installers, and the release
-// job adds the checksums, the updater's latest.json and the notes, taken from CHANGELOG.md.
-//
-//   bun scripts/release.ts collect <target> <dir>
-//       copies the installers of <target> (darwin-arm64, …, as in scripts/build.ts) from
-//       desktop/target/release/bundle/ (scripts/build-app.ts) into <dir> under the release's fixed
-//       names, with the update artifact and its signature when there is one.
-//   bun scripts/release.ts commits [<tag>] [--since <date>]
-//       prints the commits since the version tag before <tag> (without <tag>: since the last version
-//       tag, up to HEAD) that change what runs, grouped by the demo their Demo-Video/Demo-Page
-//       trailers link: the raw material a version's section in CHANGELOG.md is written from.
-//       `--since` narrows them by date (the first release has the whole history before it).
-//   bun scripts/release.ts check <tag>
-//       fails unless <tag> is v<version of package.json> and CHANGELOG.md has a section for it (a
-//       release candidate, v<x.y.z>-rc.<n>, needs none).
-//   bun scripts/release.ts section <tag> <file>
-//       writes the version's section of CHANGELOG.md (without its heading) into <file>; for a
-//       release candidate without one, an empty file.
-//   bun scripts/release.ts notes <tag> <owner/repo> <file>
-//       writes the release's notes: the version's section of CHANGELOG.md, how to install the
-//       unsigned downloads, and every commit since the version tag before, folded.
-//   bun scripts/release.ts manifest <dir> <tag> <owner/repo> [<section>]
-//       writes latest.json (the version, the start of the section for the bar's hover, and per
-//       platform the update's URL in the tag's release and its signature) and SHA256SUMS over
-//       everything in <dir>.
-//
-// The names carry no version: the README and the site link the newest release's installers through
-// `releases/latest/download/<name>`. A release candidate stays a draft release, which only the
-// repository's collaborators see: installed apps are not offered it, and the links keep pointing at
-// the latest release. Without the updater's key (TAURI_SIGNING_PRIVATE_KEY at the
-// build) there are no update artifacts, and latest.json names no platform.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -38,7 +38,7 @@ import { INERT } from '../src/core/inert';
 type Asset = { from: string; ends: string; name: string };
 type Release = { platform: string; installers: Asset[]; update: Asset };
 
-/** Per target: where Tauri puts each installer, the name it has in the release, and the update. */
+
 export const RELEASE: Record<string, Release> = {
   'darwin-arm64': {
     platform: 'darwin-aarch64',
@@ -103,7 +103,7 @@ export function collect(target: string, bundle: string, dir: string): string[] {
 
 export type Latest = { version: string; notes?: string; pub_date: string; platforms: Record<string, { url: string; signature: string }> };
 
-/** What the bar's hover shows of the notes at most, in lines. */
+
 const NOTES_SHOWN = 12;
 
 const git = (cwd: string, ...args: string[]) => {
@@ -111,13 +111,13 @@ const git = (cwd: string, ...args: string[]) => {
   return r.exitCode === 0 ? r.stdout.toString().trim() : null;
 };
 
-/** The paths of the commits that change what runs, as `git log -- <these>` takes them: all but the inert ones. */
+
 export const RUNS = ['.', ...INERT.dirs.map((d) => `:!${d}`), `:!*${INERT.ending}`];
 
 export type Demo = { kind: 'video' | 'page'; url: string };
 export type Commit = { hash: string; date: string; subject: string; demos: Demo[] };
 
-/** A release candidate's tag: v0.2.0-rc.1. */
+
 const CANDIDATE = /^v?(\d+\.\d+\.\d+)-rc\.(\d+)$/;
 
 /** The version a release candidate's tag is a candidate for (v0.2.0-rc.1 → 0.2.0); null for any other tag. */
@@ -204,14 +204,14 @@ export function check(cwd: string, tag: string): string | null {
   return null;
 }
 
-/** Goes under the changelog's section in every release. */
+
 export const INSTALL =
   'The Mac apps are signed and notarised. The Windows installer and the Linux packages are not signed: ' +
   'SmartScreen warns about the installer ("More info", then "Run anyway"). Every file\'s SHA-256 is in ' +
   '`SHA256SUMS`: `sha256sum --check --ignore-missing SHA256SUMS` beside the download, or ' +
   '`Get-FileHash Seismic-Windows-x64-setup.exe` in PowerShell.';
 
-/** How many commits the folded list names at most; GitHub takes 125,000 characters of notes. */
+
 const COMMITS_LISTED = 300;
 
 /**
@@ -282,7 +282,7 @@ export function latest(dir: string, tag: string, repo: string, now = new Date(),
   let shown = lines;
   if (lines.length > NOTES_SHOWN) {
     shown = lines.slice(0, NOTES_SHOWN - 1);
-    // a heading cut off from its entries says nothing
+    
     while (shown.length && /^#/.test(shown.at(-1)!)) shown.pop();
     const more = lines.slice(shown.length).filter(item).length;
     if (more) shown.push(`- … and ${more} more`);

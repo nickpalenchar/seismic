@@ -1,10 +1,10 @@
-// What happens to processes a real Codex app-server started when it, or Seismic, stops?
-// bun scripts/process-lifecycle-probe.ts [graceful|forced|agent-death|host-death ...]
-// Runs the installed Codex app-server (no model turn, no billing) through Seismic's transport in
-// scratch directories, starts three heartbeat jobs with `thread/shellCommand` (one in the shell's
-// group, one in a session of its own, one in a session of its own whose launcher exits early) and
-// an unrelated canary, then stops things the named way and prints what survived as JSON.
-// It reports what it saw on this machine and Codex version; it proves no containment.
+
+
+
+
+
+
+
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -13,7 +13,7 @@ import { codexConnection, endSessionsHere } from '../src/server/llms/harnesses/c
 
 const read = (file: string) => { try { return readFileSync(file, 'utf8').trim(); } catch { return ''; } };
 const alive = (pid: number) => { try { process.kill(pid, 0); return true; } catch { return false; } };
-// A number from a file may have been reused while the probe waited: only signal what still looks like ours.
+
 const looksLike = (pid: number, what: string) => Bun.spawnSync(['ps', '-o', 'command=', '-p', String(pid)]).stdout.toString().includes(what);
 const JOBS = ['same', 'detached', 'late'] as const;
 const JOB = `import os, sys, time
@@ -49,7 +49,7 @@ if (mode === 'driver') {
   c.notify('initialized', {});
   const started = await c.request<{ thread: { id: string } }>('thread/start', { cwd: repo, approvalPolicy: 'never', sandbox: 'danger-full-access' });
   await c.request('thread/shellCommand', { threadId: started.thread.id, command: JOBS.map((j) => `python3 job.py ${j} &`).join(' ') + ' wait' });
-  await Bun.sleep(2500); // enough samples (every 500 ms) to observe the ancestry of all three
+  await Bun.sleep(2500); 
   writeFileSync(join(dir!, 'ready'), '1');
   if (kind === 'graceful') { await endSessionsHere(); process.exit(0); }
   if (kind === 'forced') { await endSessionsHere(true); process.exit(0); }
@@ -64,7 +64,7 @@ async function run(kind: string) {
   writeFileSync(join(repo, 'job.py'), JOB);
   const canary = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { stdio: 'ignore' });
   const driver = spawn(process.execPath, [import.meta.path, 'driver', dir, kind], { stdio: 'inherit' });
-  // a graceful or forced driver may be gone before the probe starts waiting for it
+  
   const driverGone = new Promise<void>((resolve) => driver.once('exit', () => resolve()));
   const pids: Record<string, number> = {};
   let agent = 0;
@@ -88,11 +88,11 @@ async function run(kind: string) {
       appServerAlive: agent ? alive(agent) : null, driverAlive: alive(driver.pid!), canaryAlive: alive(canary.pid!),
     };
   } finally {
-    // everything this probe started, whatever the case left running
-    for (const pid of Object.values(pids)) if (pid && alive(pid) && looksLike(pid, 'job.py')) try { process.kill(pid, 'SIGKILL'); } catch { /* gone */ }
-    if (agent && alive(agent) && looksLike(agent, 'app-server')) { try { process.kill(-agent, 'SIGKILL'); } catch { /* gone */ } try { process.kill(agent, 'SIGKILL'); } catch { /* gone */ } }
-    try { process.kill(driver.pid!, 'SIGKILL'); } catch { /* gone */ }
-    try { canary.kill('SIGKILL'); } catch { /* gone */ }
+    
+    for (const pid of Object.values(pids)) if (pid && alive(pid) && looksLike(pid, 'job.py')) try { process.kill(pid, 'SIGKILL'); } catch {  }
+    if (agent && alive(agent) && looksLike(agent, 'app-server')) { try { process.kill(-agent, 'SIGKILL'); } catch {  } try { process.kill(agent, 'SIGKILL'); } catch {  } }
+    try { process.kill(driver.pid!, 'SIGKILL'); } catch {  }
+    try { canary.kill('SIGKILL'); } catch {  }
     await Bun.sleep(200);
     rmSync(dir, { recursive: true, force: true });
   }

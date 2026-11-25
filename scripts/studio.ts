@@ -1,19 +1,19 @@
-// Drizzle Studio on Seismic's database, also from other devices over Tailscale.
-//
-//   bun scripts/studio.ts [db] [--live] [--port <n>] [--local]
-//
-// `db` defaults to $SEISMIC_HOME/seismic.db (~/.seismic/seismic.db). Studio opens a fresh copy of it
-// (VACUUM INTO, so a running Seismic's writes don't get in the way); `--live` opens the database
-// itself, where Studio's edits reach the running Seismic. Studio is drizzle-kit's server on
-// 127.0.0.1 (`--port`, default 4983) with its page at https://local.drizzle.studio, which the
-// browser loads and points at that server. Without `--local`, `tailscale serve` proxies an HTTPS
-// port of the machine's tailnet name to it (only the tailnet reaches it: the page is HTTPS, so it
-// can only talk to an HTTPS server other than localhost), and the script prints the link to open on
-// another device; Ctrl-C ends Studio and removes that entry.
-//
-// drizzle-kit runs under Node, which needs a SQLite driver of its own (better-sqlite3; Seismic's is
-// Bun's). So that the driver is no dependency of Seismic's, the script installs it with drizzle-kit
-// and drizzle-orm (at this checkout's versions) in a cache directory of its own, once, with npm.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { Database } from 'bun:sqlite';
 import { spawn, spawnSync } from 'node:child_process';
@@ -41,7 +41,7 @@ if (!existsSync(db)) fail(`no database at ${db}`);
 const cache = join(process.platform === 'win32' ? (process.env.LOCALAPPDATA ?? homedir()) : (process.env.XDG_CACHE_HOME ?? join(homedir(), '.cache')), 'seismic-studio');
 mkdirSync(cache, { recursive: true });
 
-// drizzle-kit, drizzle-orm and the driver, at the versions this checkout has; installed again when they change
+
 const version = (pkg: string) => (JSON.parse(readFileSync(join(root, 'node_modules', pkg, 'package.json'), 'utf8')) as { version: string }).version;
 const wanted = { name: 'seismic-studio', private: true, dependencies: { 'drizzle-kit': version('drizzle-kit'), 'drizzle-orm': version('drizzle-orm'), 'better-sqlite3': '^12' } };
 const manifest = join(cache, 'package.json');
@@ -69,7 +69,7 @@ const config = join(cache, 'drizzle.config.mjs');
 writeFileSync(config, `export default ${JSON.stringify({ dialect: 'sqlite', dbCredentials: { url: file } })};\n`);
 
 const studio = spawn('node', [join(cache, 'node_modules', 'drizzle-kit', 'bin.cjs'), 'studio', '--config', config, '--host', '127.0.0.1', '--port', String(port)], { cwd: cache, stdio: ['ignore', 'pipe', 'inherit'] });
-studio.stdout.on('data', () => {}); // its own "is up" line names only the local address, printed below with the tailnet one
+studio.stdout.on('data', () => {}); 
 
 const tailscale = new Tailscale();
 let served: { name: string; https: number; target: string } | null = null;
@@ -86,7 +86,7 @@ studio.on('exit', (code) => {
   process.exit(0);
 });
 
-// Studio answers once it has opened the database
+
 const until = Date.now() + 30_000;
 while (!(await fetch(`http://127.0.0.1:${port}/`).then(() => true, () => false))) {
   if (Date.now() > until) (end(), fail(`drizzle-kit studio did not start on port ${port}`));

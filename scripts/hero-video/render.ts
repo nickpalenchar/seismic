@@ -1,15 +1,15 @@
-// Renders the hero video (`demo.ts`) in the owner's ElevenLabs voice, without touching Seismic's own
-// demo settings: a home of its own beside the output holds the voice settings, its voices directory
-// is Seismic's (for Qwen3-TTS with `--qwen`). The key lies in `.voice/elevenlabs.key` of the main
-// checkout, gitignored. `--qwen` renders in the owner's voice cloned by Qwen3-TTS instead (the
-// reference `.voice/qwen-reference-en.wav` there), which costs no credits: for trying a change out,
-// into `seismic-hero-qwen` in the demo directory (`~/demos` unless the demo settings name another).
-// `--record` records the take's agents (real ones) into a directory, `seismic-hero-recording` there
-// unless named; `--replay` plays such a recording back instead of
-// running agents, the same take in minutes (the README says when which). Other arguments go on to
-// the demo (`--narration`, `--dry`).
-//
-//   node scripts/hero-video/render.ts [--qwen] [--record [<dir>] | --replay [<dir>]] [--narration | --dry]
+
+
+
+
+
+
+
+
+
+
+
+
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -18,7 +18,7 @@ import { demoDirectory } from '../../plugin/skills/demo/lib/settings.ts';
 
 const VOICE = 'IErGHDQU4vPqicCi8dwR';
 const qwen = process.argv.includes('--qwen');
-/** The owner's demo directory: the take's own home below names it too, so its agents' demos go there. */
+
 const DEMOS = demoDirectory();
 const OUT = process.env.HERO_OUT ?? path.join(DEMOS, qwen ? 'seismic-hero-qwen' : 'seismic-hero');
 const common = spawnSync('git', ['-C', import.meta.dirname, 'rev-parse', '--path-format=absolute', '--git-common-dir'], { encoding: 'utf8' }).stdout.trim();

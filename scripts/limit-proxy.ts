@@ -1,20 +1,20 @@
-// A pass-through proxy for live usage-limit checks: real Claude Code and real Codex talk to their
-// real model services through it, and it answers a request with the account's usage limit instead,
-// as often as it was told to, so that a live card runs into the limit and must recover from it.
-//
-//   bun scripts/limit-proxy.ts [--port <n>] [--log <file>]
-//
-// Claude Code goes through it with ANTHROPIC_BASE_URL=http://127.0.0.1:<port>/anthropic in the
-// scratch Seismic's environment, Codex with the wrapper it writes (`codex` beside the log, given to
-// the scratch Seismic as SEISMIC_CODEX): the installed Codex with a model provider of the same
-// ChatGPT sign-in whose base URL is this proxy's /codex. Everything else is forwarded unchanged.
-//
-//   curl -XPOST 'http://127.0.0.1:<port>/limit?harness=claude&for=120'
-//
-// puts that harness (claude or codex) over its limit for the next `for` seconds, as a real limit
-// is: every model request until then is refused, saying when the limit resets; GET /limit tells
-// what is limited and what was refused. A refusal looks as the service's own does: for Claude a 429 with the unified rate-limit
-// headers saying `rejected` and the reset, for Codex a 429 `usage_limit_reached` with `resets_at`.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { appendFileSync, chmodSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -27,7 +27,7 @@ const note = (line: string) => appendFileSync(log, `${new Date().toISOString()} 
 
 const UPSTREAM = { claude: 'https://api.anthropic.com', codex: 'https://chatgpt.com/backend-api/codex' } as const;
 type Harness = keyof typeof UPSTREAM;
-/** Until when (ms) each harness is over its limit. */
+
 const limited: Record<Harness, number> = { claude: 0, codex: 0 };
 const refused: { harness: Harness; path: string; at: string; resetsAt: string }[] = [];
 
@@ -107,12 +107,12 @@ const server = Bun.serve({
   },
 });
 
-// the installed Codex, with a provider that reaches the model through this proxy under the same sign-in
+
 const codex = spawnSync('/bin/sh', ['-c', 'command -v codex'], { encoding: 'utf8' }).stdout.trim();
 const wrapper = join(dirname(log), 'codex');
 writeFileSync(
   wrapper,
-  // the overrides go after the subcommand: an app-server takes no -c given before it
+  
   `#!/bin/sh\nsub="$1"; shift\nexec ${JSON.stringify(process.env.LIMIT_PROXY_CODEX ?? codex)} "$sub" -c model_provider=limitproxy -c 'model_providers.limitproxy={name="limitproxy",base_url="http://127.0.0.1:${server.port}/codex",wire_api="responses",requires_openai_auth=true}' "$@"\n`,
 );
 chmodSync(wrapper, 0o755);

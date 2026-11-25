@@ -1,28 +1,28 @@
-// A schema-change page: the persisted data models a change touches, before and after, as one
-// self-contained HTML page with an ER-style diagram (added green, changed amber, removed red) and a
-// list of the changes and the source files they were read from. The worker reads the models out of
-// whatever the project uses (SQL migrations, an ORM's models, …) into the JSON below; this script
-// knows no dialect or ORM. Large schemas are cut to the affected entities and their direct
-// neighbours.
-//
-//   node schema.ts <models.json> <page.html>
-//
-// models.json:
-//   {
-//     "title": "Feedback on approval",               (optional)
-//     "sources": ["src/server/db.ts"],               the migrations or model files it was read from
-//     "before": { "entities": [ … ] },
-//     "after":  { "entities": [ … ] }
-//   }
-// an entity: { "kind": "table" | "columnar" | "document"?, "name": "cards", "was": "old_name"?, "fields": [ … ], "indexes": [ … ]? }
-// a field:   { "name": "card_id", "type": "TEXT", "was": "old_name"?, "pk": true?, "unique": true?,
-//              "nullable": true?, "default": "0"?, "ref": "cards" | "cards.id"? }
-// an index:  { "name": "cards_state", "columns": ["state"], "unique": true? }
-//
-// Document fields may contain "fields": [ … ] for embedded objects or array items, and
-// "optional": true. Nested fields render as property paths, e.g. profile.email.
-//
-// Plain Node with type stripping, like the director: no imports without extensions, no Bun APIs.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import fs from 'node:fs';
 import { isMain } from './here.ts';
@@ -62,7 +62,7 @@ export function checkInput(x: unknown): SchemaChange {
   return o as SchemaChange;
 }
 
-/** The whole page, self-contained: nothing loaded from elsewhere. */
+
 export const renderSchemaPage = SchemaPage;
 
 if (isMain(import.meta.filename)) {

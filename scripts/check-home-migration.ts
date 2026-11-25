@@ -1,17 +1,17 @@
-// Starts Seismic on a copy of an existing home (from before projects were canvases, say) and
-// checks that it comes up with what the home held, without running agents or touching anything
-// outside the copy:
-//   bun scripts/check-home-migration.ts [home]      (default: ~/.seismic, else ~/.obeya; the home itself is never written)
-//
-// The copy holds the database (a SQLite snapshot), the JSON and key files and every directory of files the home
-// keeps but the checkouts. Each git repository of the configuration is cloned locally into the copy and the configuration points at
-// those clones (a folder without git is copied), so the read checkouts Seismic makes never land in the real repositories; the
-// workstation leases of the database stay, with their paths moved into the copy (the checkouts are not).
-// Then it starts the server (`--idle-workers`) and asserts: the schema is migrated and holds no
-// name with "canvas" but the canvas layer's, every project has a canvas "main" holding all its cards and groups (for a home
-// from before canvases), every project of the configuration is served with the cards the database
-// holds for it, no table lost a row, and every screenshot an event refers to is found as it was in the home. Exits 1
-// with the reasons otherwise.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { Database } from 'bun:sqlite';
 import { spawn, spawnSync } from 'node:child_process';
@@ -32,17 +32,17 @@ const expect = (ok: boolean, what: string) => {
   if (!ok) failures.push(what);
 };
 
-// Everything the home persists but the checkouts (`workspaces/`, `read/`: gigabytes, and worktrees
-// that point back into the real repositories) and the voice models. The database goes through
-// SQLite's own snapshot, since a running Seismic writes to it while it is copied.
-// `server.json` names the Seismic running on the home, which would keep the copy's from starting;
-// `tailscale-serve.json` is that Seismic's `tailscale serve` entry, which the copy's would give up on stopping.
+
+
+
+
+
 const NOT_COPIED = new Set(['workspaces', 'read', 'voices', 'server.json', 'tailscale-serve.json']);
 for (const f of readdirSync(source)) {
   if (/^(obeya|seismic)\.db/.test(f)) continue;
   if (!NOT_COPIED.has(f)) cpSync(join(source, f), join(home, f), { recursive: true });
 }
-// the copy stays off the tailnet: other devices reach the Seismic running on the home, not this one
+
 const settingsFile = join(home, 'settings.json');
 if (existsSync(settingsFile)) {
   const settings = JSON.parse(readFileSync(settingsFile, 'utf8')) as Record<string, unknown>;
@@ -61,7 +61,7 @@ const DIRS = readdirSync(home, { withFileTypes: true }).filter((e) => e.isDirect
 const filesBefore = Object.fromEntries(DIRS.map((d) => [d, listing(join(home, d))]));
 adoptOldConfig(home);
 
-// repositories: local clones inside the copy
+
 const file = join(home, CONFIG_FILE);
 type Repo = { path: string; [k: string]: unknown };
 const config = JSON.parse(readFileSync(file, 'utf8')) as { repos: Repo[]; [k: string]: unknown }[];
@@ -69,10 +69,10 @@ let n = 0;
 for (const p of config)
   for (const r of p.repos) {
     const real = r.path.replace(/^~/, homedir());
-    // the folder keeps its name: a project's home repository is named by it
+    
     const to = join(home, 'repos', String(n++), basename(real));
     mkdirSync(join(home, 'repos', String(n - 1)), { recursive: true });
-    // a folder without git is copied as it is
+    
     if (r.git === false) {
       if (existsSync(real)) cpSync(real, to, { recursive: true });
       else mkdirSync(to, { recursive: true });
@@ -84,7 +84,7 @@ for (const p of config)
     const cloned = existsSync(real) && spawnSync('git', ['clone', '--quiet', '--local', real, to]).status === 0;
     if (!cloned) mkdirSync(to, { recursive: true });
     else {
-      // the clone has the remotes the repository has (a repository is named by them), not the original as origin
+      
       const git = (...a: string[]) => spawnSync('git', ['-C', to, ...a], { encoding: 'utf8' });
       const remotes = spawnSync('git', ['-C', real, 'remote'], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean);
       git('remote', 'remove', 'origin');
@@ -96,7 +96,7 @@ for (const p of config)
   }
 writeFileSync(file, JSON.stringify(config, null, 2));
 
-// the database: what it holds before, and no workstation leases
+
 const db = new Database(join(home, 'seismic.db'));
 function tablesBefore() {
   return (db.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").all() as { name: string }[]).map((t) => t.name);
@@ -106,14 +106,14 @@ const before = (db.query('PRAGMA user_version').get() as { user_version: number 
 const leases = count('SELECT count(*) n FROM ' + (db.query("SELECT 1 FROM sqlite_master WHERE name = 'workstations'").get() ? 'workstations' : 'workspaces'));
 const projectColumn = (db.query("SELECT 1 FROM pragma_table_info('cards') WHERE name = 'project_id'").get() ? 'project_id' : 'canvas_id');
 const cardsBy = Object.fromEntries((db.query(`SELECT ${projectColumn} id, count(*) n FROM cards WHERE deleted_at IS NULL AND archived_at IS NULL GROUP BY ${projectColumn}`).all() as { id: string; n: number }[]).map((r) => [r.id, r.n]));
-// The leases stay, with their paths moved into the copy, where the checkouts are not (copying them
-// would copy gigabytes and git worktrees that point back into the real repositories): the cards
-// that were at work come up with their workstation gone, which is what the server has to cope with.
+
+
+
 const moved = (col: string) => `replace(${col}, '${join(source, 'workspaces')}', '${join(home, 'workspaces')}')`;
 for (const t of ['workstations', 'workspaces']) if (db.query('SELECT 1 FROM sqlite_master WHERE name = ?').get(t)) db.run(`UPDATE ${t} SET path = ${moved('path')}`);
 for (const c of ['workstation', 'workspace']) if (db.query("SELECT 1 FROM pragma_table_info('cards') WHERE name = ?").get(c)) db.run(`UPDATE cards SET ${c} = ${moved(c)} WHERE ${c} IS NOT NULL`);
-// every row of every table, to compare after the migration (a table renamed since keeps its count)
-// (a home with both `canvases` and `projects` is past the canvas layer, whose `canvases` keeps its name)
+
+
 const RENAMED: Record<string, string> = tablesBefore().includes('projects') ? { workspaces: 'workstations' } : { canvases: 'projects', workspaces: 'workstations' };
 const tables = tablesBefore();
 const rowsBefore = Object.fromEntries(tables.map((t) => [RENAMED[t] ?? t, count(`SELECT count(*) n FROM "${t}"`)]));
@@ -122,8 +122,8 @@ const shots = (db.query("SELECT images FROM events WHERE images IS NOT NULL AND 
 db.close();
 console.log(`home copy ${home}: schema ${before}, ${Object.values(cardsBy).reduce((a, b) => a + b, 0)} cards on the projects, ${leases} workstation leases kept (checkouts not copied), ${shots.length} screenshots referred to`);
 
-// the move of the home to ~/.seismic: on a second copy of this one as `~/.obeya` of a user of its own, with a worktree of the
-// first repository under `workspaces/` that the leases name, the way a real home has them
+
+
 {
   const user = mkdtempSync(join(tmpdir(), 'seismic-home-move-'));
   const old = join(user, '.obeya');
@@ -158,7 +158,7 @@ console.log(`home copy ${home}: schema ${before}, ${Object.values(cardsBy).reduc
   rmSync(user, { recursive: true, force: true });
 }
 
-// the server
+
 const port = await new Promise<number>((res) => {
   const s = createServer().listen(0, () => {
     const p = (s.address() as { port: number }).port;
@@ -193,7 +193,7 @@ try {
     const missing = [...new Set(shots)].filter((id) => !found(join(home, 'images'), id));
     const missingAtSource = new Set([...new Set(shots)].filter((id) => !found(join(source, 'images'), id)));
     expect(missing.every((id) => missingAtSource.has(id)), `every screenshot the home has is found (${shots.length} referred to; ${missingAtSource.size} already missing in the home itself: ${[...missingAtSource].join(', ') || 'none'})`);
-    // and what the server does to the files it keeps: none goes
+    
     const lostFiles = DIRS.flatMap((d) => {
       const now = new Set(listing(join(home, d)));
       return filesBefore[d]!.filter((f) => !now.has(f)).map((f) => `${d}${f}`);
@@ -202,7 +202,7 @@ try {
   }
   const check = new Database(join(home, 'seismic.db'), { readonly: true });
   const after = (check.query('PRAGMA user_version').get() as { user_version: number }).user_version;
-  // the canvas layer's own names: its table, indexes, and the column cards and groups point to it with
+  
   const layer = /^(canvases|canvases_name|cards_canvas|sqlite_autoindex_canvases_1)$/;
   const left = (check.query('SELECT name, sql FROM sqlite_master').all() as { name: string; sql: string | null }[]).filter(
     (o) => !layer.test(o.name) && /canvas/i.test(o.name + (o.sql ?? '').replace(/,\s*`?canvas_id`? text/i, '')),
@@ -217,8 +217,8 @@ try {
   }
   expect(after > before || before === after, `schema ${before} -> ${after}`);
   const rowsAfter = Object.fromEntries(Object.keys(rowsBefore).map((t) => [t, (check.query(`SELECT count(*) n FROM "${t}"`).get() as { n: number }).n]));
-  // the server may add rows while it starts (chats, a project row); none of the home's may go
-  // (the leases are the exception: the server forgets those whose checkout is not there, as in the copy)
+  
+  
   const gone = Object.keys(rowsBefore).filter((t) => t !== 'workstations' && rowsAfter[t]! < rowsBefore[t]!);
   expect(gone.length === 0, `no table lost rows in the migration (${Object.keys(rowsBefore).length} tables, ${Object.values(rowsBefore).reduce((a, b) => a + b, 0)} rows before; workstation leases ${rowsBefore.workstations} -> ${rowsAfter.workstations}${gone.map((t) => `; ${t}: ${rowsBefore[t]} -> ${rowsAfter[t]}`).join('')})`);
   expect(!!check.query("SELECT 1 FROM sqlite_master WHERE name = 'canvases'").get(), 'the canvas layer is there');

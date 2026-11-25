@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { publishDocs, TAG } from './publish-docs';
 
-// a checkout with GitHub as a bare remote beside it; every step is a git call, slow on a busy machine
+
 const SLOW = 120_000;
 const tmp = mkdtempSync(join(tmpdir(), 'seismic-publish-docs-'));
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));

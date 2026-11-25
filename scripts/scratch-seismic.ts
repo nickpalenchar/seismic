@@ -1,178 +1,178 @@
-// A scratch Seismic for a demo or a live check, staged from one file: a fresh repository with plan
-// docs, a fresh SEISMIC_HOME, the server from this checkout (or from an earlier commit, for a before
-// and after), and the cards in the states the demo needs. Running it again stages afresh, so a demo
-// calls it before every take.
-//
-//   bun scripts/scratch-seismic.ts <stage.json> [--port <n>] [--code <commit> | --binary <seismic>] [--real-workers | --record <dir> | --replay <dir>] [--restarts]
-//   bun scripts/scratch-seismic.ts --list
-//   bun scripts/scratch-seismic.ts --stop <port>
-//   bun scripts/scratch-seismic.ts --login <port>
-//   bun scripts/scratch-seismic.ts --say <port> <card key> <say|report|talk|question|review|to_seismic|tool|end> <text>
-//   bun scripts/scratch-seismic.ts --artifact <port> <card key> <file> [<summary>]
-//
-// Prints one JSON line, also kept in <dir>/staged.json:
-//   { "url", "port", "dir", "home", "repo", "database", "log", "project", "pid", "from", "cards": { "<key>": "<card id>" }, "record"?, "replay"? }
-// `home` is its SEISMIC_HOME, `repo` the staged repository, `database` its state (home/seismic.db),
-// `log` the server's output. --list prints a JSON line for each scratch Seismic staged by this script
-// whose server still runs: { "port", "url", "dir", "home", "repo", "database", "log", "stage", "code"? }.
-// `--list` and the stage output give home, repo, database and log paths; do not grep /tmp/seismic-scratch-*.
-// The port is --port, else the stage file's `port`; without either the script picks one: the
-// first from 4480 up that nothing listens on and no other scratch Seismic holds (a running one, or
-// one being staged at the same time), so that workers staging at once never collide. --stop,
-// --login, --say and --artifact take the `port` it printed. Staging afresh from the same stage
-// file with the same --code or --binary (`from`) replaces the scratch Seismic staged from them
-// before and takes its port again while that is free; with another --code, the two run side by
-// side. The dir is --dir, else the stage file's `dir`, else /tmp/seismic-scratch-<port>.
-// `url` signs browsers in, until the scratch Seismic stops; --login
-// prints it again. --stop ends only the server it staged, never another program that has its
-// process number by now, and fails if the server still runs after it. The script itself talks to the API with the owner's key of the scratch home.
-//
-// With idle workers, --say and --artifact act as a card's agent (by its key in staged.json), for a
-// check of what the owner sees while an agent works: through the server, which runs the agent's own
-// tools (`WorkerSupervisor.standIn`), so an open page gets the line at once, unread marker and notification
-// as from a real agent. --say adds a line of the kind a stage file's `events` give: `say` (the
-// agent's words between its steps), `report` (its status line), `talk` (a reply), `question` (it
-// asks, and the card waits for the owner), `review` (a handover that keeps the card's demo); besides
-// those, `to_seismic` (it passes the owner's words on to Seismic, whose Koordinator is real and answers
-// on the card), `tool` (any other tool of the agent's, the text a JSON object `{ "tool", "args" }`)
-// `step` (a step of the agent's own that the card shows it doing, the text a JSON object: a tool call
-// `{ "type": "tool", "name": "Bash", "input": { "command": "…" } }`, its end `{ "type": "toolDone",
-// "name": "Bash", "ok": false }`, or `{ "type": "text", "text": "…" }`; a card staged at work gets a
-// turn for it, which `end` ends) and `end` (the agent's turn ends, which an idle worker's never does by itself).
-// --artifact copies the file into the card's HTML artifact (<dir>/artifacts/<key>, where staging
-// put a copy of the stage's) and hands it over again, as an agent does after rewriting it, with the
-// summary given or "Updated the artifact."; a card without one starts it with an index.html. Each
-// prints what the agent would have read back, and fails on a refusal ("Not handed over: …").
-//
-// --record <dir> runs real workers, as --real-workers, and records every agent's session (the
-// Koordinator's, the workers', any other) into <dir>, emptied first (it must be empty, new, or a
-// recording). --replay <dir> plays such a recording back instead of running agents: each agent does
-// what it did in the recorded take, through Seismic's own tools of this code, and its handovers bring
-// the recorded commits and demo; card ids, branches and paths of the recording stand for those of
-// this staging. A take played back comes out the same each time, in minutes and without Claude: it
-// goes at the recorded pace, except what the recorded take cut out (`d.skip`), which goes by in a
-// moment. Those cuts are the take's `.work/cuts.json` in <dir>: the demo copies it in after the
-// recorded take, or, for a recording in the demo's directory (<demo dir>/recording), the first
-// playback takes it from <demo dir>/.work while it is still the recorded take's; without them no wait
-// of the recording lasts long. Once the agents' instructions or tools differ from the recording's,
-// or a tool refuses what it took then, the playback refuses: the card shows the error, and the
-// scratch Seismic's home/replay-refused.txt says why (record anew). What the agents hear must stay as
-// recorded too: a changed command or comment needs a recorded take, since the recorded agents act
-// on the old one (the server's log names what differs; src/server/replay.ts).
-//
-// The server runs with --dev (it does not restart when the checkout commits; with --restarts it is
-// supervised like a real Seismic and restarts once the configuration is saved, PUT /api/config, and
-// for commits on this checkout when it runs this checkout's code) and, unless
-// --real-workers, with --idle-workers: a started card is in progress without an agent. The
-// Koordinator and voice are real. --code <commit> runs that commit's code (`git archive`, with
-// this checkout's node_modules) in <dir>/code; that starts cold and on a busy machine takes well
-// over half a minute, so the script waits up to 5 minutes for the server while its process lives.
-// --binary <seismic> runs a compiled Seismic instead (`bun run build`), with the resources beside it.
-// Bun's dev server answers for the page's scripts and styles only under the name it listens on: a
-// phone reaching the scratch Seismic through `tailscale serve` gets a blank page from one with --dev,
-// so stage with --restarts for that. Stopping a scratch Seismic removes its `tailscale serve` entry.
-//
-// The stage file (JSON; every field but `cards` optional):
-//   {
-//     "name": "Shop", "projects": ["Website"], "language": "en", "conversation": "en",
-//     "clones": 2, "mainBranch": "master",
-//     "poolCheckout": true, "slots": 3,
-//     "hosts": [{ "name": "Workhorse", "ssh": "me@workhorse.local", "clones": 2, "slots": 2 }],
-//     "files": { "src/cli.ts": "…" }, "trusted": true,
-//     "pulls": [{ "number": 5, "title": "…", "author": "…", "files": { "src/x.ts": "…" }, "canModify": true }],
-//     "forgeClone": true,
-//     "plans": { "docs/plan/tooling.md": "# Tooling\n\n## Workstreams\n\n- [ ] **W1:** Configuration.\n" },
-//     "cards": [
-//       { "key": "A", "title": "…", "body": "…", "x": 40, "y": 300,
-//         "state": "working", "statusLine": "Tests running", "createdAgo": "2h" },
-//       { "key": "B", "title": "…", "queue": { "behind": ["A"], "reason": "Both change src/cli.ts." },
-//         "scope": ["src/cli.ts"] },
-//       { "key": "C", "title": "…", "state": "waiting", "need": "demo", "summary": "…",
-//         "demo": { "dir": "/abs/demo", "chapters": [[0, "Starting point"]] } },
-//       { "key": "H", "title": "…", "state": "waiting", "need": "demo", "summary": "…",
-//         "demo": { "kind": "html", "dir": "/abs/artifact", "chapters": [] } },
-//       { "key": "N", "title": "…", "state": "waiting", "need": "review", "summary": "…" },
-//       { "key": "D", "title": "…", "state": "waiting", "need": "question", "question": { "text": "…", "options": ["Yes", "No"] } },
-//       { "key": "E", "title": "…", "from": "C" },
-//       { "key": "P", "plan": "docs/plan/tooling.md", "x": 0, "y": 0 },
-//       { "key": "W1", "workstream": "W1", "state": "working", "statusLine": "…" }
-//     ],
-//     "preferences": [
-//       { "key": "R", "text": "Labels: precise over short." },
-//       { "text": "…", "state": "proposed", "card": "A", "quote": "…", "replaces": "R" },
-//       { "text": "…", "state": "proposed", "review": true },
-//       { "text": "…", "state": "proposed", "target": "<repo id>" }
-//     ],
-//     "groups": [{ "name": "Abrechnung", "cards": ["A", "B", "P"] }],
-//     "canvases": [{ "name": "Billing", "icon": "💶", "cards": ["A", "B"] }],
-//     "friction": [{ "card": "A", "what": "…", "cost": "…", "fix": "…", "ago": "1h" }],
-//     "feedback": [{ "card": "C", "rating": 4, "comment": "…", "configs": [{ "harness": "claude", "model": "claude-opus-5-5", "effort": "high" }], "ago": "2d" }],
-//     "settingProposals": [{ "field": "run", "value": "bun run dev", "basis": "…", "cards": ["A", "B"] }],
-//     "talk": [{ "said": "…", "reply": "…", "ago": "2h", "card": "A", "answer": "…", "chat": 1 }]
-//   }
-// `language` is the language the scratch Seismic speaks (en); without it, the language of the
-// demos where the script runs (`plugin/skills/demo/lib/settings.ts`: `DEMO_LANGUAGE`, which Seismic
-// gives its workers from the repository's `demo.language`, else the demo settings'), so that the
-// screen a demo records matches its narration. Card titles and conversations are not translated:
-// write them in that language. `language` is the interface's; `conversation`, the language agents
-// write the owner in before the owner's words say otherwise, follows it where left out.
-// A card is created (x and y default to a free place; `idea`, `repo`, `from` as in
-// POST /api/c/<project>/cards) unless it names a plan doc's `plan` or `workstream` (label; with
-// several plan docs "docs/plan/x.md#W1"), which exist already. Then its fields are written straight
-// into the database:
-// state, need, statusLine, summary, blocked (files: its approval could not land, since main's checkout has uncommitted changes to them), question (with `permission`, `{ name, input, extra? }`: the tool call it asks
-// to allow, as a worker's permission question has it, `extra` the options extensions added), demo (`kind` defaults to video), queue (`behind` by key; `since` defaults to
-// now), snoozed (`{ on, state?, why? }`: its agent snoozed it until the card with key `on` gets to `state`, done by default), limitPaused (`{ until? }`: paused after three usage-limit refusals, until that ISO time or a manual retry), hold (any other hold as stored, `Hold` in core/types.ts: `{ reason: 'paused' }`, `{ reason: 'snoozed', by: 'owner', until }`, `{ reason: 'parkingLot' }`; `since` defaults to now), scope (files), duplicates (keys of the cards the duplicate check found, for a planned card), branch (a working or waiting card without one gets the branch a start would
-// have given it, which every started card has), createdAgo, archivedAgo, events ([{ kind, author, text, ago?, mocks?, spot?, token? }]; an idea's reply with `mocks` needs code that has them, an error's `token` (its session signed in with a token) too;
-// with events of kind `review`, the demos in `row.demos` and then `demo` go with those handovers in order, and a `spot` (a comment's
-// place in a demo video, `{ at, chapter?, demo? }`) names its demo by its place in that order; earlier demos need code that has them),
-// workstation (true: the card holds the next free clone, for a repository whose settings say clones; with
-// its branch checked out there, holding a commit where `branch` names it, of `branchFiles` (else of a `scratch.txt`; by path, a text or `{ from }` a file to copy); for one that works in worktrees, a branch is
-// required and the card gets a worktree of its own on it), prototypeOf (the key of the idea it is a prototype of),
-// reviewItems (the items of a card's code review, with `row.code_review` giving the review itself: `[{ number, title, text, severity?, file?, line?, security?, with?, status, card? (a key), context?, log?: [{ who, from?, to, note?, ago? }] }]`, where the code has them),
-// and `row` for any other column of `cards` (objects are stored as JSON; an idea's columns go into its
-// idea part where the code has the ideas table, `idea` as its `discussion`, and the columns of the other
-// parts into theirs, as the migration that brought their tables moved them; a
-// review card's `row.contribution` naming one of `pulls` gets that PR's head as `reviewed` where it names none). Times: "90s", "15m", "2h",
-// "3d" ago. `mainBranch` is the branch the repositories are on (default `main`). With `forgeClone`, the forge that plays `pulls` keeps its repository in <dir>/forge, a clone the PRs' heads are in, so that what lands on the local main is not on the forge until pushed; the contributors' repositories are that one too, so a push onto a PR's branch moves its head. `"setup": true` serves no project (no configuration, no repository given): the first start,
-// which shows the setup assistant; the repository is still made, for the assistant to pick, and
-// `cards` may be empty. `"git": false` makes the repository a folder without git (a card's `workstation: true` then
-// is the folder itself, and its `changes`, as `[{ "kind": "added", "path": "…" }]` with `from` for a move, are what it
-// changed there: the files are as `files` and `copy` leave them, a changed one without a copy from before), and `copy` copies a directory into it first (documents, binaries). The repository has settings of its own where `files` hold `.obeya/settings.json` (a demo site among them, say). `poolCheckout` makes the repository's checkout a workstation of the pool too
-// (`workstations` in the configuration), as a pool of clones often has it, with a bare origin in
-// <dir>; `settings` are the repository's settings on this machine, in the configuration (a plan
-// folder outside the repository, which only they may name); with either, the server
-// starts from a configuration file in <dir>. `slots` caps the workers busy at once on this machine
-// (an idle worker counts as busy). `hosts` are other machines over SSH (as in the configuration;
-// `root` defaults to <dir>/far there): the repository gets a bare origin in <dir>, copied to each
-// host at the same path, so that Seismic clones it there as it would a remote; staging afresh
-// removes <dir> there first. A host with `"gone": true` held its clones once and does not answer
-// now (an `ssh` target nobody resolves, say): nothing goes there, and its clones are registered as if
-// Seismic had made them. `name` names the project the cards go on; `repoName` names its repository's
-// directory (<dir>/repo by default), and so its id; `repos` adds further repositories to that project,
-// `[{ "name": "promo", "files": { … } }]`, each in <dir>/<name> with that id, which a card's `repo`
-// names; `projects` adds further ones by
-// name, each over a repository of its own (<dir>/repo-2, …); a card goes on one of them by its `project` (the name). Preferences are active unless `state` says otherwise; `card` and `replaces` name keys;
-// `target` is the repository whose CLAUDE.md a rule is for (the project id names the home one).
-// What a learned rule's occasion is (card, quote, review), `replaces` and `target` need code that has them.
-// Groups are created through the API with their cards (keys; a workstream stands for its plan),
-// in their colours by order. `talk` is the conversation with the Koordinator, oldest first (`card` a key;
-// `question` and `answer`, `answerBy` for a question it looked up; `follows`: the index of the
-// exchange whose answer it continues, in that one's thread; `files`: the answer's files, each with
-// its name, caption and either `content` or a file to copy (`from`), written to the thread's output
-// directory; needs code that has them; `unread`: its answer waits unread; `wish`: what a draft for
-// Seismic's makers starts from, `{ said, answer? }`, for the link under the reply; `askedIn`: the key of
-// the plan whose sheet the words were written in, straight to its plan agent, with an empty `reply`;
-// `chat`: a number that puts the exchanges with the same one into one chat, 0 by default, the chat
-// talked in last being the one open; needs code that has chats; `project`: the name of a project of
-// `projects` it was said on). `friction` is what the work retrospective noted on a card's
-// runs (`card` a key), read by its next retrospective; `settingProposals` are values for a
-// repository's settings it proposed (`field`: checks, setup, softPaths or run; `cards` keys;
-// `repo` defaults to the project's home repository); both need code that has them. `feedback` are the
-// owner's responses on cards' approved work (`card` a key), about the card's latest handover (a
-// `review` event, or none), crediting `configs` as the work ran (none: nothing recorded; two or
-// more: mixed); `title` and `plan` (a title) stand for the card's as they were; needs code that has them.
-// Seismic proposes a card that fills in the settings of a repository without any ("Set up Seismic for …"); staging dismisses it on every project, unless `"setupProposals": true` keeps it.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { Database } from 'bun:sqlite';
 import { spawn, spawnSync } from 'node:child_process';
@@ -215,36 +215,36 @@ interface StageCard {
   from?: string;
   plan?: string;
   workstream?: string;
-  /** The name of one of `projects` the card goes on, instead of the first project. */
+  
   project?: string;
   state?: string;
   need?: string | null;
   statusLine?: string;
   summary?: string;
-  /** The files whose uncommitted changes in main's checkout kept its approval from landing. */
+  
   blocked?: string[];
   question?: { text: string; options?: string[]; multiple?: boolean };
-  /** The tool call `question` asks the owner to allow (`extra`: the options extensions added, as `AskedPermission` in workers.ts has them). */
+  
   permission?: { name: string; input: Record<string, unknown>; extra?: { extension: number; label: Record<Language, string>; data?: unknown }[] };
   demo?: Record<string, unknown>;
   queue?: { behind?: string[]; reason?: string; since?: string; checking?: true };
-  /** Snoozed by its agent until the card with key `on` gets to `state` (default done). */
+  
   snoozed?: { on: string; state?: string; why?: string };
-  /** Paused after three usage-limit refusals, waiting for the account's reset at `until` (ISO time) or for a manual retry. */
+  
   limitPaused?: { until?: string };
-  /** What holds the card, as stored (`Hold`); `since` defaults to now. */
+  
   hold?: { reason: string; since?: string } & Record<string, unknown>;
   scope?: string[];
-  /** Keys of the cards the duplicate check found for this planned card: it proposes a merge with the first. */
+  
   duplicates?: string[];
   changes?: { kind: 'added' | 'modified' | 'deleted' | 'moved'; path: string; from?: string }[];
   branch?: string;
-  /** Files the card's branch commits (instead of a `scratch.txt`): by path, its text, or `{ from }` a file to copy (a PDF, say). */
+  
   branchFiles?: Record<string, string | { from: string }>;
   workstation?: boolean;
-  /** `workstation`'s name before, still read for stage files written then. */
+  
   workspace?: boolean;
-  /** A prototype of the idea with this key. */
+  
   prototypeOf?: string;
   reviewItems?: StageReviewItem[];
   createdAgo?: string;
@@ -254,67 +254,67 @@ interface StageCard {
 }
 
 interface Stage {
-  /** No project: Seismic's first start, with the setup assistant. */
+  
   setup?: boolean;
-  /** Keeps Seismic's proposal to fill in the settings of a repository that has none. */
+  
   setupProposals?: boolean;
-  /** Names the project the cards go on. */
+  
   name?: string;
-  /** The language of the scratch Seismic's interface; the demos' where the script runs without it. */
+  
   language?: Language;
-  /** The owner's conversation language; the interface's without it. */
+  
   conversation?: Language;
-  /** The directory of the project's repository under the scratch directory, and so its id (default `repo`). */
+  
   repoName?: string;
-  /** Further repositories on the project the cards go on, each in a directory of its name, which is its id. */
+  
   repos?: { name: string; files?: Record<string, string> }[];
-  /** Further projects by name, each over a repository of its own, without cards: to switch between projects. */
+  
   projects?: string[];
-  /** Without it (and without --port) the script picks a free one. */
+  
   port?: number;
   dir?: string;
-  /** The branch the repositories are on (default `main`). */
+  
   mainBranch?: string;
-  /** Clones for the workers, who then work in clones whatever the settings say: real workers need one each. */
+  
   clones?: number;
-  /** The repository's checkout is a workstation of the pool too. */
+  
   poolCheckout?: boolean;
-  /** The repository's settings on this machine, in the configuration (a plan folder outside it, say). */
+  
   settings?: Record<string, unknown>;
-  /** Workers busy at once on this machine. */
+  
   slots?: number;
-  /** Other machines over SSH, as in the configuration. */
+  
   hosts?: { name: string; ssh: string; root?: string; clones: number; slots?: number; gone?: boolean }[];
   files?: Record<string, string>;
-  /** The owner trusted the repositories' commands as staged (their Claude Code and Codex configuration, say), so none is held. */
+  
   trusted?: boolean;
   plans?: Record<string, string>;
-  /** `false`: the repository is a folder without git. */
+  
   git?: false;
-  /** A directory whose contents go into the repository first (a small folder of documents, binaries included). */
+  
   copy?: string;
-  /**
-   * Pull requests someone outside opened on the project's repository, played by a forge in a file
-   * (src/server/file-forge.ts): each a commit of `files` on the main branch, its head as
-   * `refs/pull/<number>/head` in the repository. Their URLs are GitHub's for `forgeRepo` (default
-   * `acme/<repoName>`), the repository's origin too, which git of the scratch Seismic reads as the
-   * repository itself; the account Seismic acts as is `forgeViewer` (default `owner`); the watcher
-   * looks at them every `prPoll` seconds (default 10). The file is <dir>/forge.json, which a demo
-   * edits to play the contributor (a comment, a push).
-   */
+  
+
+
+
+
+
+
+
+
   pulls?: { number: number; title: string; author: string; files: Record<string, string>; canModify?: boolean; checks?: { name: string; state: 'pending' | 'success' | 'failure' }[]; body?: string }[];
   forgeRepo?: string;
-  /**
-   * The forge's repository is a clone of the repository (<dir>/forge, the PRs' heads in it) rather
-   * than the repository itself: what lands on the local main is not on the forge until pushed.
-   */
+  
+
+
+
   forgeClone?: boolean;
   forgeViewer?: string;
   prPoll?: number;
   cards: StageCard[];
   preferences?: { key?: string; text: string; state?: string; card?: string; quote?: string; review?: boolean; replaces?: string; target?: string }[];
   groups?: { name: string; cards: string[] }[];
-  /** Canvases of the home project after `main`, in order, with the cards on them (at their places); groups come after. */
+  
   canvases?: { name: string; icon?: string; cards?: string[] }[];
   friction?: { card: string; what: string; cost: string; fix: string; ago?: string; repo?: string }[];
   feedback?: { card: string; rating?: number; comment?: string; configs?: { harness: string | null; model: string | null; effort: string | null }[]; ago?: string; title?: string; plan?: string }[];
@@ -344,7 +344,7 @@ const fail = (msg: string): never => {
   process.exit(1);
 };
 const scratchDir = (port: number) => `/tmp/seismic-scratch-${port}`;
-/** What --say has the card's agent do for each kind of its lines in the conversation (as in a stage file's `events`). */
+
 const SAYS = {
   say: (text: string) => ({ say: text }),
   report: (status: string) => ({ tool: 'report', args: { status } }),
@@ -395,7 +395,7 @@ if (artifactPort) {
   const to = artifactDir(d, key!);
   mkdirSync(to, { recursive: true });
   copyFileSync(from!, join(to, basename(from!)));
-  // the page it may be shared on stays as the card's demo had it
+  
   const { page } = (await stagedCard(Number(artifactPort), key!)).demo?.latest ?? {};
   const summary = words.join(' ').trim() || 'Updated the artifact.';
   console.log(await standIn(Number(artifactPort), key!, { tool: 'ready_for_review', args: { summary, data_models: 'unchanged', data_models_reason: 'A staged handover.', demo: { kind: 'html', dir: to, ...(page ? { page } : {}) } } }));
@@ -405,7 +405,7 @@ if (artifactPort) {
 const file = args.find((a, i) => !a.startsWith('--') && !args[i - 1]?.match(/^--(port|code|dir|binary|record|replay)$/));
 if (!file) fail('usage: bun scripts/scratch-seismic.ts <stage.json> [--port <n>] [--code <commit> | --binary <seismic>] [--real-workers | --record <dir> | --replay <dir>] [--restarts] | --stop <port> | --login <port> | --say <port> … | --artifact <port> …');
 const stage = JSON.parse(readFileSync(file!, 'utf8')) as Stage;
-// what a scratch Seismic was staged from: staging afresh from it replaces that one
+
 const from = { stage: realpathSync(file!), ...(opt('code') || opt('binary') ? { code: opt('code') ?? opt('binary') } : {}) };
 const given = opt('port') ?? stage.port;
 const port = given !== undefined ? Number(given) : await pickPort(opt('dir') ?? stage.dir);
@@ -413,10 +413,10 @@ const dir = resolve(opt('dir') ?? stage.dir ?? scratchDir(port));
 const base = `http://127.0.0.1:${port}`;
 
 stop(dir);
-// --list and the other options find a scratch Seismic outside /tmp/seismic-scratch-<port> by this
+
 if (dir !== scratchDir(port)) writeFileSync(pointerOf(port), dir);
 else rmSync(pointerOf(port), { force: true });
-// whatever answers there, with Seismic's key or without
+
 if (await fetch(base, { signal: AbortSignal.timeout(1000) }).then(() => true, () => false)) fail(`port ${port} is taken by another process (lsof -i :${port})`);
 rmSync(dir, { recursive: true, force: true });
 const home = join(dir, 'home');
@@ -426,12 +426,12 @@ const repo = join(dir, stage.repoName ?? 'repo');
 const mainBranch = stage.mainBranch ?? 'main';
 mkdirSync(home, { recursive: true });
 for (const k of ['language', 'conversation'] as const) if (stage[k] && !LANGUAGES.includes(stage[k])) fail(`"${k}" is ${LANGUAGES.join(' or ')}, not ${stage[k]}`);
-// the languages of Seismic's interface and of its agents' conversation with the owner (src/server/settings.ts)
+
 writeFileSync(join(home, 'settings.json'), `${JSON.stringify({ language: stage.language ?? demoSettingsHere().language, ...(stage.conversation ? { conversationLanguage: stage.conversation } : {}) })}\n`);
-// the owner's key, made before the server starts, which takes it from the home (owner.ts); code from before it has none and ignores it
+
 const owner = ownerHeaders(home);
 
-// the repository
+
 const files = { ...(stage.files ?? {}), ...(stage.plans ?? {}) };
 mkdirSync(repo, { recursive: true });
 if (stage.copy) cpSync(resolve(stage.copy), repo, { recursive: true, preserveTimestamps: true });
@@ -442,14 +442,14 @@ for (const [path, text] of Object.entries(files)) {
 }
 const folder = stage.git === false;
 if (!folder) initRepo(repo);
-// a workstation of the pool is a clone of the repository's origin, the checkout included
+
 if (stage.poolCheckout || stage.hosts?.length) {
   run('git', ['clone', '-q', '--bare', repo, join(dir, 'scratch.git')], dir);
   run('git', ['remote', 'add', 'origin', join(dir, 'scratch.git')], repo);
   run('git', ['fetch', '-q', 'origin'], repo);
   run('git', ['branch', '-q', '-u', `origin/${mainBranch}`], repo);
 }
-// pull requests of people outside, for the forge the file plays
+
 const forgeRepo = join(dir, 'forge');
 const prHeads = new Map<number, string>();
 if (stage.pulls?.length) {
@@ -469,20 +469,20 @@ if (stage.pulls?.length) {
     prHeads.set(p.number, head);
     return { url: `https://github.com/${slug}/pull/${p.number}`, number: p.number, title: p.title, author: p.author, head, canModify: p.canModify ?? true, headRepo: `https://github.com/${p.author}/${basename(slug)}.git`, headRef: `pr-${p.number}`, checks: p.checks ?? [], comments: [], ...(p.body ? { body: p.body } : {}) };
   });
-  // a remote of its own, which what lands on the local main reaches only once pushed: a clone with the PRs' heads
+  
   if (stage.forgeClone) {
     run('git', ['clone', '-q', repo, forgeRepo], dir);
-    // pushes onto its checked-out main go into its files too, as the forge's merges do
+    
     run('git', ['config', 'receive.denyCurrentBranch', 'updateInstead'], forgeRepo);
-    // a push onto a PR's branch moves its refs/pull head at once, as on the forge
+    
     writeFileSync(join(forgeRepo, '.git', 'hooks', 'post-receive'), '#!/bin/sh\nwhile read old new ref; do case "$ref" in refs/heads/pr-*) git update-ref "refs/pull/${ref#refs/heads/pr-}/head" "$new";; esac; done\n', { mode: 0o755 });
     run('git', ['fetch', '-q', repo, '+refs/pull/*:refs/pull/*'], forgeRepo);
   }
   writeFileSync(join(dir, 'forge.json'), `${JSON.stringify({ repo: stage.forgeClone ? forgeRepo : repo, viewer: stage.forgeViewer ?? 'owner', prs }, null, 2)}\n`);
-  // its origin is the forge's repository, which git of the scratch Seismic finds in the repository itself
+  
   if (!stage.poolCheckout && !stage.hosts?.length) run('git', ['remote', 'add', 'origin', `git@github.com:${slug}.git`], repo);
 }
-// the further repositories of the project
+
 const others = (stage.repos ?? []).map((r) => {
   const path = join(dir, r.name);
   mkdirSync(path, { recursive: true });
@@ -494,7 +494,7 @@ const others = (stage.repos ?? []).map((r) => {
   initRepo(path);
   return { path, ...(stage.clones ? { clones: stage.clones } : {}) };
 });
-// the repositories of the further projects
+
 const further = (stage.projects ?? []).map((name, i) => {
   const path = join(dir, `repo-${i + 2}`);
   mkdirSync(path, { recursive: true });
@@ -502,17 +502,17 @@ const further = (stage.projects ?? []).map((name, i) => {
   initRepo(path);
   return { name, repos: [{ path }] };
 });
-// the origin at the same path on each host, which clones it from there
+
 for (const h of stage.hosts ?? []) {
   if (h.gone) continue;
   const ssh = ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', h.ssh];
-  // through ssh rather than scp, which takes no ssh://user@host:port target
+  
   const tar = spawnSync('tar', ['-C', dir, '-cf', '-', 'scratch.git'], { maxBuffer: 1 << 30 });
   const r = spawnSync('ssh', [...ssh, `rm -rf '${dir}' && mkdir -p '${dir}' && tar --no-same-owner -xf - -C '${dir}'`], { input: tar.stdout, encoding: 'utf8' });
   if (tar.status !== 0 || r.status !== 0) fail(`copying the origin to ${h.name}: ${r.stderr || tar.stderr}`);
 }
 
-// the code it runs
+
 let code = ROOT;
 const commit = opt('code');
 if (commit) {
@@ -532,9 +532,9 @@ if (record && replay) fail('--record or --replay, not both');
 if (record && !mayRecordInto(record)) fail(`${record} holds something other than a recording; record into an empty or new directory`);
 if (replay && !existsSync(join(replay, 'meta.json'))) fail(`${replay} holds no recording (record one with --record)`);
 if ((record || replay) && (binary || !readFileSync(join(code, 'src/server/main.ts'), 'utf8').includes('replayRuntime'))) fail(`${binary ?? commit} cannot record or play back its agents`);
-// a fresh take, recorded from its first session
+
 if (record) rmSync(record, { recursive: true, force: true });
-// a recording in a demo's directory takes the cuts of the take that recorded it, before a take played back writes its own
+
 const takeCuts = replay && join(dirname(replay), '.work', 'cuts.json');
 if (replay && takeCuts && !existsSync(join(replay, 'cuts.json')) && existsSync(takeCuts) && statSync(takeCuts).mtimeMs >= statSync(join(replay, 'meta.json')).mtimeMs)
   copyFileSync(takeCuts, join(replay, 'cuts.json'));
@@ -542,11 +542,11 @@ const idle = !args.includes('--real-workers') && !record && !replay;
 const canIdle = !!binary || readFileSync(join(code, 'src/server/main.ts'), 'utf8').includes("'idle-workers'");
 if (idle && !canIdle) console.error(`scratch-seismic: ${commit} has no --idle-workers; a started card gets a real agent`);
 
-// the server, in its own process group so --stop ends it with everything it started (on Windows,
-// which has none, its process tree)
+
+
 const log = join(dir, 'server.log');
 const out = openSync(log, 'a');
-// not supervised: a scratch Seismic restarts itself only when asked to
+
 const supervised = args.includes('--restarts');
 const env = {
   ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'OBEYA_SUPERVISED' && k !== 'SEISMIC_SUPERVISED')),
@@ -559,7 +559,7 @@ const env = {
         SEISMIC_PR_POLL: String(stage.prPoll ?? 10),
         OBEYA_PR_POLL: String(stage.prPoll ?? 10),
         ...gitConfig(
-          // the forge's repository is the remote's, and with a clone of its own the contributors' too: a push onto a PR's branch moves its head
+          
           [`git@github.com:${stage.forgeRepo ?? `acme/${basename(repo)}`}.git`, ...(stage.forgeClone ? stage.pulls.map((p) => `https://github.com/${p.author}/${basename(stage.forgeRepo ?? `acme/${basename(repo)}`)}.git`) : [])].map(
             (url) => [`url.${stage.forgeClone ? forgeRepo : repo}.insteadOf`, url] as const,
           ),
@@ -567,7 +567,7 @@ const env = {
       }
     : {}),
 };
-// a pool's workstations live in the configuration, which the command line cannot give
+
 const configFile = join(dir, 'projects.json');
 const configured = folder || !!stage.poolCheckout || !!stage.settings || stage.slots !== undefined || !!stage.hosts?.length || !!stage.name || further.length > 0 || others.length > 0;
 if (configured)
@@ -652,7 +652,7 @@ const patchCard = async (id: string, patch: Record<string, unknown>) => {
   if (!r.ok) fail(`PATCH /api/v1/cards/${id} ${JSON.stringify(patch)}: ${r.status} ${await r.text()}`);
 };
 
-// the repositories' commands trusted as staged, as "Trust these commands" does
+
 if (stage.trusted) {
   const checked = (await (await fetch(`${base}/api/config/check`, { headers: owner })).json()) as ConfigChecked;
   for (const [i, c] of checked.projects.entries())
@@ -664,13 +664,13 @@ if (stage.trusted) {
     }
 }
 
-// Seismic's proposal to fill in a repository's settings, on every project, unless the stage keeps it
+
 if (!stage.setupProposals)
   for (const c of allProjects)
     for (const i of ((await api('GET', '/project', undefined, c.id)) as ProjectSnapshot).items)
       if (i.state === 'proposal' && i.idea?.proposal?.setup) await api('POST', `/cards/${i.id}/act`, { action: 'dismiss' }, c.id);
 
-// the cards: created through the API, the plan doc's looked up, then their fields written directly
+
 const snapshot = (await api('GET', '/project')) as ProjectSnapshot;
 const ids: Record<string, string> = {};
 const below = Math.max(0, ...snapshot.items.map((x) => x.y)) + 400;
@@ -682,15 +682,15 @@ for (const [i, c] of stage.cards.entries()) {
   else if (c.workstream) {
     const [doc, label] = c.workstream.includes('#') ? c.workstream.split('#') : [undefined, c.workstream];
     const plans = new Set(snapshot.items.filter((x) => x.kind === 'plan' && (!doc || x.plan?.file === doc)).map((x) => x.id));
-    // code before short codes were labels (`4A Title`, --code) has the code at the start of the title
+    
     id = snapshot.items.find((x) => (x.plan?.label ?? x.title.split(' ')[0]) === label && x.parent && plans.has(x.parent))?.id;
   } else {
     if (c.from && !ids[c.from]) fail(`card ${c.key ?? i}: "from" names ${c.from}, which comes later or does not exist`);
-    // without a place: in rows of four below the plan docs (a follow-up goes below its card)
+    
     const at = c.from || (c.x !== undefined && c.y !== undefined) ? {} : { x: 40 + 360 * (placed % 4), y: below + 220 * Math.floor(placed++ / 4) };
     const on = c.project ? (allProjects.find((x) => x.name === c.project)?.id ?? fail(`card ${c.key ?? i}: no project named ${c.project}`)) : project;
     const created = await api('POST', '/cards', {
-      // code before cards lost their kind (--code) still asks for one; later code ignores it
+      
       kind: 'feature',
       title: c.title ?? '',
       ...(c.body !== undefined ? { body: c.body } : {}),
@@ -709,22 +709,22 @@ for (const [i, c] of stage.cards.entries()) {
 
 const db = new Database(join(home, 'seismic.db'), { strict: true });
 db.run('PRAGMA busy_timeout = 10000');
-// code from before workstations were renamed (`--code`) keeps them in `workspaces`, a card's in `workspace`
+
 const WS = db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'workstations'").get() ? 'workstations' : 'workspaces';
 for (const h of stage.hosts ?? [])
   for (let n = 1; h.gone && n <= h.clones; n++)
     db.query(`INSERT INTO ${WS} (path, project_id, repo) VALUES ($path, $c, NULL) ON CONFLICT(path) DO NOTHING`).run({ path: `ssh://${h.name}${rootOn(h)}/${n}`, c: project });
 const columns = new Set((db.query('PRAGMA table_info(cards)').all() as { name: string }[]).map((c) => c.name));
-/** A card's columns that code with the ideas table keeps there, under their names in it. */
+
 const IDEA_COLUMNS: Record<string, string> = { idea: 'discussion', prototype_of: 'prototype_of', prototype: 'prototype', proposal: 'proposal', built_on: 'built_on', becomes_plan: 'becomes_plan', new_repo: 'new_repo' };
 const ideaColumns = !!db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'card_ideas'").get();
-/**
- * Code with tables of their own for a card's review, demo and plan parts, its labels and its hold
- * keeps them there: what the stage gives under the columns that moved into them goes into them, as
- * the migration that brought them moved it, beside what the server keeps there already (a plan's doc).
- */
+
+
+
+
+
 const partTables = !!db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'card_holds'").get();
-/** Each one-row part's table, by the card column that moved into it and its name there. */
+
 const PART_COLUMNS: Record<string, Record<string, string>> = {
   card_reviews: { pr: 'pr', contribution: 'contribution', code_review: 'code_review' },
   card_demos: { demo: 'latest', share: 'share', page_heard: 'page_heard', files: 'files', held: 'held' },
@@ -742,7 +742,7 @@ function write(id: string, fields: Record<string, unknown>) {
   const own = keys.filter((k) => !inPart(k));
   if (own.length)
     db.query(`UPDATE cards SET ${own.map((k) => `${k} = $${k}`).join(', ')} WHERE id = $id`).run({ id, ...Object.fromEntries(own.map((k) => [k, value(k)])) } as Record<string, string | number | null>);
-  // the idea itself is its part's discussion
+  
   const idea = ideaColumns ? keys.filter((k) => k in IDEA_COLUMNS) : [];
   if (idea.length) {
     const cols = idea.map((k) => IDEA_COLUMNS[k]!);
@@ -765,15 +765,15 @@ function write(id: string, fields: Record<string, unknown>) {
     const earlier = (fields.demos ?? []) as unknown[];
     db.query('DELETE FROM card_earlier_demos WHERE card_id = $id').run({ id });
     for (const [n, d] of earlier.entries()) db.query('INSERT INTO card_earlier_demos (card_id, position, demo) VALUES ($id, $n, $d)').run({ id, n, d: JSON.stringify(d) });
-    // the demo part has its row while it has earlier demos
+    
     if (earlier.length) db.query('INSERT INTO card_demos (card_id) VALUES ($id) ON CONFLICT (card_id) DO NOTHING').run({ id });
   }
   if (keys.some((k) => [...LABELS, 'suggested_labels', 'owner_labels'].includes(k))) {
-    // what the card has already (a label the server suggested, say) stands where the stage does not set it
+    
     const had = db.query('SELECT label, value, by FROM card_labels WHERE card_id = $id').all({ id }) as { label: string; value: string | null; by: string | null }[];
     const now = (l: string) => (l in fields ? fields[l] : had.find((r) => r.label === l)?.value) ?? null;
     const by = (who: string) => had.filter((r) => r.by === who).map((r) => r.label);
-    // a label with who set it: the owner where `owner_labels` names it, else Seismic where `suggested_labels` does and it has a value
+    
     const owner = ('owner_labels' in fields ? (fields.owner_labels ?? []) : by('owner')) as string[];
     const suggested = ('suggested_labels' in fields ? (fields.suggested_labels ?? []) : by('suggestion')) as string[];
     db.query('DELETE FROM card_labels WHERE card_id = $id').run({ id });
@@ -807,7 +807,7 @@ for (const [i, c] of stage.cards.entries()) {
   if (c.statusLine !== undefined) row.status_line = c.statusLine;
   if (c.summary !== undefined) row.detail = { summary: c.summary, ...(c.blocked ? { blocked: { files: c.blocked } } : {}) };
   if (c.question !== undefined) row.detail = { question: { options: [], ...c.question }, ...(c.permission ? { permission: c.permission } : {}) };
-  // an HTML artifact is shown from a copy in <dir>, which --artifact may rewrite
+  
   const demo = c.demo && (c.demo.kind === 'html' ? { ...c.demo, dir: copyArtifact(String(c.demo.dir), artifactDir(dir, c.key ?? String(i))) } : c.demo);
   if (demo !== undefined) row.demo = { kind: 'video', ...demo };
   if (c.queue !== undefined)
@@ -827,16 +827,16 @@ for (const [i, c] of stage.cards.entries()) {
   if (c.duplicates !== undefined) {
     const own = snapshot.items.find((x) => x.id === id);
     const found = c.duplicates.map((k) => ids[k] ?? fail(`card ${c.key ?? i}: duplicates names ${k}, which does not exist`));
-    // the check holds while the card keeps the title and text it was made for
+    
     row.scope = { files: c.scope ?? [], reason: '', duplicateCheck: { title: c.title ?? own?.title ?? '', body: c.body ?? own?.body ?? '', ids: found } };
   }
-  // a card at work or waiting for the owner has the branch its start gave it, as every started card
-  // has: without one the card shows neither its conversation's field nor the question it waits on
+  
+  
   const branch = c.branch ?? (c.state === 'working' || c.state === 'waiting' ? branchName(c.title ?? snapshot.items.find((x) => x.id === id)?.title ?? '', id) : undefined);
   if (branch !== undefined) row.branch = branch;
   const workstation = c.workstation ?? c.workspace;
   if (workstation && folder) {
-    // every card works in the folder itself, with a record of what it changed there (folder.ts)
+    
     row.workstation = repo;
     row.branch = branch ?? `seismic/${id.slice(0, 6)}`;
     db.query('INSERT INTO folder_cards (card_id, folder, state) VALUES ($id, $f, $s) ON CONFLICT(card_id) DO NOTHING').run({
@@ -845,11 +845,11 @@ for (const [i, c] of stage.cards.entries()) {
       s: JSON.stringify({ held: true, undo: null, changes: c.changes ?? [] }),
     });
   } else if (workstation) {
-    // a card on a further repository of the project (`repos`) works in a workstation of that one
+    
     const other = c.repo && c.repo !== (stage.repoName ?? 'repo') ? c.repo : null;
     const checkout = other ? join(dir, other) : repo;
     const free = db.query(`SELECT path FROM ${WS} WHERE card_id IS NULL AND repo IS $r ORDER BY path`).get({ r: other }) as { path: string } | null;
-    // no clones: the repository works in worktrees, one per card under Seismic's home
+    
     const tree = !free && !!branch && !stage.clones;
     if (!free && !tree) fail(`card ${c.key ?? i}: no free clone for it ("clones" in the stage, settings that say clones), nor a branch for a worktree`);
     const path = tree ? join(home, 'workspaces', project, id.slice(0, 8)) : free!.path;
@@ -864,7 +864,7 @@ for (const [i, c] of stage.cards.entries()) {
     }
     row.workstation = path;
     if (c.branch) {
-      // a commit of its own, where the stage names no files for it
+      
       if (!c.branchFiles || !Object.keys(c.branchFiles).length) writeFileSync(join(path, 'scratch.txt'), `${c.title ?? c.branch}\n`);
       for (const [file, what] of Object.entries(c.branchFiles ?? {})) {
         mkdirSync(dirname(join(path, file)), { recursive: true });
@@ -879,7 +879,7 @@ for (const [i, c] of stage.cards.entries()) {
   if (c.createdAgo !== undefined) row.created_at = ago(c.createdAgo);
   if (c.archivedAgo !== undefined) row.archived_at = ago(c.archivedAgo);
   Object.assign(row, c.row ?? {});
-  // a review card handed over has reviewed its PR's head, which is all Seismic merges
+  
   const contribution = row.contribution as { number?: number; reviewed?: string } | undefined;
   const pull = contribution && !contribution.reviewed && prHeads.get(contribution.number ?? -1);
   if (pull) row.contribution = { ...contribution, reviewed: pull };
@@ -908,7 +908,7 @@ for (const [i, c] of stage.cards.entries()) {
   const reviews: { id: number; at: string }[] = [];
   const spots: [number, NonNullable<StageEvent['spot']>][] = [];
   for (const e of c.events ?? []) {
-    // only code that has mocks (an error's token) has their column
+    
     const at = ago(e.ago ?? '0s');
     const { lastInsertRowid } = db.query(`INSERT INTO events (card_id, at, kind, author, text${e.mocks ? ', mocks' : ''}${e.token ? ', token' : ''}) VALUES ($c, $at, $kind, $author, $text${e.mocks ? ', $mocks' : ''}${e.token ? ', 1' : ''})`).run({
       c: id,
@@ -921,7 +921,7 @@ for (const [i, c] of stage.cards.entries()) {
     if (e.kind === 'review') reviews.push({ id: Number(lastInsertRowid), at });
     if (e.spot) spots.push([Number(lastInsertRowid), e.spot]);
   }
-  // the earlier demos (`row.demos`) and then the demo go with the handovers among the events, in order; a spot's `demo` names one of them by its place in that order
+  
   if (reviews.length && (demo || c.row?.demos)) {
     const earlier = (c.row?.demos ?? []) as Record<string, unknown>[];
     const handed = (d: Record<string, unknown>, i: number) => (reviews[i] ? { ...d, kind: d.kind ?? 'video', handover: reviews[i].id, at: reviews[i].at } : d);
@@ -952,7 +952,7 @@ for (const [i, p] of (stage.preferences ?? []).entries()) {
 }
 const talkIds: number[] = [];
 const threadOf = new Map<number, number>();
-// code that keeps the owner's chats with Seismic apart: the exchanges with one `chat` key are one chat
+
 const chats = !!db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'chats'").get();
 const chatIds = new Map<string, number>();
 for (const [i, x] of (stage.talk ?? []).entries()) {
@@ -979,7 +979,7 @@ for (const [i, x] of (stage.talk ?? []).entries()) {
     const key = `${row.project_id}/${x.chat ?? 0}`;
     let chat = chatIds.get(key);
     if (chat === undefined) chatIds.set(key, (chat = (db.query('INSERT INTO chats (project_id, at, opened) VALUES ($c, $at, $at) RETURNING id').get({ c: row.project_id as string, at: row.at as string }) as { id: number }).id));
-    // the chat talked in last is the one open
+    
     db.query('UPDATE chats SET opened = $at WHERE id = $id AND opened < $at').run({ id: chat, at: row.at as string });
     row.chat = chat;
   }
@@ -994,7 +994,7 @@ for (const [i, x] of (stage.talk ?? []).entries()) {
     writeFileSync(to, f.from ? readFileSync(f.from) : (f.content ?? ''));
   }
 }
-// the empty chat the server opened before the staged ones came is none of the stage's
+
 if (chats && chatIds.size) db.run('DELETE FROM chats WHERE id NOT IN (SELECT chat FROM talk WHERE chat IS NOT NULL)');
 const homeRepo = () => (db.query(`SELECT value FROM settings WHERE project_id = $c AND key = 'home_repo'`).get({ c: project }) as { value: string } | null)?.value ?? project;
 for (const [i, f] of (stage.friction ?? []).entries())
@@ -1044,9 +1044,9 @@ for (const [i, p] of (stage.settingProposals ?? []).entries())
     at: new Date().toISOString(),
   });
 db.close();
-// the server keeps a snapshot of the project: a change through the API makes it read the database anew
+
 for (const on of allProjects) {
-  // a plan or workstream is on the home project: a stage of plan cards alone has nothing else to move
+  
   const first = stage.cards.find((c) => (c.plan || c.workstream ? on.id === project : c.project ? c.project === on.name : on.id === project));
   if (!first) continue;
   const c = ((await api('GET', '/project', undefined, on.id)) as ProjectSnapshot).items.find((x: Item) => x.id === idOf(first, stage.cards.indexOf(first)))!;
@@ -1059,7 +1059,7 @@ for (const v of stage.canvases ?? []) {
   if (!on.length) continue;
   const before = ((await api('GET', '/project')) as ProjectSnapshot).items;
   await api('POST', `/canvases/${canvas.id}/cards`, { cards: on });
-  // the cards keep the places the stage gives them
+  
   for (const id of on) {
     const c = before.find((x: Item) => x.id === id);
     if (c && !c.parent) await patchCard(id, { x: c.x, y: c.y });
@@ -1074,7 +1074,7 @@ writeFileSync(join(dir, 'staged.json'), JSON.stringify(staged, null, 2));
 console.log(JSON.stringify(staged));
 process.exit(0);
 
-/** A git repository at `path` with what is there committed on the main branch. */
+
 /** Git configuration for the server's git calls, as environment variables. */
 function gitConfig(pairs: (readonly [string, string])[]): Record<string, string> {
   return Object.fromEntries([['GIT_CONFIG_COUNT', String(pairs.length)], ...pairs.flatMap(([k, v], i) => [[`GIT_CONFIG_KEY_${i}`, k], [`GIT_CONFIG_VALUE_${i}`, v]])]);
@@ -1104,7 +1104,7 @@ async function pickPort(givenDir: string | undefined): Promise<number> {
   for (const p of [...(was ? [was] : []), ...Array.from({ length: 500 }, (_, i) => 4480 + i)]) {
     if (p === 4417 || serverIn(scratchDir(p)) || !claim(p)) continue;
     if (await free(p)) {
-      // one whose port went to another meanwhile leaves no dir behind
+      
       if (earlier && !givenDir && earlier !== scratchDir(p)) rmSync(earlier, { recursive: true, force: true });
       return p;
     }
@@ -1196,7 +1196,7 @@ function serverIn(d: string) {
   const pid = pidOf(file);
   if (!alive(pid)) return undefined;
   const started = startOf(pid!);
-  // a second for the start's precision, one for the file time's
+  
   return started !== undefined && started <= statSync(file).mtimeMs + 2000 ? pid : undefined;
 }
 
@@ -1209,7 +1209,7 @@ function startOf(pid: number): number | undefined {
     const ms = Number(r.stdout?.trim());
     return r.status === 0 && ms > 0 ? ms : undefined;
   }
-  // the time since it started as [[dd-]hh:]mm:ss, which macOS and Linux both give
+  
   const r = spawnSync('ps', ['-o', 'etime=', '-p', String(pid)], { encoding: 'utf8' });
   const m = /^\s*(?:(\d+)-)?(?:(\d+):)?(\d+):(\d+)\s*$/.exec(r.stdout ?? '');
   if (r.status !== 0 || !m) return undefined;
@@ -1233,7 +1233,7 @@ function claimOf(p: number) {
 
 /** Claims port `p` for this staging until it ends, unless another staging that still runs has. */
 function claim(p: number): boolean {
-  // linked in whole, so that another staging never reads a claim without its pid
+  
   const mine = `${claimOf(p)}.${process.pid}`;
   writeFileSync(mine, String(process.pid));
   try {
@@ -1245,7 +1245,7 @@ function claim(p: number): boolean {
       } catch {
         const holder = pidOf(claimOf(p));
         if (alive(holder)) return false;
-        // a staging that was killed left it; one that let go of the port meanwhile left none
+        
         if (holder) rmSync(claimOf(p), { force: true });
       }
     return false;
@@ -1271,7 +1271,7 @@ async function free(p: number) {
 /** Ends the scratch Seismic that `dir` belongs to, and what it started, if it still runs; false if its server outlives the stop. */
 function stop(d: string) {
   const gone = stopServer(d);
-  // one that was killed left its `tailscale serve` entry, which would serve whatever takes the port next
+  
   const served = join(d, 'home', 'tailscale-serve.json');
   if (existsSync(served)) {
     const tailscale = findTailscale();
@@ -1299,7 +1299,7 @@ function signalGroup(pid: number) {
   }
   for (let i = 0; i < 40; i++) {
     if (!alive(pid)) return;
-    // Seismic waits for workers in the middle of a turn (an idle worker always is); a second signal ends it at once
+    
     if (i === 15)
       try {
         process.kill(-pid, 'SIGTERM');
@@ -1365,7 +1365,7 @@ async function standIn(port: number, key: string, act: { say: string } | { tool:
   );
   const body = (await r.json()) as { result?: string; error?: string };
   if (!r.ok) fail(`card ${key}: ${body.error ?? r.status}`);
-  // a tool's refusal ("Not shown: …", "Not handed over: …")
+  
   if (/^Not [a-z ]+:/.test(body.result!)) fail(`card ${key}: ${body.result}`);
   return body.result!;
 }

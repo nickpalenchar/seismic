@@ -1,17 +1,17 @@
-// PAUSED: this site/ is unpublished; seismic.im is built from the seismic-site repository (docs/release.md).
-// The screenshots on seismic.im (`site/img/`), taken again from a scratch Seismic in English: the Tipjar
-// app of the hero video as the repository, cards in the states the page talks about, and a demo of
-// a Tipjar change on the card whose demo the page shows, so that the picture is of a demo and not of
-// Seismic itself. The same wall on a phone (`phone.png`, `phone-demo.png`) shows the phone view: the project with its agents at work, and a demo opened from Needs you.
-//
-//   bun scripts/site-shots.ts [--demo <dir>] [--keep | --stage-only]
-//
-// --demo names a Tipjar demo to put on that card (a directory with demo.mp4 and poster.jpg); without
-// it the agent's first demo of splitting the bill from the newest render of the hero video is taken
-// (tipjar-split-the-bill* in the demo directory; the render leaves a second, shorter one on the owner's comments a
-// few minutes later); its chapters come from its chapters.vtt. The scratch Seismic runs on port 4740 and is stopped
-// at the end; --keep leaves it running for a look, --stage-only stages it and takes nothing. Needs
-// Google Chrome.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
@@ -39,7 +39,7 @@ function newestDemo(): string {
         .sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs)
     : [];
   if (!found[0]) throw new Error(`No Tipjar demo found in ${demos}: render the hero video first, or name one with --demo.`);
-  // the newest render's demos lie within minutes of each other; the first of them shows the whole change
+  
   const newest = statSync(found[0]).mtimeMs;
   return found.filter((d) => newest - statSync(d).mtimeMs < 10 * 60_000).at(-1)!;
 }
@@ -52,7 +52,7 @@ function chaptersOf(dir: string): [number, string][] {
 }
 const chapters = chaptersOf(demo);
 
-// the hero video's repository and plan doc, with cards of our own
+
 const dir = mkdtempSync(join(tmpdir(), 'site-shots-'));
 const stageFile = join(dir, 'stage.json');
 writeStage(stageFile);
@@ -89,8 +89,8 @@ const base = `http://127.0.0.1:${PORT}`;
 await fetch(`${base}/api/v1/settings/language`, { method: 'PUT', headers: ownerHeaders(join(staged.dir, 'home')), body: JSON.stringify({ language: 'en' }) });
 console.log('staged', staged.url);
 
-// the Koordinator reads the new plan's doc for what builds on what and arranges it: until
-// then its head says "Arranging …", which a shot taken at once showed
+
+
 const settled = Date.now() + 3 * 60_000;
 while (Date.now() < settled) {
   const snap = (await (await fetch(`${base}/api/c/tipjar/project`, { headers: ownerHeaders(join(staged.dir, 'home')) })).json()) as { items: { kind: string; plan?: { arranging?: true } }[] };
@@ -100,7 +100,7 @@ while (Date.now() < settled) {
 
 if (process.argv.includes('--stage-only')) process.exit(0);
 
-// a fake microphone, so that holding Space lights it as it does for the owner
+
 const browser = await chromium.launch({ channel: 'chrome', args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 813 }, deviceScaleFactor: 1 });
@@ -108,7 +108,7 @@ try {
   await page.goto(staged.url);
   await page.locator('.card').first().waitFor();
   await page.waitForTimeout(1000);
-  // the phone first: the voice shot's held Space sends what the fake microphone hears to App icon's agent, and the card no longer waits
+  
   await phoneShots(staged.url);
   await shots(page, staged.cards as Record<string, string>);
 } finally {
@@ -140,29 +140,29 @@ async function still(page: Page, video: string) {
 }
 
 async function shots(page: Page, cards: Record<string, string>) {
-  // the whole canvas, for the link preview (og:image)
+  
   await page.screenshot({ path: join(IMG, 'canvas.png') });
   console.log('canvas.png');
 
-  // taller, so that the minimap and the microphone stay below the cards
+  
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.reload();
   await page.locator('.card').first().waitFor();
   await page.waitForTimeout(1000);
 
-  // the cards in their states
+  
   const all = await Promise.all((await page.locator('.card, .plan').all()).map((l) => l.boundingBox()));
   await page.screenshot({ path: join(IMG, 'cards.png'), clip: around(all.filter((b): b is Box => !!b && b.y > 60), 20) });
   console.log('cards.png');
 
-  // the order: the pointer on a queued workstream shows what it waits for
+  
   await page.hover(card(cards.W3));
   await page.waitForTimeout(800);
   await page.screenshot({ path: join(IMG, 'order.png'), clip: around([await boxOf(page, '.plan')], 24) });
   await page.mouse.move(5, 500);
   console.log('order.png');
 
-  // a demo to approve: the card unfolded, its video paused in its second chapter (the change at work), tall enough for all its chapters
+  
   await page.setViewportSize({ width: 1440, height: 1100 });
   await page.click(card(cards.S));
   await page.locator('#panel video').waitFor();
@@ -172,17 +172,17 @@ async function shots(page: Page, cards: Record<string, string>) {
   await page.waitForTimeout(500);
   await page.screenshot({ path: join(IMG, 'demo.png'), clip: around([await boxOf(page, '#panel')], 0) });
   console.log('demo.png');
-  // Opening the card focuses Close; its tooltip takes the first Escape, leaving the card open.
-  // Use the visible close control and wait for the fold before clicking the next card.
+  
+  
   await page.locator('#panel').getByRole('button', { name: 'Close (Esc)', exact: true }).click();
   await page.locator('#panel').waitFor({ state: 'hidden' });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.waitForTimeout(1200);
 
-  // voice: an agent's question, answered by holding Space
+  
   await page.click(card(cards.I));
   await page.waitForTimeout(1500);
-  // Leave the focused Close button before holding Space, so it records rather than presses Close.
+  
   await page.locator('#panel .inner').click({ position: { x: 10, y: 10 } });
   await page.mouse.move(5, 500);
   await page.keyboard.down('Space');
@@ -192,10 +192,10 @@ async function shots(page: Page, cards: Record<string, string>) {
   console.log('voice.png');
 }
 
-// the phone view, at an iPhone's size: the project with the agents at work, and the demo opened from what waits for the owner
+
 async function phoneShots(url: string) {
   const phone = await browser.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
-  // granted, so the offer to turn notifications on stays off the list
+  
   await phone.grantPermissions(['notifications'], { origin: base });
   const page = await phone.newPage();
   await page.goto(url);
@@ -206,7 +206,7 @@ async function phoneShots(url: string) {
   await page.screenshot({ path: join(IMG, 'phone.png') });
   console.log('phone.png');
 
-  // what waits for the owner is on Needs you (the bell in the bar) and nowhere in the project's lists; its title opens the card
+  
   await page.locator('.ph-float').getByRole('button', { name: /^Needs you/ }).tap();
   await page.locator('#ph-needs .inbox-entry', { hasText: 'Split the bill' }).locator('.ttl-link').tap();
   await page.locator('#ph-card video').waitFor();

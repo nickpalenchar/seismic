@@ -45,19 +45,19 @@ test('stages a scratch Seismic with its cards in the states the stage file gives
   const r = Bun.spawnSync([process.execPath, script, stage]);
   expect(r.stderr.toString()).toBe('');
   const staged = JSON.parse(r.stdout.toString()) as { url: string; project: string; cards: Record<string, string> };
-  // a link that signs a browser in and opens the project
+  
   expect(staged.url).toStartWith(`http://127.0.0.1:${port}/login?token=`);
   const signed = await fetch(staged.url, { redirect: 'manual' });
   expect(await signed.text()).toContain('location.replace("/p/repo")');
-  // again, in another browser
+  
   expect((await fetch(staged.url, { redirect: 'manual' })).status).toBe(200);
-  // the same from --login
+  
   expect(Bun.spawnSync([process.execPath, script, '--login', String(port), '--dir', dir]).stdout.toString().trim()).toBe(staged.url);
-  // --list finds it outside /tmp/seismic-scratch-<port> too, and --login without --dir
+  
   const line = Bun.spawnSync([process.execPath, script, '--list']).stdout.toString().split('\n').find((l) => l.includes(`"port":${port},`));
   expect(JSON.parse(line!)).toMatchObject({ port, dir, database: join(dir, 'home', 'seismic.db') });
   expect(Bun.spawnSync([process.execPath, script, '--login', String(port)]).stdout.toString().trim()).toBe(staged.url);
-  // the API with the owner's key of its home
+  
   const headers = ownerHeaders(join(dir, 'home'));
   const { items } = (await (await fetch(`http://127.0.0.1:${port}/api/c/${staged.project}/project`, { headers })).json()) as ProjectSnapshot;
   const card = (key: string) => items.find((i) => i.id === staged.cards[key])!;
@@ -66,8 +66,8 @@ test('stages a scratch Seismic with its cards in the states the stage file gives
   expect(card('A')).toMatchObject({ title: 'Einlesen', state: 'working', agent: { statusLine: 'Tests laufen' } });
   expect(card('B').queue).toMatchObject({ behind: [staged.cards.A], reason: 'Beide ändern src/config.ts.' });
   expect(card('C')).toMatchObject({ state: 'waiting', need: 'question', question: { text: 'Lang oder kurz?', options: ['Lang', 'Kurz'] } });
-  // cards at work or waiting have the branch their start gave them: only then does the card show the
-  // conversation with the question and the field to answer it, on the project and on the phone
+  
+  
   expect(card('C').agent?.branch).toBe(`seismic/frage-${staged.cards.C!.slice(0, 6)}`);
   expect(card('W1').agent?.branch).toStartWith('seismic/konfiguration-');
   for (const key of ['A', 'C', 'H', 'W1']) expect(worked(card(key))).toBe(true);
@@ -97,7 +97,7 @@ test("--say and --artifact act as a staged card's agent, through the server", as
   ]);
   expect((await card('A')).agent?.statusLine).toBe('Writing tests');
   expect(run('--say', String(port), 'A', 'shout', 'x').stderr.toString()).toContain('usage');
-  // the artifact handed over again, its file rewritten in the scratch Seismic's copy, not in the stage's
+  
   const before = (await card('H')).demo!.latest!;
   const next = join(tmp, 'index.html');
   writeFileSync(next, '<h1>Second draft</h1>');
@@ -133,7 +133,7 @@ test('without a port, stagings at the same time each pick a free one, and stagin
       expect(s.dir).toBe(`/tmp/seismic-scratch-${s.port}`);
       expect((await fetch(s.url, { redirect: 'manual' })).status).toBe(200);
     }
-    // --list gives each one's paths, and the stage output the same
+    
     const listed = () =>
       Bun.spawnSync([process.execPath, script, '--list'])
         .stdout.toString()
@@ -175,7 +175,7 @@ test('--stop ends the server it staged, but not another process that has its num
   expect(stopped.stderr.toString()).toBe('');
   expect(stopped.exitCode).toBe(0);
   expect(() => process.kill(staged.pid, 0)).toThrow();
-  // a server.pid from before a reboot, its number now another program's that leads a process group of its own
+  
   const stale = join(tmp, 'stale');
   mkdirSync(stale);
   const hourAgo = new Date(Date.now() - 3600_000);

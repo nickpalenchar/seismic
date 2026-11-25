@@ -1,55 +1,55 @@
-// Checks on a real phone browser: Chrome in the Android emulator, driven from the shell, for what
-// headless Chromium can't reproduce (the on-screen keyboard and `visualViewport`, video fullscreen,
-// screen rotation). Every wait inside is bounded and ends with an error that says what it waited
-// for, so callers write no sleep loops of their own.
-//
-//   bun scripts/android-phone.ts start [--avd <name>] [--serial <device>] [--window] [--timeout <s>]
-//   bun scripts/android-phone.ts open <url> [--timeout <s>]
-//   bun scripts/android-phone.ts eval <js> [--timeout <s>]
-//   bun scripts/android-phone.ts tap <selector> [--timeout <s>]
-//   bun scripts/android-phone.ts type <text>
-//   bun scripts/android-phone.ts rotate portrait|landscape
-//   bun scripts/android-phone.ts screenshot <file.png>
-//   bun scripts/android-phone.ts record start [<file.mp4>]
-//   bun scripts/android-phone.ts record stop [<file.mp4>]
-//   bun scripts/android-phone.ts stop
-//
-// The SDK is the one ANDROID_HOME or ANDROID_SDK_ROOT names, else Android Studio's default place
-// (~/Library/Android/sdk, ~/Android/Sdk, %LOCALAPPDATA%\Android\Sdk); it needs `platform-tools`,
-// `emulator` and an AVD with Chrome (a Google Play or Google APIs system image).
-//
-// `start` boots an emulator of the AVD (`--avd`, else the first one) in the background, headless
-// unless `--window`, and waits until Android has booted (default up to 300 s: a fresh AVD boots
-// cold). It boots it with -read-only, so that several checkouts can each run one of the same AVD
-// at once: nothing the check does stays in the AVD. An AVD that already runs without -read-only
-// (started by hand, say) can't be booted again; `--serial <device>` (as `adb devices` lists it)
-// uses a running emulator or a phone on USB instead, shared with whoever else uses it, and `stop`
-// leaves it running. Started again, `start` reuses the emulator this checkout started.
-//
-// `open` reaches a server on this machine as on localhost (`adb reverse` of the URL's port),
-// opens the URL in Chrome as its only tab and waits until the page has loaded and stayed (a
-// sign-in link's redirect followed; default up to 60 s). The first `open` on a device turns off
-// what Chrome and Android lay over a page on their own (first-run screens, the notification
-// prompt, the offers to translate or install the page, the hint at the first fullscreen): Chrome
-// as the debug app reads /data/local/tmp/chrome-command-line.
-// `eval` runs JS in that page over the DevTools protocol (awaits promises; `await` works at the
-// top) and prints the result as JSON, e.g. `eval 'visualViewport.height'`.
-// `tap` taps the centre of the first element the selector matches (scrolled into view, once it has
-// stopped moving) as a real touch through `adb shell input tap`, so the on-screen keyboard and the
-// APIs that need a user's gesture (fullscreen) behave as on a phone. Where the page lies on the
-// screen comes from the device's view hierarchy (`uiautomator dump`, about a second). The keyboard
-// takes a moment to open: on a text field, `tap` returns once it is open and the page has settled
-// around it.
-// `type` types into the focused element: ASCII as key presses (`input text`), a newline as Enter,
-// other characters (umlauts) inserted as the keyboard's input method would (`Input.insertText`).
-// `rotate` turns the emulator's acceleration sensor, as a hand turns the phone (on a USB phone it
-// sets the rotation), and waits until the screen and the page have turned.
-// `screenshot` writes the device's screen as PNG, `record start` records it until `record stop`,
-// which writes the MP4 (taps show as dots in both, on an emulator `start` booted).
-// `stop` shuts down the emulator `start` booted and removes the port forwards.
-//
-// What this checkout's commands share (the device, its DevTools port, the open page, a recording)
-// is kept in <tmp>/seismic-android-phone-<user>/<hash of the checkout>.json.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -82,7 +82,7 @@ const USAGE = `usage: bun scripts/android-phone.ts <command>
   record start [<file.mp4>] | record stop [<file.mp4>]
   stop`;
 
-/** Seconds a command waits by default before it gives up. */
+
 const DEFAULT_TIMEOUT = { start: 300, open: 60, eval: 30, tap: 30 } as const;
 
 /** The command line, checked: a Fail with the usage for anything it can't take. */
@@ -178,16 +178,16 @@ export function parseArgs(argv: string[]): Command {
   }
 }
 
-/** What the page says of a point on it: CSS pixels of the layout viewport, as getBoundingClientRect gives them. */
+
 export interface PagePoint {
   x: number;
   y: number;
   dpr: number;
-  /** The visual viewport: its offset into the layout viewport and its height (CSS px), its pinch zoom. */
+  
   vv: { left: number; top: number; height: number; scale: number };
 }
 
-/** A rectangle on the device's screen, in its pixels as the current rotation lays them out. */
+
 export interface ScreenRect {
   left: number;
   top: number;
@@ -232,12 +232,12 @@ export function pageOnScreen(xml: string, p: PagePoint): ScreenRect | undefined 
 /** `s` quoted for the device's shell, which `adb shell` hands its command line to. */
 export const shq = (s: string) => `'${s.replaceAll("'", `'\\''`)}'`;
 
-/** How `type` sends text: printable ASCII as key presses, a newline as Enter, anything else (and %) inserted. */
+
 export type TextRun = { keys: string } | { enter: true } | { insert: string };
 
 export function textRuns(text: string): TextRun[] {
   const runs: TextRun[] = [];
-  // `input text` reads %s as a space, so a % goes in with the rest
+  
   for (const m of text.replaceAll('\r\n', '\n').matchAll(/([\x20-\x24\x26-\x7e]+)|(\n)|([^\x20-\x24\x26-\x7e\n]+)/g)) {
     if (m[1]) runs.push({ keys: m[1] });
     else if (m[2]) runs.push({ enter: true });
@@ -249,7 +249,7 @@ export function textRuns(text: string): TextRun[] {
 /** The argument of `adb shell input text` for printable ASCII: a space as %s, quoted for the device's shell. */
 export const inputTextArg = (keys: string) => shq(keys.replaceAll(' ', '%s'));
 
-/** The emulator's acceleration sensor (x:y:z, m/s²) for a phone held upright or turned to the left. */
+
 export const ACCELERATION = { portrait: '0:9.81:0', landscape: '9.81:0:0' } as const;
 
 /** Where the SDK is: ANDROID_HOME, ANDROID_SDK_ROOT, then Android Studio's default place on this OS. */
@@ -284,7 +284,7 @@ export function findSdk(env = process.env, platform: string = process.platform, 
   return { root, adb, emulator };
 }
 
-// ---- running things, every wait bounded ----
+
 
 interface Ran {
   code: number | null;
@@ -302,7 +302,7 @@ async function run(cmd: string[], ms = 20_000): Promise<Ran> {
     p.kill('SIGKILL');
   }, ms);
   const output = Promise.all([new Response(p.stdout).bytes(), new Response(p.stderr).text(), p.exited]);
-  // a child of the killed process may hold its output open: give up on that a second later
+  
   const [bytes, err] = await Promise.race([
     output,
     new Promise<[Uint8Array, string]>((ok) => setTimeout(() => timedOut && ok([new Uint8Array(), '']), ms + 1000)),
@@ -333,11 +333,11 @@ async function until<T>(what: string, ms: number, check: () => Promise<T | undef
   }
 }
 
-// ---- what this checkout's commands share ----
+
 
 interface State {
   serial: string;
-  /** The emulator `start` booted (stop shuts it down), not one it found running. */
+  
   booted?: { pid: number; avd: string; log: string };
   devtools?: number;
   reverses?: number[];
@@ -385,20 +385,20 @@ class Phone {
     writeState(this.state);
   }
 
-  // ---- the browser and its page ----
+  
 
   async browser() {
     if (this.state.browser) return this.state.browser;
     const installed = (await this.shell('pm list packages')).split('\n').map((l) => l.trim().replace(/^package:/, ''));
     const pkg = ['com.android.chrome', 'org.chromium.chrome', 'com.chrome.beta', 'com.chrome.dev', 'com.chrome.canary'].find((p) => installed.includes(p));
     if (!pkg) throw new Fail(`no Chrome on ${this.state.serial}: use an AVD with a Google Play or Google APIs system image`);
-    // no first-run screens, no notification prompt, no offers to translate or install the page over its top:
-    // Chrome as the debug app reads its command line from this file
+    
+    
     const flags = '_ --disable-fre --no-default-browser-check --no-first-run --disable-features=Translate,InstallableAmbientBadgeMessage,InstallableAmbientBadgeInfoBar';
     await this.shell(`echo ${shq(flags)} > /data/local/tmp/chrome-command-line`);
     await this.shell(`am set-debug-app --persistent ${pkg}`);
     await this.adb(['shell', `pm grant ${pkg} android.permission.POST_NOTIFICATIONS`]);
-    // nor Android's hint over the first fullscreen, whose window hides the page from `uiautomator dump`
+    
     await this.adb(['shell', 'settings put secure immersive_mode_confirmations confirmed']);
     await this.shell(`am force-stop ${pkg}`);
     this.state.browser = pkg;
@@ -423,7 +423,7 @@ class Phone {
       const r = await fetch(`http://127.0.0.1:${await this.devtools()}/json/list`, { signal: AbortSignal.timeout(2000) });
       return ((await r.json()) as Target[]).filter((t) => t.type === 'page');
     } catch {
-      return undefined; // Chrome is not running (yet)
+      return undefined; 
     }
   }
 
@@ -443,14 +443,14 @@ class Phone {
     const page = await until(`${url} to load in Chrome on ${this.state.serial}`, ms, async () => {
       for (const t of (await this.pages()) ?? []) {
         if (/^(about|chrome|chrome-native):/.test(t.url)) continue;
-        // loaded, and for long enough that a redirect from the page (a sign-in link's) would have begun
+        
         const r = await evaluate(t, SETTLED_JS, 2000).catch(() => undefined);
         const v = r?.result.value as { visible: boolean; settled: boolean; href: string } | undefined;
         if (v?.visible && v.settled) return { id: t.id, href: v.href };
       }
       return undefined;
     });
-    // the tabs Chrome restored when it started again, which the closing before could not reach
+    
     for (const t of (await this.pages()) ?? [])
       if (t.id !== page.id) await fetch(`http://127.0.0.1:${devtools}/json/close/${t.id}`, { signal: AbortSignal.timeout(2000) }).catch(() => {});
     this.state.target = page.id;
@@ -468,7 +468,7 @@ class Phone {
     return pages[0]!;
   }
 
-  // ---- input ----
+  
 
   async tap(selector: string, ms: number) {
     const target = await this.page();
@@ -477,7 +477,7 @@ class Phone {
     const p = r.result.value as (PagePoint & { w: number; h: number }) | null;
     if (!p) throw new Fail(`no element matches ${selector}`);
     if (!p.w || !p.h) throw new Fail(`${selector} takes no space on the page (hidden?)`);
-    // Chrome builds the page's node once a dump has turned accessibility on, so the first dump may lack it
+    
     const dump = async () => (await this.must(['exec-out', 'uiautomator', 'dump', '/dev/tty'], ms)).out;
     let xml = '';
     const page =
@@ -489,9 +489,9 @@ class Phone {
     if (at.x < page.left || at.x >= page.right || at.y < page.top || at.y >= page.bottom)
       throw new Fail(`the centre of ${selector} lies at ${at.x},${at.y}, off the page's visible area ${JSON.stringify(page)} (under the keyboard?)`);
     await this.shell(`input tap ${at.x} ${at.y}`);
-    // a text field the tap focused opens the keyboard, which takes a moment: return once it is open
-    // and the page has settled around it, so that what is measured next is the page with the keyboard
-    // (a date or time field opens a picker instead)
+    
+    
+    
     const editable = `(() => { const a = document.activeElement; return !!a && (a.isContentEditable || a.tagName === 'TEXTAREA' || (a.tagName === 'INPUT' && ['text', 'search', 'email', 'url', 'tel', 'password', 'number'].includes(a.type))); })()`;
     const focused = await until('a text field to take the focus', 600, async () =>
       (await evaluate(target, editable, 2000)).result.value === true ? true : undefined,
@@ -517,8 +517,8 @@ class Phone {
     await this.shell(`settings put system accelerometer_rotation ${emulator ? 1 : 0}`);
     if (emulator) await this.must(['emu', 'sensor', 'set', 'acceleration', ACCELERATION[to]]);
     else await this.shell(`settings put system user_rotation ${to === 'portrait' ? 0 : 1}`);
-    // what the screen shows, not the window manager's rotation, which turns up to a second earlier
-    // (with the keyboard open): the size of a screenshot, read on the device (the header of the raw image)
+    
+    
     const raw = '/data/local/tmp/seismic-android-phone.raw';
     await until(`the screen to turn ${to} (the app in front may hold its orientation)`, 10_000, async () => {
       const [w, h] = (await this.shell(`screencap ${raw} && od -An -tu4 -N8 ${raw}; rm -f ${raw}`)).trim().split(/\s+/).map(Number);
@@ -531,13 +531,13 @@ class Phone {
         const r = await evaluate(target, `matchMedia('(orientation: ${to})').matches`, 2000).catch(() => undefined);
         return r?.result.value === true ? true : undefined;
       });
-      // and has laid itself out anew: its viewport has kept its size for half a second (the keyboard
-      // closes with the turn), and painted that
+      
+      
       await evaluate(target, STEADY_JS, 10_000);
     }
   }
 
-  // ---- the screen ----
+  
 
   async screenshot(file: string) {
     const r = await this.must(['exec-out', 'screencap', '-p'], 30_000);
@@ -548,7 +548,7 @@ class Phone {
     if (this.state.record && alive(this.state.record.pid)) throw new Fail('a recording runs already: `record stop <file.mp4>` first');
     const remote = '/sdcard/seismic-android-phone.mp4';
     const sdk = Number(await this.shell('getprop ro.build.version.sdk'));
-    // Android 14 records without a limit; before, 180 s at most
+    
     const limit = sdk >= 34 ? 0 : 180;
     await this.adb(['shell', `rm -f ${remote}`]);
     const p = spawn(this.sdk.adb, ['-s', this.state.serial, 'shell', `screenrecord --bit-rate 8000000 --time-limit ${limit} ${remote}`], {
@@ -568,7 +568,7 @@ class Phone {
     const out = file ?? rec.file;
     if (!out) throw new Fail('record stop needs the file to write (record stop <file.mp4>)');
     await this.adb(['shell', 'pkill -INT screenrecord']);
-    // screenrecord finishes the file once it has stopped
+    
     await until('the recording to end', 15_000, async () => ((await this.adb(['shell', 'pidof screenrecord'])).out ? undefined : true));
     await this.must(['pull', rec.remote, resolve(out)], 120_000);
     await this.adb(['shell', `rm -f ${rec.remote}`]);
@@ -578,7 +578,7 @@ class Phone {
   }
 }
 
-// ---- the DevTools protocol ----
+
 
 interface Target {
   id: string;
@@ -667,7 +667,7 @@ function tapPointJs(selector: string) {
   })()`;
 }
 
-// ---- start and stop ----
+
 
 async function devices(adb: string) {
   const r = await run([adb, 'devices'], 20_000);
@@ -701,7 +701,7 @@ async function start(sdk: ReturnType<typeof findSdk>, c: Extract<Command, { cmd:
     const phone = new Phone(sdk, had);
     if ((await phone.adb(['shell', 'getprop sys.boot_completed'])).out === '1') return phone;
   }
-  // (alive and still listed: a pid alone may since name another process)
+  
   if (had?.booted && alive(had.booted.pid) && running.some((d) => d.serial === had.serial))
     throw new Fail(`this checkout's emulator (${had.serial}) still runs but does not answer: \`stop\` it first`);
   if (c.serial) {
@@ -757,8 +757,8 @@ async function start(sdk: ReturnType<typeof findSdk>, c: Extract<Command, { cmd:
     rmSync(STATE_FILE, { force: true });
     throw e;
   }
-  // awake, unlocked, no dialogs of apps that answer slowly while the system settles (and none shown already),
-  // the on-screen keyboard despite the host's keyboard, taps shown in screenshots and recordings
+  
+  
   for (const cmd of [
     'settings put system screen_off_timeout 2147483647',
     'svc power stayon true',
@@ -794,7 +794,7 @@ async function stop(sdk: ReturnType<typeof findSdk>) {
     return `left ${s.serial} running (not booted here); removed the port forwards`;
   }
   const { pid } = s.booted;
-  // the pid is the emulator's only while adb still lists it; else it may since name another process
+  
   if (alive(pid) && (await devices(sdk.adb)).some((d) => d.serial === s.serial)) {
     await phone.adb(['emu', 'kill'], 10_000);
     const gone = await until('the emulator to shut down', 30_000, async () => (alive(pid) ? undefined : true)).catch(() => false);
@@ -804,7 +804,7 @@ async function stop(sdk: ReturnType<typeof findSdk>) {
   return `stopped ${s.serial} (${s.booted.avd})`;
 }
 
-// ---- the command line ----
+
 
 async function main(c: Command) {
   const sdk = findSdk();

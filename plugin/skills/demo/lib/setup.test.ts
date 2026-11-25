@@ -24,12 +24,12 @@ describe('demo setup', () => {
     expect(installHint('ffmpeg', 'darwin', 'arm64')?.commands).toEqual(['brew install ffmpeg']);
     expect(installHint('ffmpeg', 'win32', 'x64')?.commands).toEqual(['winget install Gyan.FFmpeg']);
     expect(installHint('ffmpeg', 'linux', 'x64', 'apt')?.commands).toEqual(['sudo apt install ffmpeg']);
-    // Fedora's own ffmpeg has no libx264
+    
     expect(installHint('ffmpeg', 'linux', 'x64', 'dnf')?.url).toContain('rpmfusion');
     expect(installHint('ffmpeg', 'linux', 'x64', null)).toEqual({ commands: [], url: 'https://ffmpeg.org/download.html' });
     expect(installHint('uv', 'linux', 'arm64')?.commands[0]).toContain('astral.sh/uv/install.sh');
     expect(installHint('uv', 'win32', 'x64')?.commands[0]).toContain('winget');
-    // no Chrome for Linux on ARM: Playwright's own Chromium
+    
     expect(installHint('browser', 'linux', 'arm64')).toEqual({ commands: [expect.stringContaining('playwright-core install --with-deps chromium')] });
     expect(installHint('browser', 'linux', 'x64')?.url).toContain('google.com/chrome');
     expect(installHint('node', 'linux', 'x64')).toEqual({ commands: [], url: 'https://nodejs.org/en/download' });
@@ -71,7 +71,7 @@ describe('demo setup', () => {
       (await checkSetup({ language: 'en', voice }, { env: { ...env, ...more }, home: dir, narrationOnly: true })).items.find((i) => i.id === 'voice');
     expect((await voice({}))?.state).toBe('missing');
     expect(await voice({ OBEYA_HOLDS_VOICE: '1', SEISMIC_URL: 'http://127.0.0.1:41234' })).toMatchObject({ state: 'ok', found: 'qwen3 (held by Seismic)' });
-    // Piper is not held: it runs with each render
+    
     expect((await voice({ SEISMIC_HOLDS_VOICE: '1', OBEYA_URL: 'http://127.0.0.1:41234' }, 'piper'))?.state).toBe('missing');
   });
 

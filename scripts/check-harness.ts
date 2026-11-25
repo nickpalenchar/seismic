@@ -1,10 +1,10 @@
-// What the check scripts (check-*.ts) share: one line per check, the failures counted, and waiting
-// for something to happen.
+
+
 
 import { type Subprocess } from 'bun';
 import { messageOf } from '../src/core/text';
 
-/** How many checks failed so far; a script exits 1 when any did. */
+
 export let failed = 0;
 
 export const ok = (what: string, detail = '') => console.log(`✓ ${what}${detail ? `: ${detail}` : ''}`);

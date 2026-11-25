@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { draft, expectedAssets, type Gh, nextVersion, report, SECRETS, status } from './release-status';
 
-// a repository with GitHub as a bare remote beside it; gh is a function that answers from a table
+
 const tmp = mkdtempSync(join(tmpdir(), 'seismic-release-status-'));
 afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
@@ -69,7 +69,7 @@ test('says what the release holds, whether its changelog is written and how far 
   expect(s.version).toBe('0.1.0');
   expect(s.tag?.name).toBe('v0.1.0');
   expect(s.propose).toBe('0.2.0');
-  // the commits since the tag that change what runs, newest first; the docs commit counts only in all
+  
   expect(s.changes.map((c) => c.subject)).toEqual(['Land faster', 'Fit the bar', 'Pin the cards to a wall']);
   expect(s.commits).toBe(5);
   expect(s.changelog).toBe(true);
@@ -97,10 +97,10 @@ test('release candidates since the last release leave it the last tag; the versi
 
   const s = status(dir, gh([{ tag_name: 'v0.1.0' }, { tag_name: 'v0.2.0-rc.1', draft: true, prerelease: true }]));
   expect(s.tag?.name).toBe('v0.1.0');
-  // a candidate's draft stays one, and is no draft left over
+  
   expect(s.drafts).toEqual([]);
   expect(s.propose).toBe('0.2.0');
-  // the candidate's own commits count toward the release, back to the last release
+  
   expect(s.changes.map((c) => c.subject)).toEqual(['Fit the bar', JSON.stringify({ version: '0.2.0-rc.1' }), 'Pin the cards to a wall']);
 });
 
@@ -110,16 +110,16 @@ test('names what stands in the way: a missing secret, GitHub ahead, a tag taken,
   git('', 'tag', 'v0.1.0');
   commit('2026-10-09T10:00:00Z', 'src/a.ts', 'A');
   git('', 'push', '-q', 'origin', 'main');
-  // GitHub's main moved on elsewhere, with a commit this repository never fetched
+  
   const other = join(tmp, 'blocked-elsewhere');
   spawnSync('git', ['clone', '-q', join(tmp, 'blocked.git'), other]);
   spawnSync('git', ['-C', other, '-c', 'user.name=T', '-c', 'user.email=t@example.com', 'commit', '-q', '--allow-empty', '-m', 'Elsewhere']);
   spawnSync('git', ['-C', other, 'push', '-q', 'origin', 'main']);
-  // where someone tagged it already
+  
   spawnSync('git', ['-C', other, 'tag', 'v0.3.0']);
   spawnSync('git', ['-C', other, 'push', '-q', 'origin', 'v0.3.0']);
   commit('2026-10-09T11:00:00Z', 'src/b.ts', 'B');
-  // the version is bumped already
+  
   commit('2026-10-09T12:00:00Z', 'package.json', JSON.stringify({ version: '0.3.0' }));
 
   const s = status(dir, gh([{ tag_name: 'v0.1.0' }, { tag_name: 'v0.2.0', draft: true }], { secrets: SECRETS.filter((n) => n !== 'APPLE_NOTARY_KEY') }));

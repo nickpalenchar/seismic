@@ -19,7 +19,7 @@ const projects: Entity = { name: 'projects', fields: [{ name: 'id', type: 'TEXT'
 const devices: Entity = { name: 'devices', fields: [{ name: 'id', type: 'TEXT', pk: true }] };
 const users: Entity = { name: 'users', fields: [{ name: 'id', type: 'TEXT', pk: true }, { name: 'email', type: 'TEXT' }] };
 
-/** cards loses `legacy_flag`, gains `feedback_note` and an index, `title` becomes nullable; sessions, new, refers to cards and users; devices, unrelated, stays. */
+
 const change: SchemaChange = {
   sources: ['migrations/0042.sql'],
   before: { entities: [projects, cards, devices, users] },
@@ -81,7 +81,7 @@ describe('the schema-change page', () => {
 
   test('is cut to the affected entities and their direct neighbours along the relations the change touches', () => {
     const shown = cut(diffModels(change.before, change.after)).map((s) => [s.entity.name, s.neighbour]);
-    // users: the new sessions refers to it; projects only by a field of cards the change leaves alone; devices relates to nothing changed
+    
     expect(shown).toEqual([
       ['cards', false],
       ['sessions', false],
@@ -90,9 +90,9 @@ describe('the schema-change page', () => {
     const html = renderSchemaPage(change);
     expect(html).not.toContain('data-entity="devices"');
     expect(html).not.toContain('data-entity="projects"');
-    // a neighbour shows its keys, the rest counted
+    
     expect(html).toMatch(/data-entity="users"[\s\S]*?1 more field</);
-    // a dropped or renamed entity brings those that refer to it
+    
     const dropped = cut(diffModels({ entities: [projects, cards] }, { entities: [{ ...cards, fields: cards.fields.filter((f) => f.name !== 'project_id') }] }));
     expect(dropped.map((s) => [s.entity.name, s.neighbour])).toEqual([
       ['cards', false],
@@ -103,15 +103,15 @@ describe('the schema-change page', () => {
       ['boards', false],
       ['cards', true],
     ]);
-    // references run from left to right: the referring entities in the first column
+    
     expect(columns(cut(diffModels(change.before, change.after))).map((c) => c.map((s) => s.entity.name))).toEqual([['sessions'], ['cards', 'users']]);
-    // an affected entity with many unchanged fields shows its keys, references and changes, the rest counted
+    
     const wide: Entity = { name: 'wide', fields: [{ name: 'id', type: 'TEXT', pk: true }, { name: 'parent_id', type: 'TEXT', ref: 'wide.id' }, ...Array.from({ length: 19 }, (_, i) => ({ name: `c${i}`, type: 'TEXT' }))] };
     const page = renderSchemaPage({ sources: [], before: { entities: [wide] }, after: { entities: [{ ...wide, fields: [...wide.fields, { name: 'extra', type: 'TEXT' }] }] } });
     expect(page).toContain('data-field="extra"');
     expect(page).not.toContain('data-field="c5"');
     expect(page).toContain('20 more fields unchanged');
-    // nor does a reference to itself the change leaves alone get a line
+    
     expect(page).not.toContain('data-field="parent_id"');
     expect(page).toContain('<script type="application/json" id="relations">[]</script>');
   });
@@ -135,7 +135,7 @@ describe('the schema-change page', () => {
     expect(html).not.toContain('<i>m.sql');
     expect(html).toContain('&lt;T&gt;');
     expect(html).toContain('data-field="&quot;f&quot;"');
-    // one closing tag per script element: the data's `</script>` is escaped
+    
     expect(html.match(/<\/script>/g)).toHaveLength(2);
     const data = /<script type="application\/json" id="relations">([\s\S]*?)<\/script>/.exec(html)![1]!;
     expect(JSON.parse(data)[0].from[0]).toBe(evil);

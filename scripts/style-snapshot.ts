@@ -1,13 +1,13 @@
-// Computed styles of a part of the UI, for comparing a view before and after its CSS moves (each family is
-// compared element by element against the commit before it).
-//
-//   bun scripts/style-snapshot.ts js <root selector> [--pseudo]   prints a JS expression for the browser skill's `eval`
-//   bun scripts/style-snapshot.ts diff <before.json> <after.json>  prints the elements and properties that differ
-//
-// The expression walks every element under the root(s) the selector matches and records, per element, a set of
-// properties that make up its look and box. Elements are keyed by their tag and position (`div:2>button:1`), not by
-// their classes, so a class list that changed from old names to utilities still pairs with the element it was.
-// With --pseudo, ::before and ::after are recorded too. Save the eval output to a file per build and theme, then diff.
+
+
+
+
+
+
+
+
+
+
 
 const PROPS = [
   'display', 'position', 'top', 'right', 'bottom', 'left', 'z-index', 'box-sizing', 'width', 'height', 'min-width', 'max-width',

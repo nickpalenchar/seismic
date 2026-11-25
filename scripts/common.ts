@@ -1,4 +1,4 @@
-// What several scripts need: their options, Rust's tools on the PATH, and what a build left.
+
 
 import { existsSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';

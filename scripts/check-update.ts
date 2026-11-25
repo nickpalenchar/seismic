@@ -1,23 +1,23 @@
-// Checks that the installed app updates itself (desktop/src/update.rs) on this machine: it builds the
-// app twice with scripts/build-app.ts, as version 0.0.1 and 0.0.2, both with an updater that asks
-// a local server instead of GitHub and trusts a key pair made for the check; installs the first
-// (macOS: the app in a scratch directory; Windows: the NSIS installer, silently, for this user;
-// Linux: the AppImage in a scratch directory), and serves the second as the release the first
-// finds. Then, on a scratch home:
-//   - the app finds 0.0.2, downloads it and its server shows it (`GET /api/app-update`);
-//   - installing it (`POST /api/app-update/install`, the bar's button) ends the server, the shell
-//     installs the update and starts the app again: the installed program is now 0.0.2's, and a
-//     server it started answers on the home;
-//   - the new version finds nothing newer;
-//   - `POST /api/stop` ends it.
-// On Windows the installer starts the new version as the desktop's user, without this script's
-// environment, so it runs on the default home (~/.seismic): run it there only where no Seismic uses it.
-//
-//   bun scripts/check-update.ts [--dir <dir>] [--reuse] [--keep]
-//
-// --dir keeps the builds there, and --reuse takes them from there instead of building again (each
-// build takes some minutes). Needs what scripts/build-app.ts needs. Prints one line per check;
-// exits 1 when one failed.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { type Subprocess } from 'bun';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
@@ -40,8 +40,8 @@ function run(cmd: string[], cwd = ROOT, more: Record<string, string> = {}) {
   if (r.exitCode !== 0) throw new Error(`${cmd[0]} failed (exit ${r.exitCode})`);
 }
 
-// ---------------------------------------------------------------- two versions, one key pair
-// without symlinks (macOS's /tmp is one): Tauri refuses to run from a path that has one
+
+
 const dir = (() => {
   const d = resolve(opt('dir') ?? mkdtempSync(join(tmpdir(), 'seismic-update-check-')));
   mkdirSync(d, { recursive: true });
@@ -49,7 +49,7 @@ const dir = (() => {
 })();
 const OLD = '0.0.1';
 const NEW = '0.0.2';
-/** What is installed of each version, and what the update of the new one is. */
+
 const made = { old: join(dir, 'old'), new: join(dir, 'new') };
 const reuse = args.includes('--reuse') && existsSync(join(dir, 'port')) && existsSync(made.old) && existsSync(made.new);
 const port = reuse ? Number(readFileSync(join(dir, 'port'), 'utf8')) : await freePort();
@@ -94,7 +94,7 @@ if (!reuse) {
   writeFileSync(join(dir, 'port'), String(port));
 }
 
-// ---------------------------------------------------------------- the release the old one finds
+
 const platform = { darwin: 'darwin', windows: 'windows', linux: 'linux' }[os] + '-' + (process.arch === 'arm64' ? 'aarch64' : 'x86_64');
 let fetched = 0;
 const releases = Bun.serve({
@@ -117,7 +117,7 @@ const releases = Bun.serve({
   },
 });
 
-// ---------------------------------------------------------------- the old version, installed
+
 const home = join(dir, 'home');
 rmSync(home, { recursive: true, force: true });
 mkdirSync(home);
@@ -125,7 +125,7 @@ const installed = join(dir, 'installed');
 rmSync(installed, { recursive: true, force: true });
 mkdirSync(installed);
 let program: string;
-/** What tells the versions apart once installed: the shell's program (the AppImage on Linux); on Windows its file version. */
+
 let shell: string;
 const ofNew: string | null = os === 'darwin' ? join(made.new, 'Seismic.app', 'Contents', 'MacOS', 'seismic') : os === 'windows' ? null : join(made.new, 'Seismic.AppImage');
 const fileVersion = (exe: string) =>
@@ -136,7 +136,7 @@ if (os === 'darwin') {
   cpSync(join(made.old, 'Seismic.app'), join(installed, 'Seismic.app'), { recursive: true, verbatimSymlinks: true });
   program = shell = join(installed, 'Seismic.app', 'Contents', 'MacOS', 'seismic');
 } else if (os === 'windows') {
-  // the NSIS installer installs for this user, where the update's installer puts it again
+  
   run([join(made.old, 'Seismic-setup.exe'), '/S']);
   program = shell = join(process.env.LOCALAPPDATA ?? '', 'Seismic', 'seismic.exe');
 } else {
@@ -145,7 +145,7 @@ if (os === 'darwin') {
 }
 const before = hash(shell);
 
-/** Where the app runs: the scratch home, and on Windows after the update the default one (see the top). */
+
 let homeNow = home;
 const serverEntry = () => {
   try {
@@ -191,7 +191,7 @@ try {
       const code = await exited(app!, 120_000);
       expect(code !== null, 'the old app did not end');
       if (os === 'windows') homeNow = join(homedir(), '.seismic');
-      // the Windows installer is still at work when the old app has ended
+      
       await until(`the installed program as ${NEW}'s`, 120_000, () => existsSync(shell) && hash(shell) !== before && isNew()).catch((e) => {
         throw os === 'windows' ? new Error(`${e.message} (its version: ${fileVersion(shell)})`) : e;
       });

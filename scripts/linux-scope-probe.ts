@@ -1,17 +1,17 @@
-// What a systemd user scope holds on this Linux machine, measured; it proves no containment elsewhere.
-// bun scripts/linux-scope-probe.ts [case ...], each case printing one JSON line:
-//   codex-close-tracker, codex-close-scope: a real Codex app-server (SEISMIC_CODEX, or `codex` on the
-//     PATH; no model turn, no login needed) starts four Python heartbeats with `thread/shellCommand`
-//     (in the shell's group; in a session of its own; the same with a launcher that exits after 1.5 s;
-//     the same with a launcher that exits at once), then the session ends: through today's tracker
-//     alone, or with the app-server in a scope (scripts/linux-scope-prototype.ts) that is then killed.
-//   codex-host-death-tracker, codex-host-death-scope: the same, but the process holding the transport
-//     (Seismic's stand-in) is SIGKILLed; with a scope, a sweep then ends the scope by name.
-//   breakaway: an agent in a scope tries the ways out an unprivileged process has.
-//   nested: the caller itself in a scope, or a service, as when Seismic is started from a desktop
-//     terminal or as a user service; what ending the caller's unit does to a session's scope.
-//   kill: a scope with one sleep, ended; says whether by cgroup.kill or by systemctl (read-only cgroupfs).
-// An unrelated canary runs throughout; everything the probe started is ended at the end of each case.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import { spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -51,7 +51,7 @@ elif name == 'late':
 
 const [mode, dir, kind] = process.argv.slice(2);
 if (mode === 'driver') {
-  // Seismic's stand-in: holds the transport, ends the session the way the case says
+  
   const repo = join(dir!, 'repo');
   const codex = (process.env.SEISMIC_CODEX ?? process.env.OBEYA_CODEX) ?? Bun.which('codex');
   if (!codex) throw new Error('codex is not installed');
@@ -66,14 +66,14 @@ if (mode === 'driver') {
   if (scoped) writeFileSync(join(dir!, 'scope.json'), JSON.stringify({ unit, cgroup: unitCgroup(unit) }));
   const started = await c.request<{ thread: { id: string } }>('thread/start', { cwd: repo, approvalPolicy: 'never', sandbox: 'danger-full-access' });
   await c.request('thread/shellCommand', { threadId: started.thread.id, command: JOBS.map((j) => `python3 job.py ${j} &`).join(' ') + ' wait' });
-  await Bun.sleep(2500); // the tracker samples every 500 ms
+  await Bun.sleep(2500); 
   writeFileSync(join(dir!, 'ready'), '1');
   if (kind!.startsWith('codex-close')) {
-    // the probe looks at the jobs first
+    
     while (!existsSync(join(dir!, 'go'))) await Bun.sleep(50);
     c.close();
     await c.done.catch(() => {});
-    // what an integration would do once the transport is done: end whatever is still in the scope
+    
     if (scoped) { const { cgroup } = JSON.parse(read(join(dir!, 'scope.json'))); writeFileSync(join(dir!, 'killed'), killScope(unit, cgroup)); }
     process.exit(0);
   }
@@ -119,10 +119,10 @@ async function codexCase(kind: string) {
     }
     return result;
   } finally {
-    for (const pid of Object.values(pids)) if (pid && alive(pid) && looksLike(pid, 'job.py')) try { process.kill(pid, 'SIGKILL'); } catch { /* gone */ }
-    if (agent && alive(agent) && looksLike(agent, 'app-server')) try { process.kill(agent, 'SIGKILL'); } catch { /* gone */ }
-    if (scope) try { killScope(scope.unit, scope.cgroup); } catch { /* reported above */ }
-    try { process.kill(driver.pid!, 'SIGKILL'); } catch { /* gone */ }
+    for (const pid of Object.values(pids)) if (pid && alive(pid) && looksLike(pid, 'job.py')) try { process.kill(pid, 'SIGKILL'); } catch {  }
+    if (agent && alive(agent) && looksLike(agent, 'app-server')) try { process.kill(agent, 'SIGKILL'); } catch {  }
+    if (scope) try { killScope(scope.unit, scope.cgroup); } catch {  }
+    try { process.kill(driver.pid!, 'SIGKILL'); } catch {  }
     canary.kill('SIGKILL');
     await Bun.sleep(200);
     rmSync(dir, { recursive: true, force: true });
@@ -134,13 +134,13 @@ async function breakaway() {
   const svc = `seismic-escape-${randomUUID()}.service`;
   const escape = `seismic-escape-${randomUUID()}`;
   const canary = spawn('sleep', ['1000'], { stdio: 'ignore' });
-  // each way out writes the pid of the process that tried it
+  
   const ways: Record<string, string> = {
     'setsid double fork': `setsid sh -c 'echo $$ > ${dir}/setsid; exec sleep 1000' &`,
     'systemd-run --scope': `systemd-run --user --scope --quiet --collect sh -c 'echo $$ > ${dir}/run-scope; exec sleep 1000' &`,
-    // a service's command line is expanded by systemd ($$ would not reach the shell): its pid is read from the manager
+    
     'systemd-run service': `systemd-run --user --quiet --collect --unit=${svc} sleep 1000 && systemctl --user show -P MainPID ${svc} > ${dir}/run-service`,
-    // a cgroup of its own beside the scope, in the subtree the user owns
+    
     'cgroup mkdir and move': `sh -c 'g=/sys/fs/cgroup$(dirname $(cut -d: -f3 /proc/self/cgroup))/${escape}; mkdir $g && echo $$ > $g/cgroup.procs 2>${dir}/move-error; echo $$ > ${dir}/move; exec sleep 1000' &`,
   };
   const files: Record<string, string> = { 'setsid double fork': 'setsid', 'systemd-run --scope': 'run-scope', 'systemd-run service': 'run-service', 'cgroup mkdir and move': 'move' };
@@ -163,10 +163,10 @@ async function breakaway() {
   } finally {
     r.scope.kill();
     spawnSync('systemctl', ['--user', 'stop', svc]);
-    for (const pid of Object.values(pids)) if (pid > 1 && alive(pid) && looksLike(pid, 'sleep')) try { process.kill(pid, 'SIGKILL'); } catch { /* gone */ }
+    for (const pid of Object.values(pids)) if (pid > 1 && alive(pid) && looksLike(pid, 'sleep')) try { process.kill(pid, 'SIGKILL'); } catch {  }
     await Bun.sleep(200);
     const own = `/sys/fs/cgroup${r.scope.cgroup.replace(/\/[^/]+$/, '')}/${escape}`;
-    try { rmdirSync(own); } catch { /* never made */ }
+    try { rmdirSync(own); } catch {  }
     canary.kill('SIGKILL');
     rmSync(dir, { recursive: true, force: true });
   }
@@ -196,7 +196,7 @@ async function nested() {
         continue;
       }
       session = JSON.parse(read(join(dir, 'session.json')));
-      // a terminal closing, or `systemctl --user stop seismic`: the caller's unit ends
+      
       spawnSync('systemctl', ['--user', 'stop', outer]);
       await Bun.sleep(1000);
       out[how] = {
@@ -210,7 +210,7 @@ async function nested() {
     } finally {
       spawnSync('systemctl', ['--user', 'stop', outer]);
       host.kill('SIGKILL');
-      if (session) try { killScope(session.unit, session.cgroup); } catch { /* reported */ }
+      if (session) try { killScope(session.unit, session.cgroup); } catch {  }
       rmSync(dir, { recursive: true, force: true });
     }
   }

@@ -1,17 +1,17 @@
-// Re-voices the demos of a project's most recently approved cards in another language and shares
-// them, as was done for the 30 last Seismic demos when its demos went public in English.
-//
-//   bun scripts/revoice-demos.ts list [--project seismic] [--count 30] [--language en]
-//   bun scripts/revoice-demos.ts publish <card id>… [--project seismic]
-//
-// `list`: the latest demo video of each of the `count` most recently approved cards whose demo kept
-// its frames, newest first, with where it stands: `translate` (re-voicing asks for its words in the
-// language), `render` (translated, not yet rendered), `revoiced`, `shared`, or `as is` (narrated in
-// that language already). The re-voicing itself is the demo skill's (`node lib/revoice.ts <dir>
-// <language>`), run by an agent, which translates and checks each.
-// `publish`: for each card whose demo was re-voiced, the Seismic running on SEISMIC_HOME (else
-// ~/.seismic) reads it again (chapters, page) and shares it through its queue, like "Share"; one
-// narrated in that language already is shared as it is.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { Database } from 'bun:sqlite';
 import { existsSync, readFileSync } from 'node:fs';
@@ -38,7 +38,7 @@ if (!language || !Number.isInteger(count) || (command !== 'list' && command !== 
   process.exit(2);
 }
 
-/** How the owner's approval reads in a card's log, in either language. */
+
 const APPROVED = Object.values(MESSAGES).flatMap((m) => [m.worker.approvedMain, m.worker.approvedDirect, m.worker.approvedPr, m.worker.approvedUnchanged]);
 
 interface Row {
@@ -106,7 +106,7 @@ if (command === 'list') {
     const now = standing(r.dir, false);
     if (now !== 'revoiced' && now !== 'as is') throw new Error(`${id}: its demo is not re-voiced in ${language} (${r.dir})`);
     if (now === 'revoiced') await post(`/cards/${id}/demo-rebuilt`);
-    // one that cannot be shared (the site's credentials are not on this machine) is re-read all the same
+    
     const shared = await post(`/cards/${id}/act`, { action: 'share' }).then(
       () => 'sharing',
       (e: Error) => `not shared: ${e.message}`,

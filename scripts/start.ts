@@ -1,17 +1,17 @@
-// `bun start` of a development checkout (a directory named `…-dev`) starts its Seismic on a home and
-// a port of its own, so it runs beside the stable Seismic of another checkout (or the app) without
-// meeting its database: one home serves one Seismic (src/server/instance.ts), and a database written
-// by a newer Seismic is refused by an older one. In any other checkout the same command starts
-// Seismic as src/server/main.ts does, on ~/.seismic and port 4417, so the file can travel between
-// the two with a merge.
-//
-//   bun start [<main.ts args>]      # in a -dev checkout: home ~/.seismic-dev, port 4418
-//   bun run dev [<main.ts args>]    # the same, with hot reload (--hot, --dev)
-//
-// SEISMIC_HOME and SEISMIC_PORT (or --port) still win when set. A first start without arguments on a
-// home with no projects.json gets one with this checkout as its only project, so the code can be
-// tried at once; copy a database over (stop both first) to start from real cards. Everything else
-// is src/server/main.ts, whose header describes the arguments.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -28,14 +28,14 @@ if (import.meta.main) {
   const args = process.argv.slice(hot ? 3 : 2);
   const dev = isDevCheckout(root);
 
-  // the default homes moved from ~/.obeya(-dev) to ~/.seismic(-dev) (home-move.ts)
+  
   const explicit = process.env.SEISMIC_HOME ?? process.env.OBEYA_HOME;
   const move = explicit ? null : await (await import('../src/server/home-move')).moveDefaultHome({ dev });
   if (move?.moved) console.log((await import('../src/server/home-move')).moveNotice(move, join(homedir(), dev ? '.obeya-dev' : '.obeya')));
   const home = explicit ?? move!.home;
   const env = { ...process.env, ...(dev ? { SEISMIC_HOME: home, SEISMIC_PORT: (process.env.SEISMIC_PORT ?? process.env.OBEYA_PORT) ?? DEFAULT_PORT } : {}) };
 
-  // without arguments the projects come from the home's projects.json
+  
   (await import('../src/server/config')).adoptOldConfig(home);
   const config = join(home, 'projects.json');
   if (dev && args.length === 0 && !existsSync(config)) {
@@ -48,7 +48,7 @@ if (import.meta.main) {
     env,
     stdio: ['inherit', 'inherit', 'inherit'],
   });
-  // Ctrl-C reaches the whole foreground group already; a kill of this process must reach the server too
+  
   for (const signal of ['SIGINT', 'SIGTERM'] as const) process.on(signal, () => child.kill(signal));
   process.exit(await child.exited);
 }

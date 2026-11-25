@@ -1,22 +1,22 @@
-// The app's shell (desktop/) started from the checkout: it opens a window on the Seismic that runs on
-// the home, or starts this checkout's server (`bun src/server/main.ts`, which updates itself from
-// the checkout as `bun start` does) and stops it when the app quits. No compiled server and no
-// installer: those are scripts/build-app.ts.
-//
-//   bun run app [--debug]            builds the shell and runs it from this terminal
-//   bun run app install [--no-open]  installs it as an app of its own, "Seismic (checkout)", and opens it
-//
-// install builds the shell with this checkout, the bun that runs it and the version of desktop/ on HEAD
-// (and the commit, which the settings show) compiled in, and puts it where the system starts apps from: ~/Applications on a Mac (Spotlight,
-// Launchpad, the Dock), the applications menu on Linux (~/.local/share/seismic-checkout and a .desktop
-// file in ~/.local/share/applications), the Start menu on Windows (%LOCALAPPDATA%\Programs\Seismic
-// checkout). Started from there, it runs this checkout's server as `bun run app` does. Once desktop/ on
-// HEAD is another than it was built from, the installed shell runs `install --no-open` itself in the
-// background and starts again with the new build (desktop/src/update.rs); everything else follows HEAD
-// through the server's own self-update. --build-only builds it without installing.
-//
-// Needs Rust (rustup) and, on Linux, WebKitGTK's development files, as scripts/build-app.ts says.
-// The first build takes some minutes; it goes into desktop/target/checkout/ and is reused after that.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { spawn } from 'node:child_process';
 import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -31,7 +31,7 @@ const args = process.argv.slice(2);
 const install = args[0] === 'install';
 const debug = args.includes('--debug');
 const target = join(APP, 'target', 'checkout');
-/** What the installed app is called; its identifier keeps it apart from an installed release of Seismic (permissions, single instance). */
+
 const NAME = 'Seismic (checkout)';
 const IDENTIFIER = 'im.seismic.checkout';
 
@@ -40,7 +40,7 @@ function fail(msg: string): never {
   process.exit(1);
 }
 
-// the shell alone: the server is this checkout's, not a sidecar, and there are no resources to bundle
+
 const config: Record<string, unknown> = { bundle: { externalBin: null, resources: null } };
 const env: Record<string, string | undefined> = { ...process.env, PATH: cargoPath(), CARGO_TARGET_DIR: target, CI: 'true' };
 if (install) {
@@ -50,17 +50,17 @@ if (install) {
   };
   Object.assign(config, { identifier: IDENTIFIER });
   Object.assign(env, {
-    // compiled in (option_env! in desktop/src/main.rs and update.rs): started from the desktop, the shell gets no environment of ours
+    
     SEISMIC_BUILT_CHECKOUT: ROOT,
-    // the one the installed shell names when it builds itself anew (started from the desktop, its PATH
-    // has none), else the PATH's (Homebrew's link, say) rather than the binary it points at, which an upgrade removes
+    
+    
     SEISMIC_BUILT_BUN: (process.env.SEISMIC_BUN ?? process.env.OBEYA_BUN) || Bun.which('bun') || process.execPath,
     SEISMIC_BUILT_TREE: git('rev-parse', 'HEAD:desktop'),
-    // for the settings, which show it
+    
     SEISMIC_BUILT_COMMIT: git('rev-parse', 'HEAD'),
   });
 }
-// on a Mac an app bundle (Info.plist, icon, the system's permissions for it); elsewhere the program is all there is
+
 const bundle = install && process.platform === 'darwin' ? ['--bundles', 'app'] : ['--no-bundle'];
 const build = Bun.spawnSync([process.execPath, 'x', 'tauri', 'build', ...bundle, '--config', JSON.stringify(config), ...(debug ? ['--debug'] : [])], {
   cwd: APP,
@@ -135,6 +135,6 @@ if (process.platform === 'darwin') {
 }
 
 if (!args.includes('--no-open')) {
-  // on its own, not as a child of this script, which ends now
+  
   spawn(start[0]!, start.slice(1), { detached: true, stdio: 'ignore' }).unref();
 }

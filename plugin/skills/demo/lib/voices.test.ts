@@ -23,7 +23,7 @@ describe('voices', () => {
   test("a Qwen3 speaker the model lacks is named as such, not as a voice to install", () => {
     expect(voiceProblem({ language: 'en', voice: 'qwen3', voiceName: 'Kai' })).toContain('no speaker "Kai"');
     expect(voiceProblem({ language: 'en', voice: 'qwen3', voiceName: 'Ono_Anna' })).toBeUndefined();
-    // a clone needs no speaker, and Piper's voices are files to download
+    
     expect(voiceProblem({ language: 'en', voice: 'qwen3', voiceName: 'Kai', references: { en: '/me.wav' } })).toBeUndefined();
     expect(voiceProblem({ language: 'en', voice: 'piper', voiceName: 'Kai' })).toBeUndefined();
     expect(voiceSpec({ language: 'en', voice: 'qwen3', voiceName: 'Ryan' }, home)).toMatchObject({ host: { speaker: 'ryan' } });
@@ -62,7 +62,7 @@ describe('voices', () => {
     expect(installState({ language: 'en', voice: 'qwen3', voiceName: 'ryan' }, home).missing).toHaveLength(2);
     writeFileSync(join(snapshot, 'model.safetensors'), '');
     expect(installState({ language: 'en', voice: 'qwen3', voiceName: 'ryan' }, home).missing).toEqual([onMlx() ? 'Qwen3-TTS (MLX)' : 'Qwen3-TTS (PyTorch)']);
-    // an environment from before Qwen3 heard its sentences back lacks the speech recognition
+    
     const tts = onMlx() ? 'mlx-audio' : 'qwen-tts';
     mkdirSync(join(home, 'voices', 'qwen3', 'env'), { recursive: true });
     writeFileSync(join(home, 'voices', 'qwen3', 'env', '.seismic-installed'), `${tts}\n`);
@@ -77,7 +77,7 @@ describe('voices', () => {
     expect(readFileSync(clip.replace(/\.wav$/, '.txt'), 'utf8').trim()).not.toBe('');
     for (const s of [{ language: 'en', voice: 'qwen3' }, { language: 'en', voice: 'qwen3', voiceName: 'Founder', style: 'Cheerful.' }] as const) {
       const spec = voiceSpec(s, home);
-      // Seismic holds it by name and clones its own copy of the clip, wherever the render runs
+      
       expect(spec).toMatchObject({ kind: 'command', host: { speaker: 'founder' } });
       if (spec.kind !== 'command' || !spec.host) throw new Error('Founder is not held');
       expect(spec.host).toEqual({ speaker: 'founder' });
@@ -87,7 +87,7 @@ describe('voices', () => {
       expect(spec.kind === 'command' && spec.argv).toContain(onMlx() ? 'mlx-community/Qwen3-TTS-12Hz-1.7B-Base-bf16' : 'Qwen/Qwen3-TTS-12Hz-1.7B-Base');
       expect(voiceProblem(s)).toBeUndefined();
     }
-    // the owner's own clip for the language comes first
+    
     expect(voiceSpec({ language: 'en', voice: 'qwen3', references: { en: '/x/me.wav' } }, home)).toMatchObject({ host: { reference: '/x/me.wav' } });
   });
 
@@ -95,10 +95,10 @@ describe('voices', () => {
     for (const s of [{ language: 'en', voice: 'qwen3', voiceName: 'ryan' }, { language: 'en', voice: 'qwen3', references: { en: '/x/me.wav' } }] as const) {
       const spec = voiceSpec(s, home);
       if (spec.kind !== 'command' || !spec.argv || !spec.serve) throw new Error('Qwen3-TTS has no serve command');
-      // the same voice, model and language as one clip, just without a WAV of its own
+      
       expect(spec.serve).toEqual([...spec.argv.slice(0, -2), '--serve']);
       expect(spec.argv.slice(-2)).toEqual(['--out', '{out}']);
-      // what Seismic runs to hold it across renders is the same command
+      
       expect(spec.host).toEqual('references' in s ? { reference: '/x/me.wav' } : { speaker: 'ryan', style: DEFAULT_STYLE });
       expect(qwen3Serve(spec.host!, s.language, home)).toEqual(spec.serve);
     }
@@ -109,11 +109,11 @@ describe('voices', () => {
 
   test('a stock speaker and the services that take instructions speak in the style of the settings, a clone does not', () => {
     const stock = voiceSpec({ language: 'en', voice: 'qwen3', voiceName: 'ryan' }, home);
-    // one argument with its value, so a style that starts with a dash stays a value
+    
     expect(stock.kind === 'command' && stock.argv).toContain(`--instruct=${DEFAULT_STYLE}`);
     const own = voiceSpec({ language: 'en', voice: 'qwen3', voiceName: 'ryan', style: 'Cheerful.' }, home);
     expect(own.kind === 'command' && own.argv).toContain('--instruct=Cheerful.');
-    // another style is another voice for the clip cache
+    
     expect(own.kind === 'command' && stock.kind === 'command' && own.tag !== stock.tag).toBe(true);
     const clone = voiceSpec({ language: 'en', voice: 'qwen3', style: 'Cheerful.', references: { en: '/x/me.wav' } }, home);
     expect(clone.kind === 'command' && clone.argv?.some((a) => a.startsWith('--instruct'))).toBe(false);

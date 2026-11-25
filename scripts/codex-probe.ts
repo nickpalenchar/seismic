@@ -1,6 +1,6 @@
-// Native Codex spike, deliberately independent of main.ts and the owner's running Seismic.
-// bun scripts/codex-probe.ts [model] — uses the installed Codex login and bills model turns.
-// Keeps its scratch directory (printed at startup) for inspection; never commits or uses ~/.seismic.
+
+
+
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';

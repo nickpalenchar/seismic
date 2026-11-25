@@ -1,15 +1,15 @@
-// The equality check of a change to the data layer: reads every project of a database as the code of two commits sees it, each on a copy of
-// its own, and says where they differ.
-//   bun scripts/item-snapshot.ts [db] [--before <commit>] [--after <commit>] [--out <dir>]
-// `db` defaults to ~/.seismic/seismic.db, which is only read (through SQLite's own snapshot, as a
-// running Seismic writes to it); `--before` to `main`, `--after` to this checkout as it is. Each
-// side runs in a checkout of its own (a detached worktree for a commit) on its own copy of one snapshot of the database,
-// and writes what it read to `<out>/<side>.json`: each project's snapshot (the cards as the UI gets
-// them, its groups, canvases, chat and preferences), its archive, every card's history and agent
-// runs, and the Koordinator's reads (its talk, the timeline, what the owner said, decisions, the
-// Activity log, feedback), plus the project export. No agent runs and no repository is touched:
-// the plan docs are the ones the database kept on its plan cards.
-// Exits 1 when the two differ, naming the first differences.
+
+
+
+
+
+
+
+
+
+
+
+
 
 import { Database } from 'bun:sqlite';
 import { spawnSync } from 'node:child_process';
@@ -47,7 +47,7 @@ function checkout(commit: string | undefined): string {
   return dir;
 }
 
-// one snapshot of the database for both sides: a running Seismic writing between two would show as a difference of the code
+
 const snapshot = join(out, 'source.db');
 rmSync(snapshot, { force: true });
 const source = new Database(db, { readonly: true });
@@ -95,7 +95,7 @@ function regrouped(value: unknown): unknown {
     return Object.fromEntries(Object.entries(o).map(([k, x]) => [k, walk(x, visit)]));
   };
   const isRow = (o: Record<string, unknown>) => typeof o.id === 'string' && 'project_id' in o && 'paused' in o && !('hold' in o);
-  // the stored cards first, whose pause at a safe point keeps its time
+  
   walk(value, (o) => (isRow(o) && rows.set(o.id as string, o), o));
   const json = (x: unknown) => (typeof x === 'string' ? JSON.parse(x) : (x ?? null));
   const storedHold = (r: Record<string, unknown>) => {
@@ -157,11 +157,11 @@ function grouped(value: unknown): unknown {
     labels: { priority: 'priority', category: 'category', subcategory: 'subcategory', complexity: 'complexity', suggested: 'suggested' },
   };
   const flat = new Set(Object.values(PARTS).flatMap((p) => Object.keys(p)));
-  // what every card as the UI gets it has, and a stored row has not
+  
   const isItem = (o: Record<string, unknown>) => typeof o.id === 'string' && typeof o.kind === 'string' && 'source' in o && 'x' in o && !('project_id' in o);
   const regroup = (o: Record<string, unknown>): Record<string, unknown> => {
-    // `idea` and `demo` name parts now too: flat, they were an idea under discussion and a demo;
-    // a plan with nothing else of a part has the same shape either way, its doc's path and goal
+    
+    
     const was = (k: string, has: string) => !!o[k] && typeof o[k] === 'object' && has in (o[k] as object);
     if (![...flat].some((k) => k !== 'idea' && k !== 'demo' && k in o) && !was('idea', 'status') && !was('demo', 'kind')) return o;
     const plan = o.plan as { file: string; goal: string } | undefined;
@@ -215,24 +215,24 @@ function settled(value: unknown, start: number): unknown {
 /** Runs in the checkout `code`: reads every project of the database at `path` and writes it to `file`. */
 async function inner(code: string, path: string, file: string) {
   const start = Date.now();
-  // The store moved out of db.ts into store.ts with its models (W3); the board stayed.
+  
   const { Store } = existsSync(join(code, 'src/server/store.ts')) ? await import(join(code, 'src/server/store.ts')) : await import(join(code, 'src/server/db.ts'));
   const { Board } = await import(join(code, 'src/server/board.ts'));
   const { projectData } = await import(join(code, 'src/server/data-export.ts'));
   const store = new Store(path);
   const models = typeof store.cards === 'object';
-  // each read under its name before the models, and its model's
+  
   const read = (old: string, model: string, ...a: unknown[]) => {
     if (!models) return store[old](...a);
     const [m, f] = model.split('.') as [string, string | undefined];
     return f ? store[m][f](...a) : store[m](...a);
   };
   const projects = store.db.query('SELECT id, name FROM projects ORDER BY id').all() as { id: string; name: string }[];
-  // a plan card's doc, in its plan part where the code has that table (W7)
+  
   const DOCS = store.db.query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'card_plans'").get()
     ? "SELECT p.doc AS plan FROM cards c JOIN card_plans p ON p.card_id = c.id WHERE c.project_id = $p AND c.kind = 'plan' AND c.deleted_at IS NULL AND c.archived_at IS NULL AND p.doc IS NOT NULL ORDER BY c.rowid"
     : "SELECT plan FROM cards WHERE project_id = $p AND kind = 'plan' AND deleted_at IS NULL AND archived_at IS NULL AND plan IS NOT NULL ORDER BY rowid";
-  // the projects under a key of their own, so none can share its id with what spans them
+  
   const result: { projects: Record<string, unknown>; [k: string]: unknown } = { projects: {} };
   for (const p of projects) {
     const home = read('setting', 'settings.get', p.id, 'home_repo') ?? 'home';

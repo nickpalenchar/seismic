@@ -8,11 +8,14 @@ function gitPaths(args: string[]): string[] {
 
 const args = process.argv.slice(2);
 const all = args.includes('--all');
-const oxlintArgs = args.filter((arg) => arg !== '--all');
+const staged = args.includes('--staged');
+const oxlintArgs = args.filter((arg) => arg !== '--all' && arg !== '--staged');
 const paths = all ? ['.'] : [...new Set([
-  ...gitPaths(['diff', '--name-only', '-z', '--diff-filter=ACMRT', '--']),
   ...gitPaths(['diff', '--cached', '--name-only', '-z', '--diff-filter=ACMRT', '--']),
-  ...gitPaths(['ls-files', '--others', '--exclude-standard', '-z']),
+  ...(staged ? [] : [
+    ...gitPaths(['diff', '--name-only', '-z', '--diff-filter=ACMRT', '--']),
+    ...gitPaths(['ls-files', '--others', '--exclude-standard', '-z']),
+  ]),
 ])].filter((path) => /\.(?:[cm]?[jt]s|[jt]sx)$/.test(path) && existsSync(path))
   .map((path) => `./${path}`);
 

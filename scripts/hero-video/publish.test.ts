@@ -3,16 +3,16 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-// publish.ts in a checkout whose origin is a fork, against a fake gh on PATH that logs each call
-// with the token and repository it got, and the first line of the files it was handed, so no release or workflow on
-// GitHub is touched
+
+
+
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hero-publish-test-'));
 afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
 const checkout = path.join(dir, 'checkout');
 fs.mkdirSync(path.join(checkout, 'scripts', 'hero-video'), { recursive: true });
 fs.copyFileSync(path.join(import.meta.dirname, '..', 'gh.ts'), path.join(checkout, 'scripts', 'gh.ts'));
 fs.copyFileSync(path.join(import.meta.dirname, 'publish.ts'), path.join(checkout, 'scripts', 'hero-video', 'publish.ts'));
-// the machinery is tested as it would come back with the site; the repository's own copy stays paused
+
 fs.writeFileSync(path.join(checkout, 'scripts', 'distribution.ts'),
   fs.readFileSync(path.join(import.meta.dirname, '..', 'distribution.ts'), 'utf8').replace('SITE = false', 'SITE = true'));
 Bun.spawnSync(['git', 'init', '-q', checkout]);
@@ -34,12 +34,12 @@ case "$1 $2" in
   "release view") exit $FAKE_RELEASE_MISSING;;
 esac
 `, { mode: 0o755 });
-// ffmpeg cuts the README's loop from the video into the file it is given last
+
 fs.writeFileSync(path.join(bin, 'ffmpeg'), `#!/bin/sh
 for a in "$@"; do last="$a"; case "$a" in -ss|-to) next=1;; *) [ -n "$next" ] && echo "ffmpeg $prev $a" >> "${log}"; next=;; esac; prev="$a"; done
 echo "loop" > "$last"
 `, { mode: 0o755 });
-// uv runs poster.py, which takes the poster from the video
+
 fs.writeFileSync(path.join(bin, 'uv'), `#!/bin/sh
 echo "uv $*" >> "${log}"
 `, { mode: 0o755 });
@@ -71,7 +71,7 @@ test.skipIf(process.platform === 'win32')('replaces the assets of the release, t
 test.skipIf(process.platform === 'win32')('creates the release when it is missing', () => {
   const calls = publish(true);
   expect(calls[4]).toStartWith('[token-of-alice] [alice/seismic] release create site-media hero.mp4 hero.vtt hero.chapters.vtt hero.loop.gif --title Site media');
-  // a pre-release, so that it never becomes the latest release, whose installers the README links
+  
   expect(calls[4]).toEndWith('--prerelease --latest=false');
   expect(calls.at(-1)).toBe('[token-of-alice] [alice/seismic] workflow run pages.yml');
 });
