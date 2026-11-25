@@ -74,6 +74,11 @@ pub fn health(origin: &str) -> Health {
   };
   let status = res.status();
   let body = matches!(status, 200 | 401).then(|| response_json(res, HEALTH_LIMIT)).flatten();
+  // A Seismic health reply that reports a non-OK state must not be overridden by
+  // a successful projects response from the same origin.
+  if status == 200 && body.as_ref().is_some_and(|b| b["service"].as_str() == Some("seismic")) {
+    return judge(status, body.as_ref());
+  }
   match judge(status, body.as_ref()) {
     Health::Seismic => Health::Seismic,
     _ => earlier_health(origin),
@@ -97,7 +102,7 @@ fn earlier_health(origin: &str) -> Health {
 
 fn judge(status: u16, body: Option<&Value>) -> Health {
   match (status, body) {
-    (200, Some(b)) if b["service"].as_str() == Some("seismic") => Health::Seismic,
+    (200, Some(b)) if b["service"].as_str() == Some("seismic") && b["status"].as_str() == Some("ok") => Health::Seismic,
     (401, Some(b)) if b["code"].as_str() == Some("notPaired") => Health::Seismic,
     _ => Health::NotSeismic,
   }
@@ -149,17 +154,47 @@ fn paired(origin: &str, status: u16, body: Option<&Value>) -> Result<Url, &'stat
 mod tests {
   use super::*;
   use serde_json::json;
-  use std::{io::{self, BufRead, BufReader, Write}, net::TcpListener};
+  use std::{io::{self, BufRead, BufReader, Write}, net::TcpListener, ops::Deref, sync::mpsc, thread::JoinHandle};
+
+  struct TestServer {
+    origin: String,
+    shutdown: mpsc::Sender<()>,
+    thread: Option<JoinHandle<()>>,
+  }
+
+  impl Deref for TestServer {
+    type Target = str;
+    fn deref(&self) -> &str { &self.origin }
+  }
+
+  impl Drop for TestServer {
+    fn drop(&mut self) {
+      let _ = self.shutdown.send(());
+      self.thread.take().unwrap().join().unwrap();
+    }
+  }
 
   /// A server answering each path it is given with its status line (and headers) and body, as long
   /// as the test runs; any other path gets a plain 404, as Bun's does for an unknown route.
-  fn serve(routes: Vec<(&str, &str, String)>) -> String {
+  fn serve(routes: Vec<(&str, &str, String)>) -> TestServer {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
     let origin = format!("http://{}", listener.local_addr().unwrap());
     let routes: Vec<(String, String, String)> = routes.into_iter().map(|(p, h, b)| (p.into(), h.into(), b.replace("{origin}", &origin))).collect();
-    std::thread::spawn(move || {
-      for stream in listener.incoming() {
-        let Ok(stream) = stream else { return };
+    let (shutdown, stopped) = mpsc::channel();
+    let thread = std::thread::spawn(move || {
+      loop {
+        let stream = match listener.accept() {
+          Ok((stream, _)) => stream,
+          Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+            match stopped.recv_timeout(Duration::from_millis(10)) {
+              Ok(()) | Err(mpsc::RecvTimeoutError::Disconnected) => break,
+              Err(mpsc::RecvTimeoutError::Timeout) => continue,
+            }
+          }
+          Err(error) => panic!("test server accept failed: {error}"),
+        };
+        stream.set_nonblocking(false).unwrap();
         let mut stream = BufReader::new(stream);
         let mut line = String::new();
         if stream.read_line(&mut line).is_err() {
@@ -188,7 +223,7 @@ mod tests {
         let _ = write!(stream.get_mut(), "HTTP/1.1 {header}\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n{:x}\r\n{body}\r\n0\r\n\r\n", body.len());
       }
     });
-    origin
+    TestServer { origin, shutdown, thread: Some(thread) }
   }
 
   const HEALTHY: &str = r#"{"service":"seismic","status":"ok"}"#;
@@ -215,6 +250,27 @@ mod tests {
     let studio = serve(vec![("/api/v1/health", "200 OK", HEALTHY.into()), ("/api/projects", "200 OK\r\nX-Seismic: projects", many_projects())]);
     assert_eq!(health(&studio), Health::Seismic);
     assert_eq!(health(&studio), Health::Seismic);
+  }
+
+  #[test]
+  fn a_reported_unhealthy_state_cannot_be_overridden_by_projects_or_pairing() {
+    for body in [r#"{"service":"seismic"}"#, r#"{"service":"seismic","status":"down"}"#] {
+      let studio = serve(vec![
+        ("/api/v1/health", "200 OK", body.into()),
+        ("/api/projects", "200 OK\r\nX-Seismic: projects", "[]".into()),
+        ("/api/pair", "200 OK", r#"{"url":"{origin}/pair?token=abc"}"#.into()),
+      ]);
+      assert_eq!(health(&studio), Health::NotSeismic);
+      assert_eq!(pair(&studio, "123456"), Err("notSeismic"));
+    }
+  }
+
+  #[test]
+  fn the_test_server_releases_its_listener_on_drop() {
+    let studio = serve(vec![]);
+    let address = studio.origin.trim_start_matches("http://").to_string();
+    drop(studio);
+    assert!(TcpListener::bind(address).is_ok());
   }
 
   #[test]
@@ -278,6 +334,8 @@ mod tests {
   #[test]
   fn seismic_answers_with_its_name_or_its_refusal() {
     assert_eq!(judge(200, Some(&json!({ "service": "seismic", "status": "ok" }))), Health::Seismic);
+    assert_eq!(judge(200, Some(&json!({ "service": "seismic" }))), Health::NotSeismic);
+    assert_eq!(judge(200, Some(&json!({ "service": "seismic", "status": "down" }))), Health::NotSeismic);
     assert_eq!(judge(401, Some(&json!({ "code": "notPaired" }))), Health::Seismic);
     assert_eq!(judge(200, Some(&json!([]))), Health::NotSeismic);
     assert_eq!(judge(200, None), Health::NotSeismic);

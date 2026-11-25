@@ -451,10 +451,12 @@ Safety rules:
   server for a sign-in link, since the shell keeps the port while that server stops (2026-11-24).
 - Desktop workspace health checks carry no device cookie. The shell asks `GET /api/v1/health`,
   a fixed answer (`{ service: "seismic", status: "ok" }`) whose size does not grow with the
-  workspace, and reads at most 4 KiB of it. It recognizes that answer and Seismic's
-  `401 notPaired` response. A Seismic from before that route does not know it: it answers a 404,
-  or to a device it does not know its HTML "Not connected" page with a 401. On any answer that does
-  not confirm Seismic, the shell asks `/api/projects` and accepts a JSON 200 marked `X-Seismic: projects`
+  workspace, and reads at most 4 KiB of it. It recognizes that answer only with `status: "ok"`,
+  and Seismic's `401 notPaired` response. A Seismic health reply reporting any other status stays
+  unhealthy, even if its projects route answers. A Seismic from before that route does not know it:
+  it answers a 404,
+  or to a device it does not know its HTML "Not connected" page with a 401. On another unconfirmed
+  answer, the shell asks `/api/projects` and accepts a JSON 200 marked `X-Seismic: projects`
   without reading the list, or `401 notPaired`. Any other answer, a generic JSON response included, cannot authorize opening a
   workspace. The local server checks (`instance.ts`, the shell's local `answers()`) stay on
   `/api/projects`, since during an update the old server may not have the route (2026-11-24).
