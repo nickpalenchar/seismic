@@ -6,7 +6,9 @@
 // - Only the window's main frame at its own effective origin reaches the shell: wry's postMessage
 //   IPC is gated on macOS (vendor/README.md) and unregistered on Linux, where wry names a call by
 //   the page the webview shows, not the frame that sent it; the fetch IPC that stays names its
-//   sender by the `Origin` header there.
+//   sender by the `Origin` header there. As Tauri's script falls back to postMessage for the rest
+//   of a document once one fetch failed, on Linux a failed fetch fails that call alone
+//   (linux_ipc.js).
 // - The microphone goes to the window's own origin alone (microphone/).
 
 pub mod drafts;
@@ -366,6 +368,7 @@ pub fn build(app: &AppHandle, label: &str, own: Own, placed: Option<&Placed>, ha
       handed_over
     ))
     .initialization_script(include_str!("controls.js"))
+    .initialization_script(if cfg!(target_os = "linux") { include_str!("linux_ipc.js") } else { "" })
     .on_navigation(move |url| match decide_navigation(&navigation, &handoff, url, Instant::now()) {
       Navigation::Allow => true,
       Navigation::OpenInBrowser => {
