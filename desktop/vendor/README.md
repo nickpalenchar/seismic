@@ -24,14 +24,18 @@ current provisional navigation, WebKitGTK reports a provisional policy
 interruption, or WebView2 reports cancellation of the current navigation ID.
 
 Moving to a newer wry: copy its crate from `~/.cargo/registry/src/*/wry-<version>/` (src, build.rs,
-the licenses, Cargo.toml without its `[[example]]` tables), then reapply these changes. On macOS,
-build the actual desktop bundle from the repository root and run its workspace check:
+the licenses, Cargo.toml without its `[[example]]` tables), then reapply these changes.
+
+## Verify the desktop bundle
+
+On macOS, build the actual desktop bundle from the repository root and run its workspace check:
 
 ```sh
 (cd desktop && bun x tauri build --debug --bundles app --config '{"identifier":"im.seismic.desks-check","bundle":{"externalBin":null,"resources":null}}')
 bun scripts/check-app-desks.ts desktop/target/debug/bundle/macos/Seismic.app/Contents/MacOS/seismic
 ```
 
-The IPC check sends inert malformed messages from the main page, a same-origin frame and an opaque
+The check exercises workspace navigation in the shipping shell. Its IPC probe sends inert
+malformed messages from the main page, a same-origin frame and an opaque
 sandboxed frame. Both frames must report that they sent a message, while Tauri's decoder must see
 only the main page's message. The separate Webview spike compares engines using its own build.

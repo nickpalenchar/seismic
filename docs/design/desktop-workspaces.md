@@ -45,9 +45,13 @@ since *workspace* has also named projects and the Koordinator's workstation pool
 - Create the blank webview on the UI thread and install native guards before loading the first
   workspace document. WebView2's controller is thread-bound and WebKitGTK's media policy needs
   to see the first commit.
-- The workspace view admits its origin and the bundled status page. Off-origin browser handoffs
-  and popups share a rate limit because the navigation hook supplies a URL without identifying
-  whether a frame requested it.
+- A local view admits the local server's origin and the bundled startup page (`/` or
+  `/index.html`). A remote view admits its own origin and the exact bundled `/status.html`
+  URL with no query or fragment.
+- A remote view shares one browser handoff rate limit across off-origin navigations and popups.
+  The navigation hook supplies a URL without identifying whether a frame requested it. Local
+  popups use a separate browser handoff that signs same-origin links into the local server
+  and opens other eligible links directly.
 
 ### Webview engine constraints
 
@@ -73,9 +77,11 @@ since *workspace* has also named projects and the Koordinator's workstation pool
 - **Cross-engine checks.** The Webview spike exercises login cookies across navigation and
   relaunch, navigation and redirect policy, and effective-origin IPC on all three engines.
   Exercise both HTTP and HTTPS, including a granted top page and an opaque frame whose document
-  URL matches it. The installed Windows and Linux builds also exercise workspace switching and
-  recovery. Windows lacks SIGSTOP for the paused-local-server check, and the Linux container uses
-  `lsof` for that check. On macOS use a bundled app to check pairing cookies across relaunch.
+  URL matches it. Verify navigation and IPC again with the Tauri and wry versions the desktop
+  shell ships. The [bundled-app workspace check](../../desktop/vendor/README.md#verify-the-desktop-bundle)
+  exercises the shipping guards and checks pairing cookies across relaunch on macOS. The
+  installed Windows and Linux builds also exercise workspace switching and recovery. Windows
+  lacks SIGSTOP for the paused-local-server check, and the Linux container uses `lsof` for that check.
   Keep the Linux package build on the Bun version used by CI. An older compiler can omit a
   dynamically imported UI chunk and leave the window blank.
 
@@ -89,6 +95,9 @@ since *workspace* has also named projects and the Koordinator's workstation pool
   returns `401 wrongCode`. Expired or used codes return `410 codeExpired`, invalid input returns
   `400`, and attempting to pair this machine returns `409 onThisMachine`. The link must name a
   plain `host[:port]` that serves Seismic as a whole.
+- Before opening the link, the shell separately checks that its URL uses HTTP or HTTPS and
+  that its scheme, host and port match the selected workspace's canonical origin. This holds
+  for a new workspace and for pairing an existing entry again, including a move to a new address.
 - Redeeming the code spends it immediately. **Connect a phone** shows that the desktop app
   claimed it while the link is valid, even past the code's deadline. Opening the link enrolls the
   device with the webview's cookie and name. For up to a day after use, the link still admits a
@@ -230,7 +239,9 @@ since *workspace* has also named projects and the Koordinator's workstation pool
   An update that cannot confirm receipt keeps the window alive and resumes the local server.
   Failed snapshot preparation retains a downloaded release and the pending checkout rebuild.
   Automatic retries test that a snapshot can be saved before asking the server to stop again.
-- The restored window uses its saved focus and placement. Native show and fullscreen calls
-  can activate it, so a window saved in the background postpones fullscreen until focused.
+- The restored window uses its saved focus and placement. Present a visible window saved
+  without focus in the background, without activating it. Ordinary native show calls can take
+  focus even for a window that is not fullscreen. If that window was fullscreen, wait for it
+  to gain focus before restoring fullscreen.
 
 See the [desktop workspaces guide](../site/workspaces.md) for the user flows.
