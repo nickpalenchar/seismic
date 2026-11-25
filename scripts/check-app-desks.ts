@@ -1283,79 +1283,6 @@ async function checkApp() {
       page.resolve();
     }
   });
-  await check('a delayed cache refresh leaves a newer main-document navigation in flight', async () => {
-    await select('local', 'local');
-    const current = new URL(String((await select(id, 'remote')).href));
-    const maintenance = new URL('/maintenance', current);
-    const newer = new URL(current);
-    newer.searchParams.set('view', current.searchParams.get('view') === 'table' ? 'canvas' : 'table');
-    const refreshing = Promise.withResolvers<void>(), refresh = Promise.withResolvers<void>();
-    const navigating = Promise.withResolvers<void>(), page = Promise.withResolvers<void>();
-    try {
-      placeholder = { redirect: true, hideTiming: false };
-      holdCacheRefresh = {
-        route: current.pathname + current.search,
-        wait: () => { refreshing.resolve(); return refresh.promise; },
-      };
-      const before = reports.length;
-      send('check_eval', { js: `location.replace(${JSON.stringify(new URL('/__seismic-check-maintenance', current).href)})` });
-      await until('the maintenance document', 10_000, () =>
-        reports.slice(before).find((r) => r.href === maintenance.href && r.mounted === false));
-      await Promise.race([refreshing.promise, sleep(5000).then(() => { throw new Error('no cache refresh to hold'); })]);
-
-      placeholder = undefined;
-      nextPage = () => { navigating.resolve(); return page.promise; };
-      const moved = reports.length;
-      send('check_eval', { js: `location.replace(${JSON.stringify(newer.href)})` });
-      await Promise.race([navigating.promise, sleep(5000).then(() => { throw new Error('no newer navigation to hold'); })]);
-      refresh.resolve();
-      await sleep(1200);
-      expect(!reports.slice(moved).some((r) => ['remote', 'status'].includes(String(r.kind))), 'the delayed refresh interrupted the newer navigation');
-      page.resolve();
-      const remote = await report('remote', moved, 15_000);
-      expect(remote.href === newer.href && remote.mounted === true && (await desks()).problem === null, JSON.stringify(remote));
-      await run('check_eval', { js: `history.replaceState(null, '', ${JSON.stringify(current.href)})` });
-      return 'the newer page opened after the old refresh completed';
-    } finally {
-      holdCacheRefresh = undefined;
-      placeholder = undefined;
-      nextPage = undefined;
-      refresh.resolve();
-      page.resolve();
-    }
-  });
-  await check('an embedded HTML preview leaves the top-level workspace open during a health failure', async () => {
-    const before = reports.length;
-    // Let the verification of the workspace above finish before making health fail.
-    await sleep(800);
-    const rejected = rejectedHealthChecks;
-    try {
-      rejectHealth = true;
-      const loaded = await run('check_eval', { js: `new Promise(resolve => {
-        const frame = document.createElement('iframe');
-        frame.id = 'check-html-preview';
-        frame.sandbox = 'allow-scripts';
-        frame.src = ${JSON.stringify(previewPath)};
-        const received = event => {
-          if (event.source !== frame.contentWindow) return;
-          removeEventListener('message', received);
-          resolve(event.data);
-        };
-        addEventListener('message', received);
-        document.body.append(frame);
-      })` });
-      expect(loaded.value === 'Release notes', JSON.stringify(loaded));
-      await sleep(16_000);
-      expect(!reports.slice(before).some((r) => r.kind === 'status'), 'opening a preview sent the workspace to recovery');
-      expect(rejectedHealthChecks === rejected, 'the preview started a workspace health check');
-      const live = await run('check_eval', { js: "!!document.querySelector('#check-html-preview')" });
-      expect(live.value === true && (await desks()).problem === null, JSON.stringify(live));
-      return 'preview contents and workspace stayed available';
-    } finally {
-      rejectHealth = false;
-      if (displayed()?.kind === 'remote') send('check_eval', { js: "document.querySelector('#check-html-preview')?.remove()" });
-    }
-  });
   await check("a signed-out workspace keeps its pairing form in the window", async () => {
     await select('local', 'local');
     signedOut = true;
@@ -1661,6 +1588,79 @@ async function checkApp() {
       proxy.server ??= startProxy();
     }
     await reconnect();
+  });
+  await check('a delayed cache refresh leaves a newer main-document navigation in flight', async () => {
+    await select('local', 'local');
+    const current = new URL(String((await select(id, 'remote')).href));
+    const maintenance = new URL('/maintenance', current);
+    const newer = new URL(current);
+    newer.searchParams.set('view', current.searchParams.get('view') === 'table' ? 'canvas' : 'table');
+    const refreshing = Promise.withResolvers<void>(), refresh = Promise.withResolvers<void>();
+    const navigating = Promise.withResolvers<void>(), page = Promise.withResolvers<void>();
+    try {
+      placeholder = { redirect: true, hideTiming: false };
+      holdCacheRefresh = {
+        route: current.pathname + current.search,
+        wait: () => { refreshing.resolve(); return refresh.promise; },
+      };
+      const before = reports.length;
+      send('check_eval', { js: `location.replace(${JSON.stringify(new URL('/__seismic-check-maintenance', current).href)})` });
+      await until('the maintenance document', 10_000, () =>
+        reports.slice(before).find((r) => r.href === maintenance.href && r.mounted === false));
+      await Promise.race([refreshing.promise, sleep(5000).then(() => { throw new Error('no cache refresh to hold'); })]);
+
+      placeholder = undefined;
+      nextPage = () => { navigating.resolve(); return page.promise; };
+      const moved = reports.length;
+      send('check_eval', { js: `location.replace(${JSON.stringify(newer.href)})` });
+      await Promise.race([navigating.promise, sleep(5000).then(() => { throw new Error('no newer navigation to hold'); })]);
+      refresh.resolve();
+      await sleep(1200);
+      expect(!reports.slice(moved).some((r) => ['remote', 'status'].includes(String(r.kind))), 'the delayed refresh interrupted the newer navigation');
+      page.resolve();
+      const remote = await report('remote', moved, 15_000);
+      expect(remote.href === newer.href && remote.mounted === true && (await desks()).problem === null, JSON.stringify(remote));
+      await run('check_eval', { js: `history.replaceState(null, '', ${JSON.stringify(current.href)})` });
+      return 'the newer page opened after the old refresh completed';
+    } finally {
+      holdCacheRefresh = undefined;
+      placeholder = undefined;
+      nextPage = undefined;
+      refresh.resolve();
+      page.resolve();
+    }
+  });
+  await check('an embedded HTML preview leaves the top-level workspace open during a health failure', async () => {
+    const before = reports.length;
+    // Let the verification of the workspace above finish before making health fail.
+    await sleep(800);
+    const rejected = rejectedHealthChecks;
+    try {
+      rejectHealth = true;
+      const loaded = await run('check_eval', { js: `new Promise(resolve => {
+        const frame = document.createElement('iframe');
+        frame.id = 'check-html-preview';
+        frame.sandbox = 'allow-scripts';
+        frame.src = ${JSON.stringify(previewPath)};
+        const received = event => {
+          if (event.source !== frame.contentWindow) return;
+          removeEventListener('message', received);
+          resolve(event.data);
+        };
+        addEventListener('message', received);
+        document.body.append(frame);
+      })` });
+      expect(loaded.value === 'Release notes', JSON.stringify(loaded));
+      await sleep(16_000);
+      expect(!reports.slice(before).some((r) => r.kind === 'status'), 'opening a preview sent the workspace to recovery');
+      expect(rejectedHealthChecks === rejected, 'the preview started a workspace health check');
+      const live = await run('check_eval', { js: "!!document.querySelector('#check-html-preview')" });
+      expect(live.value === true && (await desks()).problem === null, JSON.stringify(live));
+      return 'preview contents and workspace stayed available';
+    } finally {
+      rejectHealth = false;
+      if (displayed()?.kind === 'remote') send('check_eval', { js: "document.querySelector('#check-html-preview')?.remove()" });
+    }
   });
   await check('a stalled reload gets its own timeout while the previous check is pending', async () => {
     // Establish a new document with a fragment, then hold its verification while reloading it.
