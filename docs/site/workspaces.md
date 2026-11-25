@@ -98,10 +98,12 @@ itself. A remote workspace's pages can list and switch workspaces but cannot cha
 
 ## When a workspace does not answer
 
-When the selected workspace cannot be reached, the window shows its address and why it could not
-connect. **Try again** returns to your last page once the server answers; **Switch workspace**
-lists the others. On a Mac, **File → Open in Browser** (**Shift–Command–B**) opens the
-workspace's address in your browser.
+When the selected workspace cannot be opened, the window shows **<workspace> is unresponsive**,
+with the workspace's address and what happened below it, including when Seismic answers but its
+page fails to load. **Try again** returns to your last page once the server answers; **Switch
+workspace** lists the others. **Recovery help**, beside **Try again**, opens this guide in your
+browser. On a Mac, **File → Open in Browser** (**Shift–Command–B**) opens the workspace's address
+in your browser.
 
 If you go back to that screen after reconnecting, **Try again** checks the workspace again and
 recovers unsent conversations, issue drafts and settings edits.
@@ -115,7 +117,7 @@ for the restart, it defers the update; it also waits while you dictate or play a
 workspace.
 
 Seismic keeps a copy of a workspace list it cannot read as `app-desks.unreadable.json` in its home
-directory.
+directory; later copies get numbered names.
 
 On macOS Big Sur the desktop app turns off microphone and camera capture: dictation needs macOS
 Monterey or newer.
