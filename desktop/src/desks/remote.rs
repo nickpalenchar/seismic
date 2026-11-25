@@ -103,7 +103,8 @@ fn earlier_health(origin: &str) -> Health {
 fn judge(status: u16, body: Option<&Value>) -> Health {
   match (status, body) {
     (200, Some(b)) if b["service"].as_str() == Some("seismic") && b["status"].as_str() == Some("ok") => Health::Seismic,
-    (401, Some(b)) if b["code"].as_str() == Some("notPaired") => Health::Seismic,
+    (401, Some(b)) if b["code"].as_str() == Some("notPaired")
+      && b.get("status").is_none_or(|status| status.as_str() == Some("ok")) => Health::Seismic,
     _ => Health::NotSeismic,
   }
 }
@@ -292,6 +293,20 @@ mod tests {
   }
 
   #[test]
+  fn a_pairing_refusal_does_not_override_an_explicit_unhealthy_status() {
+    let unhealthy = r#"{"service":"seismic","status":"down","code":"notPaired"}"#;
+    let studio = serve(vec![
+      ("/api/v1/health", "401 Unauthorized", unhealthy.into()),
+      ("/api/projects", "200 OK\r\nX-Seismic: projects", "[]".into()),
+      ("/api/pair", "200 OK", r#"{"url":"{origin}/pair?token=abc"}"#.into()),
+    ]);
+    assert_eq!(health(&studio), Health::NotSeismic);
+    assert_eq!(pair(&studio, "123456"), Err("notSeismic"));
+    let earlier = serve(vec![("/api/projects", "401 Unauthorized", unhealthy.into())]);
+    assert_eq!(health(&earlier), Health::NotSeismic);
+  }
+
+  #[test]
   fn a_seismic_from_before_the_health_route_answers_with_its_marked_projects() {
     let large = serve(vec![("/api/projects", "200 OK\r\nX-Seismic: projects", many_projects())]);
     assert_eq!(health(&large), Health::Seismic);
@@ -347,6 +362,7 @@ mod tests {
     assert_eq!(judge(200, Some(&json!({ "service": "seismic" }))), Health::NotSeismic);
     assert_eq!(judge(200, Some(&json!({ "service": "seismic", "status": "down" }))), Health::NotSeismic);
     assert_eq!(judge(401, Some(&json!({ "code": "notPaired" }))), Health::Seismic);
+    assert_eq!(judge(401, Some(&json!({ "service": "seismic", "status": "down", "code": "notPaired" }))), Health::NotSeismic);
     assert_eq!(judge(200, Some(&json!([]))), Health::NotSeismic);
     assert_eq!(judge(200, None), Health::NotSeismic);
     assert_eq!(judge(401, Some(&json!({ "service": "seismic" }))), Health::NotSeismic);
