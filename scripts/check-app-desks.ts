@@ -1774,6 +1774,78 @@ async function checkApp() {
       }
     });
   }
+  await check('Back from recovery checks the page it restores', async () => {
+    await sleep(800);
+    placeholder = { redirect: false, hideTiming: false };
+    try {
+      const before = reports.length;
+      send('check_eval', { js: 'location.reload()' });
+      const first = await report('status', before, 25_000);
+      const back = reports.length;
+      send('check_eval', { js: 'history.back()' });
+      const recovered = await report('status', back, 25_000);
+      expect(recovered.label === first.label && (await desks()).problem === 'notLoaded', JSON.stringify(recovered));
+    } finally {
+      placeholder = undefined;
+    }
+    await reconnect(true);
+  });
+  if (process.platform === 'darwin' && existsSync(join(home, 'check-browser-handoffs-active'))) {
+    await check('a download resumes the visible placeholder’s pending check', async () => {
+      await sleep(800);
+      const checking = Promise.withResolvers<void>(), checked = Promise.withResolvers<void>();
+      let probes = 0;
+      onHealth = async () => { if (++probes === 1) { checking.resolve(); await checked.promise; } };
+      placeholder = { redirect: false, hideTiming: false };
+      const file = join(home, 'check-download.txt');
+      rmSync(file, { force: true });
+      try {
+        const before = reports.length;
+        send('check_eval', { js: 'location.reload()' });
+        await until('the placeholder to display', 10_000, () => reports.slice(before).find(r => r.kind === 'remote' && r.mounted === false));
+        await Promise.race([checking.promise, sleep(5000).then(() => { throw new Error('no placeholder check to hold'); })]);
+        send('check_eval', { js: "location.assign('/__seismic-check-download')" });
+        await until('the attachment to download', 8000, () => existsSync(file) && readFileSync(file, 'utf8') === 'Workspace export');
+        checked.resolve();
+        await report('status', before, 25_000);
+        expect(probes >= 2 && (await desks()).problem === 'notLoaded', 'the visible page lost its pending verification');
+      } finally {
+        onHealth = undefined;
+        placeholder = undefined;
+        checked.resolve();
+      }
+      await reconnect(true);
+    });
+  }
+  await check('a reload into maintenance preserves the live route while verification is pending', async () => {
+    await sleep(800);
+    const checking = Promise.withResolvers<void>(), checked = Promise.withResolvers<void>();
+    let probes = 0;
+    onHealth = async () => { if (++probes === 1) { checking.resolve(); await checked.promise; } };
+    const route = new URL('/p/lab?check-navigation=departing', REMOTE);
+    const moved = new URL(route);
+    moved.searchParams.set('view', 'table');
+    try {
+      const before = reports.length;
+      send('check_eval', { js: `location.replace(${JSON.stringify(route.href)})` });
+      await report('remote', before);
+      await Promise.race([checking.promise, sleep(5000).then(() => { throw new Error('no verification to hold'); })]);
+      const live = await run('check_eval', { js: `history.replaceState(null, '', ${JSON.stringify(moved.href)}); location.href` });
+      expect(live.value === moved.href, JSON.stringify(live));
+      placeholder = { redirect: true, hideTiming: false };
+      const reload = reports.length;
+      send('check_eval', { js: 'location.reload()' });
+      await until('the reload to display maintenance', 10_000, () => reports.slice(reload).find(r => r.kind === 'remote' && r.mounted === false));
+      checked.resolve();
+      await report('status', reload, 25_000);
+    } finally {
+      onHealth = undefined;
+      placeholder = undefined;
+      checked.resolve();
+    }
+    const restored = await reconnect(true);
+    expect(restored.href === moved.href, JSON.stringify(restored));
+  });
   await check('removing a workspace cancels a pending switch without closing the window', async () => {
     const local = await select('local', 'local');
     const hit = Promise.withResolvers<void>();

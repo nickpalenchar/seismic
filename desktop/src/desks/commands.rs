@@ -250,7 +250,7 @@ fn status_window(app: &AppHandle, label: &str) -> Result<Webview, String> {
 #[tauri::command]
 pub async fn retry_desk(app: AppHandle, webview: Webview) -> Result<(), String> {
   let label = webview.label().to_string();
-  let (origin, turn) = on_ui(app.clone(), {
+  let (origin, turn, load) = on_ui(app.clone(), {
     let label = label.clone();
     move |app| {
       status_window(app, &label)?;
@@ -260,7 +260,7 @@ pub async fn retry_desk(app: AppHandle, webview: Webview) -> Result<(), String> 
         return Err("unknown".into());
       };
       views.cancel();
-      Ok((origin, views.turn))
+      Ok((origin, views.turn, views.next_load))
     }
   }).await?;
   let at = origin.clone();
@@ -271,7 +271,7 @@ pub async fn retry_desk(app: AppHandle, webview: Webview) -> Result<(), String> 
     let w = status_window(app, &label)?;
     let state = shell(app);
     let mut views = state.views.lock().unwrap();
-    if views.turn != turn {
+    if views.turn != turn || views.next_load != load {
       return Err("superseded".into());
     }
     let active = views.active.as_mut().ok_or("unknown")?;

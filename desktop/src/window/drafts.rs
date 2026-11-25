@@ -62,8 +62,8 @@ fn sample_with_guard(webview: &Webview, origin: &str, timeout: std::time::Durati
 }
 
 #[tauri::command]
-pub fn workspace_draft_checkpoint(app: AppHandle, webview: Webview, activation: f64, url: String, entries: Option<Vec<(String, String)>>, received: bool) {
-  receive(&crate::desks::shell(&app), webview.label(), activation, &url, entries, received);
+pub fn workspace_draft_checkpoint(app: AppHandle, webview: Webview, activation: f64, url: String, entries: Option<Vec<(String, String)>>, received: bool, workspace: bool) {
+  receive(&crate::desks::shell(&app), webview.label(), activation, &url, entries, received, workspace);
 }
 
 #[tauri::command]
@@ -76,7 +76,7 @@ pub fn workspace_restore_drafts(app: AppHandle, webview: Webview, activation: f6
   crate::desks::restore_departure(&shell, webview.label(), activation)
 }
 
-fn receive(shell: &crate::desks::Shell, label: &str, activation: f64, url: &str, entries: Option<Vec<(String, String)>>, received: bool) {
+fn receive(shell: &crate::desks::Shell, label: &str, activation: f64, url: &str, entries: Option<Vec<(String, String)>>, received: bool, workspace: bool) {
   if !activation.is_finite() || activation <= 0.0 {
     return;
   }
@@ -85,7 +85,7 @@ fn receive(shell: &crate::desks::Shell, label: &str, activation: f64, url: &str,
     entries.retain(|(key, _)| prefixes.iter().any(|prefix| key.starts_with(prefix)));
     (entries.iter().map(|(k, v)| k.len() + v.len()).sum::<usize>() <= MAX_DRAFT_BYTES).then_some(entries)
   });
-  crate::desks::departure(shell, label, activation, url, entries, received);
+  crate::desks::departure(shell, label, activation, url, entries, received, workspace);
 }
 
 #[cfg(target_os = "linux")]
@@ -106,9 +106,9 @@ pub fn install(window: &tauri::Webview, token: String) -> tauri::Result<()> {
       if !message.starts_with(&expected) || message.len() > MAX_DRAFT_BYTES * 2 {
         return;
       }
-      let Ok((_, activation, url, entries, received)) = serde_json::from_str::<(String, f64, String, Option<Vec<(String, String)>>, bool)>(&message) else { return };
+      let Ok((_, activation, url, entries, received, workspace)) = serde_json::from_str::<(String, f64, String, Option<Vec<(String, String)>>, bool, bool)>(&message) else { return };
       if let Some(shell) = shell.upgrade() {
-        receive(&shell, &label, activation, &url, entries, received);
+        receive(&shell, &label, activation, &url, entries, received, workspace);
       }
     });
     manager.register_script_message_handler("seismicDrafts");
@@ -136,13 +136,15 @@ pub fn script(origin: &str, restore: Option<&Placed>, message_key: &str) -> Stri
       let reloading = false;
       function send(entries, received = false) {{
         const url = location.href;
-        const payload = {{ activation, url, entries, received }};
+        let workspace = false;
+        if (entries !== null) try {{ workspace = ({workspace_document})(); }} catch {{}}
+        const payload = {{ activation, url, entries, received, workspace }};
         // Hand the data to the native message queue before the document goes away.
         if (usesTauri) {{
           const callback = api.transformCallback(() => {{}}, true);
           post?.(stringify({{ cmd: command, callback, error: callback, payload, __TAURI_INVOKE_KEY__: messageKey }}));
         }} else {{
-          post?.(stringify([messageKey, activation, url, entries, received]));
+          post?.(stringify([messageKey, activation, url, entries, received, workspace]));
         }}
       }}
       function begin() {{
@@ -243,6 +245,7 @@ pub fn script(origin: &str, restore: Option<&Placed>, message_key: &str) -> Stri
     serde_json::json!(checkpoint),
     serde_json::json!(message_key),
     !cfg!(target_os = "linux"),
-    serde_json::json!(drafts)
+    serde_json::json!(drafts),
+    workspace_document = super::WORKSPACE_DOCUMENT,
   )
 }

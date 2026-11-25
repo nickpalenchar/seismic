@@ -455,9 +455,11 @@ Safety rules:
   or 15 seconds after it starts, and otherwise shows the status page. WKWebView can leave the
   previous page in place without a completion event when a load fails. A timeout only accepts a
   document committed by that load. A main-frame response turned into a download in WKWebView
-  ends its page watchdog. Route capture checks the displayed document together with its drafts,
-  so switching can keep the live route while its server check is pending. A departure checkpoint
-  updates the route only when it belongs to the verified document.
+  ends the provisional load's watchdog and resumes any check of the document still visible.
+  Back from recovery checks the document it restores. Route capture and departure checkpoints
+  check the page's markers together with its live route and drafts, so switching or leaving the
+  workspace keeps that route while the server check is pending. An older activation's checkpoint
+  cannot overwrite a route already accepted from a newer document.
   Before a rejected page at the origin gives way to the status page, the workspace route is
   fetched once past the cache and opened again: a plain navigation or reload reuses a placeholder,
   or a redirect to one, that the proxy let the cache keep. The shell owns the recovery navigation,
