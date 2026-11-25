@@ -93,8 +93,8 @@ links) and replaces its assets after that, and acts as the GitHub account that o
 nickpalenchar/seismic, with the token of its gh login) without switching the account gh has active.
 
 The poster (`site/img/hero-poster.jpg`) is the video's first frame, slightly dimmed, without a
-play button: the big play button over it is a `<button>` in `site/index.html`, whose script
-starts the video (without JavaScript the browser's controls do). The poster is in git: when the
+play button: the old site's page put a `<button>` over it that started the video (the page is
+gone; seismic.im is built from the `seismic-site` repository). The poster is in git: when the
 opening changes, publish with `--poster`, then commit it and push `main`, which publishes it.
 
 GitHub plays no video in a README, so the repository's README plays a GIF of the project at work,

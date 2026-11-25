@@ -7,7 +7,7 @@ description: Write a repository's Seismic settings (`.seismic/settings.json`) â€
 
 Seismic learns how a project works from the repository's settings for everyone, in
 `.seismic/settings.json` (in a repository from before the rename, `.obeya/settings.json`: that one is the file to edit then): setup, checks, landing, plan docs, how to run the app. The owner sees and changes them in "Konfiguration". The reference for every field and
-when a change takes effect is `${CLAUDE_SKILL_DIR}/../../../docs/settings.md`. Read it first; this
+when a change takes effect is `${CLAUDE_SKILL_DIR}/../../../docs/site/reference/settings.md`. Read it first; this
 skill is the way to fill it in.
 
 The result is a settings file whose every field holds for this repository: a worker who knows

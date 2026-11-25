@@ -51,7 +51,7 @@ function resources(dir: string) {
   writeFileSync(join(dir, 'package.json'), `${JSON.stringify({ name: 'seismic-resources', version: pkg.version, private: true, type: 'module' }, null, 2)}\n`);
   cpSync(join(ROOT, 'LICENSE'), join(dir, 'LICENSE'));
   // the settings skill reads the reference up the tree, as in the checkout
-  cpSync(join(ROOT, 'docs', 'settings.md'), join(dir, 'docs', 'settings.md'));
+  cpSync(join(ROOT, 'docs', 'site', 'reference', 'settings.md'), join(dir, 'docs', 'site', 'reference', 'settings.md'));
   for (const script of ['plugin/skills/demo/lib/recipe.ts', 'plugin/skills/settings/lib/check.ts', 'plugin/skills/settings/lib/allow-list.ts'])
     run([process.execPath, 'build', script, '--target', 'bun', '--outfile', join(dir, script)]);
   // A compiled binary's embedded modules cannot be imported by a separate process. Bundle the

@@ -88,7 +88,9 @@ cycling through terminals.
   `seismic-site` repository) links its version-less downloads. macOS signed and notarised; Windows
   and Linux unsigned, with `SHA256SUMS`. The upstream's machinery came back as it was (switched off
   on 2026-11-13) without its hero video, site screenshots and Pages site; `site/` here stays
-  unpublished (`SITE` in `scripts/distribution.ts`). Release notes are a curated `CHANGELOG.md`
+  unpublished (`SITE` in `scripts/distribution.ts`) and holds only what other files use: the
+  README's images, the logo's sources and fonts, and `style.css` for `scripts/social-preview.ts`;
+  its pages went on 2026-11-25. Release notes are a curated `CHANGELOG.md`
   section per version, each entry linking its demo, with the commits folded under it; rejected:
   commit subjects as notes (hundreds of lines per release, unreadable for users). Kill switches:
   `DISTRIBUTION` in `scripts/distribution.ts`, `CHECK_RELEASES` in `desktop/src/update.rs`,

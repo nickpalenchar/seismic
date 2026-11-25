@@ -1,5 +1,5 @@
 """The site's poster for the hero video: its first frame, slightly dimmed. The play button over it
-is a real button in site/index.html, not part of the picture.
+was a real button on the old site's page, not part of the picture.
 
     uv run --with pillow python scripts/hero-video/poster.py ~/demos/seismic-hero/demo.mp4 site/img/hero-poster.jpg
 """
