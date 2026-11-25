@@ -2854,7 +2854,11 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
   const r = item.review!.codeReview!;
   const cards = useContext(Cards);
   const draft = cardDraft(item.id);
-  const picks = useFindingDraft(item).findings ?? {};
+  const { findings: picked, findingNotes: notes } = useFindingDraft(item);
+  const picks = picked ?? {};
+  // the owner's answer to a dispute, before Send: rejected once explained (or routed where only the regular choices go), confirmed with Ignore
+  const answer = (i: ReviewItem) =>
+    i.status !== 'disputed' ? undefined : notes?.[i.number]?.trim() || picks[i.number] === 'self' || picks[i.number] === 'later' ? 'disputeRejected' : picks[i.number] === 'ignore' ? 'disputeConfirmed' : undefined;
   const pick = (n: number, route: FindingPick) =>
     updateDraft(draft, (d) => {
       const { [n]: was, ...rest } = d.findings ?? {};
@@ -2885,10 +2889,11 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
     const waits = needsOwner(i);
     const open = waits !== flipped.has(i.number);
     const task = i.status === 'followUp' && i.card ? cards.items.find((x) => x.id === i.card) : undefined;
+    const answered = answer(i);
     const pill = (
-      <span className={statusPill(i.status)} title={t.codeReview.statusHint[i.status]}>
+      <span className={statusPill(answered ?? i.status)} title={answered === 'disputeConfirmed' ? t.codeReview.dispute.confirmedHint : answered === 'disputeRejected' ? t.codeReview.dispute.rejectedHint : t.codeReview.statusHint[i.status]}>
         {i.status === 'fixed' && <Check size={11} strokeWidth={2.5} aria-hidden="true" />}
-        {t.codeReview.status[i.status]}
+        {answered === 'disputeConfirmed' ? t.codeReview.dispute.confirmed : answered === 'disputeRejected' ? t.codeReview.dispute.rejected : t.codeReview.status[i.status]}
         {i.status === 'fixing' && <DrawLine color="var(--color-teal-800)" className={fixingLine} />}
       </span>
     );
@@ -2944,7 +2949,7 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
                   <FindingContext item={item} id={i.number} {...(i.context ? { kept: i.context } : {})} />
                 </>
               );
-              return i.status === 'disputed' ? <Dispute item={item} review={i} pick={picks[i.number]} confirm={choice(i, 'ignore', t.codeReview.dispute.confirm, t.codeReview.dispute.confirmHint)} regular={regular} /> : regular;
+              return i.status === 'disputed' ? <Dispute item={item} review={i} rejected={answered === 'disputeRejected'} confirm={choice(i, 'ignore', t.codeReview.dispute.confirm, t.codeReview.dispute.confirmHint)} regular={regular} /> : regular;
             })()}
             {i.status === 'disputed' && !decides && <Dispute item={item} review={i} />}
             {!!i.context && !waits && <p className={findingNote}>{i.context}</p>}
@@ -2988,12 +2993,9 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
  * the alert. Once rejected, the item offers the regular choices (`regular`) with "Fix it" picked and
  * the explanation as its context. All of it stands in the draft and goes out with the one Send.
  */
-function Dispute({ item, review, pick, confirm, regular }: { item: Item; review: ReviewItem; pick?: FindingPick; confirm?: ReactNode; regular?: ReactNode }) {
+function Dispute({ item, review, rejected, confirm, regular }: { item: Item; review: ReviewItem; rejected?: boolean; confirm?: ReactNode; regular?: ReactNode }) {
   const d = t.codeReview.dispute;
   const draft = cardDraft(item.id);
-  const saved = useFindingDraft(item).findingNotes?.[review.number];
-  // rejected once the owner explained why, or chose a route only the regular choices offer
-  const [rejected, setRejected] = useState(() => !!saved?.trim() || pick === 'self' || pick === 'later');
   const [why, setWhy] = useState<string | undefined>(undefined);
   const reasons = review.log.findLast((e) => e.to === 'disputed')?.note;
   const reject = () => {
@@ -3001,7 +3003,6 @@ function Dispute({ item, review, pick, confirm, regular }: { item: Item; review:
     if (!words) return;
     updateDraft(draft, (x) => ({ findings: { ...x.findings, [review.number]: 'self' }, findingNotes: { ...x.findingNotes, [review.number]: words } }));
     setWhy(undefined);
-    setRejected(true);
   };
   const deciding = !!confirm && !rejected;
   return (

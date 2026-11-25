@@ -985,7 +985,11 @@ const en = {
     reopenHint: 'Back to the list as reopened: you decide on it again',
     log: { reviewer: 'reviewer', worker: 'worker', owner: 'owner', resubmitted: 'Resubmitted → Under review', disputed: 'Disputed', taskMade: 'Follow-up task made' },
     dispute: {
-      title: 'The agent disputes this item',
+      title: 'Review disputed by worker',
+      confirmed: 'Dispute confirmed',
+      confirmedHint: 'You agree with the agent; Send closes the item',
+      rejected: 'Dispute rejected',
+      rejectedHint: 'You rejected the dispute; Send passes your choice and explanation to the agent',
       confirm: 'Confirm and close',
       confirmHint: 'You agree with the agent: the item is closed, as if ignored',
       reject: 'Reject and explain',

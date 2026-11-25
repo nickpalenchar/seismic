@@ -99,6 +99,8 @@ const pills: Record<string, string> = {
   raised: 'text-rose-800 bg-rose-600/14 dark:text-rose-300',
   reopened: 'text-amber-800 bg-amber-100 dark:text-amber-300 dark:bg-amber-950',
   disputed: 'text-orange-800 bg-orange-100 dark:text-orange-300 dark:bg-orange-950',
+  disputeConfirmed: 'text-muted-foreground bg-muted',
+  disputeRejected: 'text-rose-800 bg-rose-600/14 dark:text-rose-300',
   fixing: cn('text-teal-50 bg-teal-800', fixingRoom),
   underReview: 'text-sky-800 bg-sky-100 dark:text-sky-300 dark:bg-sky-950',
   'done-fix': 'text-green-800 bg-green-100 dark:text-green-300 dark:bg-green-950',
@@ -106,8 +108,8 @@ const pills: Record<string, string> = {
   followUp: 'text-violet-800 bg-violet-100 dark:text-violet-300 dark:bg-violet-950',
 };
 
-/** An item's status; in its text it follows the words. */
-export const statusPill = (status: ReviewItem['status']) => {
+/** An item's status, or the owner's answer to its dispute still to be sent; in its text it follows the words. */
+export const statusPill = (status: ReviewItem['status'] | 'disputeConfirmed' | 'disputeRejected') => {
   const key = status === 'fixed' ? 'done-fix' : status;
   return cn(
     'f-pill self-center inline-flex items-center gap-1 text-2xs leading-4 rounded-md px-2 whitespace-nowrap text-foreground bg-muted [.f-text_&]:ml-1 [.f-text_&]:align-[1px]',
