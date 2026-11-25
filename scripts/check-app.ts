@@ -12,7 +12,7 @@
 //     device, for a machine without one; on Linux a PulseAudio source is needed, not a sink's
 //     monitor (WebKitGTK lists none): module-sine-source will do;
 //   - a demo video (H.264 and AAC in MP4, as the demo skill renders it) plays;
-//   - the settings offer "Open in browser" (--screenshot takes the window with them open);
+//   - the preferences offer "Open in browser" (--screenshot takes the window with them open);
 //   - starting the app a second time brings the first to the front and ends;
 //   - `POST /api/stop` ends the server and then the app, and the home has no entry left;
 //   - with an Seismic already running on the home (started from a terminal), the app opens a window
@@ -123,10 +123,14 @@ try {
 } catch (e) {
   out.video = { ...out.video, ok: false, error: String(e) };
 }
-// the settings, opened as the owner would, offer the browser
-const button = [...document.querySelectorAll('#bar button')].find((b) => /^(Konfiguration|Configuration)$/.test(b.textContent));
-button?.click();
-await new Promise((r) => setTimeout(r, 1000));
+// the preferences, opened from the left menu as the owner would, offer the browser
+const byText = (text) => [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === text);
+byText('Preferences')?.click();
+await new Promise((r) => setTimeout(r, 500));
+// its About section, a tab that takes the mouse going down
+const about = byText('About Seismic');
+about?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+await new Promise((r) => setTimeout(r, 1500));
 out.browserButton = [...document.querySelectorAll('button')].some((b) => /^Open in browser$/.test(b.textContent));
 // on a Mac the bar is the title bar: the page may move the window (desktop/capabilities/window.json)
 if (window.seismicApp?.platform === 'macos')
@@ -232,7 +236,7 @@ try {
       expect(v.ok, v.error ?? `stood at ${v.currentTime} s`);
       return `canPlayType "${v.canPlay}", ${v.currentTime?.toFixed(1)} s in 1.5 s`;
     });
-    await check('the settings offer "Open in browser"', () => expect(page.browserButton, 'no such button'));
+    await check('the preferences offer "Open in browser"', () => expect(page.browserButton, 'no such button'));
     if (process.platform === 'darwin') await check('the bar may move the window', () => expect(page.drag === 'allowed', String(page.drag)));
     const shot = args[args.indexOf('--screenshot') + 1];
     if (args.includes('--screenshot') && shot) await check('a screenshot of the window', () => screenshot(app!.pid, resolve(shot)));

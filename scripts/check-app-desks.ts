@@ -1078,7 +1078,9 @@ async function checkApp() {
     const remote = await reconnect();
     expect(remote.label === restored.label && remote.projects === 200, JSON.stringify(remote));
   });
-  await check("selecting this machine while its server does not answer keeps the current workspace", async () => {
+  // Pausing the server takes SIGSTOP, which Windows lacks: there this check does not run.
+  if (process.platform === 'win32') console.log("- selecting this machine while its server does not answer keeps the current workspace: not on Windows, which cannot pause a process");
+  else await check("selecting this machine while its server does not answer keeps the current workspace", async () => {
     const remote = displayed()!;
     // The process that listens: the server's entry names the process that started it.
     const port = new URL(entry()!.url).port;
