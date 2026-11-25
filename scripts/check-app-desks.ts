@@ -978,9 +978,9 @@ async function checkApp() {
     });
   };
   /**
-   * Clicks the displayed status page's Try again once it is visible and enabled, and holds the
-   * retry's health check until the click has shown on the button, so a click that never reaches
-   * retry_desk fails here.
+   * Clicks the displayed status page's Try again once it is visible and enabled. The click has to
+   * reach retry_desk, whose health check is then held until the button shows the retry, however
+   * late the page renders that.
    */
   const clickTryAgain = async () => {
     const { retry, retrying } = t.desktopPages.status;
@@ -1009,13 +1009,20 @@ async function checkApp() {
     const hit = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
     onHealth = () => { hit.resolve(); return release.promise; };
     try {
-      const clicked = (await run('check_eval', { js: `(() => {
-        const button = document.getElementById('retry');
-        button.click();
-        return { found: true, text: button.textContent, disabled: button.disabled };
-      })()` })).value as Button;
-      expect(clicked.disabled === true && clicked.text === retrying, `the click did not start a retry: ${JSON.stringify(clicked)}`);
+      expect((await run('check_eval', { js: "document.getElementById('retry').click()" })).ok, 'Try again could not be clicked');
       await Promise.race([hit.promise, sleep(6000).then(() => { throw new Error('Try again did not ask the workspace again'); })]);
+      const busy = `(() => {
+        const button = document.getElementById('retry');
+        return { found: !!button, text: button?.textContent, disabled: button?.disabled };
+      })()`;
+      try {
+        await until('Try again to show the retry', 5000, async () => {
+          last = (await run('check_eval', { js: busy })).value as Button;
+          return last?.disabled === true && last.text === retrying;
+        });
+      } catch (error) {
+        throw new Error(`${(error as Error).message}: ${JSON.stringify(last)}`);
+      }
     } finally {
       onHealth = undefined;
       release.resolve();
