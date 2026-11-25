@@ -73,10 +73,10 @@ pub fn health(origin: &str) -> Health {
     Err(problem) => return problem,
   };
   let status = res.status();
-  let body = matches!(status, 200 | 401).then(|| response_json(res, HEALTH_LIMIT)).flatten();
+  let body = response_json(res, HEALTH_LIMIT);
   // A Seismic health reply that reports a non-OK state must not be overridden by
   // a successful projects response from the same origin.
-  if status == 200 && body.as_ref().is_some_and(|b| b["service"].as_str() == Some("seismic")) {
+  if body.as_ref().is_some_and(|b| b["service"].as_str() == Some("seismic")) {
     return judge(status, body.as_ref());
   }
   match judge(status, body.as_ref()) {
@@ -254,15 +254,25 @@ mod tests {
 
   #[test]
   fn a_reported_unhealthy_state_cannot_be_overridden_by_projects_or_pairing() {
-    for body in [r#"{"service":"seismic"}"#, r#"{"service":"seismic","status":"down"}"#] {
+    for (status, body) in [
+      ("200 OK", r#"{"service":"seismic"}"#),
+      ("200 OK", r#"{"service":"seismic","status":"down"}"#),
+      ("503 Service Unavailable", r#"{"service":"seismic","status":"down"}"#),
+      ("503 Service Unavailable", HEALTHY),
+    ] {
       let studio = serve(vec![
-        ("/api/v1/health", "200 OK", body.into()),
+        ("/api/v1/health", status, body.into()),
         ("/api/projects", "200 OK\r\nX-Seismic: projects", "[]".into()),
         ("/api/pair", "200 OK", r#"{"url":"{origin}/pair?token=abc"}"#.into()),
       ]);
       assert_eq!(health(&studio), Health::NotSeismic);
       assert_eq!(pair(&studio, "123456"), Err("notSeismic"));
     }
+    let refused = serve(vec![
+      ("/api/v1/health", "503 Service Unavailable", r#"{"service":"seismic","status":"down"}"#.into()),
+      ("/api/projects", "401 Unauthorized", NOT_PAIRED.into()),
+    ]);
+    assert_eq!(health(&refused), Health::NotSeismic);
   }
 
   #[test]
