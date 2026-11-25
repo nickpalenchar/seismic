@@ -705,17 +705,6 @@ mod tests {
     assert_eq!(browser_target(bundled_url("/status.html"), &remote).unwrap().as_str(), "https://[fd7a::2]:4417/");
   }
 
-  #[cfg(windows)]
-  #[test]
-  fn a_move_to_a_fragment_of_the_shown_page_loads_no_document() {
-    let shown = Url::parse("https://studio/p/lab?view=canvas").unwrap();
-    let at = |u: &str| Url::parse(u).unwrap();
-    assert!(same_document(Some(&shown), &at("https://studio/p/lab?view=canvas#new-anchor")));
-    assert!(!same_document(Some(&shown), &at("https://studio/p/lab?view=canvas")));
-    assert!(!same_document(Some(&shown), &at("https://studio/maintenance#new-anchor")));
-    assert!(!same_document(None, &at("https://studio/p/lab?view=canvas#new-anchor")));
-  }
-
   #[test]
   fn navigation_and_popup_share_the_windows_browser_limit() {
     let navigation = Arc::new(Handoff::default());

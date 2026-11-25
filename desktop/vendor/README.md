@@ -15,7 +15,10 @@ context subscription when that view is dropped. A shared context announces downl
 
 On desktop, the page-load handler reports `Started` at the start of a main-document load:
 WKWebView's provisional navigation, WebKitGTK's `LoadEvent::Started`, or an allowed WebView2
-`NavigationStarting`. The navigation policy still checks subframes where the engine reports them.
+`NavigationStarting`. A same-document move (a fragment, `pushState`) starts none: WebView2 raises
+no `NavigationStarting` for it and keeps the navigation ID, while a reload, also of a URL with a
+fragment, is a new navigation (`scripts/check-app-desks.ts` checks both on every platform).
+The navigation policy still checks subframes where the engine reports them.
 WKWebView and WebView2 match completions to their latest start by navigation identity, so a late
 completion cannot supersede a newer load. The synchronous desktop event context distinguishes
 commit from provisional start through Tauri's page-load callback. It also reports when

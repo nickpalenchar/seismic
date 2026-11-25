@@ -1902,6 +1902,27 @@ async function checkApp() {
     }
   });
   if (displayed()?.kind === 'status') await reconnect();
+  await check('a fragment move loads no document, a reload of the fragment URL checks it', async () => {
+    await sleep(800);
+    const before = reports.length;
+    const rejected = rejectedHealthChecks;
+    const moved = await run('check_eval', { js: "location.hash = 'check-fragment'; location.href" });
+    expect(String(moved.value).endsWith('#check-fragment'), JSON.stringify(moved));
+    try {
+      rejectHealth = true;
+      await sleep(16_000);
+      expect(!reports.slice(before).some((r) => ['remote', 'status'].includes(String(r.kind))), 'the fragment move loaded the document again');
+      expect(rejectedHealthChecks === rejected && (await desks()).problem === null, 'the fragment move started a workspace check');
+      const reloading = reports.length;
+      send('check_eval', { js: 'location.reload()' });
+      await report('status', reloading, 25_000);
+      expect(rejectedHealthChecks > rejected && (await desks()).problem === 'notSeismic', 'the reload was not checked');
+      return 'only the reload checked the workspace';
+    } finally {
+      rejectHealth = false;
+    }
+  });
+  if (displayed()?.kind === 'status') await reconnect();
   await check('switching during verification keeps the live workspace route', async () => {
     const checking = Promise.withResolvers<void>(), checked = Promise.withResolvers<void>();
     const route = new URL(String(displayed()?.href));
