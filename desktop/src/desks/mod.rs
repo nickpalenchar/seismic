@@ -1254,7 +1254,11 @@ fn verify_load(app: &AppHandle, label: &str, token: u64) {
     view.problem = Some(problem);
     drop(views);
     let status = window::bundled_url("/status.html");
-    if shown.as_ref() != Some(&status) {
+    // A failed retry can leave the status document in place. Refresh its
+    // controls without adding another copy of the same page to history.
+    if shown.as_ref() == Some(&status) {
+      webview.reload().map_err(|e| e.to_string())?;
+    } else {
       webview.navigate(status).map_err(|e| e.to_string())?;
     }
     changed(app);

@@ -92,11 +92,8 @@ define_class!(
       }
       // A rejected redirect can end a load that started before the policy decision.
       // Match the failed navigation so a rejected link or subframe cannot end another load.
-      let domain = error.domain();
-      if matches!(
-        (domain.to_string().as_str(), error.code()),
-        ("WebKitErrorDomain", 102) | ("NSURLErrorDomain", -999)
-      ) {
+      // WebKit's frame-load-interrupted-by-policy-change error.
+      if error.code() == 102 && error.domain().to_string() == "WebKitErrorDomain" {
         self.cancel_started_navigation();
       }
     }
