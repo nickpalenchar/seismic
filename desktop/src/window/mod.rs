@@ -551,6 +551,13 @@ const WORKSPACE_DOCUMENT: &str = r#"() => {
   );
 }"#;
 
+/// A pairing form at a workspace page can be valid, but a one-time authentication
+/// link is never a workspace destination, even when it returns that same form.
+pub(super) fn is_workspace_route(url: &Url) -> bool {
+  url.path() != "/login" &&
+    !(url.path() == "/pair" && url.query_pairs().any(|(key, _)| key == "token" || key == "code"))
+}
+
 /// Read the live route and draft activation of the same document that passed the marker check.
 pub fn workspace_document(webview: &Webview, origin: &str, timeout: Duration) -> Option<(String, f64)> {
   let (send, receive) = std::sync::mpsc::channel();
@@ -562,7 +569,7 @@ pub fn workspace_document(webview: &Webview, origin: &str, timeout: Duration) ->
   // Draft checkpoint IPC also uses serde_json, with exact round-trip float decoding.
   let (url, activation): (String, f64) = serde_json::from_str(&receive.recv_timeout(timeout).ok()?).ok()?;
   let url = Url::parse(&url).ok()?;
-  (url.origin().ascii_serialization() == origin).then(|| (crate::next_of(&url), activation))
+  (url.origin().ascii_serialization() == origin && is_workspace_route(&url)).then(|| (crate::next_of(&url), activation))
 }
 
 /// The window's page, where it is at the window's own origin: its path, query and fragment.

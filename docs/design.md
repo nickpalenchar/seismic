@@ -469,6 +469,9 @@ Safety rules:
   open the route the failed load asked for (its address when it started, before any redirect),
   while restoration keeps the route a workspace document last verified: a project that loads must
   not stand in for its Feedback Log that does not, and a maintenance redirect's target is neither.
+  A load that fails before commit still supplies its destination to recovery. One-time sign-in and
+  pairing links are excluded from recovery and restoration, including when an expired link returns
+  the pairing form. The form at a workspace route is still accepted for a signed-out device.
   A cancelled load leaves the visible document's route in place. A new main-document load supersedes older checks
   and pending recovery navigation as soon as it starts, even before its response arrives
   (2026-11-25).

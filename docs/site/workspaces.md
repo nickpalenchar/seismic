@@ -100,8 +100,10 @@ itself. A remote workspace's pages can list and switch workspaces but cannot cha
 
 When the selected workspace cannot be opened, the window shows **<workspace> is unresponsive**,
 with the workspace's address and what happened below it, including when Seismic answers but its
-page fails to load. **Try again** returns to your last page once the server answers; **Switch
-workspace** lists the others. **Recovery help**, beside **Try again**, opens this guide in your
+page fails to load. **Try again** opens the page that failed and shows recovery again if it still
+cannot load. After an interrupted pairing, it opens the last workspace page, or the workspace
+home if you have yet to open a page. **Switch workspace** lists the others.
+**Recovery help**, beside **Try again**, opens this guide in your
 browser. On a Mac, **File → Open in Browser** (**Shift–Command–B**) opens the workspace's address
 in your browser.
 

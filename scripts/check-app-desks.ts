@@ -178,8 +178,8 @@ let busyChecks = 0;
 let seedDraft = true;
 
 let nextPage: (() => Promise<void>) | undefined;
-let dropReloadAt: string | undefined;
-let droppedReloads = 0;
+let dropDocumentAt: string | undefined;
+let droppedDocuments = 0;
 let holdCacheRefresh: { route: string; wait: () => Promise<void> } | undefined;
 const previewPath = '/__seismic-check-preview';
 let liveComposer = false;
@@ -187,6 +187,7 @@ let reconnectRemote: (() => void) | undefined;
 let replacementHello = false;
 let imageUpload: (() => Promise<Response>) | undefined;
 let pairRequests = 0;
+let pairingLinkLoads = 0;
 let unrelatedPairing = false;
 let unrelatedPageRequests = 0;
 let rejectHealth = false;
@@ -203,6 +204,7 @@ const startProxy = (port = proxyPort) => {
     async fetch(req, server) {
       const url = new URL(req.url);
       if (req.method === 'POST' && url.pathname === '/api/pair') pairRequests++;
+      if (req.method === 'GET' && url.pathname === '/pair' && url.searchParams.has('token')) pairingLinkLoads++;
       if (unrelatedPairing) {
         if (url.pathname === '/api/pair') return Response.json({ url: new URL('/unrelated', req.url).href });
         if (url.pathname === '/unrelated') unrelatedPageRequests++;
@@ -228,8 +230,8 @@ const startProxy = (port = proxyPort) => {
           headers: { 'content-type': 'text/plain', 'content-disposition': 'attachment; filename="workspace-export.txt"' },
         });
       }
-      if (url.pathname + url.search === dropReloadAt && req.headers.get('accept')?.includes('text/html')) {
-        droppedReloads++;
+      if (url.pathname + url.search === dropDocumentAt && req.headers.get('accept')?.includes('text/html')) {
+        droppedDocuments++;
         server.timeout(req, 1);
         return new Promise<Response>(() => {});
       }
@@ -242,7 +244,7 @@ const startProxy = (port = proxyPort) => {
       if (url.pathname === '/__seismic-check-browser-redirect') {
         return Response.redirect('https://example.invalid/workspace-export', 302);
       }
-      const placeheld = placeholder && (!placeholder.path || [placeholder.path, '/maintenance'].includes(url.pathname));
+      const placeheld = placeholder && url.pathname !== '/pair' && (!placeholder.path || [placeholder.path, '/maintenance'].includes(url.pathname));
       if (placeholder && placeheld && req.headers.get('accept')?.includes('text/html')) {
         if (placeholder.redirect && url.pathname !== '/maintenance') {
           const cache = placeholder.cache ? { 'cache-control': 'max-age=600' } : { 'cache-control': 'no-store' };
@@ -1339,6 +1341,24 @@ async function checkApp() {
       send('check_eval', { js: `location.assign(${JSON.stringify(project.href)})` });
       await until('the project to open again', 15_000, () => reports.slice(back).find(isOpen));
     }
+    if (process.platform === 'darwin') {
+      const dropped = droppedDocuments;
+      dropDocumentAt = log.pathname;
+      try {
+        const before = reports.length;
+        send('check_eval', { js: `location.assign(${JSON.stringify(log.href)})` });
+        await until('the Feedback Log request to disconnect before headers', 5000, () => droppedDocuments > dropped);
+        await report('status', before, 25_000);
+        expect((await desks()).problem === 'notLoaded', 'the health check should still pass');
+      } finally {
+        dropDocumentAt = undefined;
+      }
+      const opened = await reconnect(true);
+      expect(new URL(String(opened.href)).pathname === log.pathname, JSON.stringify(opened));
+      const back = reports.length;
+      send('check_eval', { js: `location.assign(${JSON.stringify(project.href)})` });
+      await until('the project to open again', 15_000, () => reports.slice(back).find(isOpen));
+    }
     await sleep(800);
     try {
       await fail(true);
@@ -1348,6 +1368,33 @@ async function checkApp() {
     }
     const restored = await select(id, 'remote');
     expect(restored.href === project.href, `${project.href} → ${JSON.stringify(restored)}`);
+  });
+  await check('recovery skips the one-time pairing link after an intercepted redirect', async () => {
+    const saved = String(displayed()?.href);
+    await select('local', 'local');
+    const again = { id, code: await code() };
+    const loads = pairingLinkLoads;
+    placeholder = { redirect: true, hideTiming: false };
+    try {
+      const before = reports.length;
+      send('pair_desk', again);
+      await report('status', before, 40_000);
+      expect(pairingLinkLoads === loads + 1, 'cache recovery opened the one-time link again');
+    } finally {
+      placeholder = undefined;
+    }
+    const opened = await reconnect(true);
+    expect(opened.href === saved && opened.projects === 200 && pairingLinkLoads === loads + 1, JSON.stringify(opened));
+  });
+  await check('a pairing form at an expired link keeps the last workspace route', async () => {
+    const saved = String(displayed()?.href);
+    const before = reports.length;
+    send('check_eval', { js: "location.assign('/pair?token=expired')" });
+    await until('expired-link recovery or its retry to open the workspace', 25_000, () =>
+      reports.slice(before).find(r => r.kind === 'status' || r.href === saved));
+    await select('local', 'local');
+    const restored = await select(id, 'remote');
+    expect(restored.href === saved && restored.mounted === true, JSON.stringify(restored));
   });
   await check('a newer navigation outranks the failed check of the page before it', async () => {
     await select('local', 'local');
@@ -1824,16 +1871,16 @@ async function checkApp() {
       const route = await run('check_eval', { js: 'location.pathname + location.search' });
       expect(typeof route.value === 'string', JSON.stringify(route));
       const rejected = rejectedHealthChecks;
-      const dropped = droppedReloads;
-      dropReloadAt = String(route.value);
+      const dropped = droppedDocuments;
+      dropDocumentAt = String(route.value);
       try {
         const before = reports.length;
         send('check_eval', { js: 'location.reload()' });
-        await until('the reload to reach the proxy', 5000, () => droppedReloads > dropped);
+        await until('the reload to reach the proxy', 5000, () => droppedDocuments > dropped);
         await report('status', before, 25_000);
         expect((await desks()).problem === 'notLoaded' && rejectedHealthChecks === rejected, 'the live old document hid the failed reload');
       } finally {
-        dropReloadAt = undefined;
+        dropDocumentAt = undefined;
       }
       await reconnect(true);
     });

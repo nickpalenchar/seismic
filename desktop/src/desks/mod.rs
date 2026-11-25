@@ -56,10 +56,10 @@ struct WorkspaceView {
   own: Own,
   /// The last page at this origin, also used while showing the bundled status page.
   next: String,
-  /// The route the main-document load now under way asked for, before redirects (`provisional`)
-  /// and once it committed (`requested`), until a workspace document verifies. Recovery fetches and
-  /// Try again opens it; restoration keeps `next`, the route last verified.
-  provisional: Option<String>,
+  /// The main-document load under way, before it commits or times out.
+  provisional: Option<ProvisionalLoad>,
+  /// The route that load asked for before redirects, kept until a workspace document verifies.
+  /// Recovery fetches and Try again opens it; restoration keeps `next`, the route last verified.
   requested: Option<String>,
   /// Why the window shows the status page instead of the workspace (remote.rs, `Health::code`).
   problem: Option<&'static str>,
@@ -83,7 +83,19 @@ struct WorkspaceView {
   revalidated: bool,
 }
 
+#[derive(Clone)]
+struct ProvisionalLoad {
+  /// Bundled and one-time authentication pages have no retry route.
+  route: Option<String>,
+}
+
 impl WorkspaceView {
+  fn keep_load_destination(&mut self) {
+    if let Some(load) = self.provisional.take() {
+      self.requested = load.route;
+    }
+  }
+
   /// Where recovery leads: the route the failed load asked for, else the last verified one.
   fn retry_route(&self) -> &str {
     self.requested.as_deref().unwrap_or(&self.next)
@@ -100,6 +112,14 @@ impl WorkspaceView {
     self.next = next;
     true
   }
+}
+
+fn remote_route(own: &Own, url: &Url) -> Option<String> {
+  (own.at(url) && window::is_workspace_route(url)).then(|| crate::next_of(url))
+}
+
+fn is_saved_workspace_route(origin: &str, next: &str) -> bool {
+  Url::parse(&format!("{origin}{next}")).is_ok_and(|url| window::is_workspace_route(&url))
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -318,7 +338,13 @@ impl Shell {
     let desks = Desks::load(&home);
     let valid = |p: &&Placed| desks.get(&p.desk).is_some_and(|d| d.origin == p.origin);
     let restore = window::placed::primary(&saved).filter(valid).filter(|p| p.desk != LOCAL).map(|p| p.desk.clone());
-    let parked = saved.iter().filter(valid).map(|p| (p.desk.clone(), p.clone())).collect();
+    let parked = saved.iter().filter(valid).cloned().map(|mut p| {
+      // An older shell could save the URL of a spent pairing link.
+      if p.origin.as_ref().is_some_and(|origin| !is_saved_workspace_route(origin, &p.next)) {
+        p.next = "/".into();
+      }
+      (p.desk.clone(), p)
+    }).collect();
     Shell {
       desks: Mutex::new(desks),
       views: Mutex::new(Views { parked, restore, ..Default::default() }),
@@ -608,7 +634,8 @@ fn capture_after<T>(
 /// The outgoing view's drafts and route take precedence over any older parked copy.
 fn saved_view(view: &WorkspaceView, sample: Option<window::drafts::Sample>) -> Result<Placed, String> {
   let (next, sampled) = match sample {
-    Some(sample) if matches!(view.own, Own::Remote(_)) && !sample.workspace => (view.next.clone(), sample.entries),
+    Some(sample) if matches!(&view.own, Own::Remote(origin)
+      if !sample.workspace || !is_saved_workspace_route(origin, &sample.next)) => (view.next.clone(), sample.entries),
     Some(sample) => (sample.next, sample.entries),
     // Only a workspace document that reported its activation owes a departure checkpoint.
     None if view.departure.activation > 0.0 => (view.next.clone(), view.departure.drafts.clone().ok_or("drafts")?),
@@ -664,12 +691,13 @@ fn mount(app: &AppHandle, target: Destination, turn: u64, mut outgoing: Capture)
     }
     let loading = (matches!(target.own, Own::Remote(_)) && target.problem.is_none()).then(|| views.load());
     let watched = loading.map(|token| (label.clone(), token));
+    let provisional = loading.map(|_| ProvisionalLoad { route: remote_route(&target.own, &target.url) });
     let new = WorkspaceView {
       label,
       desk: target.desk.clone(),
       own: target.own,
       next: restore.as_ref().map_or_else(|| "/".into(), |p| p.next.clone()),
-      provisional: None,
+      provisional,
       requested: None,
       problem: target.problem,
       drafts: restore.as_ref().map_or_else(Vec::new, |p| p.drafts.clone()),
@@ -1135,8 +1163,8 @@ pub fn navigation_started(app: &AppHandle, label: &str, url: &Url) {
     let token = views.load();
     let view = views.active.as_mut().unwrap();
     view.loading = Some(token);
-    // A login link is spent once used, and the bundled status page is no route at the origin.
-    view.provisional = (view.own.at(url) && url.path() != "/login").then(|| crate::next_of(url));
+    view.provisional = (*url != window::bundled_url("/status.html"))
+      .then(|| ProvisionalLoad { route: remote_route(&view.own, url) });
     token
   };
   watch_load(app, label, token);
@@ -1155,10 +1183,11 @@ pub fn navigation_committed(app: &AppHandle, label: &str, url: &Url) {
     view.loading = None;
     view.committed_load = None;
     view.visible_load = VisibleLoad::Settled;
+    view.provisional = None;
   } else {
     view.committed_load = view.loading;
     view.visible_load = VisibleLoad::AwaitingFinish;
-    view.requested = view.provisional.take();
+    view.keep_load_destination();
   }
 }
 
@@ -1254,6 +1283,9 @@ fn verify_load(app: &AppHandle, label: &str, token: u64) {
       }
       return Ok(());
     }
+    // A load can fail before commit. Keep its destination before status navigation
+    // replaces the provisional load. A cache-fetch timeout has no provisional load.
+    view.keep_load_destination();
     let problem = if health == Health::Seismic { "notLoaded" } else { health.code() };
     let webview = app.get_webview(&label).ok_or("window")?;
     let shown = webview.url().ok();
@@ -1386,7 +1418,7 @@ pub fn departure(shell: &Shell, label: &str, activation: f64, url: &str, entries
     };
     if recorded && accepts_route {
       if let Ok(url) = Url::parse(url) {
-        if window.own.at(&url) {
+        if window.own.at(&url) && (!matches!(window.own, Own::Remote(_)) || window::is_workspace_route(&url)) {
           window.remember_route(activation, crate::next_of(&url));
         }
       }
@@ -1477,6 +1509,8 @@ mod tests {
     let saved = saved_view(&view, sample(false, "/maintenance")).unwrap();
     assert_eq!((saved.next.as_str(), saved.drafts.len()), ("/p/lab", 1));
     assert_eq!(saved_view(&view, sample(true, "/p/new")).unwrap().next, "/p/new");
+    let saved = saved_view(&view, sample(true, "/pair?token=spent")).unwrap();
+    assert_eq!((saved.next.as_str(), saved.drafts.len()), ("/p/lab", 1));
     let mut view = view;
     assert!(view.remember_route(2.0, "/p/new".into()));
     assert!(!view.remember_route(1.0, "/p/old".into()));
@@ -1491,9 +1525,16 @@ mod tests {
       route_activation: 0.0, loading: None, committed_load: None, visible_load: VisibleLoad::Settled, local_reloading: None, revalidated: false,
     };
     assert_eq!(view.retry_route(), "/p/lab");
-    view.requested = Some("/p/lab/feedback".into());
+    view.provisional = Some(ProvisionalLoad { route: Some("/p/lab/feedback".into()) });
+    view.keep_load_destination();
     assert_eq!(view.retry_route(), "/p/lab/feedback");
     assert_eq!(saved_view(&view, None).unwrap().next, "/p/lab");
+    view.keep_load_destination(); // a cache refresh can time out with no new navigation
+    assert_eq!(view.retry_route(), "/p/lab/feedback");
+    let pair = Url::parse("https://studio/pair?token=spent").unwrap();
+    view.provisional = Some(ProvisionalLoad { route: remote_route(&view.own, &pair) });
+    view.keep_load_destination();
+    assert_eq!(view.retry_route(), "/p/lab");
   }
 
   #[test]
