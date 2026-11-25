@@ -48,10 +48,8 @@
       "Bash(rm -rf /Users/nick/demos/snoozed-cards-inbox-demo/.work)",
       "Bash(rm -rf /Users/nick/demos/snoozed-cards-inbox-demo/.work && cd /Users/nick/demos/snoozed-cards-inbox-demo && node demo.ts 2>&1 &)",
       "Bash(node /Users/nick/programming/obeya/plugin/skills/demo/lib/setup.ts)",
-      "Bash(node /Users/nick/programming/obeya/plugin/skills/browser/lib/browser.ts open http://127.0.0.1:4480/login?token=KPFLCr-vkaQnc9I7GCzfszXcTKyYC_WTiQzk5rQ9QfE&next=%2Fc%2Factivity)",
       "Bash(tail -25 /tmp/proposals-tests.log)",
-      "Bash(node explore.ts)",
-      "Bash(node /Users/nick/demos/obeya-incoming-arrows/explore.ts)"
+      "Bash(node explore.ts)"
     ]
   }
 }
