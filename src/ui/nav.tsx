@@ -468,7 +468,7 @@ function DeskSwitcher() {
           </span>
           <ChevronDown size={14} strokeWidth={2} className={cn('mt-1 ml-auto text-muted-foreground transition-transform', open && 'rotate-180')} aria-hidden />
         </Act>
-        <Act sidebarItem={false} className="absolute right-2 bottom-1.5 grid size-[26px] cursor-pointer place-items-center rounded-xs bg-transparent p-0 text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted" tip={w.settings} aria-label={w.settings} onAct={() => void openWorkspaces(all, `?edit=${encodeURIComponent(shown.id)}`).catch(failed())}>
+        <Act sidebarItem={false} className="absolute right-2 bottom-2.5 grid size-[26px] cursor-pointer place-items-center rounded-xs bg-transparent p-0 text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted" tip={w.settings} aria-label={w.settings} onAct={() => void openWorkspaces(all, `?edit=${encodeURIComponent(shown.id)}`).catch(failed())}>
           <Cog size={16} strokeWidth={2} aria-hidden />
         </Act>
       </div>
