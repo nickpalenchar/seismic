@@ -461,7 +461,7 @@ function DeskSwitcher() {
   return (
     <div className="desk-switcher mt-1 mb-2 rounded-md border border-border">
       <div className="grid grid-cols-[1fr_auto] p-1">
-        <Act sidebarItem={false} keep className={cn(rowButton, 'col-span-2 row-span-2 grid grid-rows-subgrid gap-0 px-2 py-0 text-foreground')} tip={w.switcher} aria-expanded={open} onAct={toggle}>
+        <Act sidebarItem={false} keep className={cn(rowButton, 'col-start-1 col-end-3 row-start-1 row-end-3 grid grid-rows-subgrid gap-0 px-2 py-0 text-foreground')} tip={w.switcher} aria-expanded={open} onAct={toggle}>
           <span className="flex items-start gap-2 pt-1.5">
             <span className="mt-0.5 flex-none"><DeskIcon desk={shown} size={15} /></span>
             <b className="min-w-0 flex-1 [overflow-wrap:anywhere]">{shown.name}</b>
