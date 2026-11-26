@@ -459,16 +459,16 @@ function DeskSwitcher() {
   const failed = (about = '') => (e: unknown) => setProblem(deskError(e, about));
   return (
     <div className="desk-switcher mt-1 mb-2 rounded-md border border-border">
-      <div className="flex items-end gap-1 p-1">
-        <Act sidebarItem={false} keep className={cn(rowButton, 'min-w-0 flex-1 items-start px-2 text-foreground')} tip={w.switcher} aria-expanded={open} onAct={() => (setOpen(!open), setProblem(''))}>
+      <div className="relative p-1">
+        <Act sidebarItem={false} keep className={cn(rowButton, 'items-start px-2 text-foreground')} tip={w.switcher} aria-expanded={open} onAct={() => (setOpen(!open), setProblem(''))}>
           <span className="mt-0.5 flex-none"><DeskIcon desk={shown} size={15} /></span>
           <span className="flex min-w-0 flex-1 flex-col">
             <b className="[overflow-wrap:anywhere]">{shown.name}</b>
-            <span className="text-xs text-muted-foreground">{shown.local ? w.thisMachine : w.remote}</span>
+            <span className="flex min-h-[26px] items-center text-xs text-muted-foreground">{shown.local ? w.thisMachine : w.remote}</span>
           </span>
           <ChevronDown size={14} strokeWidth={2} className={cn('mt-1 ml-auto text-muted-foreground transition-transform', open && 'rotate-180')} aria-hidden />
         </Act>
-        <Act sidebarItem={false} className="grid size-[30px] flex-none cursor-pointer place-items-center rounded-xs bg-transparent p-0 text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted" tip={w.settings} aria-label={w.settings} onAct={() => void openWorkspaces(all, `?edit=${encodeURIComponent(shown.id)}`).catch(failed())}>
+        <Act sidebarItem={false} className="absolute right-2 bottom-1.5 grid size-[26px] cursor-pointer place-items-center rounded-xs bg-transparent p-0 text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted" tip={w.settings} aria-label={w.settings} onAct={() => void openWorkspaces(all, `?edit=${encodeURIComponent(shown.id)}`).catch(failed())}>
           <Cog size={16} strokeWidth={2} aria-hidden />
         </Act>
       </div>
