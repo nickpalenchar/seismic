@@ -2,13 +2,17 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { CODEX_RULES_HEADER } from './allow-rules';
 
-const generators = ['`bun scripts/codex-rules.ts`', 'the `allow-list.ts --codex` of the skill `seismic:settings`'];
+const generatedHeaders = [
+  CODEX_RULES_HEADER,
+  '# Generated from .claude/settings.json by `bun scripts/codex-rules.ts`; edit that file, not this one.',
+  '# Generated from .claude/settings.json by the `allow-list.ts --codex` of the skill `seismic:settings`; edit that file, not this one.',
+];
 
 export function isGeneratedCodexRules(current: string): boolean {
-  return generators.some((by) => current.startsWith(
-    `# Generated from .claude/settings.json by ${by}; edit that file, not this one.\n`,
-  ));
+  const [header = ''] = current.split(/\r?\n/, 1);
+  return generatedHeaders.includes(header);
 }
 
 export function writeCodexRules(out: string, file: string): 'wrote' | 'preserved' {

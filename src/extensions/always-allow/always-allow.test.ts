@@ -86,7 +86,7 @@ describe('in a project', () => {
       'README.md': 'Shop\n',
       '.seismic/settings.json': JSON.stringify({ land: 'main' }),
       '.claude/settings.json': `${JSON.stringify(allow, null, 2)}\n`,
-      '.codex/rules/seismic.rules': codexRules(JSON.stringify(allow), '`bun scripts/codex-rules.ts`').file,
+      '.codex/rules/seismic.rules': codexRules(JSON.stringify(allow)).file,
     });
     const store = new Store(':memory:');
     store.trustedCommands.trust(shop, commandsOf(readShared(shop)));

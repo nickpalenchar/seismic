@@ -21,7 +21,7 @@ test('the committed Codex rules are the ones its allow list gives', () => {
   expect(file).not.toContain('decision="prompt"');
 });
 
-test('the standalone writer and --check preserve repository-owned rules even without Claude settings', () => {
+test('the standalone writer preserves custom rules and agrees with the settings skill', () => {
   const dir = mkdtempSync(join(tmpdir(), 'codex-rules-'));
   try {
     mkdirSync(join(dir, 'scripts'));
@@ -45,7 +45,12 @@ test('the standalone writer and --check preserve repository-owned rules even wit
     expect(Bun.spawnSync([process.execPath, script, '--check']).exitCode).toBe(1);
     expect(readFileSync(out, 'utf8')).toBe(old);
     expect(Bun.spawnSync([process.execPath, script]).exitCode).toBe(0);
-    expect(readFileSync(out, 'utf8')).toContain('pattern=["bun","test"]');
+    const standalone = readFileSync(out, 'utf8');
+    expect(standalone).toContain('pattern=["bun","test"]');
+    expect(Bun.spawnSync(['git', 'init', '-q'], { cwd: dir }).exitCode).toBe(0);
+    const skill = join(root, 'plugin', 'skills', 'settings', 'lib', 'allow-list.ts');
+    expect(Bun.spawnSync([process.execPath, skill, '--codex'], { cwd: dir }).exitCode).toBe(0);
+    expect(readFileSync(out, 'utf8')).toBe(standalone);
     expect(Bun.spawnSync([process.execPath, script, '--check']).exitCode).toBe(0);
   } finally {
     rmSync(dir, { recursive: true, force: true });

@@ -27,12 +27,13 @@ export function prefixOf(rule: string): string[] | null {
   return words.length && !words.some((w) => w.includes('*')) ? words : null;
 }
 
+export const CODEX_RULES_HEADER = '# Generated from .claude/settings.json; edit that file, not this one.';
+
 /**
  * The Codex rules file (`.codex/rules/*.rules`) for the allow list of a `.claude/settings.json`
- * text, and the rules that have no form there: a Codex rule is a literal word prefix. `by` names
- * how the file is made again, for its header.
+ * text, and the rules that have no form there: a Codex rule is a literal word prefix.
  */
-export function codexRules(settingsText: string, by: string): { file: string; skipped: string[] } {
+export function codexRules(settingsText: string): { file: string; skipped: string[] } {
   const lines: string[] = [];
   const skipped: string[] = [];
   for (const rule of bashRules(settingsText)) {
@@ -43,7 +44,7 @@ export function codexRules(settingsText: string, by: string): { file: string; sk
     else skipped.push(rule);
   }
   const header = [
-    `# Generated from .claude/settings.json by ${by}; edit that file, not this one.`,
+    CODEX_RULES_HEADER,
     '# A Codex rule is a word prefix: a Claude rule without a `*` (an exact command) allows arguments after it here.',
     '# Rules whose `*` stands inside a word have no form here; Seismic applies them itself to its Codex workers:',
     ...skipped.map((r) => `#   Bash(${r})`),

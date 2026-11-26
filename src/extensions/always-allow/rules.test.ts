@@ -36,10 +36,12 @@ test("Claude Code's suggestions give their allow rules, as the session takes the
 
 test('the Codex rules are made again only where the file was made from the list', () => {
   const list = JSON.stringify({ permissions: { allow: ['Bash(bun test *)'] } });
-  const made = codexRules(list, '`bun scripts/codex-rules.ts`').file;
-  expect(codexRulesAgain(made, JSON.stringify({ permissions: { allow: ['Bash(bun test *)', 'Bash(bun run *)'] } }))).toBe(
-    codexRules(JSON.stringify({ permissions: { allow: ['Bash(bun test *)', 'Bash(bun run *)'] } }), '`bun scripts/codex-rules.ts`').file,
-  );
-  expect(codexRulesAgain('prefix_rule(pattern=["ls"], decision="allow")\n', list)).toBeNull();
+  const made = codexRules(list).file;
+  const legacy = '# Generated from .claude/settings.json by the `allow-list.ts --codex` of the skill `seismic:settings`; edit that file, not this one.\n';
+  const updated = JSON.stringify({ permissions: { allow: ['Bash(bun test *)', 'Bash(bun run *)'] } });
+  for (const before of [made, legacy]) {
+    expect(codexRulesAgain(before, updated)).toBe(codexRules(updated).file);
+  }
+  expect(codexRulesAgain(`# Repository policy\n${legacy}prefix_rule(pattern=["ls"], decision="allow")\n`, list)).toBeNull();
   expect(codexRulesAgain(undefined, list)).toBeNull();
 });

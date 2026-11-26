@@ -4,6 +4,7 @@
 
 
 import { codexRules } from '../../server/allow-rules';
+import { isGeneratedCodexRules } from '../../server/codex-rules-file';
 
 export const ALLOW_FILE = '.claude/settings.json';
 export const CODEX_RULES_FILE = '.codex/rules/seismic.rules';
@@ -39,12 +40,10 @@ export function withAllowed(before: string | undefined, rules: string[]): string
 
 /**
  * `.codex/rules/seismic.rules` made again from the allow list `settingsText`, where the file `before`
- * was made from it (its header names by what, which the new one names again); null where there is
- * none or it is the repository's own.
+ * was made from it; null where there is none or it is the repository's own.
  */
 export function codexRulesAgain(before: string | undefined, settingsText: string): string | null {
-  const by = before && /^# Generated from \.claude\/settings\.json by (.+?); edit that file/m.exec(before)?.[1];
-  return by ? codexRules(settingsText, by).file : null;
+  return before && isGeneratedCodexRules(before) ? codexRules(settingsText).file : null;
 }
 
 /**

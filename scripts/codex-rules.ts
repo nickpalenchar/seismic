@@ -9,11 +9,10 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { codexRules as rulesFor } from '../src/server/allow-rules';
+import { codexRules } from '../src/server/allow-rules';
 import { isGeneratedCodexRules, writeCodexRules } from '../src/server/codex-rules-file';
 
-export { prefixOf } from '../src/server/allow-rules';
-export const codexRules = (settingsText: string) => rulesFor(settingsText, '`bun scripts/codex-rules.ts`');
+export { codexRules, prefixOf } from '../src/server/allow-rules';
 
 const root = resolve(import.meta.dir, '..');
 const out = join(root, '.codex', 'rules', 'seismic.rules');

@@ -66,7 +66,7 @@ if (commands.length) {
 }
 
 if (codex) {
-  const { file: rulesFile, skipped } = codexRules(text ?? '{}', 'the `allow-list.ts --codex` of the skill `seismic:settings`');
+  const { file: rulesFile, skipped } = codexRules(text ?? '{}');
   const out = join(repo.path, CODEX_RULES);
   if (writeCodexRules(out, rulesFile) === 'preserved') {
     console.log(`\npreserved ${CODEX_RULES}: repository-owned rules; no generated rules written`);

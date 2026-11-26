@@ -181,5 +181,5 @@ test("Claude Code's older `prefix:*` rule covers the prefix alone or with more w
   expect(allowed(['bun run:*'], zsh('bun run build --watch'))).toBe(true);
   expect(allowed(['bun run:*'], zsh('bun runner'))).toBe(false);
   expect(allowed(['bun run:*'], zsh('bun run x; rm -rf y'))).toBe(false);
-  expect(codexRules(JSON.stringify({ permissions: { allow: ['Bash(bun run:*)'] } }), 'test').file).toContain('prefix_rule(pattern=["bun","run"], decision="allow")');
+  expect(codexRules(JSON.stringify({ permissions: { allow: ['Bash(bun run:*)'] } })).file).toContain('prefix_rule(pattern=["bun","run"], decision="allow")');
 });
