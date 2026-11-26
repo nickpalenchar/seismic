@@ -263,7 +263,7 @@ export class CodeReviews {
   /**
    * The worker resubmits items (by number, with a note) for the reviewer to verify: they go under
    * review. A note on one under review already joins its log; refuses one fixed, one under review
-   * without a note, and a follow-up still owed its task. `done` are the items moved, `noted` those under review that got a note.
+   * without a note, one disputed (the owner decides on it first), and a follow-up still owed its task. `done` are the items moved, `noted` those under review that got a note.
    */
   resubmit(cardId: string, entries: { number: number; note?: string }[], who: ReviewItemWho = 'worker', handover?: number): { done: ReviewItem[]; noted: ReviewItem[]; refused: string[] } {
     const items = this.items(cardId);
@@ -277,7 +277,7 @@ export class CodeReviews {
         next = moved(next, e.number, 'underReview', who, e.note, handover !== undefined ? { handover } : {});
         noted.push(i.number);
       } else if (i.status === 'underReview' || i.status === 'fixed') refused.push(`#${i.number} is ${i.status === 'fixed' ? 'fixed' : 'under review'} already`);
-      
+      else if (i.status === 'disputed') refused.push(`#${i.number} is disputed: the owner decides on it first`);
       else if (i.status === 'followUp' && !i.card) refused.push(`#${i.number} is to be a follow-up task first (follow_up_task)`);
       else next = moved(next, e.number, 'underReview', who, e.note, handover !== undefined ? { handover } : {});
     }

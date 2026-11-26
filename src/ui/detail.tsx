@@ -2854,10 +2854,9 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
   const r = item.review!.codeReview!;
   const cards = useContext(Cards);
   const draft = cardDraft(item.id);
-  const { findings: picked, findingNotes: notes } = useFindingDraft(item);
-  const picks = picked ?? {};
+  const picks = useFindingDraft(item).findings ?? {};
   const answer = (i: ReviewItem) =>
-    i.status !== 'disputed' ? undefined : notes?.[i.number]?.trim() || picks[i.number] === 'self' || picks[i.number] === 'later' ? 'disputeRejected' : picks[i.number] === 'ignore' ? 'disputeConfirmed' : undefined;
+    i.status !== 'disputed' || !picks[i.number] ? undefined : picks[i.number] === 'ignore' ? 'disputeConfirmed' : 'disputeRejected';
   const pick = (n: number, route: FindingPick) =>
     updateDraft(draft, (d) => {
       const { [n]: was, ...rest } = d.findings ?? {};
@@ -2996,60 +2995,87 @@ function ReviewList({ item, act, decides, again, reviewer }: { item: Item; act: 
 function Dispute({ item, review, answered, confirm, regular }: { item: Item; review: ReviewItem; answered?: boolean; confirm?: ReactNode; regular?: ReactNode }) {
   const d = t.codeReview.dispute;
   const draft = cardDraft(item.id);
-  const [why, setWhy] = useState<string | undefined>(undefined);
-  const reasons = review.log.findLast((e) => e.to === 'disputed')?.note;
+  const n = review.number;
+  const { findingNotes, findingNoteEdits } = useFindingDraft(item);
+  const why = answered ? undefined : findingNoteEdits?.[n];
+  const box = useRef<HTMLDivElement>(null);
+  const focusTo = useRef<string | null>(null);
+  useEffect(() => {
+    const to = focusTo.current;
+    focusTo.current = null;
+    if (to) box.current?.querySelector<HTMLElement>(to)?.focus();
+  });
+  const edit = (words: string | undefined) =>
+    updateDraft(draft, (x) => {
+      const { [n]: _, ...rest } = x.findingNoteEdits ?? {};
+      const { [n]: __, ...picks } = x.findings ?? {};
+      return words === undefined ? { findingNoteEdits: rest } : { findingNoteEdits: { ...rest, [n]: words }, findings: picks };
+    });
+  const open = () => {
+    focusTo.current = 'textarea';
+    edit(findingNotes?.[n] ?? review.context ?? '');
+  };
+  const cancel = () => {
+    focusTo.current = '[data-reject]';
+    edit(undefined);
+  };
   const reject = () => {
     const words = why?.trim();
     if (!words) return;
-    updateDraft(draft, (x) => ({ findings: { ...x.findings, [review.number]: 'self' }, findingNotes: { ...x.findingNotes, [review.number]: words } }));
-    setWhy(undefined);
+    focusTo.current = '[aria-pressed=true]';
+    updateDraft(draft, (x) => {
+      const { [n]: _, ...edits } = x.findingNoteEdits ?? {};
+      return { findings: { ...x.findings, [n]: 'self' }, findingNotes: { ...x.findingNotes, [n]: words }, findingNoteEdits: edits };
+    });
   };
-  if (confirm && answered) return regular;
-  const deciding = !!confirm;
+  const reasons = review.log.findLast((e) => e.to === 'disputed')?.note;
   return (
-    <>
-      <Callout kind="warn" className="mt-1.5">
-        <CalloutTitle>{d.title}</CalloutTitle>
-        <CalloutDescription>
-          {reasons && (
-            <p className="m-0">
-              <Inline md={reasons} />
-            </p>
-          )}
-          {deciding && why === undefined && (
-            <div className={choicesClass('single', findingChoices)} role="group">
-              {confirm}
-              <button className={choiceClass({})} title={d.rejectHint} onMouseDown={(e) => e.preventDefault()} onClick={() => setWhy(review.context ?? '')}>
-                {d.reject}
-              </button>
-            </div>
-          )}
-          {deciding && why !== undefined && (
-            <div className="mt-1.5 flex w-full flex-col gap-2">
-              <span className="text-sm">{d.rejectText}</span>
-              <Textarea
-                autoFocus
-                rows={3}
-                className="w-full box-border"
-                aria-label={d.reject}
-                value={why}
-                onChange={(e) => setWhy(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) (e.preventDefault(), reject());
-                  else if (e.key === 'Escape') (e.stopPropagation(), setWhy(undefined));
-                }}
-              />
-              <div className="flex gap-2">
-                <Button variant="primary" disabled={!why.trim()} onClick={reject}>
-                  {d.rejectSave}
-                </Button>
-                <Button onClick={() => setWhy(undefined)}>{d.cancel}</Button>
+    <div ref={box} className="contents" onClickCapture={(e) => (e.target as Element).closest('[data-confirm]') && (focusTo.current = '[aria-pressed=true]')}>
+      {confirm && answered ? (
+        regular
+      ) : (
+        <Callout kind="warn" className="mt-1.5">
+          <CalloutTitle>{d.title}</CalloutTitle>
+          <CalloutDescription>
+            {reasons && (
+              <p className="m-0">
+                <Inline md={reasons} />
+              </p>
+            )}
+            {confirm && why === undefined && (
+              <div className={choicesClass('single', findingChoices)} role="group">
+                <span data-confirm className="contents">
+                  {confirm}
+                </span>
+                <button data-reject className={choiceClass({})} title={d.rejectHint} onMouseDown={(e) => e.preventDefault()} onClick={open}>
+                  {d.reject}
+                </button>
               </div>
-            </div>
-          )}
-        </CalloutDescription>
-      </Callout>
-    </>
+            )}
+            {confirm && why !== undefined && (
+              <div
+                data-esc
+                data-esc-back
+                className="mt-1.5 flex w-full flex-col gap-2"
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') (e.preventDefault(), e.stopPropagation(), cancel());
+                  else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) (e.preventDefault(), reject());
+                }}
+              >
+                <span className="text-sm">{d.rejectText}</span>
+                <Textarea rows={3} className="w-full box-border" aria-label={d.reject} value={why} onChange={(e) => edit(e.target.value)} />
+                <div className="flex gap-2">
+                  <Button variant="primary" disabled={!why.trim()} onClick={reject}>
+                    {d.rejectSave}
+                  </Button>
+                  <Button onClick={cancel}>{d.cancel}</Button>
+                </div>
+              </div>
+            )}
+          </CalloutDescription>
+        </Callout>
+      )}
+    </div>
   );
 }
 

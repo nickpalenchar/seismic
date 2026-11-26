@@ -586,6 +586,8 @@ describe('code reviews', () => {
     expect(await worker().call('dispute_review_item', { items: [{ number: 3, note: 'x' }] })).toContain('not one you are fixing');
     expect(statuses(id)).toEqual(['fixing', 'disputed', 'underReview']);
     expect(needsYou(board.item(id)!)).toBe(false);
+    expect(await worker().call('resubmit_review_item', { items: [{ number: 2, note: 'Fixed after all.' }] })).toContain('#2 is disputed: the owner decides on it first');
+    expect(statuses(id)).toEqual(['fixing', 'disputed', 'underReview']);
     
     await handOver(id, 'fix.ts');
     expect(statuses(id)).toEqual(['underReview', 'disputed', 'underReview']);
