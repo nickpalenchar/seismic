@@ -952,7 +952,7 @@ export function Detail(p: Props) {
             </Button>
           )}
           {(archivable || (halted && !item.idea?.prototypeOf && item.source === 'manual')) && <ArchiveButton item={item} run={run} />}
-          {halted && !item.archivedAt && item.source === 'manual' && !item.idea?.prototypeOf && (
+          {halted && !item.archivedAt && (item.source === 'manual' || item.kind === 'task') && !item.idea?.prototypeOf && (
             <Button variant="danger" onClick={p.onDelete}>
               {t.delete}
             </Button>

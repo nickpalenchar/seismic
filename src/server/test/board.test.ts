@@ -343,6 +343,17 @@ describe('plan docs', () => {
     expect(() => board.patch(p!.id, { state: 'working' })).toThrow(BadRequest);
     expect(() => board.remove(w1!.id)).toThrow(BadRequest);
   });
+
+  test('a stopped workstream card can be deleted, and the workstream gets a fresh card', () => {
+    const [, w1] = board.snapshot().items;
+    board.work(w1!.id, { branch: 'seismic/w1' });
+    board.remove(w1!.id);
+    expect(board.item(w1!.id)).toBeUndefined();
+    board.docsChanged();
+    const fresh = board.snapshot().items.find((i) => i.plan?.label === w1!.plan?.label)!;
+    expect(fresh).toMatchObject({ source: 'plan', parent: expect.any(String) });
+    expect(fresh.id).not.toBe(w1!.id);
+  });
 });
 
 describe('the note on the plan directory', () => {

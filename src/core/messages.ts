@@ -306,6 +306,7 @@ const en = {
     taskBecamePlan: 'The plan now stands in the task’s place; the task is in the archive.',
     partLanded: 'Part landed; the plan doc keeps the workstream open. The rest continues on a new card.',
     leftGone: (plan: string) => `Left the plan “${plan}”: the plan doc no longer lists this workstream.`,
+    leftDeleted: (plan: string) => `Left the plan “${plan}”: the owner deleted this stopped card. The workstream gets a fresh card.`,
     leftOther: (plan: string) => `Left the plan “${plan}”: this history belongs to a workstream the plan doc no longer lists.`,
     briefName: 'Where the idea stands',
     prototypeButton: 'Have a prototype built',

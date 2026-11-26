@@ -3449,10 +3449,19 @@ export class Board {
     this.changed();
   }
 
-  /** Manual cards only; a plan card goes away with its workstream. */
+  /**
+   * Manual cards, and a stopped workstream card of a plan: that one first leaves its plan (as when
+   * its workstream goes from the doc), so the workstream gets a fresh card. A plan card that is not
+   * stopped goes away with its workstream.
+   */
   remove(id: string) {
     const row = this.own(id);
-    if (row.plan_ref) throw new BadRequest('planCard', 'plan cards are removed in the plan doc');
+    if (row.plan_ref) {
+      const plan = row.parent_id ? this.store.cards.get(row.parent_id) : undefined;
+      if (row.kind !== 'task' || !plan?.plan_ref || (row.state ?? 'planned') !== 'planned' || !row.branch) throw new BadRequest('planCard', 'plan cards are removed in the plan doc');
+      const file = plan.plan_ref;
+      this.leave(row, plan, this.identity(row, file, plan.plan?.doc ?? null, false), this.t.idea.leftDeleted(plan.plan?.doc?.title ?? file));
+    }
     this.store.cards.update(id, { deleted_at: new Date().toISOString() });
     this.separateDeletedMerges();
     this.record(id, 'deleted', 'owner', { title: row.title ?? '' });
