@@ -59,9 +59,9 @@ was used, the form says so: let the other machine show a new one.
 ## Switch workspaces
 
 The switcher sits at the top of the left menu, above Inbox, on every page in the app, on remote
-workspaces too. It shows the name of the workspace you see, wrapped over as many lines as it needs,
-with **this machine** or **remote** beneath it and the settings cog at the right of that line. A
-click lists the other workspaces, with **New workspace** below them. The cog opens the shown
+workspaces too. The workspace name appears on one line and ends with an ellipsis if it is too long
+to fit. The status beneath reads **this machine** or **remote**, with the settings cog to its right.
+Click the name to list the other workspaces, with **New workspace** below them. The cog opens the shown
 workspace's settings.
 
 On a Mac the **Workspace** menu in the menu bar lists them as well: **Control–Command–1** opens
