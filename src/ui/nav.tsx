@@ -457,20 +457,23 @@ function DeskSwitcher() {
   if (!all || !shown) return null;
   const w = t.desks;
   const failed = (about = '') => (e: unknown) => setProblem(deskError(e, about));
+  const toggle = () => (setOpen(!open), setProblem(''));
   return (
     <div className="desk-switcher mt-1 mb-2 rounded-md border border-border">
-      <div className="relative p-1">
-        <Act sidebarItem={false} keep className={cn(rowButton, 'items-start px-2 text-foreground')} tip={w.switcher} aria-expanded={open} onAct={() => (setOpen(!open), setProblem(''))}>
+      <div className="flex flex-col p-1">
+        <Act sidebarItem={false} keep className={cn(rowButton, 'items-start px-2 pb-0 text-foreground')} tip={w.switcher} aria-expanded={open} onAct={toggle}>
           <span className="mt-0.5 flex-none"><DeskIcon desk={shown} size={15} /></span>
-          <span className="flex min-w-0 flex-1 flex-col">
-            <b className="[overflow-wrap:anywhere]">{shown.name}</b>
-            <span className="flex min-h-[26px] items-center text-xs text-muted-foreground">{shown.local ? w.thisMachine : w.remote}</span>
-          </span>
+          <b className="min-w-0 flex-1 [overflow-wrap:anywhere]">{shown.name}</b>
           <ChevronDown size={14} strokeWidth={2} className={cn('mt-1 ml-auto text-muted-foreground transition-transform', open && 'rotate-180')} aria-hidden />
         </Act>
-        <Act sidebarItem={false} className="absolute right-2 bottom-2.5 grid size-[26px] cursor-pointer place-items-center rounded-xs bg-transparent p-0 text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted" tip={w.settings} aria-label={w.settings} onAct={() => void openWorkspaces(all, `?edit=${encodeURIComponent(shown.id)}`).catch(failed())}>
-          <Cog size={16} strokeWidth={2} aria-hidden />
-        </Act>
+        <div className="flex items-center gap-1 pr-1 pl-8">
+          <Act sidebarItem={false} keep className={cn(rowButton, 'min-w-0 flex-1 px-0 py-1 text-xs')} tip={w.switcher} aria-expanded={open} onAct={toggle}>
+            {shown.local ? w.thisMachine : w.remote}
+          </Act>
+          <Act sidebarItem={false} className="grid size-7 flex-none cursor-pointer place-items-center rounded-xs bg-transparent p-0 text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted" tip={w.settings} aria-label={w.settings} onAct={() => void openWorkspaces(all, `?edit=${encodeURIComponent(shown.id)}`).catch(failed())}>
+            <Cog size={16} strokeWidth={2} aria-hidden />
+          </Act>
+        </div>
       </div>
       {open && (
         <NavList className={cn(list, 'border-t border-border p-1')}>
