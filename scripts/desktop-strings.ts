@@ -30,9 +30,9 @@ function templates(value: unknown, path: string): Template {
 
 /** The contents of desktop/ui/strings.js. */
 export const desktopStrings = () =>
-  `// Written by scripts/desktop-strings.ts from desktopPages in src/ui/strings.ts; change it there.\n` +
+  `\n` +
   `window.SEISMIC_STRINGS = ${JSON.stringify(templates(t.desktopPages, 'desktopPages'), null, 2)};\n` +
-  `/** A template's {0}, {1} … filled in with the values, in that order. */\n` +
+  `\n` +
   `window.fillString = (template, ...values) => template.replace(/\\{(\\d+)\\}/g, (_, i) => values[i]);\n`;
 
 if (import.meta.main) {

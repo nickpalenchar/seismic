@@ -1,4 +1,4 @@
-# Generated from .claude/settings.json by the `allow-list.ts --codex` of the skill `seismic:settings`; edit that file, not this one.
+# Generated from .claude/settings.json by `bun scripts/codex-rules.ts`; edit that file, not this one.
 # A Codex rule is a word prefix: a Claude rule without a `*` (an exact command) allows arguments after it here.
 # Rules whose `*` stands inside a word have no form here; Seismic applies them itself to its Codex workers:
 #   Bash(mkdir -p /Users/nick/demos/obeya-*)
