@@ -460,20 +460,18 @@ function DeskSwitcher() {
   const toggle = () => (setOpen(!open), setProblem(''));
   return (
     <div className="desk-switcher mt-1 mb-2 rounded-md border border-border">
-      <div className="flex flex-col p-1">
-        <Act sidebarItem={false} keep className={cn(rowButton, 'items-start px-2 pb-0 text-foreground')} tip={w.switcher} aria-expanded={open} onAct={toggle}>
-          <span className="mt-0.5 flex-none"><DeskIcon desk={shown} size={15} /></span>
-          <b className="min-w-0 flex-1 [overflow-wrap:anywhere]">{shown.name}</b>
-          <ChevronDown size={14} strokeWidth={2} className={cn('mt-1 ml-auto text-muted-foreground transition-transform', open && 'rotate-180')} aria-hidden />
+      <div className="grid grid-cols-[1fr_auto] p-1">
+        <Act sidebarItem={false} keep className={cn(rowButton, 'col-span-2 row-span-2 grid grid-rows-subgrid gap-0 px-2 py-0 text-foreground')} tip={w.switcher} aria-expanded={open} onAct={toggle}>
+          <span className="flex items-start gap-2 pt-1.5">
+            <span className="mt-0.5 flex-none"><DeskIcon desk={shown} size={15} /></span>
+            <b className="min-w-0 flex-1 [overflow-wrap:anywhere]">{shown.name}</b>
+            <ChevronDown size={14} strokeWidth={2} className={cn('mt-1 ml-auto text-muted-foreground transition-transform', open && 'rotate-180')} aria-hidden />
+          </span>
+          <span className="flex items-center pl-6 text-xs text-muted-foreground">{shown.local ? w.thisMachine : w.remote}</span>
         </Act>
-        <div className="flex items-center gap-1 pr-1 pl-8">
-          <Act sidebarItem={false} keep className={cn(rowButton, 'min-w-0 flex-1 px-0 py-1 text-xs')} tip={w.switcher} aria-expanded={open} onAct={toggle}>
-            {shown.local ? w.thisMachine : w.remote}
-          </Act>
-          <Act sidebarItem={false} className="grid size-7 flex-none cursor-pointer place-items-center rounded-xs bg-transparent p-0 text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted" tip={w.settings} aria-label={w.settings} onAct={() => void openWorkspaces(all, `?edit=${encodeURIComponent(shown.id)}`).catch(failed())}>
-            <Cog size={16} strokeWidth={2} aria-hidden />
-          </Act>
-        </div>
+        <Act sidebarItem={false} className="relative col-start-2 row-start-2 mr-2 grid size-7 cursor-pointer place-items-center self-center rounded-xs bg-transparent p-0 text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted" tip={w.settings} aria-label={w.settings} onAct={() => void openWorkspaces(all, `?edit=${encodeURIComponent(shown.id)}`).catch(failed())}>
+          <Cog size={16} strokeWidth={2} aria-hidden />
+        </Act>
       </div>
       {open && (
         <NavList className={cn(list, 'border-t border-border p-1')}>
