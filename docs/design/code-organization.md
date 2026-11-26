@@ -73,6 +73,13 @@ Represents endpoints that are registered to the server, which can be called in a
   - The configuration (the projects and their repositories, `projects.json`) is its own resource,
     `/api/v1/configuration`, saved whole with `PUT`; the answer has what came of the save and the
     configuration as it then reads. It is no setting: saving it applies to running projects.
+  - Chats with Seismic are the resource `/api/v1/chats` (decided 2026-11-25): `POST` makes one on a
+    project (`{ project }`), `GET` lists every project's, `PATCH /chats/:chatId` sets its model,
+    `POST /chats/:chatId/open` goes back to it and `POST /chats/:chatId/read` marks its answers read,
+    `POST /chats/:chatId/exchanges/:exchangeId/unwait` drops a step Seismic waits on a card for, and
+    `GET /chats/recent?project=` is the one the panel resumes. A chat's id is global, so its URL
+    names the chat alone, like a card's. Sending words stays on `/command`, which voice and the cards'
+    fields share.
   - Params name what they stand for (`:cardId`), never a bare `:id`.
   - A card's URL names the card alone, not its project: the server finds the project from the card
     (`HttpRoute.projectOfCard`), so a call can't go to the wrong project when the page shows another.

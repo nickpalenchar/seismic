@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from 'bun:test';
 import { api, beforeReload, cardsOn, handOver, setProject, snapshotSession, takeHandOver, withCard, withCardBack, withoutCard, withUnchanged } from './api';
+import { setChatModel } from './clients/seismic';
 import { keepConfigDraft } from './configDraft';
 import { draftOf, keepDrafts, markupOf, updateDraft } from './draft';
 import { draftSession, onHandOverEntries, restoreDraftOverflow } from './draftSession';
@@ -213,17 +214,17 @@ test('a delayed chat command keeps the project and chat captured at Send', async
 });
 
 
-test('a model save carries the selected chat and project after navigation', async () => {
+test('a model save names its chat in the URL, whichever project is in view', async () => {
   let body: unknown;
   globalThis.fetch = (async (url: string, init?: RequestInit) => {
     fetched.push(url);
     body = JSON.parse(String(init?.body));
-    return new Response(null, { status: 204 });
+    return Response.json({ chat: { id: 12, model: 'sonnet' } });
   }) as typeof fetch;
   setProject('elsewhere');
-  await api.setChatModel('original', 12, 'sonnet');
-  expect(fetched).toEqual(['/api/c/original/chat/model']);
-  expect(body).toEqual({ chat: 12, model: 'sonnet' });
+  await setChatModel(12, 'sonnet');
+  expect(fetched).toEqual(['/api/v1/chats/12']);
+  expect(body).toEqual({ model: 'sonnet' });
 });
 
 test('a saved card takes the place of the one the snapshot had; one it does not show changes nothing', () => {

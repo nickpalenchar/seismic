@@ -7,7 +7,7 @@ import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from 'cn';
 import type { Chat, ChatElsewhere, Talk } from '../core/types';
-import { api } from './api';
+import { createChat, getEveryChat, openChat } from './clients/seismic';
 import { useDraft } from './draft';
 import { plain } from './markdown';
 import { useStoredState } from './stored';
@@ -48,7 +48,7 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, disa
   useEffect(() => {
     if (!open || !all) return;
     let gone = false;
-    api.everyChat().then(
+    getEveryChat().then(
       (x) => !gone && setEvery(x),
       (e) => !gone && setError(failText(e)),
     );
@@ -72,7 +72,7 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, disa
   const go = (c: Chat) => {
     if (c.id === chat && c.project === project) return setOpen(false);
     setError('');
-    api.openChat(c.id, c.project === project ? undefined : c.project).then(
+    openChat(c.id).then(
       () => {
         setOpen(false);
         if (c.project !== project) onProject(c.project);
@@ -84,7 +84,7 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, disa
   const start = () => {
     setOpen(false);
     if (onShow) onShow(null);
-    else api.newChat().catch(console.error);
+    else createChat(project).catch(console.error);
   };
   const shown: (Chat & { projectName?: string })[] = all ? (every ?? []) : chats;
 
@@ -185,7 +185,7 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, disa
 }
 
 /** The project's latest sessions, until the owner starts writing in the empty chat. */
-export function RecentChats({ project, draft, chats, onShow }: { project: string; draft: string; chats: Chat[]; onShow?: (chat: number) => void }) {
+export function RecentChats({ draft, chats, onShow }: { draft: string; chats: Chat[]; onShow?: (chat: number) => void }) {
   const [error, setError] = useState('');
   const { text } = useDraft(draft);
   const [started, setStarted] = useState(!!text);
@@ -195,7 +195,7 @@ export function RecentChats({ project, draft, chats, onShow }: { project: string
   if (!chats.length || text || started) return null;
   const resume = (c: Chat) => {
     setError('');
-    api.openChat(c.id, project).then(() => onShow?.(c.id), (e) => setError(failText(e)));
+    openChat(c.id).then(() => onShow?.(c.id), (e) => setError(failText(e)));
   };
   return (
     <div className="mb-2 text-center" role="group" aria-label={t.koordinator.recentChats}>

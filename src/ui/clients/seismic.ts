@@ -3,7 +3,7 @@
 
 
 
-import type { AgentSetting, CardPatch, ConfigSaved, ConfigView, Item, OwnerSetting, OwnerSettingChanges, OwnerSettingViews, ProjectConfig } from '../../core/types';
+import type { AgentSetting, CardPatch, ChatElsewhere, ConfigSaved, ConfigView, Item, OwnerSetting, OwnerSettingChanges, OwnerSettingViews, ProjectConfig } from '../../core/types';
 import { agentSettingsSaved, call, cardBack, cardRemoved, cardSaved, projectOf, snapshotsOf } from '../api';
 
 
@@ -96,6 +96,25 @@ export const getConfiguration = async (): Promise<ConfigView> => (await call<{ c
  * come) and the configuration as it then reads. Applying waits for git to read the projects it changed.
  */
 export const saveConfiguration = (projects: ProjectConfig[]) => call<{ saved: ConfigSaved; configuration: ConfigView }>('PUT', '/api/v1/configuration', projects, false, TIMEOUT_MS);
+
+/** The chats with Seismic on every project that runs, the latest first. */
+export const getEveryChat = async (): Promise<ChatElsewhere[]> => (await call<{ chats: ChatElsewhere[] }>('GET', '/api/v1/chats', undefined, false, TIMEOUT_MS)).chats;
+
+/** A new chat with Seismic on the project (the one with nothing said in it yet, where there is one): its id. */
+export const createChat = async (project: string): Promise<number> => (await call<{ chat: number }>('POST', '/api/v1/chats', { project }, false, TIMEOUT_MS)).chat;
+
+/** The owner goes back to the earlier chat `chat` (of any project): new words go into it from now on. */
+export const openChat = async (chat: number): Promise<void> => void (await call<{ chat: number }>('POST', `/api/v1/chats/${chat}/open`, undefined, false, TIMEOUT_MS));
+
+/** The model the chat's words are read with (`undefined`: the project's default). */
+export const setChatModel = async (chat: number, model?: string): Promise<void> => void (await call<unknown>('PATCH', `/api/v1/chats/${chat}`, { model: model ?? null }, false, TIMEOUT_MS));
+
+/** The owner saw these exchanges of the chat. */
+export const readChat = async (chat: number, ids: number[]): Promise<void> => void (await call<unknown>('POST', `/api/v1/chats/${chat}/read`, { ids }, false, TIMEOUT_MS));
+
+/** The owner stops Seismic's wait on `card` after the exchange of the chat ("Stop waiting"); false when it no longer waits. */
+export const stopWaiting = async (chat: number, exchange: number, card: string): Promise<boolean> =>
+  (await call<{ stopped: boolean }>('POST', `/api/v1/chats/${chat}/exchanges/${exchange}/unwait`, { card }, false, TIMEOUT_MS)).stopped;
 
 /** The chat the owner talked in last on the project, and when; `null` while nothing was said in any. */
 export const getRecentChat = async (project: string): Promise<{ id: number; at: string } | null> =>

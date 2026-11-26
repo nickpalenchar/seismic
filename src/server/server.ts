@@ -5,7 +5,7 @@ import { extensionSettings, serverExtensions as extensions } from '../extensions
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
 import { join, resolve } from 'node:path';
-import { type ActivityPage, agentListens, type ProjectInfo, type ChatElsewhere, type ProjectSettingsView, type CardAction, type ClientMessage, type DeveloperView, type Harness, type Item, type MachineSectionId, type NewCard, type PageTags, type PendingRestart, type ServerMessage, type SpotInput, type TalkRef, isTalkRef, MAX_FILE_BYTES, needsYou, type Waiting, waitingIn } from '../core/types';
+import { type ActivityPage, agentListens, type ProjectInfo, type ProjectSettingsView, type CardAction, type ClientMessage, type DeveloperView, type Harness, type Item, type MachineSectionId, type NewCard, type PageTags, type PendingRestart, type ServerMessage, type SpotInput, type TalkRef, isTalkRef, MAX_FILE_BYTES, needsYou, type Waiting, waitingIn } from '../core/types';
 import { uiRoutes } from './ui';
 import { guarded, LOCAL_HOSTS, refusal } from './access';
 import { BadRequest } from './board';
@@ -369,6 +369,10 @@ export function serve(
       const row = c.dataStore.cards.get(cardId);
       return row?.project_id === c.id && (!row.deleted_at || !!options?.deleted);
     });
+  const projectOfChat = (chatId: number) => {
+    const projectId = [...byId.values()][0]?.dataStore.chats.projectOf(chatId);
+    return projectId === undefined ? undefined : byId.get(projectId);
+  };
   /** A route on one project; an unknown project is a 404. */
   const on =
     (fn: (c: ProjectRuntime, req: Req) => unknown | Promise<unknown>) =>
@@ -489,7 +493,7 @@ export function serve(
       ...extensionRoutes,
       ...uiRoutes(development),
       
-      ...bunRoutes(v1Routes({ projectOfCard, projectById: (id) => byId.get(id), ownerSettings, configuration: config })),
+      ...bunRoutes(v1Routes({ projectOfCard, projectById: (id) => byId.get(id), projectOfChat, allProjects: () => projects.all(), ownerSettings, configuration: config })),
       
       '/login': { GET: (req, srv) => access.loginRoute(req, srv) },
       
@@ -559,12 +563,6 @@ export function serve(
           }),
       },
       
-      '/api/chats': {
-        GET: () => {
-          const names = new Map(projects.all().map((c) => [c.board.project.id, c.board.project.name]));
-          return Response.json((projects.all()[0]?.board.everyChat() ?? []).flatMap((x) => (names.has(x.project) ? [{ ...x, projectName: names.get(x.project)! }] : [])) satisfies ChatElsewhere[]);
-        },
-      },
       '/api/projects/export': { GET: (req) => {
         const url = new URL(req.url);
         const as = url.searchParams.get('as');
@@ -1145,27 +1143,6 @@ export function serve(
           if (ids !== undefined && !(Array.isArray(ids) && ids.every((i) => Number.isInteger(i)))) throw new BadRequest('invalid', 'ids must be a list of exchange ids');
           c.board.readTalk(ids as number[] | undefined);
         }),
-      },
-      
-      '/api/c/:project/chat': {
-        POST: on(async (c, req) => {
-          const { id } = (await req.json().catch(() => ({}))) as { id?: unknown };
-          if (id === undefined) return { chat: c.board.newChat() };
-          if (!Number.isInteger(id)) throw new BadRequest('invalid', 'id must be a chat id');
-          c.board.openChat(id as number);
-          return { chat: id };
-        }),
-      },
-      '/api/c/:project/chat/model': {
-        POST: on(async (c, req) => {
-          const { model, chat } = (await req.json().catch(() => ({}))) as { model?: unknown; chat?: number };
-          if (typeof chat !== 'number' || !Number.isSafeInteger(chat) || !c.board.hasChat(chat)) throw new BadRequest('invalid', 'chat must belong to this project');
-          if (model !== null && model !== undefined && (typeof model !== 'string' || !['default', 'fable', 'opus', 'sonnet', 'haiku'].includes(model) && !/^(?:codex|agy):[A-Za-z0-9_.:/-]{1,200}$/.test(model))) throw new BadRequest('invalid', 'unknown model');
-          c.board.setChatModel(model == null ? undefined : model as import('../core/types').ChatModel, chat);
-        }),
-      },
-      '/api/c/:project/talk/:id/unwait': {
-        POST: on(async (c, req) => ({ stopped: c.commander.unwait(Number(req.params.id), String(((await req.json().catch(() => ({}))) as { card?: unknown }).card ?? '')) })),
       },
       '/api/c/:project/ws': (req, server) =>
         byId.has(req.params.project) && server.upgrade(req, { data: { project: req.params.project, page: crypto.randomUUID(), device: access.deviceOf(req) } })

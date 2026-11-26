@@ -725,6 +725,7 @@ const en = {
   error: {
     unknownCard: 'That no longer exists.',
     unknownProject: 'That project no longer exists.',
+    unknownChat: 'That chat no longer exists.',
     settingNotFound: 'There is no such setting.',
     noConfiguration: 'This Seismic runs without a configuration of its own.',
     unknownGroup: 'This group no longer exists.',

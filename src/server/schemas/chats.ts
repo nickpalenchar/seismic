@@ -40,6 +40,11 @@ export class Chats {
     return chat && { id: chat.id, at: chat.at };
   }
 
+  /** The project the chat is on; none for a chat that does not exist. */
+  projectOf(id: number): string | undefined {
+    return this.db.select({ project: chats.projectId }).from(chats).where(eq(chats.id, id)).get()?.project;
+  }
+
   /** Whether the chat belongs to the project. */
   belongs(projectId: string, id: number): boolean {
     return !!this.db.select({ id: chats.id }).from(chats).where(and(eq(chats.projectId, projectId), eq(chats.id, id))).get();

@@ -11,7 +11,7 @@ import { afterAttachments } from './attachmentSwitch';
 import { prepareSessionHandOver, sessionWithDrafts } from './draftSession';
 import type { CardDiff } from '../core/diff';
 import { type Place, placeParam } from '../core/layout';
-import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, RemoteSetting, ModelInfo, Harness, HarnessAvailability, CloudPreset, ProjectConfig, ProjectInfo, ProjectSnapshot, ChatElsewhere, ClientMessage, ConfigSaved, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, SetupRepoCheck, VoiceSetupView, CardEvent, Item, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Usage, Waiting, Feedback, FeedbackAnswer, ProjectSettings, ProjectSettingsView, DeveloperView, Canvas } from '../core/types';
+import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, RemoteSetting, ModelInfo, Harness, HarnessAvailability, CloudPreset, ProjectConfig, ProjectInfo, ProjectSnapshot, ClientMessage, ConfigSaved, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, SetupRepoCheck, VoiceSetupView, CardEvent, Item, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Usage, Waiting, Feedback, FeedbackAnswer, ProjectSettings, ProjectSettingsView, DeveloperView, Canvas } from '../core/types';
 import type { Wish } from '../core/wish';
 import { sameJson } from './sameJson';
 import { noteMessage, watchPageStalls } from './stalls';
@@ -441,14 +441,6 @@ export const api = {
   
   /** Seismic's sheet is in view, or (`ids`) these exchanges in a plan's sheet. */
   readTalk: (ids?: number[]) => call<void>('POST', at('/talk/read'), ids ? { ids } : undefined),
-  /** A new chat with Seismic on the shown project, or (`id`) an earlier one, of `project` where it is another. */
-  newChat: () => call<{ chat: number }>('POST', at('/chat'), {}),
-  openChat: (id: number, project?: string) => call<{ chat: number }>('POST', project ? `/api/c/${encodeURIComponent(project)}/chat` : at('/chat'), { id }),
-  setChatModel: (project: string, chat: number, model?: string) => call<void>('POST', `/api/c/${encodeURIComponent(project)}/chat/model`, { chat, model: model ?? null }),
-  /** The chats with Seismic on every project that runs, the latest first. */
-  everyChat: () => call<ChatElsewhere[]>('GET', '/api/chats'),
-  /** Seismic no longer waits on the card after that exchange, to take the step it said it would. */
-  unwait: (talk: number, card: string) => call<{ stopped: boolean }>('POST', at(`/talk/${talk}/unwait`), { card }),
 };
 
 

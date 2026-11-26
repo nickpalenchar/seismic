@@ -14,7 +14,7 @@ import { agyBaseChoice, chatModelFor, withAgyBase, harnessChoice, projectAgentSe
 import { catalogDefault, ModelOptions } from './agent-options';
 import { api, onAgentSettingsChange } from './api';
 import { chatLongClosed, chatWentQuiet, markChatClosed } from './chatReopen';
-import { getRecentChat } from './clients/seismic';
+import { createChat, getRecentChat, openChat, readChat, setChatModel, stopWaiting } from './clients/seismic';
 import { Inline, plain } from './markdown';
 import { AnswerFiles, Body, Continues, Msg, Quote, Reading, ThreadCard } from './message';
 import { type Reply, setReply, talkEv, talkQuote } from './reply';
@@ -97,7 +97,7 @@ export function KoordinatorSheet({ on, entry, project, projectName, items, repos
       return { chat: recent.id, offerRecent: false };
     };
     pick().then(async (picked) => {
-      if (picked.chat !== null && picked.chat !== latest.current.chat) await api.openChat(picked.chat);
+      if (picked.chat !== null && picked.chat !== latest.current.chat) await openChat(picked.chat);
       if (!closed) setOpening({ ...picked, ready: picked.chat === null });
     }).catch((e) => { if (!closed) setOpening({ error: failText(e) }); });
     return () => {
@@ -113,7 +113,7 @@ export function KoordinatorSheet({ on, entry, project, projectName, items, repos
   }, [selected, chat]);
   const showChat = (next: number | null) => setOpening({ chat: next, offerRecent: false, ready: next === null });
   const startChat = async () => {
-    const { chat: started } = await api.newChat();
+    const started = await createChat(project);
     setOpening({ chat: started, offerRecent: false, ready: true });
     return started;
   };
@@ -128,7 +128,7 @@ export function KoordinatorSheet({ on, entry, project, projectName, items, repos
     <Docked ref={sheet} id="ksheet" on={on} className="flex flex-col [&>*]:flex-none [&>:is(.conv,.talk.fresh-chat)]:flex-[1_1_0] [&>:is(.conv,.talk.fresh-chat)]:min-h-[200px] [&>:is(.conv,.talk.fresh-chat)]:max-h-none [&>:is(.conv,.talk.fresh-chat)]:max-w-none [&>:is(.conv,.talk.fresh-chat)]:mt-0 [&>:is(.conv,.talk.fresh-chat)]:mb-1 [&>:is(.conv,.talk.fresh-chat)]:mx-0">
       <ChatsHead title={<h2 className={sheetTitleClass}>{t.koordinator.title}</h2>} project={project} projectName={projectName} chat={selected?.chat ?? FRESH_CHAT} chats={chats} talk={talk} disabled={!ready} onShow={showChat} onProject={onProject} onClose={onClose} />
       {ready ? (
-        <KoordinatorTalk on={on} project={project} talk={selected?.chat === null ? [] : talk} chat={selected?.chat ?? FRESH_CHAT} chatModel={selected?.chat === null ? undefined : chatModel} chats={chats} items={items} repos={repos} onOpen={onOpen} onTell={onTell} autoOpenUnread={false} startChat={selected?.chat === null ? startChat : undefined} beforeComposer={selected?.offerRecent && <RecentChats project={project} draft={SEISMIC_DRAFT} chats={chats} onShow={showChat} />} />
+        <KoordinatorTalk on={on} project={project} talk={selected?.chat === null ? [] : talk} chat={selected?.chat ?? FRESH_CHAT} chatModel={selected?.chat === null ? undefined : chatModel} chats={chats} items={items} repos={repos} onOpen={onOpen} onTell={onTell} autoOpenUnread={false} startChat={selected?.chat === null ? startChat : undefined} beforeComposer={selected?.offerRecent && <RecentChats draft={SEISMIC_DRAFT} chats={chats} onShow={showChat} />} />
       ) : opening && 'error' in opening ? (
         <div>
           <p className="p-error" role="alert">{opening.error}</p>
@@ -152,7 +152,7 @@ export function KoordinatorSheet({ on, entry, project, projectName, items, repos
  */
 export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats, items, repos, onOpen, onTell, draft = SEISMIC_DRAFT, autoOpenUnread = true, beforeComposer, startChat }: Pick<Props, 'on' | 'project' | 'talk' | 'chat' | 'chatModel' | 'chats' | 'items' | 'repos' | 'onOpen' | 'onTell'> & { draft?: string; autoOpenUnread?: boolean; beforeComposer?: ReactNode; startChat?: () => Promise<number> }) {
   const talk = all.filter((x) => x.chat === undefined || x.chat === chat);
-  const fresh = useRead(on, talk, (ids) => api.readTalk(ids));
+  const fresh = useRead(on, talk, (ids) => readChat(chat, ids));
   const [choice, setChoice] = useState<{ chat: number; model?: ChatModel } | null>(null);
   const [pending, setPending] = useState<{ id: string; project: string; chat: number; text: string; images?: string[] }[]>([]);
   const [error, setError] = useState('');
@@ -202,7 +202,7 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
     const before = choiceRef.current?.chat === chat ? choiceRef.current.model : chatModel;
     setChoice({ chat, model });
     if (startChat) return;
-    const task = modelTask.current.catch(() => {}).then(() => api.setChatModel(project, chat, model));
+    const task = modelTask.current.catch(() => {}).then(() => setChatModel(chat, model));
     modelTask.current = task;
     void task.catch((e) => {
       setChoice((current) => current?.chat === chat && current.model === model ? { chat, model: before } : current);
@@ -218,7 +218,7 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
         const picked = choiceRef.current?.chat === chat ? choiceRef.current.model : undefined;
         into = await startChat();
         setPending((current) => current.map((entry) => (entry.id === id ? { ...entry, chat: into } : entry)));
-        if (picked) await api.setChatModel(project, into, picked);
+        if (picked) await setChatModel(into, picked);
       }
       return onTell(text, images, replyTo, { project, chat: into, requestId: id });
     });
@@ -235,7 +235,7 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
   useEffect(() => {
     
     const waits = all.findLast((x) => x.unread && x.chat !== undefined && x.chat !== chat);
-    if (autoOpenUnread && on && waits && !talk.some((x) => x.unread)) api.openChat(waits.chat!).catch(console.error);
+    if (autoOpenUnread && on && waits && !talk.some((x) => x.unread)) openChat(waits.chat!).catch(console.error);
   }, [on, autoOpenUnread]);
   return (
     <>
@@ -457,7 +457,7 @@ function Conversation({ talk, fresh, items, onOpen, draft, sheetOf, pending = []
                 <Body md={x.reply} />
                 {x.wish && !x.undone && <WishReplyLink wish={x.wish} />}
                 {x.undone && <div className="hint">{t.koordinator.undone}</div>}
-                {x.waits?.map((w) => <WaitLine key={w.card} talk={x.id} wait={w} card={items.find((i) => i.id === w.card)} onOpen={onOpen} />)}
+                {x.chat !== undefined && x.waits?.map((w) => <WaitLine key={w.card} chat={x.chat!} talk={x.id} wait={w} card={items.find((i) => i.id === w.card)} onOpen={onOpen} />)}
               </Msg>
             )}
             { }
@@ -503,13 +503,13 @@ function Conversation({ talk, fresh, items, onOpen, draft, sheetOf, pending = []
 }
 
 /** Under Seismic's reply: a card it waits on, to take the step it said it would take then; "Stop waiting" drops that step. */
-function WaitLine({ talk, wait, card, onOpen }: { talk: number; wait: TalkWait; card: Item | undefined; onOpen: (i: Item) => void }) {
+function WaitLine({ chat, talk, wait, card, onOpen }: { chat: number; talk: number; wait: TalkWait; card: Item | undefined; onOpen: (i: Item) => void }) {
   return (
     <div className="hint wait-line flex flex-wrap items-center gap-y-1 gap-x-2 mt-1.5 [&_.clock-mark]:align-[-1px]">
       <span>
         <ClockMark /> <Naming text={(title) => t.koordinator.waits(title, wait.state)} cards={[{ card, title: wait.title }]} onOpen={onOpen} />
       </span>
-      <Button size="small" title={t.koordinator.unwaitHint} onClick={() => void api.unwait(talk, wait.card).catch(() => {})}>
+      <Button size="small" title={t.koordinator.unwaitHint} onClick={() => void stopWaiting(chat, talk, wait.card).catch(() => {})}>
         {t.koordinator.unwait}
       </Button>
     </div>

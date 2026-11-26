@@ -24,7 +24,11 @@ export interface RouteDependencies {
   projectOfCard: (cardId: string, options?: { deleted?: boolean }) => ProjectRuntime | undefined;
   
   projectById: (projectId: string) => ProjectRuntime | undefined;
-  
+
+  projectOfChat: (chatId: number) => ProjectRuntime | undefined;
+
+  allProjects: () => ProjectRuntime[];
+
   ownerSettings?: OwnerSettings;
   
   configuration?: Config;
@@ -67,6 +71,14 @@ export abstract class HttpRoute {
     const project = projectId ? this.dependencies.projectById(projectId) : undefined;
     if (!project) throw new NotFound('unknownProject', 'unknown project');
     return project;
+  }
+
+  /** The project of the chat the URL names (`:chatId`) and the chat's id; an unknown chat is a 404. */
+  protected projectOfChat(request: RouteRequest): { project: ProjectRuntime; chat: number } {
+    const chat = Number(request.params.chatId);
+    const project = Number.isSafeInteger(chat) ? this.dependencies.projectOfChat(chat) : undefined;
+    if (!project) throw new NotFound('unknownChat', 'unknown chat');
+    return { project, chat };
   }
 
   /** The owner's settings; a Seismic without a configuration of its own has none to show. */

@@ -1736,6 +1736,11 @@ export class Board {
     if (this.store.readTalk(this.project.id, ids)) this.changed();
   }
 
+  /** The owner saw the answers of chat `chat`, or (`ids`) those exchanges of it. */
+  readChat(chat: number, ids?: number[]) {
+    if (this.store.talk.read(this.project.id, ids ? { ids } : { chat })) this.changed();
+  }
+
   exchange(id: number) {
     return this.store.talk.exchange(id);
   }
