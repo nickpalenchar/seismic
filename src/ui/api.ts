@@ -443,7 +443,6 @@ export const api = {
   readTalk: (ids?: number[]) => call<void>('POST', at('/talk/read'), ids ? { ids } : undefined),
   /** A new chat with Seismic on the shown project, or (`id`) an earlier one, of `project` where it is another. */
   newChat: () => call<{ chat: number }>('POST', at('/chat'), {}),
-  enterChat: (project: string, forAnswer: boolean) => call<{ chat: number; timedOut: boolean }>('POST', at('/chat/enter', project), { forAnswer }),
   openChat: (id: number, project?: string) => call<{ chat: number }>('POST', project ? `/api/c/${encodeURIComponent(project)}/chat` : at('/chat'), { id }),
   setChatModel: (project: string, chat: number, model?: string) => call<void>('POST', `/api/c/${encodeURIComponent(project)}/chat/model`, { chat, model: model ?? null }),
   /** The chats with Seismic on every project that runs, the latest first. */

@@ -27,13 +27,14 @@ interface Props {
   chats: Chat[];
   talk: Talk[];
   disabled?: boolean;
+  onShow?: (chat: number | null) => void;
   
   onProject: (project: string) => void;
   
   onClose?: () => void;
 }
 
-export function ChatsHead({ title, project, projectName, chat, chats, talk, disabled, onProject, onClose }: Props) {
+export function ChatsHead({ title, project, projectName, chat, chats, talk, disabled, onShow, onProject, onClose }: Props) {
   const [open, setOpen] = useState(false);
   const [all, setAll] = useStoredState('seismic-chats-all', false);
   const [every, setEvery] = useState<ChatElsewhere[] | null>(null);
@@ -75,13 +76,15 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, disa
       () => {
         setOpen(false);
         if (c.project !== project) onProject(c.project);
+        else onShow?.(c.id);
       },
       (e) => setError(failText(e)),
     );
   };
   const start = () => {
     setOpen(false);
-    api.newChat().catch(console.error);
+    if (onShow) onShow(null);
+    else api.newChat().catch(console.error);
   };
   const shown: (Chat & { projectName?: string })[] = all ? (every ?? []) : chats;
 
@@ -182,7 +185,7 @@ export function ChatsHead({ title, project, projectName, chat, chats, talk, disa
 }
 
 /** The project's latest sessions, until the owner starts writing in the empty chat. */
-export function RecentChats({ project, draft, chats }: { project: string; draft: string; chats: Chat[] }) {
+export function RecentChats({ project, draft, chats, onShow }: { project: string; draft: string; chats: Chat[]; onShow?: (chat: number) => void }) {
   const [error, setError] = useState('');
   const { text } = useDraft(draft);
   const [started, setStarted] = useState(!!text);
@@ -192,7 +195,7 @@ export function RecentChats({ project, draft, chats }: { project: string; draft:
   if (!chats.length || text || started) return null;
   const resume = (c: Chat) => {
     setError('');
-    api.openChat(c.id, project).catch((e) => setError(failText(e)));
+    api.openChat(c.id, project).then(() => onShow?.(c.id), (e) => setError(failText(e)));
   };
   return (
     <div className="mb-2 text-center" role="group" aria-label={t.koordinator.recentChats}>

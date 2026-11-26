@@ -23,6 +23,8 @@ type Method = (typeof METHODS)[number];
 export interface RouteDependencies {
   projectOfCard: (cardId: string, options?: { deleted?: boolean }) => ProjectRuntime | undefined;
   
+  projectById: (projectId: string) => ProjectRuntime | undefined;
+  
   ownerSettings?: OwnerSettings;
   
   configuration?: Config;
@@ -57,6 +59,13 @@ export abstract class HttpRoute {
   protected projectOfCard(request: RouteRequest, options?: { deleted?: boolean }): ProjectRuntime {
     const project = this.dependencies.projectOfCard(request.params.cardId ?? '', options);
     if (!project) throw new NotFound('unknownCard', 'unknown card');
+    return project;
+  }
+
+  /** The project the id names (`?project=`); none or an unknown one is a 404. */
+  protected projectOfId(projectId: string | null): ProjectRuntime {
+    const project = projectId ? this.dependencies.projectById(projectId) : undefined;
+    if (!project) throw new NotFound('unknownProject', 'unknown project');
     return project;
   }
 

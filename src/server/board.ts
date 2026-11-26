@@ -445,6 +445,8 @@ const FINISH_CARD_SETTING = 'finish_card:';
 
 const UNTITLED_GRACE_MS = 10 * 60_000;
 
+const RECENT_CHAT_KEPT_MS = 60 * 60_000;
+
 /** A request the server refuses: a stable code for the UI's text, and an English detail. */
 export class BadRequest extends Error {
   constructor(
@@ -520,6 +522,7 @@ export class Board {
   private waited = new Map<string, Item>();
   
   private worked: Worked = new Map();
+  private recentChatKept: { chat: { id: number; at: string } | null; keptAt: number } | undefined;
   
   private presence = new FilePresence(() => {
     this.worked.clear();
@@ -652,6 +655,7 @@ export class Board {
    */
   changed() {
     this.worked.clear();
+    this.recentChatKept = undefined;
     
     this.presence.refreshSoon();
     this.changedRows();
@@ -1653,7 +1657,7 @@ export class Board {
 
   /** The chat the owner talks in now. */
   chat(): number {
-    return this.store.chats.current(this.project.id);
+    return this.store.chats.getCurrentOrCreateNew(this.project.id);
   }
 
   hasChat(chat: number) { return this.store.chats.belongs(this.project.id, chat); }
@@ -1672,16 +1676,16 @@ export class Board {
     return id;
   }
 
-  /** The dock is opening, possibly from an entry for an unread answer. */
-  enterChat(forAnswer: boolean) {
-    const unread = forAnswer ? this.store.talk.latestUnread(this.project.id) : undefined;
-    if (unread?.chat !== undefined) {
-      this.openChat(unread.chat);
-      return { chat: unread.chat, timedOut: false };
-    }
-    const opening = this.store.chats.enter(this.project.id);
-    this.changed();
-    return opening;
+  /**
+   * The chat the owner talked in last, none while nothing was said. Kept for an hour, and dropped as
+   * soon as anything on the board changes, which includes every word said.
+   */
+  recentChat(): { id: number; at: string } | null {
+    const kept = this.recentChatKept;
+    if (kept && Date.now() - kept.keptAt < RECENT_CHAT_KEPT_MS) return kept.chat;
+    const chat = this.store.chats.latest(this.project.id) ?? null;
+    this.recentChatKept = { chat, keptAt: Date.now() };
+    return chat;
   }
 
   /** The chats with Seismic on every project of the database, the latest first. */
@@ -2292,7 +2296,7 @@ export class Board {
   snapshot(): ProjectSnapshot {
     const items = this.items();
     if (this.cache) return this.cache;
-    const chat = this.store.chats.current(this.project.id);
+    const chat = this.store.chats.getCurrentOrCreateNew(this.project.id);
     const talk = this.store.talk.sheet(this.project.id, chat, SHEET_TALK);
     const reshare = this.reshare();
     const pools = this.clonePools();

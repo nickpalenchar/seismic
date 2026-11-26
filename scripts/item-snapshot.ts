@@ -243,7 +243,7 @@ async function inner(code: string, path: string, file: string) {
     const snapshot = board.snapshot();
     const archived = board.archived();
     const cards = (store.db.query('SELECT id FROM cards WHERE project_id = $p ORDER BY rowid').all({ p: p.id }) as { id: string }[]).map((r) => r.id);
-    const chat = read('chat', 'chats.current', p.id);
+    const chat = read('chat', 'chats.getCurrentOrCreateNew', p.id);
     result.projects[p.id] = {
       snapshot,
       archived,

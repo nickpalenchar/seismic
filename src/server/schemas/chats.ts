@@ -27,24 +27,17 @@ export class Chats {
   }
 
   /** The chat new words on the project go into: the one the owner opened last; a first one where there is none. */
-  current(projectId: string): number {
+  getCurrentOrCreateNew(projectId: string): number {
     const r = this.lastOpened(projectId);
     if (r) return r.id;
     const at = now();
     return this.db.insert(chats).values({ projectId, at, opened: at }).returning({ id: chats.id }).get().id;
   }
 
-  /** Opening the dock resumes a recent chat, or starts afresh after a longer absence. */
-  enter(projectId: string): { chat: number; timedOut: boolean } {
-    return atomic(this.db, () => {
-      const last = this.lastOpened(projectId);
-      if (!last) return { chat: this.current(projectId), timedOut: false };
-      const timedOut = Date.now() - Date.parse(last.opened) > 20 * 60_000;
-      const id = timedOut ? this.start(projectId) : last.id;
-      
-      if (id === last.id) this.db.update(chats).set({ opened: this.nextOpening(projectId) }).where(eq(chats.id, id)).run();
-      return { chat: id, timedOut };
-    });
+  /** The chat with the latest words in it on the project, and when they were said; none while nothing was said. */
+  latest(projectId: string): { id: number; at: string } | undefined {
+    const [chat] = this.list(projectId, 1);
+    return chat && { id: chat.id, at: chat.at };
   }
 
   /** Whether the chat belongs to the project. */
@@ -53,11 +46,11 @@ export class Chats {
   }
 
   /** The model chosen for the specified or current chat. */
-  model(projectId: string, chat = this.current(projectId)): ChatModel | undefined {
+  model(projectId: string, chat = this.getCurrentOrCreateNew(projectId)): ChatModel | undefined {
     return (this.db.select({ model: chats.model }).from(chats).where(eq(chats.id, chat)).get()!.model as ChatModel | null) ?? undefined;
   }
 
-  setModel(projectId: string, model?: ChatModel, chat = this.current(projectId)): void {
+  setModel(projectId: string, model?: ChatModel, chat = this.getCurrentOrCreateNew(projectId)): void {
     this.db
       .update(chats)
       .set({ model: model ?? null })
@@ -72,7 +65,7 @@ export class Chats {
 
   /** A new chat to go on in; the current one while nothing was said in it yet. */
   start(projectId: string): number {
-    const current = this.current(projectId);
+    const current = this.getCurrentOrCreateNew(projectId);
     if (!this.db.select({ one: sql`1` }).from(talk).where(eq(talk.chat, current)).get()) return current;
     const at = this.nextOpening(projectId);
     return this.db.insert(chats).values({ projectId, at, opened: at }).returning({ id: chats.id }).get().id;

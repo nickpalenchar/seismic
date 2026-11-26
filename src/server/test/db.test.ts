@@ -1,4 +1,4 @@
-import { expect, setSystemTime, test } from 'bun:test';
+import { expect, test } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -378,7 +378,7 @@ test('runs and responses survive a restart, one response for each handover', () 
 test('chats: words go into the one opened last, a new one only once something was said, answers wait unread in theirs', () => {
   const store = new Store(':memory:');
   store.db.run("INSERT INTO projects (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01'), ('d', 'Site', '2026-11-01')");
-  const first = store.chats.current('c');
+  const first = store.chats.getCurrentOrCreateNew('c');
   expect(store.chats.model('c')).toBeUndefined();
   store.chats.setModel('c', 'sonnet');
   expect(store.chats.model('c')).toBe('sonnet');
@@ -402,7 +402,7 @@ test('chats: words go into the one opened last, a new one only once something wa
   
   expect(store.readTalk('c')).toBe(false);
   expect(store.chats.open('c', first)).toBe(true);
-  expect(store.chats.current('c')).toBe(first);
+  expect(store.chats.getCurrentOrCreateNew('c')).toBe(first);
   expect(store.chats.model('c')).toBe('sonnet');
   expect(store.readTalk('c')).toBe(true);
   expect(store.chats.open('d', first)).toBe(false);
@@ -417,48 +417,29 @@ test('chats: words go into the one opened last, a new one only once something wa
 test('a chat opened and a new one made in the same millisecond become current in turn', () => {
   const store = new Store(':memory:');
   store.db.run("INSERT INTO projects (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01')");
-  const first = store.chats.current('c');
+  const first = store.chats.getCurrentOrCreateNew('c');
   store.addTalk('c', 'first', '', null);
   const second = store.chats.start('c');
   store.addTalk('c', 'second', '', null);
   store.chats.open('c', first);
-  expect(store.chats.current('c')).toBe(first);
+  expect(store.chats.getCurrentOrCreateNew('c')).toBe(first);
   const third = store.chats.start('c');
-  expect(store.chats.current('c')).toBe(third);
+  expect(store.chats.getCurrentOrCreateNew('c')).toBe(third);
   expect(third).not.toBe(second);
 });
 
-test('entering the chat dock uses time since its last opening and reuses a blank chat', () => {
+test('the latest chat is the one with the newest words, and none while nothing was said', () => {
   const store = new Store(':memory:');
-  const start = Date.parse('2026-11-17T13:00:00Z');
-  const minutes = (n: number) => new Date(start + n * 60_000);
-  try {
-    setSystemTime(minutes(0));
-    store.db.run("INSERT INTO projects (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01')");
-    const { chat: first, timedOut } = store.chats.enter('c');
-    expect(timedOut).toBe(false);
-    store.addTalk('c', 'First chat', '', null);
-
-    setSystemTime(minutes(20));
-    expect(store.chats.enter('c')).toEqual({ chat: first, timedOut: false });
-    setSystemTime(minutes(39));
-    expect(store.chats.enter('c')).toEqual({ chat: first, timedOut: false });
-    setSystemTime(new Date(+minutes(59) + 1));
-    const { chat: blank, timedOut: blankTimedOut } = store.chats.enter('c');
-    expect(blankTimedOut).toBe(true);
-    expect(blank).not.toBe(first);
-    expect(store.chats.list('c').map((chat) => chat.id)).toEqual([first]);
-
-    setSystemTime(minutes(100));
-    expect(store.chats.enter('c')).toEqual({ chat: blank, timedOut: true });
-    expect(store.chats.open('c', first)).toBe(true);
-    expect(store.chats.enter('c')).toEqual({ chat: first, timedOut: false });
-    const manual = store.chats.start('c');
-    expect(store.chats.enter('c')).toEqual({ chat: manual, timedOut: false });
-  } finally {
-    setSystemTime();
-    store.db.close();
-  }
+  store.db.run("INSERT INTO projects (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01'), ('d', 'Site', '2026-11-01')");
+  const first = store.chats.getCurrentOrCreateNew('c');
+  expect(store.chats.latest('c')).toBeUndefined();
+  store.addTalk('c', 'First chat', '', null);
+  expect(store.chats.latest('c')?.id).toBe(first);
+  const second = store.chats.start('c');
+  expect(store.chats.latest('c')?.id).toBe(first);
+  store.addTalk('c', 'Second chat', '', null);
+  expect(store.chats.latest('c')?.id).toBe(second);
+  expect(store.chats.latest('d')).toBeUndefined();
 });
 
 test('what was said before chats existed becomes one chat per project', () =>
@@ -952,14 +933,14 @@ test('a delayed command stays in its captured chat after another chat opens', ()
   const store = new Store(':memory:');
   try {
     store.db.run("INSERT INTO projects (id, name, created_at) VALUES ('c', 'Shop', '2026-11-01'), ('d', 'Site', '2026-11-01')");
-    const first = store.chats.current('c');
+    const first = store.chats.getCurrentOrCreateNew('c');
     store.chats.setModel('c', 'sonnet');
     store.addTalk('c', 'earlier', 'answer', null);
     const second = store.chats.start('c');
     store.chats.setModel('c', 'opus');
     const delayed = store.addTalk('c', 'delayed', '', null, undefined, [], undefined, undefined, undefined, undefined, first);
     expect(store.talk.chatOf(delayed)).toBe(first);
-    expect(store.chats.current('c')).toBe(second);
+    expect(store.chats.getCurrentOrCreateNew('c')).toBe(second);
     expect(store.chats.model('c', first)).toBe('sonnet');
     expect(store.chats.belongs('c', first)).toBe(true);
     expect(store.chats.belongs('d', first)).toBe(false);

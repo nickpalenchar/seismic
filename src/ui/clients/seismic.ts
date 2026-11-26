@@ -96,3 +96,7 @@ export const getConfiguration = async (): Promise<ConfigView> => (await call<{ c
  * come) and the configuration as it then reads. Applying waits for git to read the projects it changed.
  */
 export const saveConfiguration = (projects: ProjectConfig[]) => call<{ saved: ConfigSaved; configuration: ConfigView }>('PUT', '/api/v1/configuration', projects, false, TIMEOUT_MS);
+
+/** The chat the owner talked in last on the project, and when; `null` while nothing was said in any. */
+export const getRecentChat = async (project: string): Promise<{ id: number; at: string } | null> =>
+  (await call<{ chat: { id: number; at: string } | null }>('GET', `/api/v1/chats/recent?project=${encodeURIComponent(project)}`, undefined, false, TIMEOUT_MS)).chat;

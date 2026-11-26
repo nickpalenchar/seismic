@@ -230,17 +230,17 @@ export class Store {
   addTalk(projectId: string, said: string, reply: string, cardId: string | null, lookUp?: { question: string; about: string | null }, images: string[] = [], replyTo?: TalkRef, after?: TalkAfter, askedIn?: string, answered?: number, chat?: number, requestId?: string): number {
     const from = after?.from ?? answered;
     const earlier = from === undefined ? undefined : this.talk.chatOf(from);
-    return this.talk.add(projectId, earlier ?? chat ?? this.chats.current(projectId), said, reply, cardId, lookUp, images, replyTo, after, askedIn, answered, requestId);
+    return this.talk.add(projectId, earlier ?? chat ?? this.chats.getCurrentOrCreateNew(projectId), said, reply, cardId, lookUp, images, replyTo, after, askedIn, answered, requestId);
   }
 
   /** An exchange of no one's in the project's sheet, `reply` saying the card moved to another project. */
   addMoved(projectId: string, moved: TalkMoved, reply: string): number {
-    return this.talk.addMoved(projectId, this.chats.current(projectId), moved, reply);
+    return this.talk.addMoved(projectId, this.chats.getCurrentOrCreateNew(projectId), moved, reply);
   }
 
   /** The owner saw the sheet's answers, or (`ids`) those of a plan's sheet; whether any was unread. */
   readTalk(projectId: string, ids?: number[]): boolean {
-    return this.talk.read(projectId, ids ? { ids } : { chat: this.chats.current(projectId) });
+    return this.talk.read(projectId, ids ? { ids } : { chat: this.chats.getCurrentOrCreateNew(projectId) });
   }
 
   /**

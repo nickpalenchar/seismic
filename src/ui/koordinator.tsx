@@ -13,6 +13,8 @@ import { Fragment, type ReactNode, useEffect, useRef, useState } from 'react';
 import { agyBaseChoice, chatModelFor, withAgyBase, harnessChoice, projectAgentSetting, type AgentSetting, type ChatModel, type ModelInfo, type Chat, type Item, type Preference, type RepoRef, type Reshare, type SettingProposal, type Talk, type TalkQuote, type TalkRef, type TalkWait } from '../core/types';
 import { catalogDefault, ModelOptions } from './agent-options';
 import { api, onAgentSettingsChange } from './api';
+import { chatLongClosed, chatWentQuiet, markChatClosed } from './chatReopen';
+import { getRecentChat } from './clients/seismic';
 import { Inline, plain } from './markdown';
 import { AnswerFiles, Body, Continues, Msg, Quote, Reading, ThreadCard } from './message';
 import { type Reply, setReply, talkEv, talkQuote } from './reply';
@@ -73,31 +75,48 @@ interface Props {
 
 const tellClass = 'tell mt-1 mx-0 mb-1.5';
 
+const FRESH_CHAT = -1;
+
 export function KoordinatorSheet({ on, entry, project, projectName, items, repos, talk, chat, chatModel, chats, reshare, onOpen, onTell, onProject, onClose }: Props) {
   const sheet = useRef<HTMLElement>(null);
-  const [opening, setOpening] = useState<{ chat: number; timedOut: boolean; ready: boolean } | { error: string } | null>(null);
+  const [opening, setOpening] = useState<{ chat: number | null; offerRecent: boolean; ready: boolean } | { error: string } | null>(null);
   const selected = opening && 'chat' in opening ? opening : null;
   const ready = !!selected?.ready;
-  const offerRecent = selected?.timedOut && selected.chat === chat;
   const [attempt, retry] = useState(0);
+  const latest = useRef({ chat, talk });
+  latest.current = { chat, talk };
   useEffect(() => {
     if (!on) return;
     let closed = false;
-    api.enterChat(project, entry === 'answer').then(
-      (selection) => { if (!closed) setOpening({ ...selection, ready: false }); },
-      (e) => { if (!closed) setOpening({ error: failText(e) }); },
-    );
+    const pick = async (): Promise<{ chat: number | null; offerRecent: boolean }> => {
+      const unread = entry === 'answer' ? latest.current.talk.findLast((x) => x.unread && x.chat !== undefined)?.chat : undefined;
+      if (unread !== undefined) return { chat: unread, offerRecent: false };
+      if (chatLongClosed(project)) return { chat: null, offerRecent: true };
+      const recent = await getRecentChat(project);
+      if (!recent || chatWentQuiet(project, recent.at)) return { chat: null, offerRecent: !!recent };
+      return { chat: recent.id, offerRecent: false };
+    };
+    pick().then(async (picked) => {
+      if (picked.chat !== null && picked.chat !== latest.current.chat) await api.openChat(picked.chat);
+      if (!closed) setOpening({ ...picked, ready: picked.chat === null });
+    }).catch((e) => { if (!closed) setOpening({ error: failText(e) }); });
     return () => {
       closed = true;
+      markChatClosed(project);
       setOpening(null);
     };
   }, [on, project, entry, attempt]);
   useEffect(() => {
-    
     if (selected && !selected.ready && chat === selected.chat) {
       setOpening({ ...selected, ready: true });
     }
   }, [selected, chat]);
+  const showChat = (next: number | null) => setOpening({ chat: next, offerRecent: false, ready: next === null });
+  const startChat = async () => {
+    const { chat: started } = await api.newChat();
+    setOpening({ chat: started, offerRecent: false, ready: true });
+    return started;
+  };
   useEffect(() => {
     if (ready && on && entry === 'type') sheet.current?.querySelector('textarea')?.focus({ preventScroll: true });
   }, [ready, on, entry]);
@@ -107,9 +126,9 @@ export function KoordinatorSheet({ on, entry, project, projectName, items, repos
     
     
     <Docked ref={sheet} id="ksheet" on={on} className="flex flex-col [&>*]:flex-none [&>:is(.conv,.talk.fresh-chat)]:flex-[1_1_0] [&>:is(.conv,.talk.fresh-chat)]:min-h-[200px] [&>:is(.conv,.talk.fresh-chat)]:max-h-none [&>:is(.conv,.talk.fresh-chat)]:max-w-none [&>:is(.conv,.talk.fresh-chat)]:mt-0 [&>:is(.conv,.talk.fresh-chat)]:mb-1 [&>:is(.conv,.talk.fresh-chat)]:mx-0">
-      <ChatsHead title={<h2 className={sheetTitleClass}>{t.koordinator.title}</h2>} project={project} projectName={projectName} chat={chat} chats={chats} talk={talk} disabled={!ready} onProject={onProject} onClose={onClose} />
+      <ChatsHead title={<h2 className={sheetTitleClass}>{t.koordinator.title}</h2>} project={project} projectName={projectName} chat={selected?.chat ?? FRESH_CHAT} chats={chats} talk={talk} disabled={!ready} onShow={showChat} onProject={onProject} onClose={onClose} />
       {ready ? (
-        <KoordinatorTalk on={on} project={project} talk={talk} chat={chat} chatModel={chatModel} chats={chats} items={items} repos={repos} onOpen={onOpen} onTell={onTell} autoOpenUnread={false} beforeComposer={offerRecent && <RecentChats project={project} draft={SEISMIC_DRAFT} chats={chats} />} />
+        <KoordinatorTalk on={on} project={project} talk={selected?.chat === null ? [] : talk} chat={selected?.chat ?? FRESH_CHAT} chatModel={selected?.chat === null ? undefined : chatModel} chats={chats} items={items} repos={repos} onOpen={onOpen} onTell={onTell} autoOpenUnread={false} startChat={selected?.chat === null ? startChat : undefined} beforeComposer={selected?.offerRecent && <RecentChats project={project} draft={SEISMIC_DRAFT} chats={chats} onShow={showChat} />} />
       ) : opening && 'error' in opening ? (
         <div>
           <p className="p-error" role="alert">{opening.error}</p>
@@ -131,7 +150,7 @@ export function KoordinatorSheet({ on, entry, project, projectName, items, repos
  * field's (the sidebar's, or the phone view's for this project). `on`: the conversation is in view,
  * so the answers waiting in it are read.
  */
-export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats, items, repos, onOpen, onTell, draft = SEISMIC_DRAFT, autoOpenUnread = true, beforeComposer }: Pick<Props, 'on' | 'project' | 'talk' | 'chat' | 'chatModel' | 'chats' | 'items' | 'repos' | 'onOpen' | 'onTell'> & { draft?: string; autoOpenUnread?: boolean; beforeComposer?: ReactNode }) {
+export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats, items, repos, onOpen, onTell, draft = SEISMIC_DRAFT, autoOpenUnread = true, beforeComposer, startChat }: Pick<Props, 'on' | 'project' | 'talk' | 'chat' | 'chatModel' | 'chats' | 'items' | 'repos' | 'onOpen' | 'onTell'> & { draft?: string; autoOpenUnread?: boolean; beforeComposer?: ReactNode; startChat?: () => Promise<number> }) {
   const talk = all.filter((x) => x.chat === undefined || x.chat === chat);
   const fresh = useRead(on, talk, (ids) => api.readTalk(ids));
   const [choice, setChoice] = useState<{ chat: number; model?: ChatModel } | null>(null);
@@ -182,6 +201,7 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
     const model = picked === defaultModel ? undefined : (harness === 'claude' ? picked : `${harness}:${picked}`) as ChatModel;
     const before = choiceRef.current?.chat === chat ? choiceRef.current.model : chatModel;
     setChoice({ chat, model });
+    if (startChat) return;
     const task = modelTask.current.catch(() => {}).then(() => api.setChatModel(project, chat, model));
     modelTask.current = task;
     void task.catch((e) => {
@@ -192,7 +212,16 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
   const send = (text: string, images?: string[], replyTo?: Reply['to']) => {
     const id = crypto.randomUUID();
     setPending((current) => [...current, { id, project, chat, text, images }]);
-    const task = modelTask.current.then(() => onTell(text, images, replyTo, { project, chat, requestId: id }));
+    const task = modelTask.current.then(async () => {
+      let into = chat;
+      if (startChat) {
+        const picked = choiceRef.current?.chat === chat ? choiceRef.current.model : undefined;
+        into = await startChat();
+        setPending((current) => current.map((entry) => (entry.id === id ? { ...entry, chat: into } : entry)));
+        if (picked) await api.setChatModel(project, into, picked);
+      }
+      return onTell(text, images, replyTo, { project, chat: into, requestId: id });
+    });
     void task.catch((e) => {
       updateDraft(draft, (current) => ({ text: current.text ? `${text}\n${current.text}` : text, images: [...new Set([...images ?? [], ...current.images])] }));
       setError(failText(e));

@@ -2226,6 +2226,7 @@ export type CardAction =
 
 export type ErrorCode =
   | 'unknownCard'
+  | 'unknownProject'
   
   | 'notReachable'
   

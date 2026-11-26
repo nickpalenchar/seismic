@@ -489,7 +489,7 @@ export function serve(
       ...extensionRoutes,
       ...uiRoutes(development),
       
-      ...bunRoutes(v1Routes({ projectOfCard, ownerSettings, configuration: config })),
+      ...bunRoutes(v1Routes({ projectOfCard, projectById: (id) => byId.get(id), ownerSettings, configuration: config })),
       
       '/login': { GET: (req, srv) => access.loginRoute(req, srv) },
       
@@ -1164,13 +1164,6 @@ export function serve(
           c.board.setChatModel(model == null ? undefined : model as import('../core/types').ChatModel, chat);
         }),
       },
-      '/api/c/:project/chat/enter': {
-        POST: on(async (c, req) => {
-          const { forAnswer } = (await req.json().catch(() => ({}))) as { forAnswer?: unknown };
-          return c.board.enterChat(forAnswer === true);
-        }),
-      },
-      
       '/api/c/:project/talk/:id/unwait': {
         POST: on(async (c, req) => ({ stopped: c.commander.unwait(Number(req.params.id), String(((await req.json().catch(() => ({}))) as { card?: unknown }).card ?? '')) })),
       },
