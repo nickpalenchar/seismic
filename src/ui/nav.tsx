@@ -352,12 +352,12 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
     <div className={cn('grid grid-cols-[100%_100%_100%] items-start transition-transform duration-300 ease-[cubic-bezier(.3,.9,.3,1)]', page === 'agents' && '-translate-x-full', page === 'inbox' && '-translate-x-[200%]')}>
       <InMenu.Provider value={!floating ? null : page === 'main' ? ACTIVE : INACTIVE}>
       <div className={pageClass(page !== 'main')} inert={page !== 'main'}>
-        { }
+        {!phone && !titlebar && <DeskSwitcher />}
         <div className={head(titlebar)} {...drag}>
           {!titlebar && <NavList className={cn(list, 'min-w-0 flex-1')}>{inbox}</NavList>}
           {pin}
         </div>
-        {!phone && <DeskSwitcher />}
+        {!phone && titlebar && <DeskSwitcher />}
         <NavList className={list}>
           {titlebar && inbox}
           {hasAgentsPage && <Entry icon={<Bot size={16} strokeWidth={2} aria-hidden />} label={m.configureAgents} focusRef={configureButton} keep onClick={() => setPage('agents')} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />}
@@ -459,12 +459,14 @@ function DeskSwitcher() {
   const failed = (about = '') => (e: unknown) => setProblem(deskError(e, about));
   return (
     <div className="desk-switcher mt-1 mb-2 rounded-md border border-border">
-      <div className="flex items-center gap-1 p-1">
-        <Act sidebarItem={false} keep className={cn(rowButton, 'min-w-0 flex-1 px-2 text-foreground')} tip={w.switcher} aria-expanded={open} onAct={() => (setOpen(!open), setProblem(''))}>
-          <DeskIcon desk={shown} size={15} />
-          <b className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{shown.name}</b>
-          <span className="flex-none text-xs text-muted-foreground">{shown.local ? w.thisMachine : w.remote}</span>
-          <ChevronDown size={14} strokeWidth={2} className={cn('ml-auto text-muted-foreground transition-transform', open && 'rotate-180')} aria-hidden />
+      <div className="flex items-end gap-1 p-1">
+        <Act sidebarItem={false} keep className={cn(rowButton, 'min-w-0 flex-1 items-start px-2 text-foreground')} tip={w.switcher} aria-expanded={open} onAct={() => (setOpen(!open), setProblem(''))}>
+          <span className="mt-0.5 flex-none"><DeskIcon desk={shown} size={15} /></span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <b className="[overflow-wrap:anywhere]">{shown.name}</b>
+            <span className="text-xs text-muted-foreground">{shown.local ? w.thisMachine : w.remote}</span>
+          </span>
+          <ChevronDown size={14} strokeWidth={2} className={cn('mt-1 ml-auto text-muted-foreground transition-transform', open && 'rotate-180')} aria-hidden />
         </Act>
         <Act sidebarItem={false} className="grid size-[30px] flex-none cursor-pointer place-items-center rounded-xs bg-transparent p-0 text-muted-foreground hover:bg-muted hover:text-foreground data-highlighted:bg-muted" tip={w.settings} aria-label={w.settings} onAct={() => void openWorkspaces(all, `?edit=${encodeURIComponent(shown.id)}`).catch(failed())}>
           <Cog size={16} strokeWidth={2} aria-hidden />
