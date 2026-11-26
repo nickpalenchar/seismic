@@ -14,7 +14,7 @@ import { agyBaseChoice, chatModelFor, withAgyBase, harnessChoice, projectAgentSe
 import { catalogDefault, ModelOptions } from './agent-options';
 import { api, onAgentSettingsChange } from './api';
 import { chatLongClosed, chatWentQuiet, markChatClosed } from './chatReopen';
-import { createChat, getRecentChat, openChat, readChat, setChatModel, stopWaiting } from './clients/seismic';
+import { createChat, getAgentModels, getRecentChat, openChat, readChat, setChatModel, stopWaiting } from './clients/seismic';
 import { Inline, plain } from './markdown';
 import { AnswerFiles, Body, Continues, Msg, Quote, Reading, ThreadCard } from './message';
 import { type Reply, setReply, talkEv, talkQuote } from './reply';
@@ -83,8 +83,8 @@ export function KoordinatorSheet({ on, entry, project, projectName, items, repos
   const selected = opening && 'chat' in opening ? opening : null;
   const ready = !!selected?.ready;
   const [attempt, retry] = useState(0);
-  const latest = useRef({ chat, talk });
-  latest.current = { chat, talk };
+  const latest = useRef({ chat, talk, chats });
+  latest.current = { chat, talk, chats };
   useEffect(() => {
     if (!on) return;
     let closed = false;
@@ -92,7 +92,7 @@ export function KoordinatorSheet({ on, entry, project, projectName, items, repos
       const unread = entry === 'answer' ? latest.current.talk.findLast((x) => x.unread && x.chat !== undefined)?.chat : undefined;
       if (unread !== undefined) return { chat: unread, offerRecent: false };
       if (chatLongClosed(project)) return { chat: null, offerRecent: true };
-      const recent = await getRecentChat(project);
+      const recent = latest.current.chats[0] ?? (await getRecentChat(project));
       if (!recent || chatWentQuiet(project, recent.at)) return { chat: null, offerRecent: !!recent };
       return { chat: recent.id, offerRecent: false };
     };
@@ -178,7 +178,7 @@ export function KoordinatorTalk({ on, project, talk: all, chat, chatModel, chats
     setModels(undefined);
     if (!on || harness === 'claude') return;
     let active = true;
-    (harness === 'codex' ? api.codexModels() : api.agyModels()).then(
+    getAgentModels(harness).then(
       (models) => { if (active) setModels(models); },
       console.error,
     );

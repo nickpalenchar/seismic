@@ -6,7 +6,7 @@
 
 import { answerText } from './answer';
 import { ApiError, api, cardsOn } from './api';
-import { removeCard, restoreCard } from './clients/seismic';
+import { answerCard, removeCard, restoreCard } from './clients/seismic';
 import { ACK_MS } from './tell';
 import { type CardAction, handedOver, type Item, openQuestions, type Question } from '../core/types';
 import { plain } from './markdown';
@@ -31,13 +31,15 @@ export const QUICK_OPTIONS = 4;
 
 const act = (a: CardAction) => (id: string, keepalive: boolean) => api.act(id, a, keepalive);
 
+const answer = (words: Omit<Parameters<typeof answerCard>[1], 'action'>) => (id: string, keepalive: boolean) => answerCard(id, { action: 'answer', ...words }, keepalive).then(() => {});
+
 /** The single question's options as replies, the one its agent would pick the default; none where it is not one click. */
 function options(q: Question): QuickReply[] {
   if (q.multiple || q.stuck || !q.options.length || q.options.length > QUICK_OPTIONS) return [];
   const pick = q.pick?.options.length === 1 ? q.pick.options[0] : undefined;
   return q.options.map((o) => ({
     label: o,
-    send: act({ action: 'answer', text: answerText([q], [[o]], ''), picks: [o] }),
+    send: answer({ text: answerText([q], [[o]], ''), picks: [o] }),
     ack: t.quick.answered(o),
     held: true,
     ...(o === pick ? { primary: true as const, title: t.quick.pickHint } : {}),

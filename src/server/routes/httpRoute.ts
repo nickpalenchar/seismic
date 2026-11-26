@@ -5,6 +5,7 @@
 
 
 import { BadRequest } from '../board';
+import type { ModelInfo } from '../../core/types';
 import type { Config } from '../config';
 import type { OwnerSettings } from '../ownerSettings';
 import type { ProjectRuntime } from '../project';
@@ -32,7 +33,11 @@ export interface RouteDependencies {
   ownerSettings?: OwnerSettings;
   
   configuration?: Config;
+
+  agentModels?: (harness: AgentHarness) => Promise<ModelInfo[]>;
 }
+
+export type AgentHarness = 'codex' | 'agy';
 
 /** The answer to a request: `fn`'s result as JSON, or its refusal. */
 export async function respond(fn: () => unknown | Promise<unknown>): Promise<Response> {
@@ -79,6 +84,13 @@ export abstract class HttpRoute {
     const project = Number.isSafeInteger(chat) ? this.dependencies.projectOfChat(chat) : undefined;
     if (!project) throw new NotFound('unknownChat', 'unknown chat');
     return { project, chat };
+  }
+
+  /** The model catalogs of the harnesses; a Seismic without a configuration of its own has none. */
+  protected get agentModels(): NonNullable<RouteDependencies['agentModels']> {
+    const models = this.dependencies.agentModels;
+    if (!models) throw new NotFound('noConfiguration', 'this Seismic keeps no settings of its own');
+    return models;
   }
 
   /** The owner's settings; a Seismic without a configuration of its own has none to show. */

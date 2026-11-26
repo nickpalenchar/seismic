@@ -11,7 +11,7 @@ import { afterAttachments } from './attachmentSwitch';
 import { prepareSessionHandOver, sessionWithDrafts } from './draftSession';
 import type { CardDiff } from '../core/diff';
 import { type Place, placeParam } from '../core/layout';
-import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, RemoteSetting, ModelInfo, Harness, HarnessAvailability, CloudPreset, ProjectConfig, ProjectInfo, ProjectSnapshot, ClientMessage, ConfigSaved, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, SetupRepoCheck, VoiceSetupView, CardEvent, Item, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Usage, Waiting, Feedback, FeedbackAnswer, ProjectSettings, ProjectSettingsView, DeveloperView, Canvas } from '../core/types';
+import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, RemoteSetting, Harness, HarnessAvailability, CloudPreset, ProjectConfig, ProjectInfo, ProjectSnapshot, ClientMessage, ConfigSaved, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, SetupRepoCheck, VoiceSetupView, CardEvent, Item, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Usage, Waiting, Feedback, FeedbackAnswer, ProjectSettings, ProjectSettingsView, DeveloperView, Canvas } from '../core/types';
 import type { Wish } from '../core/wish';
 import { sameJson } from './sameJson';
 import { noteMessage, watchPageStalls } from './stalls';
@@ -227,8 +227,6 @@ export const api = {
   harnessAvailability: () => call<HarnessAvailability>('GET', '/api/agents/harnesses'),
   harnesses: () => call<Harness[]>('GET', '/api/harnesses'),
   setHarness: (harness: Harness, connected: boolean) => saveAgentSettings<Harness[]>('/api/harnesses', { harness, connected }),
-  codexModels: () => call<ModelInfo[]>('GET', '/api/agents/codex-models'),
-  agyModels: () => call<ModelInfo[]>('GET', '/api/agents/agy-models'),
   /** The setup assistant's list: what Seismic needs on this machine; `sections`: only those, all where left out. */
   setup: (sections?: readonly MachineSectionId[]) => call<MachineView>('GET', `/api/setup${sections ? `?sections=${sections.join(',')}` : ''}`),
   setupInstall: (section: MachineSectionId, id: MachineItem['id']) => call<MachineView>('POST', '/api/setup/install', { section, id }),
@@ -321,7 +319,7 @@ export const api = {
   /** An action on the card; `keepalive` for one sent as the page goes. */
   act: async (id: string, a: CardAction, keepalive = false) => {
     await call<void>('POST', cardAt(id, '/act'), a, keepalive);
-    if (a.action === 'message' || a.action === 'answer' || (a.action === 'release' && a.now)) await refreshCard(id);
+    if (a.action === 'release' && a.now) await refreshCard(id);
   },
   /** "Make it a card": a looked-up thread moves onto a Question card, which comes back. */
   threadCard: (thread: number) => call<Item>('POST', at(`/threads/${thread}/card`)),

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AGENT_DEFAULTS, AGENT_EFFORTS, catalogModel, modelEffort, modelEfforts, harnessChoice, projectAgentSetting, withAgyBase, type AgentEffort, type AgentModel, type AgentIdentity, type AgentRole, type AgentSetting, type ModelInfo, type Harness } from '../core/types';
 import { catalogDefault, DefaultEffort, HarnessOptions, modelLabel, ModelOptions, useConnectedHarnesses } from './agent-options';
 import { ApiError, api, onAgentSettingsChange } from './api';
+import { getAgentModels } from './clients/seismic';
 import { updateDraft, useDraft, type StartAgentChoice } from './draft';
 import { failText, t } from './strings';
 import { Button, type ButtonVariant, LinkButton } from './components/button';
@@ -67,7 +68,7 @@ const stands = (models: ModelInfo[], setting: AgentSetting) => {
   return !!m && (!choice.effort || !m.supportedReasoningEfforts.length || modelEfforts(m).includes(choice.effort));
 };
 
-const catalogFor = (harness: 'codex' | 'agy') => harness === 'agy' ? api.agyModels() : api.codexModels();
+const catalogFor = (harness: 'codex' | 'agy') => getAgentModels(harness);
 
 /** A choice for this start only. The ordinary button continues to use the current default. */
 export function StartAgent({ label, disabled, title, codexAllowed = true, selectionOnly = false, hint, draft, saved, role = 'worker', variant = 'primary', suggested = false, onStart }: { variant?: ButtonVariant; role?: AgentRole; suggested?: boolean; label: string; disabled?: boolean; title?: string; codexAllowed?: boolean; selectionOnly?: boolean; hint?: string; draft?: string; saved?: AgentSetting; onStart: (setting?: AgentSetting) => void | Promise<void> }) {

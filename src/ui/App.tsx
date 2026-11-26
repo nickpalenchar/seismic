@@ -25,7 +25,7 @@ import { type ActDone, Detail, type Pending } from './detail';
 import { Cards, KoordinatorAgent } from './message';
 import { motionMs, reducedMotion, sizeSettled } from './motion';
 import type { Heard, Where } from './api';
-import { archiveCard, dequeueCard, patchCard, removeCard, restoreCard, startCardAgent, unarchiveCard } from './clients/seismic';
+import { archiveCard, dequeueCard, getAgentModels, patchCard, removeCard, restoreCard, startCardAgent, unarchiveCard } from './clients/seismic';
 import { replyOn, setReply } from './reply';
 import { ArchiveView } from './archive';
 import { CardSearch } from './cardSearch';
@@ -762,6 +762,7 @@ function Project({
     );
     return () => { active = false; };
   }, [snapshot.project.id, configRevs]);
+  useEffect(() => void getAgentModels('codex').catch(() => {}), [snapshot.project.id]);
   useEffect(() => void api.shownProjectSettings().then((v) => setRightClick(v.settings.rightClick), () => {}), [snapshot.project.id, csOn, cOn, configRevs]);
   
   const [archived, setArchived] = useState<Item[]>([]);

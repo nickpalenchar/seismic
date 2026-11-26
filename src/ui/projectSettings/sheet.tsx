@@ -16,6 +16,7 @@ import { type KeyboardEvent, type ReactNode, useEffect, useId, useRef, useState 
 import type { AgentRole, ConfigProblem, ConfigProblemCode, ProjectAgents, ProjectSettings, ProjectSettingsView } from '../../core/types';
 import { SUGGEST_TOGGLES, suggestToggles, type SuggestToggle } from '../../core/labels';
 import { api } from '../api';
+import { getAgentModels } from '../clients/seismic';
 import { AdapterSetup, CardArchiveField, Head, PlanBaselineField, ProjectSiteField, REPO_SETTING_GROUPS, RepoProblems, RepoSettingRows, repoName, repoSettingsAt, RightClickField, ShareSettings, type Takeover, workPlace, Workstations } from '../config';
 import { cfgGroupClass, cfgGroupHeadClass, settingsSheetClass } from '../configClasses';
 import { Docked, sheetTitleClass } from '../docked';
@@ -103,7 +104,7 @@ export function ProjectSettingsBody({ project, name, homePath, on, covered, onAd
       setCatalogs({ connected });
       for (const harness of ['codex', 'agy'] as const) {
         if (!connected.configured.includes(harness)) continue;
-        void (harness === 'codex' ? api.codexModels() : api.agyModels()).then((models) => {
+        void getAgentModels(harness, { fresh: true }).then((models) => {
           if (active) setCatalogs((current) => ({ ...current, [harness]: models }));
         }, console.error);
       }

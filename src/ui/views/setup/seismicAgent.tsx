@@ -7,8 +7,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { agyBaseChoice, AGENT_DEFAULTS, AGENT_EFFORTS, catalogModel, harnessChoice, modelEffort, modelEfforts, type AgentEffort, type AgentModel, type AgentSetting, type ModelInfo, type Harness } from '../../../core/types';
 import { catalogDefault, DefaultEffort, ModelOptions } from '../../agent-options';
-import { api } from '../../api';
-import { getSetting, saveSetting } from '../../clients/seismic';
+import { getAgentModels, getSetting, saveSetting } from '../../clients/seismic';
 import { Button } from '../../components/button';
 import { ExitSetup } from './how';
 import { Select, SelectItem } from '../../components/select';
@@ -50,7 +49,7 @@ export function SeismicAgentStep({ harnesses, onConfirm, onBack }: { harnesses: 
   useEffect(() => {
     if (!other) return;
     let live = true;
-    (other === 'agy' ? api.agyModels() : api.codexModels()).then(
+    getAgentModels(other, { fresh: true }).then(
       (list) => { if (live) setCatalog({ key: catalogKey, models: other === 'codex' ? list.filter((m) => modelEfforts(m).length > 0) : list }); },
       (e) => { if (live) setCatalog({ key: catalogKey, error: failText(e) }); },
     );

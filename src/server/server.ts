@@ -61,7 +61,7 @@ type Req = Request & { params: Record<string, string> };
 const notFound = () => new Response('Not found', { status: 404 });
 
 
-const V1_ACTIONS = new Set<string>(['start', 'force', 'stop', 'approve', 'dequeue']);
+const V1_ACTIONS = new Set<string>(['start', 'force', 'stop', 'approve', 'dequeue', 'message', 'answer']);
 
 
 /**
@@ -493,7 +493,7 @@ export function serve(
       ...extensionRoutes,
       ...uiRoutes(development),
       
-      ...bunRoutes(v1Routes({ projectOfCard, projectById: (id) => byId.get(id), projectOfChat, allProjects: () => projects.all(), ownerSettings, configuration: config })),
+      ...bunRoutes(v1Routes({ projectOfCard, projectById: (id) => byId.get(id), projectOfChat, allProjects: () => projects.all(), ownerSettings, configuration: config, ...(config ? { agentModels: async (harness) => (offersCatalog(config, harness, machine) ? (harness === 'codex' ? codexModels() : agyModels()) : []) } : {}) })),
       
       '/login': { GET: (req, srv) => access.loginRoute(req, srv) },
       
@@ -645,8 +645,6 @@ export function serve(
         GET: needs(machine, (m) => m.harnesses()),
         PUT: needs(machine, async (m, req) => m.setHarness(await req.json())),
       },
-      '/api/agents/codex-models': { GET: needs(config, (c) => offersCatalog(c, 'codex', machine) ? codexModels() : []) },
-      '/api/agents/agy-models': { GET: needs(config, (c) => offersCatalog(c, 'agy', machine) ? agyModels() : []) },
       
       
       '/api/demo-sites': {

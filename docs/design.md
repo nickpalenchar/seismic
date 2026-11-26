@@ -98,8 +98,8 @@ cycling through terminals.
 - **The Koordinator is called Seismic in the UI** (2026-10-09): the owner has one counterpart, not a
   product plus a component in it.
 - **Opening the chat panel writes nothing** (2026-11-25): within 15 minutes of closing it, the panel
-  resumes the chat it showed, asking `GET /api/v1/chats/recent?project=` (the server keeps the answer for
-  an hour, until the board changes); after longer, or when nothing was said in the chat for that long on a
+  resumes the chat it showed: the latest one of the project's snapshot, or (before the snapshot has any)
+  `GET /api/v1/chats/recent?project=` (the server keeps the answer for an hour, until the board changes); after longer, or when nothing was said in the chat for that long on a
   first open, it shows a new window with no call. A new chat's row is made when its first words are sent.
   Rejected: `POST /chat/enter`, which wrote a row and the open time on every open and so rebuilt and pushed
   the whole snapshot before the panel showed anything.

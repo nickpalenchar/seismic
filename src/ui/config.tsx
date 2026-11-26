@@ -44,7 +44,7 @@ import { ConfirmDialog, Dialog, DialogContent, DialogTitle } from './components/
 import { Checkbox } from './components/checkbox';
 import { CheckLabel } from './components/check-label';
 import { SavingSwitch } from './components/saving-switch';
-import { getSetting, saveSetting } from './clients/seismic';
+import { getAgentModels, getSetting, saveSetting } from './clients/seismic';
 import { Switch } from './components/switch';
 import { RadioGroup, RadioOption } from './components/radio';
 import { SegmentedControl } from './components/segmented';
@@ -858,7 +858,7 @@ function AgentsBlock({ on }: { on: boolean }) {
   const loadModels = async () => {
     setLoading(true); setCatalogError('');
     const wanted = (['codex', 'agy'] as const).filter((h) => AGENT_ROLES.some((r) => view?.agents[r].harness === h));
-    const lists = await Promise.allSettled(wanted.map((h) => h === 'agy' ? api.agyModels() : api.codexModels()));
+    const lists = await Promise.allSettled(wanted.map((h) => getAgentModels(h, { fresh: true })));
     setCatalogs(Object.fromEntries(lists.flatMap((result, i) => result.status === 'fulfilled' ? [[wanted[i], result.value]] : [])));
     setCatalogError(lists.flatMap((result) => result.status === 'rejected' ? [failText(result.reason)] : []).join(' · '));
     setLoading(false);

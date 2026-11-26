@@ -70,7 +70,7 @@ const codeOf = async (res: Promise<Response>) => ((await (await res).json()) as 
 const api = (path: string) => `/api/c/main${path}`;
 const act = (id: string, a: CardAction | { action: string; text?: unknown }) => post(api(`/cards/${id}/act`), JSON.stringify(a));
 
-const v1 = (id: string, action: 'start' | 'stop' | 'approve' | 'dequeue', body: unknown = {}) => post(`/api/v1/cards/${id}/${action}`, JSON.stringify(body));
+const v1 = (id: string, action: 'start' | 'stop' | 'approve' | 'dequeue' | 'message' | 'answer', body: unknown = {}) => post(`/api/v1/cards/${id}/${action}`, JSON.stringify(body));
 
 describe('refused requests', () => {
   test('carry a stable code and an English detail', async () => {
@@ -81,16 +81,16 @@ describe('refused requests', () => {
 
   test('each refusal the owner can meet has its code', async () => {
     const c = card();
-    expect(await codeOf(act(c.id, { action: 'answer', text: 'x' }))).toBe('noQuestion');
-    expect(await codeOf(act(c.id, { action: 'answer', text: '  ' }))).toBe('emptyText');
+    expect(await codeOf(v1(c.id, 'answer', { text: 'x' }))).toBe('noQuestion');
+    expect(await codeOf(v1(c.id, 'answer', { text: '  ' }))).toBe('emptyText');
     
-    expect(await codeOf(act(c.id, { action: 'answer', text: '', picks: ['Ja'] }))).toBe('noQuestion');
+    expect(await codeOf(v1(c.id, 'answer', { text: '', picks: ['Ja'] }))).toBe('noQuestion');
     expect(await codeOf(v1(c.id, 'approve'))).toBe('notReady');
     expect(await codeOf(v1(c.id, 'start', { skipWaitForCards: true }))).toBe('notQueued');
     expect(await codeOf(act(c.id, { action: 'dismiss' }))).toBe('notProposal');
     expect(await codeOf(v1('nope', 'start'))).toBe('unknownCard');
     
-    for (const action of ['start', 'force', 'stop', 'approve', 'dequeue'] as const) expect(await codeOf(act(c.id, { action }))).toBe('invalid');
+    for (const action of ['start', 'force', 'stop', 'approve', 'dequeue', 'message', 'answer'] as const) expect(await codeOf(act(c.id, { action }))).toBe('invalid');
     expect(await codeOf(act(c.id, { action: 'fly' }))).toBe('invalid');
     expect(await codeOf(post(api(`/cards/${c.id}/act`), '{'))).toBe('invalid');
     expect(await codeOf(post(api('/cards'), JSON.stringify({ title: 'x', x: 'links', y: 0 })))).toBe('invalid');
@@ -798,7 +798,7 @@ describe('screenshots', () => {
     expect(new Uint8Array(await served.arrayBuffer())).toEqual(png);
 
     const c = working();
-    expect((await act(c.id, { action: 'message', text: 'Der Knopf hier ist zu klein', images: [id] })).status).toBe(204);
+    expect((await v1(c.id, 'message', { text: 'Der Knopf hier ist zu klein', images: [id] })).status).toBe(200);
     const s = runtime.sessions.find((x) => x.spec.tools.some((t) => t.name === 'ready_for_review'))!;
     expect(s.inbox[0]).toContain('Der Knopf hier ist zu klein');
     expect(s.inbox[0]).toContain('attached a screenshot');
@@ -882,9 +882,9 @@ describe('screenshots', () => {
     const { id } = (await (await upload(png, 'image/jpeg')).json()) as { id: string };
     expect(id).toEndWith('.jpg');
     const c = working();
-    expect((await act(c.id, { action: 'message', text: '', images: [id] })).status).toBe(204);
-    expect(await codeOf(act(c.id, { action: 'message', text: '' }))).toBe('emptyText');
-    expect(await codeOf(act(c.id, { action: 'message', text: 'x', images: ['0000.png'] } as CardAction))).toBe('invalid');
+    expect((await v1(c.id, 'message', { text: '', images: [id] })).status).toBe(200);
+    expect(await codeOf(v1(c.id, 'message', { text: '' }))).toBe('emptyText');
+    expect(await codeOf(v1(c.id, 'message', { text: 'x', images: ['0000.png'] }))).toBe('invalid');
     expect(await codeOf(upload(png, 'text/html'))).toBe('imageType');
     expect(await codeOf(upload(new Uint8Array(4_000_000)))).toBe('imageTooLarge');
     expect((await fetch(new URL(api('/images/..%2Fseismic.db'), server.url))).status).toBe(404);

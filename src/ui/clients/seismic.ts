@@ -3,7 +3,7 @@
 
 
 
-import type { AgentSetting, CardPatch, ChatElsewhere, ConfigSaved, ConfigView, Item, OwnerSetting, OwnerSettingChanges, OwnerSettingViews, ProjectConfig } from '../../core/types';
+import type { AgentSetting, CardAction, CardPatch, ChatElsewhere, ModelInfo, ConfigSaved, ConfigView, Item, OwnerSetting, OwnerSettingChanges, OwnerSettingViews, ProjectConfig } from '../../core/types';
 import { agentSettingsSaved, call, cardBack, cardRemoved, cardSaved, projectOf, snapshotsOf } from '../api';
 
 
@@ -17,13 +17,14 @@ type WriteOptions = {
   shown?: (project: string, card: Item, seen: number) => void;
   
   timeoutMs?: number | null;
+  keepalive?: boolean;
 };
 
 /** A write to the card `id` (to `path` under its URL) that answers with the card, which the project shows at once. */
-async function writeCard(id: string, method: string, path: string, body: unknown, { shown = cardSaved, timeoutMs = TIMEOUT_MS }: WriteOptions = {}): Promise<Item> {
+async function writeCard(id: string, method: string, path: string, body: unknown, { shown = cardSaved, timeoutMs = TIMEOUT_MS, keepalive = false }: WriteOptions = {}): Promise<Item> {
   const project = projectOf(id);
   const seen = snapshotsOf(project);
-  const { card } = await call<{ card: Item }>(method, `${getCardById(id)}${path}`, body, false, timeoutMs ?? undefined);
+  const { card } = await call<{ card: Item }>(method, `${getCardById(id)}${path}`, body, keepalive, timeoutMs ?? undefined);
   shown(project, card, seen);
   return card;
 }
@@ -60,6 +61,14 @@ export const startCardAgent = (id: string, { agent, skipWaitForCards = false }: 
 
 /** "Take out of the queue": the card's start taken back before its agent begins; on a plan, its workstreams' not yet planned. */
 export const dequeueCard = (id: string) => writeCard(id, 'POST', '/dequeue', {});
+
+/** The owner writes to the card (its agent, a Question card's thread, a review card's decisions on its findings); `keepalive` for one sent as the page goes. */
+export const sendCardMessage = (id: string, message: Extract<CardAction, { action: 'message' }>, keepalive = false) =>
+  writeCard(id, 'POST', '/message', message, { keepalive });
+
+/** The owner answers the question the card waits on; `keepalive` for one sent as the page goes. */
+export const answerCard = (id: string, answer: Extract<CardAction, { action: 'answer' }>, keepalive = false) =>
+  writeCard(id, 'POST', '/answer', answer, { keepalive });
 
 /** The card's agent stopped: the card is planned again. */
 export const stopCardAgent = (id: string) => writeCard(id, 'POST', '/stop', {});
@@ -119,3 +128,23 @@ export const stopWaiting = async (chat: number, exchange: number, card: string):
 /** The chat the owner talked in last on the project, and when; `null` while nothing was said in any. */
 export const getRecentChat = async (project: string): Promise<{ id: number; at: string } | null> =>
   (await call<{ chat: { id: number; at: string } | null }>('GET', `/api/v1/chats/recent?project=${encodeURIComponent(project)}`, undefined, false, TIMEOUT_MS)).chat;
+
+type ModelHarness = 'codex' | 'agy';
+
+const MODELS_KEPT_MS = 60_000;
+
+let modelsKept: { at: number; read: Promise<Record<ModelHarness, ModelInfo[]>> } | null = null;
+
+/**
+ * The models of the harness. Every harness is read in one call and kept for a minute, so the chat
+ * panel and the start menu find them there; `fresh` reads again (the settings, after a change).
+ */
+export function getAgentModels(harness: ModelHarness, { fresh = false }: { fresh?: boolean } = {}): Promise<ModelInfo[]> {
+  if (fresh || !modelsKept || Date.now() - modelsKept.at > MODELS_KEPT_MS) {
+    const read = call<{ models: Record<ModelHarness, ModelInfo[]> }>('GET', '/api/v1/agents?models=codex,agy', undefined, false, TIMEOUT_MS).then((answer) => answer.models);
+    const kept = { at: Date.now(), read };
+    modelsKept = kept;
+    read.catch(() => void (modelsKept === kept && (modelsKept = null)));
+  }
+  return modelsKept!.read.then((models) => models[harness]);
+}

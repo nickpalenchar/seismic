@@ -14,7 +14,7 @@ import { mockPage } from '../core/frame';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
 import { answers, answerText, OTHER, toggleOther } from './answer';
 import { ApiError, api, projectOf, cardAt, type Field, holdRestart, onCardEvent, onCardEventGone, onCardRefresh, onReconnect, refreshCard, useCardRefreshFailed } from './api';
-import { approveCard, archiveCard, dequeueCard, setShareOnApproval, startCardAgent, stopCardAgent, unarchiveCard } from './clients/seismic';
+import { answerCard, approveCard, archiveCard, dequeueCard, sendCardMessage, setShareOnApproval, startCardAgent, stopCardAgent, unarchiveCard } from './clients/seismic';
 import { cardPath } from './address';
 import { Naming, smartLink } from './cardLink';
 import { DuplicateMergePreview, MergeButton, MergeView } from './merge';
@@ -268,6 +268,8 @@ export function Detail(p: Props) {
       else if (a.action === 'dequeue') await dequeueCard(item.id);
       else if (a.action === 'stop') await stopCardAgent(item.id);
       else if (a.action === 'approve') await approveCard(item.id, { direct: !!a.direct });
+      else if (a.action === 'message') await sendCardMessage(item.id, a);
+      else if (a.action === 'answer') await answerCard(item.id, a);
       else await api.act(item.id, a);
       
       if (a.action === 'start' || a.action === 'force' || (a.action === 'accept' && a.start !== false)) updateDraft(cardDraft(item.id), { agent: undefined });
@@ -2992,7 +2994,7 @@ function ReviewSubmit({ item }: { item: Item }) {
     setSending(true);
     setError('');
     try {
-      await api.act(item.id, { action: 'message', text: '', findings, ...(Object.keys(findingNotes).length ? { findingNotes } : {}), ...(agent ? { newAgent: agent } : {}) });
+      await sendCardMessage(item.id, { action: 'message', text: '', findings, ...(Object.keys(findingNotes).length ? { findingNotes } : {}), ...(agent ? { newAgent: agent } : {}) });
       sentChoices(draft, findings);
     } catch (e) {
       setError(failText(e));

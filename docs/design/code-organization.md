@@ -80,6 +80,11 @@ Represents endpoints that are registered to the server, which can be called in a
     `GET /chats/recent?project=` is the one the panel resumes. A chat's id is global, so its URL
     names the chat alone, like a card's. Sending words stays on `/command`, which voice and the cards'
     fields share.
+  - The owner's words to a card are `POST /api/v1/cards/:cardId/message` (its agent, a Question card's
+    thread, a review card's decisions) and `POST /api/v1/cards/:cardId/answer` (the question it waits
+    on); both answer with `{ card }`. The rest of `POST /api/c/:project/cards/:id/act` is still legacy.
+  - The models of the harnesses are read at `GET /api/v1/agents?models=codex,agy`; the page reads them
+    once when a project loads and keeps them for a minute, the settings read them afresh.
   - Params name what they stand for (`:cardId`), never a bare `:id`.
   - A card's URL names the card alone, not its project: the server finds the project from the card
     (`HttpRoute.projectOfCard`), so a call can't go to the wrong project when the page shows another.
