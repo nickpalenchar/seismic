@@ -4,12 +4,13 @@ Seismic: a spatial canvas for directing AI coding agents. Its goal, principles, 
 and non-obvious constraints are in `docs/design.md`; read it before a change, and the chapters it
 lists under `docs/design/` that the change touches (UI work: `docs/design/ui-system.md`).
 
-The design docs hold principles, decisions (chosen, why, rejected, date) and non-obvious constraints
-(platform quirks, formats to stay compatible with, safety rules): not a description of every
-behaviour, and not history. A worker who settles one of those writes it into `docs/design.md` or a
-chapter in the same change; a chapter is started when an area gathers enough of them. Work in
-progress is planned in plan docs under `docs/plan/` (Seismic shows them as plans); when one is done,
-its lasting decisions and constraints move into the design doc and the plan doc goes.
+- The design docs hold principles, decisions (chosen, why, rejected, date) and non-obvious constraints
+  (platform quirks, formats to stay compatible with, safety rules): not a description of every
+  behaviour, and not history.
+- A worker who settles one of those writes it into `docs/design.md` or a chapter in the same change;
+  a chapter is started when an area gathers enough of them.
+- Work in progress is planned in plan docs under `docs/plan/` (Seismic shows them as plans); when one
+  is done, its lasting decisions and constraints move into the design doc and the plan doc goes.
 
 The user docs at seismic.im/docs are in `docs/site/`, Starlight markdown that `seismic-site` pulls
 from the `docs-vlatest` tag (`docs/release.md`, Publishing the docs). They describe what users see,
@@ -21,15 +22,17 @@ not how it is built; a change users notice updates them in the same change.
   `bun run lint --all` checks the whole repo.
 - `bun install` sets up the Lefthook Git pre-commit hook. It lints staged JavaScript and TypeScript
   paths and runs Knip and TypeScript across the project. Keep the checks passing throughout
-  development. Fix failures at the source and rerun the checks before committing. Do not bypass
-  hooks, suppress diagnostics, or weaken checks to get a commit through. If a check is blocked
-  by the environment, report the blocker and the check that remains unverified.
+  development. A failing required check blocks committing and any claim that the work is complete:
+  fix failures at the source and rerun the checks. Do not bypass hooks, suppress diagnostics, or
+  weaken checks to get a commit through. If a check is blocked by the environment, report the
+  blocker and the check that remains unverified.
 - Never wait with `sleep` or polling chains in the foreground (`sleep 25; …`, `until curl …; sleep 3`):
   a hook blocks them. Run long commands (`bun test --parallel`, `bun run typecheck`, a scratch Seismic
   start) with run_in_background or Monitor and wait for the notification; for a short wait on a port
   use one bounded `timeout 30 bash -c 'until curl -sf http://127.0.0.1:<port>/ >/dev/null; do sleep 2; done'`.
-- File edits with complex content, quotes or special characters go through Read + Write, not `sed`,
-  to avoid shell escaping problems.
+- Make file edits through file-edit tools, not shell commands or scripts. This is especially
+  important for complex content, quotes or special characters, which otherwise cause shell escaping
+  failures.
 - `src/core/` is shared by server and UI (types, plan-doc parser, layout); `src/server/` is the
   Bun server with SQLite; `src/ui/` the React canvas, with `src/ui/components/` for UI pieces shared across views (starting with toasts: one store, one component, every toast goes through it); `src/adapters/` what Seismic knows of a repository (its defaults, its settings).
 - The server's tests live in `src/server/test/`, mirroring the paths of the code they test
@@ -41,7 +44,8 @@ not how it is built; a change users notice updates them in the same change.
   `~/.seismic` of a running Seismic): `bun scripts/scratch-seismic.ts <stage.json>` stages one with its
   cards in about a second (its header describes the stage file; `--stop <port>` ends it). Its
   workers are idle; with `--real-workers` they are real agents on the machine's Claude login.
-- UI checks run in a headless browser through the `browser` skill of Seismic's plugin
+- Exercise every UI change and UI code review in a headless browser through the `browser` skill of
+  Seismic's plugin
   (`seismic:browser`; a session without the plugin reads `plugin/skills/browser/SKILL.md`): `input`
   for trusted clicks, drags, keys held for push-to-talk; `start --fake-mic <wav>` for voice. Invoke
   it as `bun plugin/skills/browser/lib/browser.ts <command> <port>`, never with `node`, and call
@@ -50,8 +54,8 @@ not how it is built; a change users notice updates them in the same change.
   the unfold never finish there. For what headless Chromium can't reproduce (on-screen keyboard,
   fullscreen, rotation), use `bun scripts/android-phone.ts`: Chrome in the Android emulator, with
   real taps (its header describes the commands).
-- Reviews of the code (security, code quality and the like) always bring in Codex (`codex exec`)
-  as a second reviewer.
+- Before recording any code review (security, code quality and the like), invoke and consider a
+  separate `codex exec` review, even when the primary reviewer is Codex.
 - Voice on this machine: Parakeet through uv, the default, needs nothing set. For Whisper instead:
   `SEISMIC_WHISPER_BACKEND=mlx` with `SEISMIC_WHISPER_PYTHON` naming a Python that has `mlx_whisper`
   (the model is cached). That Python alone, without the backend, fails: it has no `onnx_asr` for Parakeet.
