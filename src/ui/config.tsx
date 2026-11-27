@@ -38,6 +38,7 @@ import { useHints } from './hints';
 import { projectPath } from './address';
 import { scrollBehavior } from './motion';
 import { Badge } from './components/badge';
+import { Callout, CalloutDescription } from './components/callout';
 import { Button, CloseButton, IconButton, LinkButton } from './components/button';
 import { focusSettingsSheet } from './projectSettings/focus';
 import { ConfirmDialog, Dialog, DialogContent, DialogTitle } from './components/dialog';
@@ -893,7 +894,11 @@ function ProjectDefaultsBlock({ view, onSaved, onProjectSettings }: { view: Proj
   };
   return (
     <>
-      <Head title={c.sections.defaults} hint={c.defaults.hint} file={view.file} />
+      <Head title={c.sections.defaults} file={view.file} />
+      <Callout role="note" className="mb-4 max-w-[720px]">
+        <InfoIcon aria-hidden />
+        <CalloutDescription>{c.defaults.hint}</CalloutDescription>
+      </Callout>
       {link}
       {Object.entries(fields).map(([k, field]) => (
         <Fragment key={k}>{field}</Fragment>
