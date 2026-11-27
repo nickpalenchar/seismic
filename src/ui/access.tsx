@@ -212,7 +212,7 @@ function Away({ host }: { host: string }) {
   );
 }
 
-/** The section "Other devices" of the configuration. */
+/** The section "Remote devices" of the configuration. */
 export function AccessSection({ on, onConnect }: { on: boolean; onConnect: () => void }) {
   const a = t.access;
   const [view, setView, away] = useAccess(on);

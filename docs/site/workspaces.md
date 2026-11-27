@@ -28,7 +28,7 @@ machine, to the first remote one), and the setup goes on where it was the next t
 
 ## What the other machine needs
 
-1. Open Seismic there and go to **Configuration → Other devices**.
+1. Open Seismic there and go to **Configuration → Remote devices**.
 2. Turn on **Reachable from other devices** and choose how your network reaches it:
    - **Through Tailscale**: Tailscale runs on that machine, logged in, with HTTPS on in your
      tailnet. Seismic gives itself an HTTPS address there.
@@ -40,7 +40,7 @@ machine, to the first remote one), and the setup goes on where it was the next t
 4. Choose **Connect a phone**. It shows a QR code, the address and a 6-digit code.
 
 Devices are added only on the machine Seismic runs on. Opened from a phone or another computer,
-**Other devices** shows **Connected to** with that machine's name instead of its settings.
+**Remote devices** shows **Connected to** with that machine's name instead of its settings.
 
 ## Connect a workspace
 
@@ -94,9 +94,9 @@ there from every workspace). The cog beside a workspace opens its settings:
   **Pair again** with a code from the new address; the old address stays until pairing succeeds.
   Each address belongs to one workspace.
 - **Pair again**: pair with a new code from **Connect a phone**, for example after this app was
-  removed under **Other devices** on that machine.
+  removed under **Remote devices** on that machine.
 - **Delete workspace**: takes the workspace off the list. That machine and its agents keep
-  running. To unpair this app there too, remove it under **Other devices** on that machine.
+  running. To unpair this app there too, remove it under **Remote devices** on that machine.
 
 This machine's workspace can be renamed but not deleted: the app starts and stops that Seismic
 itself. A remote workspace's pages can list and switch workspaces but cannot change the list.

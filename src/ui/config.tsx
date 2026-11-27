@@ -5,7 +5,7 @@ import { parkClones, restoreClones } from './workstationDraft';
 
 
 
-import { FastForward, Info as InfoIcon, type LucideIcon, Monitor, Moon, Pause, Sun, Trash2 } from 'lucide-react';
+import { Bell, Bot, CpuAi, FastForward, Film, FolderCog, GraduationCap, Info as InfoIcon, Lightbulb, type LucideIcon, Monitor, MonitorSmartphone, Moon, Pause, Speech, Sun, Trash2 } from 'lucide-react';
 import { forwardRef, Fragment, lazy, type ReactNode, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { allowsDemo, HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, qwen3IsClone, qwen3Speaker, STYLED_VOICES } from '../../plugin/skills/demo/lib/voice-choices.ts';
@@ -86,11 +86,13 @@ declare global {
 type Ask = (text: string, project?: string) => void;
 
 
-type Section = 'defaults' | 'agents' | 'harnesses' | 'voice' | 'demos' | 'notices' | 'devices' | 'hints' | 'advanced' | 'developer' | 'about';
+type Section = 'defaults' | 'agents' | 'harnesses' | 'voice' | 'demos' | 'notices' | 'devices' | 'hints' | 'advanced' | 'about';
 /** A field of prose in a setting (a voice's style, its sample text): the page's font, not a path's. */
 const proseFieldClass = (hook: string) => `${hook} block w-full max-w-[420px] resize-y text-sm leading-[1.45] py-1.5 px-2`;
 
-const SECTIONS: Section[] = ['defaults', 'agents', 'harnesses', 'voice', 'demos', 'notices', 'devices', 'hints', 'advanced', 'developer', 'about'];
+const SECTIONS: Section[] = ['defaults', 'agents', 'harnesses', 'voice', 'demos', 'notices', 'devices', 'hints', 'advanced', 'about'];
+
+const SECTION_ICONS: Record<Section, LucideIcon> = { defaults: FolderCog, agents: Bot, harnesses: CpuAi, voice: Speech, demos: Film, notices: Bell, devices: MonitorSmartphone, hints: Lightbulb, advanced: GraduationCap, about: InfoIcon };
 
 const SECTION_KEY = 'seismic-config-section';
 
@@ -111,7 +113,7 @@ export const showAddSite = () => {
   window.dispatchEvent(new Event(ADD_SITE_EVENT));
 };
 
-/** Opens the dialog at "Other devices" next time, as from "Connect a phone". */
+/** Opens the dialog at "Remote devices" next time, as from "Connect a phone". */
 export const showDevicesSection = () => sessionStorage.setItem(SECTION_KEY, 'devices');
 
 /** The section this tab showed last, if any. */
@@ -194,13 +196,17 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectS
           </div>
           <TabsList asChild aria-label={c.title}>
           <ul className={K.cfgNavListClass}>
-            {SECTIONS.map((s) => (
+            {SECTIONS.map((s) => {
+                const Icon = SECTION_ICONS[s];
+                return (
                 <li key={s} role="presentation">
                   <TabsTrigger value={s} aria-controls={`cfg-sec-${s}`} className={K.cfgNavEntryClass()} onClick={() => s === section && setSection(s)}>
+                    <Icon size={16} strokeWidth={2} className="flex-none" aria-hidden />
                     {c.sections[s]}
                   </TabsTrigger>
                 </li>
-            ))}
+                );
+            })}
           </ul>
           </TabsList>
           <div className={K.cfgNavFootClass}>
@@ -248,10 +254,8 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectS
               <p className="hint">{c.reconfigureSetup.hint}</p>
               <Button size="small" onClick={() => setSetupOn(true)}>{c.reconfigureSetup.relaunch}</Button>
             </section>
+            <RestartBlock on={on && section === 'advanced'} />
             <ProjectExport on={on && section === 'advanced'} />
-          </section>
-          <section id="cfg-sec-developer" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'developer'}>
-            <DeveloperBlock on={on && section === 'developer'} />
           </section>
           <section id="cfg-sec-about" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'about'}>
             <AboutBlock on={on && section === 'about'} />
@@ -343,8 +347,8 @@ function ProjectExport({ on }: { on: boolean }) {
   </>;
 }
 
-/** Restarting Seismic, or rebuilding it (its dependencies installed again) and restarting, for work on Seismic itself. */
-function DeveloperBlock({ on }: { on: boolean }) {
+/** Restarting Seismic, or rebuilding it (its dependencies installed again) and restarting, for work on Seismic itself: a part of Advanced. */
+function RestartBlock({ on }: { on: boolean }) {
   const [view, setView] = useState<DeveloperView | null>(null);
   const [status, setStatus] = useState('');
   useEffect(() => {
@@ -361,8 +365,9 @@ function DeveloperBlock({ on }: { on: boolean }) {
     }
   };
   return (
-    <>
-      <Head title={t.config.sections.developer} hint={l.hint} />
+    <section className="mb-6" aria-labelledby="cfg-restart">
+      <h3 id="cfg-restart">{l.title}</h3>
+      <p className="hint">{l.hint}</p>
       {view && (
         <>
           <Field label={l.restart} hint={view.why ? l.why[view.why] : l.restartHint}>
@@ -378,7 +383,7 @@ function DeveloperBlock({ on }: { on: boolean }) {
         </>
       )}
       {status && <p className={`hint ${statusClass}`}>{status}</p>}
-    </>
+    </section>
   );
 }
 
