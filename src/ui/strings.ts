@@ -1599,10 +1599,6 @@ const en = {
       rebuildButton: 'Rebuild',
       rebuildHint: "Stops the process, rebuilds it (installs the checkout's dependencies again) and restarts it.",
       asked: 'Seismic restarts once no agent is in the middle of a turn; the bar shows what it still waits for.',
-      why: {
-        dev: 'Seismic runs with --dev, without the process that starts it again: end it in the terminal and start it there again.',
-        compiled: 'The app and the single-file binary have no checkout Seismic could be rebuilt from.',
-      },
     },
     dataExport: { title: 'Export data', hint: 'Download saved data from the selected projects, including archived cards and conversations.', all: 'All projects', csv: 'Download CSV', json: 'Download JSON' },
     reconfigureSetup: {

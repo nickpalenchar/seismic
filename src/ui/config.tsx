@@ -133,6 +133,7 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectS
   
   const [defaults, setDefaults] = useState<ProjectDefaultsView | null>(null);
   const [problems, setProblems] = useState<ConfigProblem[]>([]);
+  const [developer, setDeveloper] = useState<DeveloperView | null>(null);
   const [section, setSectionState] = useState<Section>(() => keptSection() ?? 'defaults');
   
   const [addingSite, setAddingSiteState] = useState(() => !!sessionStorage.getItem(ADD_SITE_KEY));
@@ -163,6 +164,7 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectS
     if (s) setSectionState(s);
     setAddingSiteState(!!sessionStorage.getItem(ADD_SITE_KEY));
     getSetting('projectDefaults').then(setDefaults, console.error);
+    api.developer().then(setDeveloper, console.error);
     let active = true;
     setProblems([]);
     void api.configCheck().then(
@@ -254,8 +256,8 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectS
               <p className="hint">{c.reconfigureSetup.hint}</p>
               <Button size="small" onClick={() => setSetupOn(true)}>{c.reconfigureSetup.relaunch}</Button>
             </section>
-            <RestartBlock on={on && section === 'advanced'} />
-            <ProjectExport on={on && section === 'advanced'} />
+            <ProjectExport on={on} />
+            <RestartBlock view={developer} />
           </section>
           <section id="cfg-sec-about" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'about'}>
             <AboutBlock on={on && section === 'about'} />
@@ -347,13 +349,13 @@ function ProjectExport({ on }: { on: boolean }) {
   </>;
 }
 
-/** Restarting Seismic, or rebuilding it (its dependencies installed again) and restarting, for work on Seismic itself: a part of Advanced. */
-function RestartBlock({ on }: { on: boolean }) {
-  const [view, setView] = useState<DeveloperView | null>(null);
+/**
+ * Restarting Seismic, or rebuilding it (its dependencies installed again) and restarting, for work on Seismic itself: a
+ * part of Advanced, with only the actions this install can take, and none of it where it can take neither.
+ */
+function RestartBlock({ view }: { view: DeveloperView | null }) {
   const [status, setStatus] = useState('');
-  useEffect(() => {
-    if (on) api.developer().then(setView, console.error);
-  }, [on]);
+  if (!view?.restart && !view?.rebuild) return null;
   const l = t.config.developer;
   const ask = async (what: 'restart' | 'rebuild') => {
     setStatus('');
@@ -368,19 +370,19 @@ function RestartBlock({ on }: { on: boolean }) {
     <section className="mb-6" aria-labelledby="cfg-restart">
       <h3 id="cfg-restart">{l.title}</h3>
       <p className="hint">{l.hint}</p>
-      {view && (
-        <>
-          <Field label={l.restart} hint={view.why ? l.why[view.why] : l.restartHint}>
-            <Button size="small" disabled={!view.restart} onClick={() => ask('restart')}>
-              {l.restartButton}
-            </Button>
-          </Field>
-          <Field label={l.rebuild} hint={view.why ? l.why[view.why] : view.rebuildWhy ? l.why[view.rebuildWhy] : l.rebuildHint}>
-            <Button size="small" disabled={!view.rebuild} onClick={() => ask('rebuild')}>
-              {l.rebuildButton}
-            </Button>
-          </Field>
-        </>
+      {view.restart && (
+        <Field label={l.restart} hint={l.restartHint}>
+          <Button size="small" onClick={() => ask('restart')}>
+            {l.restartButton}
+          </Button>
+        </Field>
+      )}
+      {view.rebuild && (
+        <Field label={l.rebuild} hint={l.rebuildHint}>
+          <Button size="small" onClick={() => ask('rebuild')}>
+            {l.rebuildButton}
+          </Button>
+        </Field>
       )}
       {status && <p className={`hint ${statusClass}`}>{status}</p>}
     </section>
