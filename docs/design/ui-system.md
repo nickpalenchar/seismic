@@ -152,11 +152,14 @@ scripts/desktop-strings.ts` writes and a test keeps current (2026-11-24).
   unfolded card, the panel itself takes focus. Space can then start push-to-talk and Esc can fold
   the card. Tab moves focus to the Card actions menu. Esc also folds the card when that menu is open.
   The connection dots stay out of the Tab order: an arrow follows the pointer.
-- **The left menu docks wherever it fits** (2026-11-27): wide enough to leave the project its room
-  beside the menu and the right sheet, the menu is a sidebar, and the button in the bar shows and
-  hides it (Lucide `panel-left-open` / `panel-left-close`); narrower, it drops down under that
-  button (`square-menu`). Rejected: a pin inside the menu to choose between the two, a choice
-  the window size already makes.
+- **The left menu docks wherever the window is wide enough** (2026-11-27): by the window's width
+  alone (more than 760 px and room for the project beside the menu), the menu is a sidebar, and
+  the button in the bar shows and hides it (Lucide `panel-left-open` / `panel-left-close`);
+  narrower, it drops down under that button (`square-menu`). A sheet opening on the right does
+  not undock it: the sheet takes its width from what the menu leaves. Rejected: a pin inside the
+  menu to choose between the two, a choice the window size already makes; undocking whenever a
+  sheet leaves the project too little room, which swapped the sidebar for the dropdown each time
+  a plan doc opened.
 - **⌘P / Ctrl+P is the quick project switcher** (2026-11-22). Seismic uses the browser's print
   shortcut to search and switch projects within the page. Project menus and the keyboard legend
   show the active shortcut for the platform. On a Mac, iPhone or iPad it is ⌘P. Elsewhere it is

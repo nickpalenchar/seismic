@@ -5,6 +5,14 @@ description: How projects, canvases, cards and workers fit together in Seismic.
 
 A **Project** is the unit Seismic keeps memory for. Everything you do in Seismic happens inside one.
 
+## The menu
+
+The menu holds the inbox, your projects, the agents' configuration and the settings. Its button
+sits at the top left, beside the Seismic logo. On a wide window the menu is docked as a sidebar on
+the left: the button hides it (a panel icon with an arrow pointing left) and shows it again (the
+arrow pointing right). On a smaller window the button shows a menu icon and the menu drops down
+under it.
+
 ## Canvases
 
 A project has at least one **canvas**, an infinite space where you lay out the work. Double click

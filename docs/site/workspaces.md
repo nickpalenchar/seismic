@@ -58,7 +58,7 @@ was used, the form says so: let the other machine show a new one.
 
 ## Switch workspaces
 
-The switcher sits at the top of the left menu, above Inbox, on every page in the app, on remote
+The switcher sits at the top of the left menu ([where to find it](/docs/project-basics/#the-menu)), above Inbox, on every page in the app, on remote
 workspaces too. The workspace name appears on one line and ends with an ellipsis if it is too long
 to fit. The status beneath reads **this machine** or **remote**, with the settings cog to its right.
 Click the name to list the other workspaces, with **New workspace** below them. The cog opens the shown

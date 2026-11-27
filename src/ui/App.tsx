@@ -643,7 +643,16 @@ function Project({
   const [openId, setOpenId] = useState<string | null>(null);
   const [dim, setDim] = useState(false);
   const [sheetId, setSheetId] = useState<string | null>(null);
-  const dock = useDock(null);
+  const [, setNavHidden, navHiddenRef] = useLive(loadNavHidden);
+  const [navWidth, setNavWidth, navWidthRef] = useLive(loadNavWidth);
+  /**
+   * Whether the menu docks on the left: by the window's width alone, a sheet open on the right
+   * notwithstanding; where it does not, it drops down under its button in the bar.
+   */
+  const navDocksNow = () => !matchMedia(NARROW).matches && innerWidth - navWidthRef.current >= NAV_PROJECT_MIN;
+  /** What the docked menu, unless hidden, takes of the window's width. */
+  const navLeftNow = () => (navDocksNow() && !navHiddenRef.current ? navWidthRef.current : 0);
+  const dock = useDock(null, () => innerWidth - navLeftNow());
   const sheetOn = dock.active === 'plan' || dock.active === 'plan-doc';
   const sheetOnRef = { get current() { return dock.ref.current === 'plan' || dock.ref.current === 'plan-doc'; } };
   const setSheetOn = (on: boolean) => {
@@ -675,8 +684,6 @@ function Project({
   };
   const [cOn, setCOn, cOnRef] = useLive(false);
   
-  const [, setNavHidden, navHiddenRef] = useLive(loadNavHidden);
-  const [navWidth, setNavWidth, navWidthRef] = useLive(loadNavWidth);
   const showDocked = (on: boolean) => {
     setNavHidden(!on);
     saveNavHidden(!on);
@@ -684,15 +691,9 @@ function Project({
   /**
    * What the panels docked at the window's edges take of it, as just set: the sheet on the right and
    * the docked menu on the left, unless hidden; the project is what remains between them. A narrow
-   * window lays the sheet over the project instead (docked.tsx), and the menu drops down, as it
-   * does where it would leave the project too little room beside the sheet: the two never stack.
+   * window lays the sheet over the project instead (docked.tsx), and the menu drops down.
    */
-  const sideNow = (): Sides => {
-    const narrow = matchMedia(NARROW).matches;
-    const right = narrow ? 0 : dock.width();
-    const left = navWidthRef.current;
-    return { left: !narrow && !navHiddenRef.current && innerWidth - left - right >= NAV_PROJECT_MIN ? left : 0, right };
-  };
+  const sideNow = (): Sides => ({ left: navLeftNow(), right: matchMedia(NARROW).matches ? 0 : dock.width() });
   /** Opens Seismic's sheet or closes it; an open plan closes. */
   const toggleKoordinator = (entry: typeof chatEntry.current = 'default') => {
     if (!kOn) chatEntry.current = entry;
@@ -2377,7 +2378,6 @@ function Project({
   }, [openEntry && readMark(openEntry)]);
   
   const unread = kOn ? 0 : unreadAnswers(snapshot.talk);
-  const navDocks = !matchMedia(NARROW).matches && innerWidth - navWidth - side.right >= NAV_PROJECT_MIN;
   const nav = {
     project: snapshot.project,
     projects,
@@ -2916,7 +2916,7 @@ function Project({
         >
           <div className="left flex items-center gap-2.5">
             {extensions.map((e, i) => { const Slot = e.slots?.topBar; return Slot ? <Slot key={i} /> : null; })}
-            <MenuButton {...menu} docked={navDocks} dockedOn={side.left > 0} onDocked={showDocked} />
+            <MenuButton {...menu} docked={navDocksNow()} dockedOn={side.left > 0} onDocked={showDocked} />
           </div>
           <CardSearch items={items} field={searchField} hidden={!!focus} onOpen={(item) => void openFresh(item)} />
           <div className="right flex items-center justify-end gap-2.5">
@@ -3016,7 +3016,7 @@ function Project({
             {online && usage.map((u) => <UsagePill key={u.harness} usage={u} />)}
           </div>
         </footer>
-        <NavSheet on={side.left > 0} onOpenChange={showDocked} width={navWidth} maxWidth={innerWidth - side.right - NAV_PROJECT_MIN} onWidthChange={setNavWidth} onWidthEnd={saveNavWidth} onResizing={dock.setResizing} {...menu} />
+        <NavSheet on={side.left > 0} onOpenChange={showDocked} width={navWidth} maxWidth={innerWidth - NAV_PROJECT_MIN} onWidthChange={setNavWidth} onWidthEnd={saveNavWidth} onResizing={dock.setResizing} {...menu} />
         <Minimap
           cam={cam}
           side={side}

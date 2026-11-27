@@ -160,10 +160,12 @@ export interface MenuProps extends ProjectsProps, MenuActions {}
 /**
  * The menu's sign and the logo in the bar, so it reads as a button. Where the window is wide enough
  * the menu is docked on the left: a click hides the sidebar or shows it again, the sign showing which
- * it does. Otherwise the menu drops down under it. Narrow, the bar shows the sign alone in it (barFit.ts).
+ * it does. Otherwise the menu drops down under it; docking closes that dropdown, so narrowing the
+ * window again leaves it closed. Narrow, the bar shows the sign alone in it (barFit.ts).
  */
 export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { docked: boolean; dockedOn: boolean; onDocked: (on: boolean) => void }) {
   const [open, setOpen] = useState(false);
+  if (docked && open) setOpen(false);
   const on = docked ? dockedOn : open;
   const Icon = !docked ? SquareMenu : dockedOn ? PanelLeftClose : PanelLeftOpen;
   const logo = (
@@ -185,7 +187,7 @@ export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { d
     </button>
   );
   return (
-    <Menu open={open && !docked} onOpenChange={setOpen}>
+    <Menu open={open} onOpenChange={setOpen}>
       <div>
         { }
         <Tooltip content={t.leftMenu.button}>{docked ? logo : <MenuTrigger asChild>{logo}</MenuTrigger>}</Tooltip>

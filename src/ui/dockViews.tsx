@@ -24,7 +24,8 @@ export interface DockView {
   besideCard?: boolean;
 }
 
-export function useDock(initial: DockId | null) {
+/** `room`: the width the sheets share with the project, the window's less what is docked on the left. */
+export function useDock(initial: DockId | null, room = () => innerWidth) {
   const [active, render] = useState(initial);
   const ref = useRef(active);
   const registry = useRef<DockView[]>([]);
@@ -36,7 +37,7 @@ export function useDock(initial: DockId | null) {
     else if (ref.current === id) select(null);
   }, { get current() { return ref.current === id; } }] as const;
   const [chosenWidths, setWidths] = useState<SheetWidths>(() => loadWidths(localStorage));
-  const widths = widthsIn(chosenWidths, innerWidth);
+  const widths = widthsIn(chosenWidths, room());
   const widthRef = useRef(widths);
   widthRef.current = widths;
   const [resizing, setResizing] = useState(false);
@@ -50,7 +51,7 @@ export function useDock(initial: DockId | null) {
   /** Whether the open view stays usable beside an open card, which then keeps clear of it. */
   const besideCard = () => !!selected()?.besideCard;
   const register = (views: DockView[]) => { registry.current = views; };
-  return { active, ref, select, view, widths, setWidths, resizing, setResizing, registry, register, close, escape, width, besideCard };
+  return { active, ref, select, view, widths, setWidths, resizing, setResizing, registry, register, close, escape, width, besideCard, room };
 }
 
 
@@ -61,7 +62,7 @@ const gripClass =
   "fixed top-0 bottom-0 w-3 z-26 cursor-ew-resize touch-none opacity-0 pointer-events-none [transition:opacity_.2s,right_.45s_cubic-bezier(.3,.9,.3,1)] resizing:[transition:none] [@media(max-width:760px)]:hidden after:content-[''] after:absolute after:left-1 after:top-1/2 after:w-1 after:h-11 after:-mt-6 after:rounded-xs after:bg-planned after:opacity-55 after:[transition:background_.15s,opacity_.15s,height_.15s,margin-top_.15s] hover:after:bg-muted-foreground hover:after:opacity-100 hover:after:h-16 hover:after:-mt-8 resizing:after:bg-muted-foreground resizing:after:opacity-100 resizing:after:h-16 resizing:after:-mt-8";
 
 export function DockShell({ dock }: { dock: ReturnType<typeof useDock> }) {
-  const { active, widths, setWidths, setResizing, close } = dock;
+  const { active, widths, setWidths, setResizing, close, room } = dock;
   const views = dock.registry.current;
   const view = views.find((v) => v.id === active);
   const kind = view?.width ?? 'sheet';
@@ -81,7 +82,7 @@ export function DockShell({ dock }: { dock: ReturnType<typeof useDock> }) {
       }}
       onPointerMove={(e) => {
         const g = grip.current;
-        if (g) setWidths((ws) => ({ ...ws, [g.kind]: clampWidth(g.w + g.x - e.clientX, innerWidth, g.kind) }));
+        if (g) setWidths((ws) => ({ ...ws, [g.kind]: clampWidth(g.w + g.x - e.clientX, room(), g.kind) }));
       }}
       onPointerUp={release} onPointerCancel={release}
       onDoubleClick={() => setWidths((ws) => ({ ...ws, [kind]: kind === 'sheet' ? SHEET_W : null }))} />
