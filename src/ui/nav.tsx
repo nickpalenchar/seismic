@@ -9,7 +9,7 @@
 
 
 import { Archive, ArrowLeft, Bot, Car, ChartLine, Check, ChevronDown, ChevronRight, CircleHelp, Cog, FileCheck, Inbox, ListOrdered, Map as MapIcon, MessageCircleHeart, PanelLeftClose, PanelLeftOpen, Pause, Play, Plus, ScrollText, Settings, SquareMenu, SunMoon, Table2, Users, X } from 'lucide-react';
-import { type ComponentProps, createContext, type ReactNode, type Ref, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { type ComponentProps, createContext, type ReactNode, type Ref, useContext, useLayoutEffect, useRef, useState } from 'react';
 import type { Canvas, ProjectInfo } from '../core/types';
 import { projectPath, switchTo } from './address';
 import { CanvasIcon, ProjectIcon } from './canvasIcon';
@@ -22,6 +22,7 @@ import { LanguageBlock, MotionBlock, ThemeBlock } from './config';
 import { Tooltip } from './components/tooltip';
 import { PillButton } from './components/pill';
 import { cn } from 'cn';
+import { reducedMotion } from './motion';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider } from './components/sidebar';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from './components/sheet';
 import { DeskIcon } from './desks/page';
@@ -339,8 +340,8 @@ export function PhoneNavSheet({ open, onOpenChange, ...p }: MenuProps & { open: 
  * The menu's pages: the main one, and "Configure agents", the inbox and "Appearance", each sliding in
  * over it. Back on the main page, the focus returns to the entry that opened the page. The menu is a
  * container (`menu`), so Appearance stacks its choices in a menu under 300 px (cfgCompactFieldClass).
- * Docked, the main page keeps its height until it has slid away (`shown`), so Configure stays at its
- * foot meanwhile, and the other pages stick to the top of the scrolled menu as they slide in; and the sticky head (in the app on a Mac) and Configure cover the menu's ends, so
+ * Docked, the main page keeps its height until the slide has ended (`sliding`; nothing slides under
+ * reduced motion), so Configure stays at its foot meanwhile, and the other pages stick to the top of the scrolled menu as they slide in; and the sticky head (in the app on a Mac) and Configure cover the menu's ends, so
  * the scroller keeps their heights clear when it brings a focused entry into view.
  */
 function MenuBody({ floating, titlebar, phone, docked, ...p }: MenuProps & { floating?: boolean; titlebar?: boolean; phone?: boolean; docked?: boolean }) {
@@ -361,11 +362,12 @@ function MenuBody({ floating, titlebar, phone, docked, ...p }: MenuProps & { flo
       return () => cancelAnimationFrame(frame);
     }
   }, [page]);
-  const [shown, setShown] = useState(page);
-  useEffect(() => {
-    const timer = setTimeout(() => setShown(page), 300);
-    return () => clearTimeout(timer);
-  }, [page]);
+  const [sliding, setSliding] = useState(false);
+  const go = (next: typeof page) => {
+    if (next === page) return;
+    setSliding(!!docked && !reducedMotion());
+    setPage(next);
+  };
   const footerBox = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const box = footerBox.current;
@@ -410,19 +412,19 @@ function MenuBody({ floating, titlebar, phone, docked, ...p }: MenuProps & { flo
             if (e.key !== 'Escape') return;
             e.preventDefault();
             e.stopPropagation();
-            setPage('main');
+            go('main');
           },
         }),
   });
   const inbox = (
-    <Entry icon={<Inbox size={16} strokeWidth={2} aria-hidden />} label={m.inbox} focusRef={inboxButton} on={p.showing === 'inbox'} keep={!!p.inbox} onClick={p.inbox ? () => setPage('inbox') : run(p.onInbox)} />
+    <Entry icon={<Inbox size={16} strokeWidth={2} aria-hidden />} label={m.inbox} focusRef={inboxButton} on={p.showing === 'inbox'} keep={!!p.inbox} onClick={p.inbox ? () => go('inbox') : run(p.onInbox)} />
   );
   return (
     
     
-    <div className={cn('@container/menu grid grid-cols-[100%_100%_100%_100%] items-start transition-transform duration-300 ease-[cubic-bezier(.3,.9,.3,1)]', docked && 'flex-1', page === 'agents' && '-translate-x-full', page === 'inbox' && '-translate-x-[200%]', page === 'appearance' && '-translate-x-[300%]')}>
+    <div className={cn('@container/menu grid grid-cols-[100%_100%_100%_100%] items-start transition-transform duration-300 ease-[cubic-bezier(.3,.9,.3,1)]', docked && 'flex-1', page === 'agents' && '-translate-x-full', page === 'inbox' && '-translate-x-[200%]', page === 'appearance' && '-translate-x-[300%]')} onTransitionEnd={(e) => { if (e.target === e.currentTarget && (e.propertyName === 'translate' || e.propertyName === 'transform')) setSliding(false); }}>
       <InMenu.Provider value={!floating ? null : page === 'main' ? ACTIVE : INACTIVE}>
-      <div className={cn(pageClass(page !== 'main', page !== 'main' && (!docked || shown !== 'main')), docked && 'flex flex-col self-stretch')} inert={page !== 'main'}>
+      <div className={cn(pageClass(page !== 'main', page !== 'main' && !sliding), docked && 'flex flex-col self-stretch')} inert={page !== 'main'}>
         {!phone && !titlebar && <DeskSwitcher />}
         <div className={head(titlebar)} {...drag}>
           {!titlebar && <NavList className={cn(list, 'min-w-0 flex-1')}>{inbox}</NavList>}
@@ -430,7 +432,7 @@ function MenuBody({ floating, titlebar, phone, docked, ...p }: MenuProps & { flo
         {!phone && titlebar && <DeskSwitcher />}
         <NavList className={list}>
           {titlebar && inbox}
-          {hasAgentsPage && <Entry icon={<Bot size={16} strokeWidth={2} aria-hidden />} label={m.configureAgents} focusRef={configureButton} keep onClick={() => setPage('agents')} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />}
+          {hasAgentsPage && <Entry icon={<Bot size={16} strokeWidth={2} aria-hidden />} label={m.configureAgents} focusRef={configureButton} keep onClick={() => go('agents')} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />}
         </NavList>
         {hasProjectEntries && <h3 className={sectionHead}>
           <span className="flex-none uppercase">{m.project}</span>
@@ -456,7 +458,7 @@ function MenuBody({ floating, titlebar, phone, docked, ...p }: MenuProps & { flo
         <div ref={footerBox} className={footer(docked)}>
         <h3 className={cn(sectionHead, 'uppercase')}>{m.configure}</h3>
         <NavList className={list}>
-          <Entry icon={<SunMoon size={16} strokeWidth={2} aria-hidden />} label={m.appearance} focusRef={appearanceButton} keep onClick={() => setPage('appearance')} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />
+          <Entry icon={<SunMoon size={16} strokeWidth={2} aria-hidden />} label={m.appearance} focusRef={appearanceButton} keep onClick={() => go('appearance')} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />
           {p.onConfig && <Entry icon={<Settings size={16} strokeWidth={2} aria-hidden />} label={m.settings} onClick={run(p.onConfig)} />}
           {(p.onHelp || p.onFeedback) && <li role="separator" className="mx-2.5 my-1.5 h-px bg-border" />}
           {p.onHelp && <Entry icon={<CircleHelp size={16} strokeWidth={2} aria-hidden />} label={m.help} onClick={run(p.onHelp)} />}
@@ -468,7 +470,7 @@ function MenuBody({ floating, titlebar, phone, docked, ...p }: MenuProps & { flo
       <InMenu.Provider value={!floating ? null : page === 'agents' ? ACTIVE : INACTIVE}>
       <div {...subPage('agents')}>
         <div className={head(titlebar)} {...drag}>
-          <Act sidebarItem={false} className="-ml-0.5 flex h-8 cursor-pointer items-center gap-2 rounded-sm bg-transparent px-2.5 text-base text-foreground hover:bg-muted" ref={backButton} keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
+          <Act sidebarItem={false} className="-ml-0.5 flex h-8 cursor-pointer items-center gap-2 rounded-sm bg-transparent px-2.5 text-base text-foreground hover:bg-muted" ref={backButton} keep onAct={() => go('main')} tip={m.back} aria-label={m.back}>
             <ArrowLeft size={16} strokeWidth={2} aria-hidden />
             <b>{m.configureAgents}</b>
           </Act>
@@ -490,7 +492,7 @@ function MenuBody({ floating, titlebar, phone, docked, ...p }: MenuProps & { flo
       { }
       <div {...subPage('inbox', true)}>
         <div className={head(titlebar)} {...drag}>
-          <Act sidebarItem={false} className="-ml-0.5 flex h-8 cursor-pointer items-center gap-2 rounded-sm bg-transparent px-2.5 text-base text-foreground hover:bg-muted" ref={inboxBackButton} keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
+          <Act sidebarItem={false} className="-ml-0.5 flex h-8 cursor-pointer items-center gap-2 rounded-sm bg-transparent px-2.5 text-base text-foreground hover:bg-muted" ref={inboxBackButton} keep onAct={() => go('main')} tip={m.back} aria-label={m.back}>
             <ArrowLeft size={16} strokeWidth={2} aria-hidden />
             <b>{m.inbox}</b>
           </Act>
@@ -505,7 +507,7 @@ function MenuBody({ floating, titlebar, phone, docked, ...p }: MenuProps & { flo
       { }
       <div {...subPage('appearance', true)}>
         <div className={head(titlebar)} {...drag}>
-          <Act sidebarItem={false} className="-ml-0.5 flex h-8 cursor-pointer items-center gap-2 rounded-sm bg-transparent px-2.5 text-base text-foreground hover:bg-muted" ref={appearanceBackButton} keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
+          <Act sidebarItem={false} className="-ml-0.5 flex h-8 cursor-pointer items-center gap-2 rounded-sm bg-transparent px-2.5 text-base text-foreground hover:bg-muted" ref={appearanceBackButton} keep onAct={() => go('main')} tip={m.back} aria-label={m.back}>
             <ArrowLeft size={16} strokeWidth={2} aria-hidden />
             <b>{m.appearance}</b>
           </Act>
