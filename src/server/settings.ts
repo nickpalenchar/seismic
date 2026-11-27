@@ -114,37 +114,7 @@ export function saveUsageMeter(home: string, input: unknown): UsageMeterView {
   return usageMeterView(home);
 }
 
-/**
- * Feedback after approval was once one setting for all of Seismic (`feedbackPrompt`); it is each
- * project's "Enable model feedback" now. Where it was on, each project of the configuration file
- * that says nothing of it takes it on, and so do Project defaults; then the old key goes.
- */
-export function moveFeedbackPrompt(home: string, configFile: string) {
-  let saved: Record<string, unknown>;
-  try {
-    saved = JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8')) as Record<string, unknown>;
-  } catch {
-    return;
-  }
-  if (!('feedbackPrompt' in saved)) return;
-  const settings = read(home);
-  if (saved.feedbackPrompt === true) {
-    try {
-      const projects = JSON.parse(readFileSync(configFile, 'utf8')) as unknown;
-      if (Array.isArray(projects)) {
-        for (const c of projects) if (c && typeof c === 'object' && !('modelFeedback' in c)) c.modelFeedback = true;
-        writeFileSync(configFile, `${JSON.stringify(projects, null, 2)}\n`);
-      }
-    } catch (e) {
-      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') return console.error(`Seismic: model feedback stays on for all projects until ${configFile} reads:`, e);
-    }
-    settings.projectDefaults = { ...settings.projectDefaults, modelFeedback: settings.projectDefaults?.modelFeedback ?? true };
-  }
-  write(home, { ...settings, feedbackPrompt: undefined } as Settings);
-  console.log(`Seismic: feedback after approval is a project setting now ("Enable model feedback")${saved.feedbackPrompt === true ? ', on in every project' : ''}`);
-}
-
-export const notificationsView =(home: string): NotificationsView => ({ file: join(home, SETTINGS_FILE), on: read(home).notifications ?? null });
+export const notificationsView = (home: string): NotificationsView => ({ file: join(home, SETTINGS_FILE), on: read(home).notifications ?? null });
 
 /** Saves whether the desktop notifies the owner when a card needs them (`{ on }`). Other settings in the file stay. */
 export function saveNotifications(home: string, input: unknown): NotificationsView {
