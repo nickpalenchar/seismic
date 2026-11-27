@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { forgetAllHints } from './known';
+import { forgetAllHints, hintsOn, know, known, setHintsOn } from './known';
 
 /** A Storage over a Map, as the browser's local storage. */
 function storage(entries: Record<string, string>): Storage {
@@ -30,4 +30,24 @@ test('resetting the hints removes every hint key and nothing else', () => {
   expect(store.getItem('seismic-theme')).toBe('dark');
   expect(store.getItem('seismic-paste-hint')).toBe('card-a');
   expect(store.length).toBe(3);
+});
+
+test('turning hints off hides every hint and keeps which were dismissed', () => {
+  const was = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', { value: storage({}), configurable: true });
+  try {
+    know('seismic-a-known');
+    expect([known('seismic-a-known'), known('seismic-b-known')]).toEqual([true, false]);
+    setHintsOn(false);
+    expect(hintsOn()).toBe(false);
+    expect([known('seismic-a-known'), known('seismic-b-known')]).toEqual([true, true]);
+    setHintsOn(true);
+    expect([known('seismic-a-known'), known('seismic-b-known')]).toEqual([true, false]);
+    forgetAllHints();
+    expect(localStorage.length).toBe(0);
+    expect([known('seismic-a-known'), known('seismic-b-known')]).toEqual([false, false]);
+  } finally {
+    if (was) Object.defineProperty(globalThis, 'localStorage', was);
+    else delete (globalThis as { localStorage?: Storage }).localStorage;
+  }
 });

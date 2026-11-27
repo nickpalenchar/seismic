@@ -182,10 +182,12 @@ scripts/desktop-strings.ts` writes and a test keeps current (2026-11-24).
   no other key may end in `-known`. Types so far: the *alert hint* (`AlertHint`,
   `components/hint.tsx`), shadcn's Alert (through Callout) with a ✕ at its top right, for a tip
   that has a place of its own; the inline hints (a label on a button until it is first used, a key
-  shown on hover) stay as they are and share the same keys. Settings → Advanced has "Reset all
+  shown on hover) stay as they are and share the same keys. Settings has a section of its own,
+  Hints: "Enable first-time hints" turns every hint off (`known` answers true for all) without
+  touching the keys, so turning it back on shows only the hints not dismissed before; "Reset all
   hints", confirmed in a dialog whose confirm button is the primary blue (the reset loses nothing
-  the owner made, so it is not red); it removes every hint key, and alert hints come back at once,
-  the others with the next page load. Rejected: hints remembered on the server, which would carry
+  the owner made, so it is not red), removes every hint key. Alert hints follow both at once, the
+  others with the next page load. Rejected: hints remembered on the server, which would carry
   a dismissal to the phone where the tip may read differently.
 - **Phone settings and Needs you share one history step**: switching between them replaces that
   step; closing returns to the project. Pages covering the project make its controls inert.

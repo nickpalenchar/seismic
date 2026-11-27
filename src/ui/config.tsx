@@ -35,7 +35,7 @@ import { applyTheme } from './theme';
 import { applyMotion } from './motion';
 import { canNotify, notificationsChanged, type Permission, permission, requestPermission } from './desktopNotify';
 import { WishLink } from './wish';
-import { forgetAllHints } from './known';
+import { forgetAllHints, setHintsOn, useHintsOn } from './known';
 import { projectPath } from './address';
 import { scrollBehavior } from './motion';
 import { Badge } from './components/badge';
@@ -86,11 +86,11 @@ declare global {
 type Ask = (text: string, project?: string) => void;
 
 
-type Section = 'defaults' | 'agents' | 'harnesses' | 'voice' | 'demos' | 'notices' | 'devices' | 'advanced' | 'developer';
+type Section = 'defaults' | 'agents' | 'harnesses' | 'voice' | 'demos' | 'notices' | 'devices' | 'hints' | 'advanced' | 'developer';
 /** A field of prose in a setting (a voice's style, its sample text): the page's font, not a path's. */
 const proseFieldClass = (hook: string) => `${hook} block w-full max-w-[420px] resize-y text-sm leading-[1.45] py-1.5 px-2`;
 
-const SECTIONS: Section[] = ['defaults', 'agents', 'harnesses', 'voice', 'demos', 'notices', 'devices', 'advanced', 'developer'];
+const SECTIONS: Section[] = ['defaults', 'agents', 'harnesses', 'voice', 'demos', 'notices', 'devices', 'hints', 'advanced', 'developer'];
 
 const SECTION_KEY = 'seismic-config-section';
 
@@ -239,6 +239,9 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectS
           <section id="cfg-sec-devices" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'devices'}>
             <AccessSection on={on && section === 'devices'} onConnect={onConnect} />
           </section>
+          <section id="cfg-sec-hints" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'hints'}>
+            <HintsBlock />
+          </section>
           <section id="cfg-sec-advanced" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'advanced'}>
             <Head title={c.sections.advanced} />
             <section className="mb-6" aria-labelledby="cfg-reconfigure-setup">
@@ -246,7 +249,6 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectS
               <p className="hint">{c.reconfigureSetup.hint}</p>
               <Button size="small" onClick={() => setSetupOn(true)}>{c.reconfigureSetup.relaunch}</Button>
             </section>
-            <ResetHints />
             <ProjectExport on={on && section === 'advanced'} />
           </section>
           <section id="cfg-sec-developer" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'developer'}>
@@ -260,19 +262,30 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectS
   );
 }
 
-/** "Reset all hints": after a confirmation, every hint this browser has put away shows again. */
-function ResetHints() {
-  const r = t.config.resetHints;
+/**
+ * The Hints section, for this browser: "Enable first-time hints" (off hides every hint and keeps
+ * which were dismissed), and "Reset all hints", which after a confirmation shows each one again.
+ */
+function HintsBlock() {
+  const r = t.config.hints;
+  const on = useHintsOn();
   const [asking, setAsking] = useState(false);
   const [done, setDone] = useState(false);
   return (
-    <section className="mb-6" aria-labelledby="cfg-reset-hints">
-      <h3 id="cfg-reset-hints">{r.title}</h3>
-      <p className="hint">{r.hint}</p>
-      <div className="flex items-center gap-3">
-        <Button size="small" className="reset-hints" onClick={() => { setDone(false); setAsking(true); }}>{r.button}</Button>
-        {done && <span role="status" className="text-sm text-muted-foreground">{r.done}</span>}
-      </div>
+    <>
+      <Head title={t.config.sections.hints} hint={r.sectionHint} />
+      <Field label={r.enableTitle} hint={r.enableHint}>
+        <CheckLabel>
+          <Switch checked={on} aria-label={r.enable} className="hints-enable" onCheckedChange={setHintsOn} />
+          {r.enable}
+        </CheckLabel>
+      </Field>
+      <Field label={r.resetTitle} hint={r.resetHint}>
+        <div className="flex items-center gap-3">
+          <Button size="small" className="reset-hints" onClick={() => { setDone(false); setAsking(true); }}>{r.button}</Button>
+          {done && <span role="status" className="text-sm text-muted-foreground">{r.done}</span>}
+        </div>
+      </Field>
       <ConfirmDialog
         open={asking}
         onOpenChange={setAsking}
@@ -282,7 +295,7 @@ function ResetHints() {
       >
         <p className="[[data-slot=confirm-dialog]_&]:mt-0 [[data-slot=confirm-dialog]_&]:mb-4">{r.confirmBody}</p>
       </ConfirmDialog>
-    </section>
+    </>
   );
 }
 

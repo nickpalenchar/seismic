@@ -9,10 +9,35 @@ const subscribe = (l: () => void) => {
   return () => void listeners.delete(l);
 };
 
-/** Whether the owner has used what the hint under `key` points to. */
+const HINTS_OFF = 'seismic-hints-off';
+
+/** Whether first-time hints show at all ("Enable first-time hints", Settings → Hints). */
+export function hintsOn() {
+  try {
+    return localStorage.getItem(HINTS_OFF) !== '1';
+  } catch {
+    return true;
+  }
+}
+
+/** Turns every hint off or back on; off keeps which ones were dismissed, so on shows only the rest. */
+export function setHintsOn(on: boolean) {
+  try {
+    if (on) localStorage.removeItem(HINTS_OFF);
+    else localStorage.setItem(HINTS_OFF, '1');
+  } catch {}
+  changed();
+}
+
+/** Whether first-time hints show, kept current as the setting changes. */
+export function useHintsOn() {
+  return useSyncExternalStore(subscribe, hintsOn, hintsOn);
+}
+
+/** Whether the hint under `key` is not to show: the owner has used what it points to, dismissed it, or turned hints off. */
 export function known(key: string) {
   try {
-    return localStorage.getItem(key) === '1';
+    return !hintsOn() || localStorage.getItem(key) === '1';
   } catch {
     return false;
   }

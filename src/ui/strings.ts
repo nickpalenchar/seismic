@@ -1566,7 +1566,7 @@ const en = {
     koordinator: 'You can also ask Seismic about the configuration or tell it what should change.',
     askSeismic: 'Ask Seismic',
     configurationProblems: 'Configuration problems',
-    sections: { projects: 'Projects', defaults: 'Project defaults', agents: 'Agents and models', harnesses: 'Harnesses', voice: 'Voice input', demos: 'Demos', notices: 'Notifications and limits', devices: 'Other devices', advanced: 'Advanced', developer: 'Developer' },
+    sections: { projects: 'Projects', defaults: 'Project defaults', agents: 'Agents and models', harnesses: 'Harnesses', voice: 'Voice input', demos: 'Demos', notices: 'Notifications and limits', devices: 'Other devices', hints: 'Hints', advanced: 'Advanced', developer: 'Developer' },
     harnesses: {
       add: 'Configure new harness',
       empty: 'No harnesses connected.',
@@ -1606,9 +1606,13 @@ const en = {
       hint: 'Click the button to relaunch the initial setup dialogue.',
       relaunch: 'Relaunch Setup',
     },
-    resetHints: {
-      title: 'Hints',
-      hint: 'Tips you dismissed or have learned stay hidden in this browser. Resetting shows them all again.',
+    hints: {
+      sectionHint: 'These settings apply to this browser.',
+      enableTitle: 'First-time hints',
+      enable: 'Enable first-time hints',
+      enableHint: 'Displays helpful hints to help teach about Seismic features. Each hint is dismissible.',
+      resetTitle: 'Dismissed hints',
+      resetHint: 'Hints you dismissed or have learned stay hidden. Resetting shows them all again.',
       button: 'Reset all hints',
       confirmTitle: 'Reset all hints?',
       confirmBody: 'Every hint you dismissed or have learned shows again in this browser, until you dismiss or use it once more.',
