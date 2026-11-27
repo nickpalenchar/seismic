@@ -668,7 +668,7 @@ if (stage.trusted) {
 if (!stage.setupProposals)
   for (const c of allProjects)
     for (const i of ((await api('GET', '/project', undefined, c.id)) as ProjectSnapshot).items)
-      if (i.state === 'proposal' && i.idea?.proposal?.setup) await api('POST', `/cards/${i.id}/act`, { action: 'dismiss' }, c.id);
+      if (i.state === 'proposal' && i.idea?.proposal?.setup) await fetch(`${base}/api/v1/cards/${i.id}/dismiss`, { method: 'POST', headers: owner });
 
 
 const snapshot = (await api('GET', '/project')) as ProjectSnapshot;

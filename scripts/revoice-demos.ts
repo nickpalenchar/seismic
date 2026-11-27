@@ -107,8 +107,11 @@ if (command === 'list') {
     if (now !== 'revoiced' && now !== 'as is') throw new Error(`${id}: its demo is not re-voiced in ${language} (${r.dir})`);
     if (now === 'revoiced') await post(`/cards/${id}/demo-rebuilt`);
     
-    const shared = await post(`/cards/${id}/act`, { action: 'share' }).then(
-      () => 'sharing',
+    const shared = await fetch(`${instance.url}/api/v1/cards/${id}/share`, { method: 'POST', headers: { ...ownerHeaders(home), 'content-type': 'application/json' }, body: '{}' }).then(
+      async (res) => {
+        if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+        return 'sharing';
+      },
       (e: Error) => `not shared: ${e.message}`,
     );
     console.log([id, now === 'revoiced' ? 're-read' : 'as is', shared, r.dir].join('\t'));

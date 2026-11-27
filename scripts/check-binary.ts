@@ -246,7 +246,7 @@ if (args.includes('--worker')) {
   });
   if (card)
     await check("worker: the artifact is shared on the repository's demo site", async () => {
-      await api(`/api/c/${project}/cards/${card}/act`, { json: { action: 'share' } });
+      await api(`/api/v1/cards/${card}/share`, { json: {} });
       const events = await until('the page is shared', 120_000, async () => {
         const ev = (await json(`/api/c/${project}/cards/${card}/events`)) as { text?: string }[];
         return ev.some((e) => (e.text ?? '').includes(siteUrl)) && ev;
