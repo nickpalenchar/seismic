@@ -163,7 +163,8 @@ scripts/desktop-strings.ts` writes and a test keeps current (2026-11-24).
 - **The left menu is about the open project** (2026-11-27): under Inbox and Configure agents, a
   "Project" section names the open project and lists its views (Canvas, Table, Queue, Parked,
   Archive); a "Configure" section holds Appearance, Settings and, below a line, the controls and
-  "Give Feedback". The Preferences dialog is gone: its rules are Configure agents › Rules (a dialog
+  "Give Feedback"; docked, that section sits at the foot of the menu and stays there while the
+  list above scrolls under it (2026-11-27). The Preferences dialog is gone: its rules are Configure agents › Rules (a dialog
   of their own), language and appearance a page sliding in within the menu, About Seismic the last
   section of Settings. The menu lists no other projects: the project pill (switching and "New
   project"), which stays at the start of the project, beside the docked menu too, and ⌘P switch

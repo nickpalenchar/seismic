@@ -268,8 +268,8 @@ export function NavSheet({ on, onOpenChange, width, maxWidth, onWidthChange, onW
         )}
       >
         <SidebarContent className="px-3.5 pt-3.5 pb-8">
-          <SidebarGroup className="p-0">
-            <MenuBody {...p} titlebar={titlebar} />
+          <SidebarGroup className="flex-1 p-0">
+            <MenuBody {...p} titlebar={titlebar} docked />
           </SidebarGroup>
         </SidebarContent>
         {on && <button
@@ -340,7 +340,7 @@ export function PhoneNavSheet({ open, onOpenChange, ...p }: MenuProps & { open: 
  * over it. Back on the main page, the focus returns to the entry that opened the page. The menu is a
  * container (`menu`), so Appearance stacks its choices in a menu under 300 px (cfgCompactFieldClass).
  */
-function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: boolean; titlebar?: boolean; phone?: boolean }) {
+function MenuBody({ floating, titlebar, phone, docked, ...p }: MenuProps & { floating?: boolean; titlebar?: boolean; phone?: boolean; docked?: boolean }) {
   const [page, setPage] = useState<'main' | 'agents' | 'inbox' | 'appearance'>('main');
   const previousPage = useRef(page);
   const configureButton = useRef<HTMLButtonElement>(null);
@@ -400,9 +400,9 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
   return (
     
     
-    <div className={cn('@container/menu grid grid-cols-[100%_100%_100%_100%] items-start transition-transform duration-300 ease-[cubic-bezier(.3,.9,.3,1)]', page === 'agents' && '-translate-x-full', page === 'inbox' && '-translate-x-[200%]', page === 'appearance' && '-translate-x-[300%]')}>
+    <div className={cn('@container/menu grid grid-cols-[100%_100%_100%_100%] items-start transition-transform', docked && 'flex-1 duration-300 ease-[cubic-bezier(.3,.9,.3,1)]', page === 'agents' && '-translate-x-full', page === 'inbox' && '-translate-x-[200%]', page === 'appearance' && '-translate-x-[300%]')}>
       <InMenu.Provider value={!floating ? null : page === 'main' ? ACTIVE : INACTIVE}>
-      <div className={pageClass(page !== 'main')} inert={page !== 'main'}>
+      <div className={cn(pageClass(page !== 'main'), docked && 'flex flex-col self-stretch')} inert={page !== 'main'}>
         {!phone && !titlebar && <DeskSwitcher />}
         <div className={head(titlebar)} {...drag}>
           {!titlebar && <NavList className={cn(list, 'min-w-0 flex-1')}>{inbox}</NavList>}
@@ -433,6 +433,7 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
           {p.onArchived && <Entry icon={<Archive size={16} strokeWidth={2} aria-hidden />} label={m.archived} on={p.showing === 'archived'} onClick={run(p.onArchived)} />}
           {phone && <AgentsEntries project={p.project} />}
         </NavList>
+        <div className={footer(docked)}>
         <h3 className={cn(sectionHead, 'uppercase')}>{m.configure}</h3>
         <NavList className={list}>
           <Entry icon={<SunMoon size={16} strokeWidth={2} aria-hidden />} label={m.appearance} focusRef={appearanceButton} keep onClick={() => setPage('appearance')} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />
@@ -441,6 +442,7 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
           {p.onHelp && <Entry icon={<CircleHelp size={16} strokeWidth={2} aria-hidden />} label={m.help} onClick={run(p.onHelp)} />}
           {p.onFeedback && <Entry icon={<MessageCircleHeart size={16} strokeWidth={2} aria-hidden />} label={t.wish.link} onClick={run(p.onFeedback)} />}
         </NavList>
+        </div>
       </div>
       </InMenu.Provider>
       <InMenu.Provider value={!floating ? null : page === 'agents' ? ACTIVE : INACTIVE}>
@@ -563,6 +565,13 @@ const head = (titlebar?: boolean) =>
     'mb-0.5 flex min-h-8 items-center gap-2.5',
     titlebar && 'sticky -top-3.5 z-1 -mx-3.5 -mt-3.5 h-[50px] bg-surface/88 pr-3.5 pl-23 backdrop-blur-[16px] reduced:bg-surface',
   );
+
+/**
+ * The Configure section's box: docked, at the foot of the menu, staying there as the list above
+ * scrolls under it (like the head, a sticky box keeps clear of its scroller's padding, hence the
+ * negative bottom).
+ */
+const footer = (docked?: boolean) => cn(docked && 'sticky -bottom-8 z-1 -mx-3.5 mt-auto -mb-8 border-t border-glass-edge bg-surface/88 px-3.5 pt-px pb-8 backdrop-blur-[16px] reduced:bg-surface');
 
 /** A button of the menu: an item of the open dropdown, else a plain button. `keep` leaves the dropdown open. */
 function Act({ onAct, keep, disabled, tip, sidebarItem = true, children, ...props }: { onAct?: (() => void) | undefined; keep?: boolean; disabled?: boolean; tip?: string; sidebarItem?: boolean } & Omit<ComponentProps<'button'>, 'onClick'>) {

@@ -21,7 +21,8 @@ From top to bottom it holds:
   **Parked** and **Archive**. To switch to another project or add one, use the project's name at
   the top left of the project, or ⌘P / Ctrl+P. The project's own settings are behind the button at
   the top right.
-- **Configure**: **Appearance** (light or dark, motion) opens within the menu; **Settings** opens
+- **Configure**, at the bottom of the docked menu, where it stays while the rest scrolls:
+  **Appearance** (light or dark, motion) opens within the menu; **Settings** opens
   Seismic's configuration, with **About Seismic** as its last section. **Settings → Project
   defaults** holds the choices every new project starts with; it does not change existing projects,
   and each project can override them in its own project settings. Below a line,
