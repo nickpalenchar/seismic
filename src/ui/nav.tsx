@@ -337,7 +337,8 @@ export function PhoneNavSheet({ open, onOpenChange, ...p }: MenuProps & { open: 
 
 /**
  * The menu's pages: the main one, and "Configure agents", the inbox and "Appearance", each sliding in
- * over it. Back on the main page, the focus returns to the entry that opened the page.
+ * over it. Back on the main page, the focus returns to the entry that opened the page. The menu is a
+ * container (`menu`), so Appearance stacks its choices in a menu under 300 px (cfgCompactFieldClass).
  */
 function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: boolean; titlebar?: boolean; phone?: boolean }) {
   const [page, setPage] = useState<'main' | 'agents' | 'inbox' | 'appearance'>('main');
@@ -399,7 +400,7 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
   return (
     
     
-    <div className={cn('grid grid-cols-[100%_100%_100%_100%] items-start transition-transform duration-300 ease-[cubic-bezier(.3,.9,.3,1)]', page === 'agents' && '-translate-x-full', page === 'inbox' && '-translate-x-[200%]', page === 'appearance' && '-translate-x-[300%]')}>
+    <div className={cn('@container/menu grid grid-cols-[100%_100%_100%_100%] items-start transition-transform duration-300 ease-[cubic-bezier(.3,.9,.3,1)]', page === 'agents' && '-translate-x-full', page === 'inbox' && '-translate-x-[200%]', page === 'appearance' && '-translate-x-[300%]')}>
       <InMenu.Provider value={!floating ? null : page === 'main' ? ACTIVE : INACTIVE}>
       <div className={pageClass(page !== 'main')} inert={page !== 'main'}>
         {!phone && !titlebar && <DeskSwitcher />}

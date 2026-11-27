@@ -37,8 +37,7 @@ you leave open keep following **Settings → Agents and models**.
 1. Open the project you want to set default models for.
 2. Click the
    <span style="display:inline-grid;place-items:center;width:1.5em;height:1.5em;vertical-align:middle" aria-label="sliders icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg></span>
-   **Project settings** button in the top right of the canvas (or choose **Project settings** under
-   the project in the menu).
+   **Project settings** button in the top right of the canvas.
 3. Click **Agents and models**.
 4. Under **Models**, choose the harness, model and effort for each role you want to change.
 

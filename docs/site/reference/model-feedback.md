@@ -30,7 +30,7 @@ prototypes are not asked about.
 
 ## The dashboards
 
-With model feedback on in the project you are looking at, the menu's **Agents** group has two pages:
+With model feedback on in the project you are looking at, the menu's **Configure agents** page has two more entries:
 
 - **Performance** compares your ratings by model and effort: how they spread over the five stars,
   each rating on its own, or the average over time. Filter by project, repository, plan and period.
