@@ -8,7 +8,7 @@
 
 
 
-import { Archive, ArrowLeft, Bot, Car, ChartLine, Check, ChevronDown, ChevronRight, Cog, FileCheck, Inbox, ListOrdered, Menu as Menu_, PanelLeft, PanelLeftClose, Plus, ScrollText, Settings, SlidersHorizontal, Users, X } from 'lucide-react';
+import { Archive, ArrowLeft, Bot, Car, ChartLine, Check, ChevronDown, ChevronRight, Cog, FileCheck, Inbox, ListOrdered, PanelLeftClose, PanelLeftOpen, Plus, ScrollText, Settings, SlidersHorizontal, SquareMenu, Users, X } from 'lucide-react';
 import { type ComponentProps, createContext, type ReactNode, type Ref, useContext, useLayoutEffect, useRef, useState } from 'react';
 import type { Canvas, ProjectInfo } from '../core/types';
 import { projectPath, switchTo } from './address';
@@ -42,7 +42,6 @@ export const NAV_MAX_W = 460;
 
 export const NAV_PROJECT_MIN = 480;
 const WIDTH_KEY = 'seismic-nav-width';
-const PIN_KEY = 'seismic-nav-pinned';
 
 const HIDDEN_KEY = 'seismic-nav-hidden';
 
@@ -59,8 +58,6 @@ const saveFlag = (key: string) => (on: boolean) => {
     else localStorage.removeItem(key);
   } catch {}
 };
-export const loadPinned = loadFlag(PIN_KEY);
-export const savePinned = saveFlag(PIN_KEY);
 export const loadNavHidden = loadFlag(HIDDEN_KEY);
 export const saveNavHidden = saveFlag(HIDDEN_KEY);
 export const loadNavWidth = () => {
@@ -158,21 +155,17 @@ export interface MenuActions {
   onHelp?: () => void;
 }
 
-export interface MenuProps extends ProjectsProps, MenuActions {
-  
-  pinned: boolean;
-  
-  pinnable: boolean;
-  onPin: (on: boolean) => void;
-}
+export interface MenuProps extends ProjectsProps, MenuActions {}
 
 /**
- * ☰ and the logo in the bar, so it reads as a button. Docked, a click hides the sidebar or shows it
- * again; otherwise the menu drops down under it. Narrow, the bar shows the sign alone in it (barFit.ts).
+ * The menu's sign and the logo in the bar, so it reads as a button. Where the window is wide enough
+ * the menu is docked on the left: a click hides the sidebar or shows it again, the sign showing which
+ * it does. Otherwise the menu drops down under it. Narrow, the bar shows the sign alone in it (barFit.ts).
  */
 export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { docked: boolean; dockedOn: boolean; onDocked: (on: boolean) => void }) {
   const [open, setOpen] = useState(false);
   const on = docked ? dockedOn : open;
+  const Icon = !docked ? SquareMenu : dockedOn ? PanelLeftClose : PanelLeftOpen;
   const logo = (
     <button
       data-on={on || undefined}
@@ -181,7 +174,7 @@ export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { d
       aria-expanded={docked ? dockedOn : undefined}
       onClick={docked ? () => onDocked(!dockedOn) : undefined}
     >
-      <Menu_ className="mr-1 block flex-none" size={18} strokeWidth={2} aria-hidden />
+      <Icon className="mr-1 block flex-none" size={18} strokeWidth={2} aria-hidden />
       { }
       <span className="block leading-0 group-data-[fit~='1']/bar:hidden">
         <Wordmark height={22} />
@@ -329,11 +322,6 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
   const drag = titlebar ? { 'data-tauri-drag-region': '' } : {};
   
   const run = (f: () => void) => f;
-  const pin = (p.pinnable || p.pinned) && (
-    <Act sidebarItem={false} className={cn('ml-auto grid size-[30px] cursor-pointer place-items-center rounded-xs bg-muted p-0 text-muted-foreground hover:text-foreground', p.pinned && 'text-foreground')} tip={p.pinned ? m.unpin : m.pin} aria-label={p.pinned ? m.unpin : m.pin} aria-pressed={p.pinned} onAct={() => p.onPin(!p.pinned)}>
-      {p.pinned ? <PanelLeftClose size={16} strokeWidth={2} aria-hidden /> : <PanelLeft size={16} strokeWidth={2} aria-hidden />}
-    </Act>
-  );
   
   const soon = !!p.onConfig;
   const agentEntries = [
@@ -355,7 +343,6 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
         {!phone && !titlebar && <DeskSwitcher />}
         <div className={head(titlebar)} {...drag}>
           {!titlebar && <NavList className={cn(list, 'min-w-0 flex-1')}>{inbox}</NavList>}
-          {pin}
         </div>
         {!phone && titlebar && <DeskSwitcher />}
         <NavList className={list}>
@@ -409,7 +396,6 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
             <ArrowLeft size={16} strokeWidth={2} aria-hidden />
             <b>{m.configureAgents}</b>
           </Act>
-          {pin}
         </div>
         <NavList className={list}>
           {agentEntries.map((e) => <Entry key={e.label} icon={e.icon} label={e.label} soon={!e.onClick} {...(e.onClick ? { onClick: run(e.onClick) } : {})} />)}
@@ -432,7 +418,6 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
             <ArrowLeft size={16} strokeWidth={2} aria-hidden />
             <b>{m.inbox}</b>
           </Act>
-          {pin}
         </div>
         { }
         {p.inbox && page === 'inbox' && (
@@ -499,7 +484,7 @@ function DeskSwitcher() {
 const pageClass = (away: boolean) => cn('min-w-0', away && 'invisible h-0 [transition:visibility_0s_.3s]');
 
 /**
- * A page's head: the inbox's entry or the way back, and the pin. In the app on a Mac the window's
+ * A page's head: the inbox's entry or the way back. In the app on a Mac the window's
  * traffic lights sit in it, as tall as the bar; it stays put as the list scrolls under it (a sticky box
  * keeps clear of its scroller's padding, hence the negative top).
  */

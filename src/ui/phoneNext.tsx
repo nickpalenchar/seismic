@@ -278,9 +278,6 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
           {...(sections.parked.length ? { onParked: () => showSection('parked') } : {})}
           {...(needsOn ? { showing: 'inbox' as const } : settingsOn ? { showing: 'settings' as const } : {})}
           canvases={[]}
-          pinned={false}
-          pinnable={false}
-          onPin={() => {}}
         />
       )}
       {searching && <PhoneSearch items={items.filter((i) => !i.archivedAt)} query={query} onQuery={setQuery} onOpen={openCard} onClose={closeSearch} />}

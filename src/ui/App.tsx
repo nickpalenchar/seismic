@@ -71,7 +71,7 @@ import { cardHooks, shownState, stateVars } from './card';
 import { CardHandles, CardView, DepLinks, depHead, depWidth, linkPath, linkSpot, Edges, Links, Minimap, minimapArea, OldBunPill, PlanView, RestartPill, Sheet, SourcePill, TalkIcon, UpdatePill, WorkstationsPill } from './parts';
 import { clock, failText, t } from './strings';
 import { ProjectSwitcher, useSwitcherFeed, waitingPerProject } from './projectSwitcher';
-import { loadNavHidden, loadNavWidth, loadPinned, MenuButton, NAV_PROJECT_MIN, NavPill, NavSheet, saveNavHidden, saveNavWidth, savePinned } from './nav';
+import { loadNavHidden, loadNavWidth, MenuButton, NAV_PROJECT_MIN, NavPill, NavSheet, saveNavHidden, saveNavWidth } from './nav';
 import { projectPath, cardPath, feedbackLogPath, followedPath, goTo, cameByGoTo, named, knowProjects, projectNamed, queryWithout, readAddress, readView, withView, followedView } from './address';
 import { type QuickReply, sendReply } from './quickReply';
 import { NeedsYouSheet } from './needsYou';
@@ -675,29 +675,23 @@ function Project({
   };
   const [cOn, setCOn, cOnRef] = useLive(false);
   
-  const [pinned, setPinned, pinnedRef] = useLive(loadPinned);
   const [, setNavHidden, navHiddenRef] = useLive(loadNavHidden);
   const [navWidth, setNavWidth, navWidthRef] = useLive(loadNavWidth);
   const showDocked = (on: boolean) => {
     setNavHidden(!on);
     saveNavHidden(!on);
   };
-  const pin = (on: boolean) => {
-    setPinned(on);
-    savePinned(on);
-    showDocked(true);
-  };
   /**
    * What the panels docked at the window's edges take of it, as just set: the sheet on the right and
-   * the docked menu on the left; the project is what remains between them. A narrow window lays
-   * the sheet over the project instead (docked.tsx), and the menu drops down under ☰, as it
+   * the docked menu on the left, unless hidden; the project is what remains between them. A narrow
+   * window lays the sheet over the project instead (docked.tsx), and the menu drops down, as it
    * does where it would leave the project too little room beside the sheet: the two never stack.
    */
   const sideNow = (): Sides => {
     const narrow = matchMedia(NARROW).matches;
     const right = narrow ? 0 : dock.width();
     const left = navWidthRef.current;
-    return { left: !narrow && pinnedRef.current && !navHiddenRef.current && innerWidth - left - right >= NAV_PROJECT_MIN ? left : 0, right };
+    return { left: !narrow && !navHiddenRef.current && innerWidth - left - right >= NAV_PROJECT_MIN ? left : 0, right };
   };
   /** Opens Seismic's sheet or closes it; an open plan closes. */
   const toggleKoordinator = (entry: typeof chatEntry.current = 'default') => {
@@ -2383,12 +2377,10 @@ function Project({
   }, [openEntry && readMark(openEntry)]);
   
   const unread = kOn ? 0 : unreadAnswers(snapshot.talk);
+  const navDocks = !matchMedia(NARROW).matches && innerWidth - navWidth - side.right >= NAV_PROJECT_MIN;
   const nav = {
     project: snapshot.project,
     projects,
-    pinned,
-    pinnable: !matchMedia(NARROW).matches && innerWidth - navWidth - side.right >= NAV_PROJECT_MIN,
-    onPin: pin,
     onNew: () => (setPrefsOn(false), setCOn(false), setNewProjectOn(true)),
   };
   /** A one-click reply in the inbox: the entry leaves at once, a held one waits out "Undo", a refused one comes back with the reason. */
@@ -2924,7 +2916,7 @@ function Project({
         >
           <div className="left flex items-center gap-2.5">
             {extensions.map((e, i) => { const Slot = e.slots?.topBar; return Slot ? <Slot key={i} /> : null; })}
-            <MenuButton {...menu} docked={pinned && nav.pinnable} dockedOn={side.left > 0} onDocked={showDocked} />
+            <MenuButton {...menu} docked={navDocks} dockedOn={side.left > 0} onDocked={showDocked} />
           </div>
           <CardSearch items={items} field={searchField} hidden={!!focus} onOpen={(item) => void openFresh(item)} />
           <div className="right flex items-center justify-end gap-2.5">

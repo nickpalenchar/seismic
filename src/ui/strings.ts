@@ -2631,8 +2631,6 @@ const en = {
     settings: 'Settings',
     prefs: 'Preferences',
     help: 'Controls: mouse and keys',
-    pin: 'Dock the menu on the left',
-    unpin: 'Undock the menu',
     resize: 'Resize menu',
     resizeHint: 'Drag to resize · Double-click: default width',
   },
