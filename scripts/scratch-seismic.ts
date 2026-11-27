@@ -646,6 +646,17 @@ const api = async (method: string, path: string, body?: unknown, on = project) =
   if (!r.ok) fail(`${method} ${path} ${JSON.stringify(body)}: ${r.status} ${text}`);
   return text ? JSON.parse(text) : undefined;
 };
+/** A call to the RESTful API, whose URLs name no project: the body or the ids in the path do. */
+const v1 = async (method: string, path: string, body?: unknown) => {
+  const r = await fetch(`${base}/api/v1${path}`, {
+    method,
+    headers: { ...owner, 'content-type': 'application/json' },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+  const text = await r.text();
+  if (!r.ok) fail(`${method} /api/v1${path} ${JSON.stringify(body)}: ${r.status} ${text}`);
+  return text ? JSON.parse(text) : undefined;
+};
 /** A card's changes, through the RESTful API: the server finds the card's project itself. */
 const patchCard = async (id: string, patch: Record<string, unknown>) => {
   const r = await fetch(`${base}/api/v1/cards/${id}`, { method: 'PATCH', headers: { ...owner, 'content-type': 'application/json' }, body: JSON.stringify(patch) });
@@ -1054,11 +1065,11 @@ for (const on of allProjects) {
 }
 
 for (const v of stage.canvases ?? []) {
-  const canvas = (await api('POST', '/canvases', { name: v.name, ...(v.icon ? { icon: v.icon } : {}) })) as { id: string };
+  const { canvas } = (await v1('POST', '/canvases', { project, name: v.name, ...(v.icon ? { icon: v.icon } : {}) })) as { canvas: { id: string } };
   const on = (v.cards ?? []).map((k) => ids[k] ?? fail(`canvas ${v.name}: card ${k} does not exist`));
   if (!on.length) continue;
   const before = ((await api('GET', '/project')) as ProjectSnapshot).items;
-  await api('POST', `/canvases/${canvas.id}/cards`, { cards: on });
+  await v1('POST', `/canvases/${canvas.id}/cards`, { cards: on });
   
   for (const id of on) {
     const c = before.find((x: Item) => x.id === id);
@@ -1067,7 +1078,7 @@ for (const v of stage.canvases ?? []) {
 }
 
 for (const g of stage.groups ?? [])
-  await api('POST', '/groups', { name: g.name, cards: g.cards.map((k) => ids[k] ?? fail(`group ${g.name}: card ${k} does not exist`)) });
+  await v1('POST', '/groups', { name: g.name, cards: g.cards.map((k) => ids[k] ?? fail(`group ${g.name}: card ${k} does not exist`)) });
 
 const staged = { url: (await loginLink(base, home, `/p/${project}`)) ?? `${base}/p/${project}`, port, ...pathsAt(dir, repo, log), project, pid: server.pid, from, cards: ids, ...(record ? { record } : {}), ...(replay ? { replay } : {}) };
 writeFileSync(join(dir, 'staged.json'), JSON.stringify(staged, null, 2));
