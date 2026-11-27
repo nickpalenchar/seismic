@@ -5,7 +5,7 @@ import { parkClones, restoreClones } from './workstationDraft';
 
 
 
-import { Info as InfoIcon, Trash2 } from 'lucide-react';
+import { FastForward, Info as InfoIcon, type LucideIcon, Monitor, Moon, Pause, Sun, Trash2 } from 'lucide-react';
 import { forwardRef, Fragment, lazy, type ReactNode, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { allowsDemo, HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, qwen3IsClone, qwen3Speaker, STYLED_VOICES } from '../../plugin/skills/demo/lib/voice-choices.ts';
@@ -570,6 +570,18 @@ export function LanguageBlock({ on }: { on: boolean }) {
   );
 }
 
+const APPEARANCE_ICONS: Record<'system' | Theme | Motion, LucideIcon> = { system: Monitor, light: Sun, dark: Moon, full: FastForward, reduced: Pause };
+
+/** A choice of the menu's Appearance: its icon, then its name. */
+function IconLabel({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
+  return (
+    <span className="inline-flex items-center justify-center gap-1">
+      <Icon size={14} strokeWidth={2} aria-hidden />
+      {text}
+    </span>
+  );
+}
+
 /** Light or dark, or as the system, in the menu's Appearance: saved on its own, and the page takes it at once. */
 export function ThemeBlock({ on }: { on: boolean }) {
   const [view, setView] = useState<ThemeView | null>(null);
@@ -594,12 +606,12 @@ export function ThemeBlock({ on }: { on: boolean }) {
   };
   return (
     <>
-      <Field label={l.title} hint={l.hint} className={K.cfgCompactFieldClass}>
+      <Field label={l.title} className={K.cfgCompactFieldClass}>
         <SegmentedControl
           label={l.title}
           value={view.chosen ?? SYSTEM}
           onValueChange={(x) => choose(x === SYSTEM ? null : (x as Theme))}
-          options={[SYSTEM, ...THEMES].map((x) => ({ value: x, label: x === SYSTEM ? l.system : l.names[x as Theme] }))}
+          options={[SYSTEM, ...THEMES].map((x) => ({ value: x, label: <IconLabel icon={APPEARANCE_ICONS[x]} text={x === SYSTEM ? l.system : l.names[x as Theme]} /> }))}
         />
       </Field>
       {status && <p className={`hint ${statusClass}`}>{status}</p>}
@@ -631,12 +643,12 @@ export function MotionBlock({ on }: { on: boolean }) {
   };
   return (
     <>
-      <Field label={l.title} hint={l.hint} className={K.cfgCompactFieldClass}>
+      <Field label={l.title} className={K.cfgCompactFieldClass}>
         <SegmentedControl
           label={l.title}
           value={view.chosen ?? SYSTEM}
           onValueChange={(x) => choose(x === SYSTEM ? null : (x as Motion))}
-          options={[SYSTEM, ...MOTIONS].map((x) => ({ value: x, label: x === SYSTEM ? l.system : l.names[x as Motion] }))}
+          options={[SYSTEM, ...MOTIONS].map((x) => ({ value: x, label: <IconLabel icon={APPEARANCE_ICONS[x]} text={x === SYSTEM ? l.system : l.names[x as Motion]} /> }))}
         />
       </Field>
       {status && <p className={`hint ${statusClass}`}>{status}</p>}
@@ -1356,7 +1368,7 @@ const MIB = 1024 * 1024;
 
 type AddHost = 'github' | 'cloudflare' | 'manual';
 
-const SYSTEM = 'system';
+const SYSTEM = 'system' as const;
 const ADD_HOSTS: AddHost[] = ['github', 'cloudflare', 'manual'];
 
 

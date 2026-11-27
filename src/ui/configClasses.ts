@@ -103,7 +103,7 @@ export const cfgHeadFileClass =
 
 export const cfgFieldClass =
   'cfg-field grid grid-cols-[200px_minmax(0,1fr)] gap-x-6 items-baseline py-2 px-0 text-sm max-[900px]:grid-cols-[1fr] max-[900px]:gap-y-1 [#phone_&]:grid-cols-[150px_minmax(0,1fr)] [#project-settings_&]:grid-cols-[1fr] [#project-settings_&]:gap-y-0.5 [.cfg-project_&]:[align-items:start]';
-export const cfgCompactFieldClass = 'grid-cols-1! gap-y-1.5 py-1.5 [&_.hint]:text-xs! [&_[data-slot=toggle-group]]:flex [&_[data-slot=toggle-group-item]]:flex-auto [&_[data-slot=toggle-group-item]]:px-2 [&_[data-slot=toggle-group-item]]:whitespace-nowrap @max-[271px]/menu:[&_[data-slot=toggle-group]]:flex-col @max-[271px]/menu:[&_[data-slot=toggle-group-item]]:py-1.5';
+export const cfgCompactFieldClass = 'grid-cols-1! gap-y-1.5 py-1.5 [&_.hint]:text-xs! [&_[data-slot=toggle-group]]:flex [&_[data-slot=toggle-group-item]]:flex-auto [&_[data-slot=toggle-group-item]]:px-1.5 [&_[data-slot=toggle-group-item]]:whitespace-nowrap @max-[271px]/menu:[&_[data-slot=toggle-group]]:flex-col @max-[271px]/menu:[&_[data-slot=toggle-group-item]]:py-1.5';
 export const cfgLabelClass = 'cfg-label text-muted-foreground text-sm [.cfg-project_.cfg-field>&]:pt-2';
 export const cfgControlClass =
   'cfg-control min-w-0 max-w-[640px] [&>.hint]:mt-1 [&>.hint]:mb-0 [&>.hint]:mx-0 [&>.hint]:text-sm [&>.hint]:leading-[1.45] [&>.c-path]:w-full [&>.c-path]:max-w-[420px] [&>[data-slot=select-trigger]]:w-full [&>[data-slot=select-trigger]]:max-w-[420px] [&>[data-slot=button]]:mt-1.5';

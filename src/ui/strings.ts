@@ -1640,13 +1640,11 @@ const en = {
     },
     theme: {
       title: 'Light or dark',
-      hint: 'How Seismic looks: light cards on a light board, or dark ones on a dark board. “Match system” follows the computer’s setting. Applies at once.',
       system: 'Match system',
       names: { light: 'Light', dark: 'Dark' },
     },
     motion: {
       title: 'Motion',
-      hint: 'Reduced turns off animations, camera flights and the frosted blur behind cards and panes: views change at once, and glass turns solid. “Match system” follows the computer’s reduce-motion setting. Applies at once.',
       system: 'Match system',
       names: { full: 'Full', reduced: 'Reduced' },
     },
