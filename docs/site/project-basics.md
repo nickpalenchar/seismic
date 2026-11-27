@@ -13,6 +13,14 @@ the left: the button hides it (a panel icon with an arrow pointing left) and sho
 arrow pointing right). On a smaller window the button shows a menu icon and the menu drops down
 under it.
 
+## Hints
+
+Seismic shows first-time hints that teach its features, such as a tip under the chat with
+Seismic. Close one with its × and it stays gone; others go once you have used what they point
+to. **Settings → Hints** turns them all off or back on with **Enable first-time hints** (hints you
+dismissed stay dismissed), and **Reset all hints** shows every one again. Both apply to the
+browser you use them in.
+
 ## Canvases
 
 A project has at least one **canvas**, an infinite space where you lay out the work. Double click

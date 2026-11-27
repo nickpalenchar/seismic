@@ -270,7 +270,15 @@ function HintsBlock() {
   const r = t.config.hints;
   const on = useHintsOn();
   const [asking, setAsking] = useState(false);
-  const [done, setDone] = useState(false);
+  const [result, setResult] = useState<'done' | 'failed' | null>(null);
+  const reset = () => {
+    try {
+      forgetAllHints();
+      setResult('done');
+    } catch {
+      setResult('failed');
+    }
+  };
   return (
     <>
       <Head title={t.config.sections.hints} hint={r.sectionHint} />
@@ -282,18 +290,19 @@ function HintsBlock() {
       </Field>
       <Field label={r.resetTitle} hint={r.resetHint}>
         <div className="flex items-center gap-3">
-          <Button size="small" className="reset-hints" onClick={() => { setDone(false); setAsking(true); }}>{r.button}</Button>
-          {done && <span role="status" className="text-sm text-muted-foreground">{r.done}</span>}
+          <Button size="small" className="reset-hints" onClick={() => { setResult(null); setAsking(true); }}>{r.button}</Button>
+          {result === 'done' && <span role="status" className="text-sm text-muted-foreground">{on ? r.done : r.doneOff}</span>}
+          {result === 'failed' && <span role="alert" className="text-sm text-destructive">{r.failed}</span>}
         </div>
       </Field>
       <ConfirmDialog
         open={asking}
         onOpenChange={setAsking}
         title={r.confirmTitle}
-        confirm={{ label: r.confirm, variant: 'primary', className: 'reset-hints-confirm', onClick: () => { forgetAllHints(); setDone(true); } }}
+        confirm={{ label: r.confirm, variant: 'primary', className: 'reset-hints-confirm', onClick: reset }}
         cancel={r.back}
       >
-        <p className="[[data-slot=confirm-dialog]_&]:mt-0 [[data-slot=confirm-dialog]_&]:mb-4">{r.confirmBody}</p>
+        <p className="[[data-slot=confirm-dialog]_&]:mt-0 [[data-slot=confirm-dialog]_&]:mb-4">{on ? r.confirmBody : r.confirmBodyOff}</p>
       </ConfirmDialog>
     </>
   );

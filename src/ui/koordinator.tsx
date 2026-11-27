@@ -270,16 +270,25 @@ function PendingMessage({ text, images }: { text: string; images?: string[] }) {
 
 const REVIEW_KNOWN = 'seismic-review-pr-known';
 
+const NEW_REVIEW_MS = 10 * 60_000;
+
 /**
- * Under Seismic's field, where a repository of the project is on a forge and until the owner has had a
- * review card once or closed it: an alert hint on how to have someone else's pull request reviewed.
+ * Under Seismic's field, where a repository of the project is on a forge: an alert hint on how to
+ * have someone else's pull request reviewed, until the owner closes it or has a review card made
+ * while it is on screen. Review cards already there (another project's after a switch, or ones made
+ * before a reset of the hints) neither hide it nor count as its use.
  */
 function ReviewHint({ items, repos }: { items: Item[]; repos: RepoRef[] }) {
-  const used = items.some((i) => i.review?.contribution);
+  const seen = useRef<Set<string> | null>(null);
   useEffect(() => {
-    if (used) know(REVIEW_KNOWN);
-  }, [used]);
-  if (used || !repos.some((r) => r.forge)) return null;
+    const reviews = items.filter((i) => i.review?.contribution);
+    const first = !seen.current;
+    const ids = (seen.current ??= new Set());
+    const made = reviews.some((i) => !ids.has(i.id) && Date.now() - Date.parse(i.createdAt ?? '') < NEW_REVIEW_MS);
+    for (const i of reviews) ids.add(i.id);
+    if (!first && made) know(REVIEW_KNOWN);
+  }, [items]);
+  if (!repos.some((r) => r.forge)) return null;
   return <AlertHint id={REVIEW_KNOWN} title={t.review.hintTitle} className="mb-2">{t.review.hint}</AlertHint>;
 }
 

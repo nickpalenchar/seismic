@@ -1616,9 +1616,12 @@ const en = {
       button: 'Reset all hints',
       confirmTitle: 'Reset all hints?',
       confirmBody: 'Every hint you dismissed or have learned shows again in this browser, until you dismiss or use it once more.',
+      confirmBodyOff: 'Every hint you dismissed or have learned is forgotten in this browser. First-time hints are off: they show once you turn them on.',
       confirm: 'Reset hints',
       back: 'Cancel',
       done: 'All hints show again.',
+      doneOff: 'Dismissed hints forgotten. They show once first-time hints are on.',
+      failed: 'This browser’s storage refused the reset: hints stay as they were.',
     },
     unsaved: 'Not saved',
     language: {
