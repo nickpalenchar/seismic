@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { forgetAllHints, heardStorage, hintsOn, know, known, setHintsOn } from './known';
+import { forgetAllHints, heardStorage, hintsOn, know, known, setHintsOn, used } from './known';
 
 /** A Storage over a Map, as the browser's local storage. */
 function storage(entries: Record<string, string>): Storage {
@@ -94,5 +94,18 @@ test('turning hints off hides every hint and keeps which were dismissed', () => 
     forgetAllHints();
     expect(localStorage.length).toBe(0);
     expect([known('seismic-a-known'), known('seismic-b-known')]).toEqual([false, false]);
+  });
+});
+
+test('a use while hints are off is recorded and counts once they are back on', () => {
+  withStorage(storage({}), () => {
+    setHintsOn(false);
+    expect([known('seismic-a-known'), used('seismic-a-known')]).toEqual([true, false]);
+    know('seismic-a-known');
+    expect(localStorage.getItem('seismic-a-known')).toBe('1');
+    expect(used('seismic-a-known')).toBe(true);
+    setHintsOn(true);
+    heardStorage(null, null);
+    expect([known('seismic-a-known'), known('seismic-b-known')]).toEqual([true, false]);
   });
 });

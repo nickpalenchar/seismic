@@ -60,14 +60,23 @@ export function useHintsOn() {
   return useSyncExternalStore(subscribe, hintsOn, hintsOn);
 }
 
-/** Whether the hint under `key` is not to show: the owner has used what it points to, dismissed it, or turned hints off. */
-export function known(key: string) {
-  if (!hintsOn() || gone.has(key)) return true;
+/**
+ * Whether the owner has used what the hint under `key` points to, or dismissed it, whatever the
+ * toggle says. Code deciding whether to record a use (`know`) asks this, so a use while hints are
+ * off still counts once they are back on.
+ */
+export function used(key: string) {
+  if (gone.has(key)) return true;
   try {
     return localStorage.getItem(key) === '1';
   } catch {
     return false;
   }
+}
+
+/** Whether the hint under `key` is not to show: the owner has used what it points to, dismissed it, or turned hints off. */
+export function known(key: string) {
+  return !hintsOn() || used(key);
 }
 
 /** Remembers that the owner has used it: its hint goes, in this page even where the browser's storage refuses it. */

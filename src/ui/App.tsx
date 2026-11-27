@@ -56,7 +56,7 @@ import type { ManualAnchor } from '../core/types';
 import { collect, keep, keptKey, type Kept, leaveSheet, restore, sheetKey, type SideSheet, takeKept, takeSheetLeft } from './keep';
 import { Sign } from './logo';
 import { Help, HelpButton, HELP_KEY_KNOWN } from './help';
-import { know, known } from './known';
+import { know, used, useHintsOn } from './known';
 import { addAll, MARK_KNOWN, markable, MOVE_MARKED_KNOWN, movesWith, shifted, toggle } from './selection';
 import { closeWish, keepWish, openWish, useWish, WishDialog } from './wish';
 import { PlanDirNote, planDirBoxes, useHiddenEmptyNotes } from './planDirs';
@@ -735,10 +735,13 @@ function Project({
   }, []);
   const wishOn = useWish().open;
   
-  const [helpKnown, setHelpKnown] = useState(() => known(HELP_KEY_KNOWN));
+  const hintsOn = useHintsOn();
+  const [helpUsed, setHelpUsed] = useState(() => used(HELP_KEY_KNOWN));
+  const helpKnown = helpUsed || !hintsOn;
   const [helpNote, setHelpNote] = useState<'button' | 'gone'>();
   
-  const [needsYouKnown, setNeedsYouKnown] = useState(() => known(NEEDS_YOU_KNOWN));
+  const [needsYouUsed, setNeedsYouUsed] = useState(() => used(NEEDS_YOU_KNOWN));
+  const needsYouKnown = needsYouUsed || !hintsOn;
   
   
   const [problemsOf, setProblemsOf] = useState<{ project: string; n: number }>();
@@ -1750,12 +1753,13 @@ function Project({
   
   const [touchFocus, setTouchFocus] = useState<string | null>(null);
   
-  const [holdKnown, setHoldKnown] = useState(() => known(TOUCH_HOLD_KNOWN));
+  const [holdUsed, setHoldUsed] = useState(() => used(TOUCH_HOLD_KNOWN));
+  const holdKnown = holdUsed || !hintsOn;
   const coarse = useMemo(() => matchMedia('(pointer: coarse)').matches, []);
   const learnHold = () => {
-    if (holdKnown) return;
+    if (holdUsed) return;
     know(TOUCH_HOLD_KNOWN);
-    setHoldKnown(true);
+    setHoldUsed(true);
   };
   const [connection, setConnection] = useState<{ from: string; side: Side; x: number; y: number; target?: string; anchor?: ManualAnchor } | null>(null);
   
@@ -1787,7 +1791,8 @@ function Project({
     return clip(i ? plain(i.title) || titleFrom(i.body) || t.titlePlaceholder : '…', 50);
   };
   
-  const [depKnown, setDepKnown] = useState(() => known(DEP_KNOWN));
+  const [depUsed, setDepUsed] = useState(() => used(DEP_KNOWN));
+  const depKnown = depUsed || !hintsOn;
   
   
   const [removing, setRemoving] = useState<{ key: string; sent?: true }[]>([]);
@@ -1820,13 +1825,15 @@ function Project({
   const [selection, setSelection] = useState<string[]>([]);
   const marked = selection.filter((id) => placed.some((p) => p.item.id === id));
   
-  const [markKnown, setMarkKnown] = useState(() => known(MARK_KNOWN));
-  const [moveKnown, setMoveKnown] = useState(() => known(MOVE_MARKED_KNOWN));
+  const [markUsed, setMarkUsed] = useState(() => used(MARK_KNOWN));
+  const markKnown = markUsed || !hintsOn;
+  const [moveUsed, setMoveUsed] = useState(() => used(MOVE_MARKED_KNOWN));
+  const moveKnown = moveUsed || !hintsOn;
   const [markHint, setMarkHint] = useState<{ at: Pos; key: number } | null>(null);
   useEffect(() => {
-    if (!marked.length || markKnown) return;
+    if (!marked.length || markUsed) return;
     know(MARK_KNOWN);
-    setMarkKnown(true);
+    setMarkUsed(true);
     setMarkHint(null);
   }, [marked.length]);
   useEffect(() => {
@@ -2001,9 +2008,9 @@ function Project({
         const centre = across ? { x: at.x + Math.sign(dx || 1) * w / 2, y: at.y } : { x: at.x, y: at.y + Math.sign(dy) * h / 2 };
         createAt(centre, { made: (card) => api.dependency(from, card.id, false, false, { fromSide: side, toSide, offset: 0.5 }).catch((err) => showAck(failText(err))) })
           .catch(console.error);
-        if (!depKnown) {
+        if (!depUsed) {
           know(DEP_KNOWN);
-          setDepKnown(true);
+          setDepUsed(true);
         }
       } else if (conn.target) {
         
@@ -2012,9 +2019,9 @@ function Project({
           const { target, anchor } = conn;
           api.dependency(from, target, false, false, anchor).catch((err) => showAck(err instanceof ApiError && err.code === 'dependencyCycle' ? t.deps.cycle(titleOf(from), titleOf(target)) : failText(err)));
         }
-        if (!depKnown) {
+        if (!depUsed) {
           know(DEP_KNOWN);
-          setDepKnown(true);
+          setDepUsed(true);
         }
       }
       setConnection(null);
@@ -2255,9 +2262,9 @@ function Project({
           console.error(err);
           setMoved(({ [x.id]: _, ...rest }) => rest);
         });
-      if (d.with.length && !moveKnown) {
+      if (d.with.length && !moveUsed) {
         know(MOVE_MARKED_KNOWN);
-        setMoveKnown(true);
+        setMoveUsed(true);
       }
       if (!d.with.length && !markKnown) setMarkHint({ at, key: Date.now() });
     } else if (d.moved) return;
@@ -2567,9 +2574,9 @@ function Project({
       e.preventDefault();
       setHelpNote(helpKnown ? undefined : 'gone');
       setHelpOn(true);
-      if (!helpKnown) {
+      if (!helpUsed) {
         know(HELP_KEY_KNOWN);
-        setHelpKnown(true);
+        setHelpUsed(true);
       }
       return;
     }
@@ -2981,9 +2988,9 @@ function Project({
                     aria-expanded={nyOn}
                     aria-pressed={nyOn}
                     onClick={() => {
-                      if (!needsYouKnown) {
+                      if (!needsYouUsed) {
                         know(NEEDS_YOU_KNOWN);
-                        setNeedsYouKnown(true);
+                        setNeedsYouUsed(true);
                       }
                       toggleNeedsYou();
                     }}

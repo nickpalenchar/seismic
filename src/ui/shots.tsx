@@ -12,7 +12,7 @@ import { IMAGE_TYPES, MAX_FILE_BYTES, MAX_IMAGE_BYTES } from '../core/types';
 import { api, ApiError, at, shownProject } from './api';
 import { droppedPath, withBytes } from './appDrop';
 import { appended, draftIn, draftOf, dropDraft, insertFiles, markupOf, pathWord, setMarkup, updateDraft, useDraft } from './draft';
-import { know, known } from './known';
+import { know, used, useHintsOn } from './known';
 import { badgeOf, CLICK_PX, drawMarks, EDGE, type Mark, markOf, markSize, type Point, RED, roundedRect } from './marks';
 import { pastedShots, pickedShots, usePasteHint } from './pasteHint';
 import { failText, pasteKeys, t } from './strings';
@@ -465,11 +465,13 @@ function Lightbox({ src, thumb, marking, onClose }: { src: string; thumb: HTMLIm
   marksRef.current = marks;
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [drag, setDrag] = useState<{ a: Point; b: Point; from: Point; moved: number } | null>(null);
-  const [marksKnown, setMarksKnown] = useState(() => known(MARKS_KNOWN));
+  const [marksUsed, setMarksUsed] = useState(() => used(MARKS_KNOWN));
+  const hintsOn = useHintsOn();
+  const marksKnown = marksUsed || !hintsOn;
   const add = (m: Mark) => {
     setMarks((cur) => [...cur, m]);
-    if (marksKnown) return;
-    setMarksKnown(true);
+    if (marksUsed) return;
+    setMarksUsed(true);
     know(MARKS_KNOWN);
   };
   const undo = () => setMarks((cur) => cur.slice(0, -1));

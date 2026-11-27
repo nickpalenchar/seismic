@@ -15,7 +15,7 @@ import { CanvasIcon, canvasText } from './canvasIcon';
 import { IconPicker, type IconPickerView, pickerLabel as cdLabel } from './iconPicker';
 import { depLineClass } from './depsClasses';
 import { ballClass, captionClass, haloClass, radialClass, ringBackClass, tagClass } from './ringClasses';
-import { know, known } from './known';
+import { know, used, useHintsOn } from './known';
 import { loptClass, prioBtnClass, prioMenuClass, prioPickClass } from './labelClasses';
 import { plain } from './markdown';
 import { useSortable } from './sortable';
@@ -73,14 +73,16 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow, o
   const [drawer, setDrawer] = useState(false);
   const [dialog, setDialog] = useState<{ edit?: string } | null>(null);
   const [deleting, setDeleting] = useState<Pick<Canvas, 'id' | 'name'>>();
-  const [isKnown, setKnown] = useState(() => known(KNOWN));
+  const [isUsed, setUsed] = useState(() => used(KNOWN));
+  const hintsOn = useHintsOn();
+  const isKnown = isUsed || !hintsOn;
   const leave = useRef<ReturnType<typeof setTimeout>>(undefined);
   const box = useRef<HTMLDivElement>(null);
   const several = canvases.length > 1;
   const learn = () => {
-    if (isKnown) return;
+    if (isUsed) return;
     know(KNOWN);
-    setKnown(true);
+    setUsed(true);
   };
   
   const byKey = useRef(false);
