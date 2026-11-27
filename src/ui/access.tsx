@@ -11,6 +11,7 @@ import { api } from './api';
 import { Field, Head } from './config';
 import { clock, failText, shortDay, t } from './strings';
 import { Button, CloseButton, LinkButton } from './components/button';
+import { Callout, CalloutDescription, CalloutTitle } from './components/callout';
 import { GUIDE } from './desks/shell';
 import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { SegmentedControl } from './components/segmented';
@@ -192,18 +193,18 @@ function Qr({ text, size = 220 }: { text: string; size?: number }) {
 function Away({ host }: { host: string }) {
   const a = t.access;
   return (
-    <div className="acc-away max-w-[720px]">
-      <p className="flex items-center gap-2 my-2 mx-0 font-semibold">
-        <Cloud className="size-5 flex-none text-muted-foreground" aria-hidden />
-        {a.away(host)}
-      </p>
-      <p className="hint m-0">
-        {a.awayHint}{' '}
-        <LinkButton className="text-sm" onClick={() => window.open(DEVICES_GUIDE, '_blank', 'noopener')}>
-          {a.learnMore}
-        </LinkButton>
-      </p>
-    </div>
+    <Callout className="acc-away max-w-[720px]">
+      <Cloud aria-hidden />
+      <CalloutTitle>{a.away(host)}</CalloutTitle>
+      <CalloutDescription>
+        <p className="m-0">
+          {a.awayHint}{' '}
+          <LinkButton className="text-sm" onClick={() => window.open(DEVICES_GUIDE, '_blank', 'noopener')}>
+            {a.learnMore}
+          </LinkButton>
+        </p>
+      </CalloutDescription>
+    </Callout>
   );
 }
 
