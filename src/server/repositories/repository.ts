@@ -1,5 +1,6 @@
 import { cacheKey } from './cache/cacheKey';
 import { TimeToLiveCache } from './cache/timeToLiveCache';
+import type { DatabaseProvider } from './databaseProvider';
 
 const DEFAULT_CACHE_MAX_KEYS = 1000;
 const DEFAULT_CACHE_TIME_TO_LIVE_MILLISECONDS = 60_000;
@@ -19,6 +20,9 @@ export interface RepositoryOptions {
  * or the several. This class adds the cache around them. Records are shared between callers once
  * cached, so they must be immutable.
  *
+ * The repositories share a `DatabaseProvider`: a read or write waits while a transaction is open that
+ * the caller is not in, a read inside a transaction is not cached, and a rollback drops the cache.
+ *
  * The options: `cacheMaxKeys` is how many keys each of the two caches (single records, query results)
  * holds, 1000 by default; `cacheTimeToLiveMilliseconds` is how long a read stays good, a minute by
  * default; `now` is for a test to set.
@@ -33,7 +37,11 @@ export abstract class Repository<Record, Id extends string | number, Create exte
   private readonly results: TimeToLiveCache<Record[]>;
   private writes = 0;
 
-  constructor(options: RepositoryOptions = {}) {
+  constructor(
+    protected readonly database: DatabaseProvider,
+    options: RepositoryOptions = {},
+  ) {
+    database.onRollback(() => this.evictAll());
     const cache = {
       maxKeys: options.cacheMaxKeys ?? DEFAULT_CACHE_MAX_KEYS,
       timeToLiveMilliseconds: options.cacheTimeToLiveMilliseconds ?? DEFAULT_CACHE_TIME_TO_LIVE_MILLISECONDS,
@@ -58,9 +66,10 @@ export abstract class Repository<Record, Id extends string | number, Create exte
     const key = String(id);
     const cached = this.records.get(key);
     if (cached) return cached.value;
+    await this.database.whenAvailable();
     const writesBefore = this.writes;
     const record = await this.findUncached(id);
-    if (writesBefore === this.writes) this.records.set(key, record);
+    if (writesBefore === this.writes && !this.database.inTransaction) this.records.set(key, record);
     return record;
   }
 
@@ -69,9 +78,10 @@ export abstract class Repository<Record, Id extends string | number, Create exte
     const key = cacheKey(query, this.unorderedQueryFields);
     const cached = this.results.get(key);
     if (cached) return [...cached.value];
+    await this.database.whenAvailable();
     const writesBefore = this.writes;
     const records = await this.findManyUncached(query);
-    if (writesBefore === this.writes) this.results.set(key, [...records]);
+    if (writesBefore === this.writes && !this.database.inTransaction) this.results.set(key, [...records]);
     return records;
   }
 
@@ -126,6 +136,7 @@ export abstract class Repository<Record, Id extends string | number, Create exte
 
   /** Runs a write and evicts what it touched, before it answers; a read that began before the write does not refill the cache with what it read. A failed write drops the whole cache, since it may have changed some of what it was meant to. */
   protected async write<Result>(run: () => Promise<Result>, touchedIds: (result: Result) => Id[]): Promise<Result> {
+    await this.database.whenAvailable();
     this.writes += 1;
     try {
       const result = await run();

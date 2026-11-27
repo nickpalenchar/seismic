@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 import { cacheKey } from '../../repositories/cache/cacheKey';
 import { TimeToLiveCache } from '../../repositories/cache/timeToLiveCache';
 import { Repository, type RepositoryOptions } from '../../repositories/repository';
+import { Store } from '../../store';
 
 interface Note {
   id: number;
@@ -15,7 +16,7 @@ class NoteRepository extends Repository<Note, number, { id: number; text: string
   beforeRead?: () => Promise<void>;
 
   constructor(options?: RepositoryOptions) {
-    super(options);
+    super(new Store(':memory:').database, options);
   }
 
   protected override idOf(note: Note) {

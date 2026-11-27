@@ -1,6 +1,7 @@
 import { eq, inArray } from 'drizzle-orm';
-import { now, type Db } from '../schemas/common';
+import { now } from '../schemas/common';
 import { seenHints } from '../schemas/seenHints';
+import type { DatabaseProvider } from './databaseProvider';
 import { Repository, type RepositoryOptions } from './repository';
 
 /** A hint the owner has seen, and when. */
@@ -23,11 +24,12 @@ interface SeenHintChange {
 
 /** The hints the owner has seen, in the `seen_hints` table. */
 export class HintRepository extends Repository<SeenHint, string, SeenHintCreate, SeenHintChange> {
-  constructor(
-    private readonly db: Db,
-    options?: RepositoryOptions,
-  ) {
-    super(options);
+  constructor(database: DatabaseProvider, options?: RepositoryOptions) {
+    super(database, options);
+  }
+
+  private get db() {
+    return this.database.orm;
   }
 
   protected override idOf(record: SeenHint): string {

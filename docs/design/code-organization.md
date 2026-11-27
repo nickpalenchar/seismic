@@ -39,9 +39,15 @@ which holds every table's query class and the multi-table writes.
   `…Uncached` methods (`findUncached`, `createManyUncached`, …); the base class provides `find`,
   `findMany`, `create`, `createMany`, `update`, `updateMany`, `delete`, `deleteMany`, `findOrCreate`
   (a repository whose table can do it atomically overrides it), `uncacheById` and `uncacheAll`.
-- The methods are async, though the SQLite driver is not. A transaction takes a synchronous
-  function, so nothing inside one can `await` a repository; how a write that spans repositories
-  goes through a transaction is not settled yet.
+- The methods are async, though the SQLite driver is not. Repositories share a `DatabaseProvider`
+  (`repositories/databaseProvider.ts`: the connection, `orm`, and `transaction`).
+  `transaction(async () => …)` runs between BEGIN and COMMIT and settles after the commit (rolled
+  back when it rejects); repository calls the function makes, however deep, are inside it (tracked
+  with `AsyncLocalStorage`), and a transaction inside one is a savepoint. One is open at a time:
+  another waits its turn, and so does any repository call from outside it. A read inside a
+  transaction is not cached, and a rollback drops every repository's cache. What a transaction
+  awaits should be repository calls and nothing slow: code that still uses `Store`'s connection
+  directly is not held back while one is open.
 - Reads are cached in memory: 1000 keys for the single records and 1000 for the query results, a
   minute each, the entry used least recently going first. A query's `ids` is a set, so
   `{ ids: [4, 1, 3] }` and `{ ids: [1, 3, 4] }` share an entry, and `findMany` does not promise the order

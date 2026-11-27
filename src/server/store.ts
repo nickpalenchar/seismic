@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import type { CardEvent, TalkAfter, TalkMoved, TalkRef } from '../core/types';
 import { MAIN_CANVAS } from '../core/types';
 import { openDatabase } from './db';
+import { DatabaseProvider } from './repositories/databaseProvider';
 import { Activity } from './schemas/activity';
 import { AgentRuns } from './schemas/agentRuns';
 import { Canvases } from './schemas/canvases';
@@ -74,6 +75,7 @@ export class Store {
 
   readonly db: Database;
   readonly orm: Db;
+  readonly database: DatabaseProvider;
   readonly projects: Projects;
   readonly canvases: Canvases;
   readonly cards: Cards;
@@ -106,6 +108,7 @@ export class Store {
     const { client, orm } = openDatabase(path);
     this.db = client;
     this.orm = orm;
+    this.database = new DatabaseProvider(orm);
     this.projects = new Projects(orm);
     this.canvases = new Canvases(orm);
     this.cards = new Cards(orm);

@@ -487,7 +487,7 @@ export function serve(
       ...extensionRoutes,
       ...uiRoutes(development),
       
-      ...bunRoutes(v1Routes({ cards: new CardService(() => [...byId.values()]), projectById: (id) => byId.get(id), projectOfChat, allProjects: () => projects.all(), ownerSettings, hints: new HintsService(new HintRepository(access.store.orm)), configuration: config, ...(config ? { agentModels: async (harness) => (offersCatalog(config, harness, machine) ? (harness === 'codex' ? codexModels() : agyModels()) : []) } : {}) })),
+      ...bunRoutes(v1Routes({ cards: new CardService(() => [...byId.values()]), projectById: (id) => byId.get(id), projectOfChat, allProjects: () => projects.all(), ownerSettings, hints: new HintsService(new HintRepository(access.store.database)), configuration: config, ...(config ? { agentModels: async (harness) => (offersCatalog(config, harness, machine) ? (harness === 'codex' ? codexModels() : agyModels()) : []) } : {}) })),
       
       '/login': { GET: (req, srv) => access.loginRoute(req, srv) },
       
