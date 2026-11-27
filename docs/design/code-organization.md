@@ -102,7 +102,7 @@ Represents endpoints that are registered to the server, which can be called in a
     `DELETE /cards/:cardId/dependencies/:toCardId`. The UI calls them through `seismic.ts`.
   - Params name what they stand for (`:cardId`), never a bare `:id`.
   - A card's URL names the card alone, not its project: the server finds the project from the card
-    (`HttpRoute.projectOfCard`), so a call can't go to the wrong project when the page shows another.
+    (`CardService.getProjectRuntimeForCard`), so a call can't go to the wrong project when the page shows another.
   - `src/server/test/routes/v1.test.ts` checks that every file's route is at the URL its path names.
 - Routes extend the base class `HttpRoute` (`src/server/routes/httpRoute.ts`), are listed in
   `routes/v1/index.ts`, and get what they need through the constructor.

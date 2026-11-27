@@ -6,9 +6,9 @@ export class Resume extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/resume';
 
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {
-    const project = this.projectOfCard(request);
+    const project = this.getProjectRuntimeForCard(request);
     const cardId = request.params.cardId!;
     await project.press(cardId, { action: 'resume' });
-    return { card: project.board.card(cardId)! };
+    return { card: this.dependencies.cards.getCard(cardId)! };
   };
 }

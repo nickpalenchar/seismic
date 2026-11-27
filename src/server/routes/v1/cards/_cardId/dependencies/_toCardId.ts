@@ -5,6 +5,6 @@ export class Dependency extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/dependencies/:toCardId';
 
   override DELETE = (request: RouteRequest): void => {
-    this.projectOfCard(request).board.connect(request.params.cardId!, request.params.toCardId!, true);
+    this.getProjectRuntimeForCard(request).board.connect(request.params.cardId!, request.params.toCardId!, true);
   };
 }

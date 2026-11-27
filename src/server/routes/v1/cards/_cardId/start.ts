@@ -12,12 +12,12 @@ export class Start extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/start';
 
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {
-    const project = this.projectOfCard(request);
+    const project = this.getProjectRuntimeForCard(request);
     const { agent, skipWaitForCards } = await this.bodyOf(request);
     if (skipWaitForCards !== undefined && typeof skipWaitForCards !== 'boolean') throw new BadRequest('invalid', 'skipWaitForCards must be true or false');
     const cardId = request.params.cardId!;
     const chosen = agent === undefined ? {} : { agent: agent as AgentSetting };
     await project.press(cardId, skipWaitForCards ? { action: 'force', ...chosen } : { action: 'start', ...chosen });
-    return { card: project.board.card(cardId)! };
+    return { card: this.dependencies.cards.getCard(cardId)! };
   };
 }

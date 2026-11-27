@@ -7,7 +7,7 @@ export class Restore extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/restore';
 
   override POST = (request: RouteRequest): { card: Item } => {
-    const project = this.projectOfCard(request, { deleted: true });
+    const project = this.getProjectRuntimeForCard(request, { deleted: true });
     const cardId = request.params.cardId!;
     project.restore(cardId);
     const card = project.board.item(cardId);

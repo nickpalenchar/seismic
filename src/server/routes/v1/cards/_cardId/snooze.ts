@@ -7,11 +7,11 @@ export class Snooze extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/snooze';
 
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {
-    const project = this.projectOfCard(request);
+    const project = this.getProjectRuntimeForCard(request);
     const { until } = await this.bodyOf(request);
     if (typeof until !== 'string') throw new BadRequest('invalid', 'until must be a time');
     const cardId = request.params.cardId!;
     await project.press(cardId, { action: 'snooze', until });
-    return { card: project.board.card(cardId)! };
+    return { card: this.dependencies.cards.getCard(cardId)! };
   };
 }

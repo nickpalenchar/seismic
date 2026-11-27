@@ -7,7 +7,7 @@ export class Unarchive extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/unarchive';
 
   override POST = (request: RouteRequest): { card: Item } => {
-    const project = this.projectOfCard(request);
+    const project = this.getProjectRuntimeForCard(request);
     const cardId = request.params.cardId!;
     project.board.unarchive(cardId);
     const card = project.board.item(cardId);

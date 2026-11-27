@@ -9,6 +9,7 @@ import type { CardAction, Item, ModelInfo } from '../../core/types';
 import type { Config } from '../config';
 import type { OwnerSettings } from '../ownerSettings';
 import type { ProjectRuntime } from '../project';
+import type { CardService } from '../services/cardService';
 import type { HintsService } from '../services/hintsService';
 import { NotFound } from './notFound';
 
@@ -23,7 +24,7 @@ type Method = (typeof METHODS)[number];
 
 
 export interface RouteDependencies {
-  projectOfCard: (cardId: string, options?: { deleted?: boolean }) => ProjectRuntime | undefined;
+  cards: CardService;
   
   projectById: (projectId: string) => ProjectRuntime | undefined;
 
@@ -68,18 +69,18 @@ export abstract class HttpRoute {
   constructor(protected readonly dependencies: RouteDependencies) {}
 
   /** The project of the card the URL names (`:cardId`); an unknown card is a 404, a deleted one too unless `deleted`. */
-  protected projectOfCard(request: RouteRequest, options?: { deleted?: boolean }): ProjectRuntime {
-    const project = this.dependencies.projectOfCard(request.params.cardId ?? '', options);
+  protected getProjectRuntimeForCard(request: RouteRequest, options?: { deleted?: boolean }): ProjectRuntime {
+    const project = this.dependencies.cards.getProjectRuntimeForCard(request.params.cardId ?? '', options);
     if (!project) throw new NotFound('unknownCard', 'unknown card');
     return project;
   }
 
   /** The owner's action on the card the URL names, run as a click; answered with the card as it then stands. */
   protected async pressCard(request: RouteRequest, action: CardAction): Promise<{ card: Item }> {
-    const project = this.projectOfCard(request);
+    const project = this.getProjectRuntimeForCard(request);
     const cardId = request.params.cardId!;
     await project.press(cardId, action);
-    return { card: project.board.card(cardId)! };
+    return { card: this.dependencies.cards.getCard(cardId)! };
   }
 
   /** The project the id names (`?project=`); none or an unknown one is a 404. */
@@ -108,9 +109,8 @@ export abstract class HttpRoute {
   /** The project of the first of the cards (a list of card ids); none, or an unknown one, is refused. */
   protected projectOfCards(cards: unknown): ProjectRuntime {
     if (!Array.isArray(cards) || !cards.every((id) => typeof id === 'string')) throw new BadRequest('invalid', 'cards must be a list of card ids');
-    const first = cards[0] as string | undefined;
-    if (first === undefined) throw new BadRequest('invalid', 'a card is needed');
-    const project = this.dependencies.projectOfCard(first);
+    if (!cards.length) throw new BadRequest('invalid', 'a card is needed');
+    const project = this.dependencies.cards.getProjectRuntimeForCards(cards);
     if (!project) throw new NotFound('unknownCard', 'unknown card');
     return project;
   }
