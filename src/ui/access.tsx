@@ -3,13 +3,15 @@
 
 
 
+import { Cloud } from 'lucide-react';
 import { Fragment, type ReactNode, useEffect, useState } from 'react';
 import { encode } from 'uqr';
-import type { AccessView, RemoteSetting } from '../core/types';
+import type { AccessView, AwayView, RemoteSetting } from '../core/types';
 import { api } from './api';
 import { Field, Head } from './config';
 import { clock, failText, shortDay, t } from './strings';
-import { Button, CloseButton } from './components/button';
+import { Button, CloseButton, LinkButton } from './components/button';
+import { GUIDE } from './desks/shell';
 import { Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { SegmentedControl } from './components/segmented';
 import { Select, SelectItem } from './components/select';
@@ -31,13 +33,19 @@ function Coded({ text }: { text: string }) {
   );
 }
 
-/** The view of the section while `on`, looked at again every few seconds: Tailscale logged in meanwhile, a phone paired. */
-function useAccess(on: boolean): [AccessView | null, (v: AccessView) => void] {
+const DEVICES_GUIDE = `${GUIDE}#what-the-other-machine-needs`;
+
+/**
+ * The view of the section while `on`, looked at again every few seconds: Tailscale logged in
+ * meanwhile, a phone paired. A browser on another machine gets only that machine's name, as `away`.
+ */
+function useAccess(on: boolean): [AccessView | null, (v: AccessView) => void, AwayView | null] {
   const [view, setView] = useState<AccessView | null>(null);
+  const [away, setAway] = useState<AwayView | null>(null);
   useEffect(() => {
     if (!on) return;
     let live = true;
-    const load = () => api.access().then((v) => live && v.local && setView(v), console.error);
+    const load = () => api.access().then((v) => live && (v.local ? setView(v) : setAway(v)), console.error);
     void load();
     const timer = setInterval(load, 2500);
     return () => {
@@ -45,7 +53,7 @@ function useAccess(on: boolean): [AccessView | null, (v: AccessView) => void] {
       clearInterval(timer);
     };
   }, [on]);
-  return [view, setView];
+  return [view, setView, away];
 }
 
 /** A moment as the device list says it: the time today, else the day. */
@@ -180,12 +188,37 @@ function Qr({ text, size = 220 }: { text: string; size?: number }) {
   );
 }
 
+/** What the section shows in a browser on another machine: which machine this is, and where devices are added. */
+function Away({ host }: { host: string }) {
+  const a = t.access;
+  return (
+    <div className="acc-away max-w-[720px]">
+      <p className="flex items-center gap-2 my-2 mx-0 font-semibold">
+        <Cloud className="size-5 flex-none text-muted-foreground" aria-hidden />
+        {a.away(host)}
+      </p>
+      <p className="hint m-0">
+        {a.awayHint}{' '}
+        <LinkButton className="text-sm" onClick={() => window.open(DEVICES_GUIDE, '_blank', 'noopener')}>
+          {a.learnMore}
+        </LinkButton>
+      </p>
+    </div>
+  );
+}
+
 /** The section "Other devices" of the configuration. */
 export function AccessSection({ on, onConnect }: { on: boolean; onConnect: () => void }) {
   const a = t.access;
-  const [view, setView] = useAccess(on);
+  const [view, setView, away] = useAccess(on);
   const [status, setStatus] = useState('');
-  if (!view) return <Head title={t.config.sections.devices} hint={a.hint} />;
+  if (!view)
+    return (
+      <>
+        <Head title={t.config.sections.devices} hint={a.hint} />
+        {away && <Away host={away.host} />}
+      </>
+    );
   const remove = async (id: string) => {
     setStatus('');
     try {

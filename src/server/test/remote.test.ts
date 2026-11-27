@@ -8,6 +8,7 @@ import { Store } from '../store';
 import { Access, deviceName, LINK_MS, machineAddresses, PAIRING_MS, UNUSED_MS } from '../remote';
 import { serve } from '../server';
 import { Tailscale } from '../tailscale';
+import { HERE } from '../workstations';
 import { Push } from '../push';
 import { asOwner, fakeTailscale, gitRepo, heard, noForge, tailscaleStatus, until } from './helpers/testing';
 import { b64u } from '../webpush';
@@ -1077,7 +1078,7 @@ describe('pairing', () => {
     await turnOn();
     const cookie = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`));
     const own = { cookie, origin: `https://${NAME}`, 'content-type': 'application/json' };
-    expect(await (await viaTailnet('/api/access', { cookie })).json()).toEqual({ local: false });
+    expect(await (await viaTailnet('/api/access', { cookie })).json()).toEqual({ local: false, host: HERE });
     expect((await viaTailnet('/api/access/pair', own, { method: 'POST' })).status).toBe(403);
     expect((await viaTailnet('/api/access', own, { method: 'PUT', body: JSON.stringify({ remote: null }) })).status).toBe(403);
     const id = (await view()).devices[0]!.id;

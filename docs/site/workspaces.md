@@ -39,6 +39,9 @@ machine, to the first remote one), and the setup goes on where it was the next t
    does not go onto the open internet.
 4. Choose **Connect a phone**. It shows a QR code, the address and a 6-digit code.
 
+Devices are added only on the machine Seismic runs on. Opened from a phone or another computer,
+**Other devices** shows **Connected to** with that machine's name instead of its settings.
+
 ## Connect a workspace
 
 Open the form with **New workspace** in the switcher, with **Remote connection** on the first

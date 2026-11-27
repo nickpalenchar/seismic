@@ -5,7 +5,7 @@ import { extensionSettings, serverExtensions as extensions } from '../extensions
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
 import { join, resolve } from 'node:path';
-import { type ActivityPage, agentListens, type ProjectInfo, type ProjectSettingsView, type ClientMessage, type DeveloperView, type Harness, type Item, type MachineSectionId, type NewCard, type PageTags, type PendingRestart, type ServerMessage, type SpotInput, type TalkRef, isTalkRef, MAX_FILE_BYTES, needsYou, type Waiting, waitingIn } from '../core/types';
+import { type ActivityPage, type AwayView, agentListens, type ProjectInfo, type ProjectSettingsView, type ClientMessage, type DeveloperView, type Harness, type Item, type MachineSectionId, type NewCard, type PageTags, type PendingRestart, type ServerMessage, type SpotInput, type TalkRef, isTalkRef, MAX_FILE_BYTES, needsYou, type Waiting, waitingIn } from '../core/types';
 import { uiRoutes } from './ui';
 import { guarded, LOCAL_HOSTS, refusal } from './access';
 import { BadRequest } from './board';
@@ -32,6 +32,7 @@ import { oldLinuxBun } from './repo';
 import { Store } from './store';
 import { projectData, projectCsv } from './data-export';
 import { Access } from './remote';
+import { HERE } from './workstations';
 import { Push, startedWaiting } from './push';
 import { worker } from '../ui/sw';
 import icon180 from '../ui/logo/apple-touch-icon.png' with { type: 'file' };
@@ -506,7 +507,7 @@ export function serve(
       '/api/pair': { POST: (req, srv) => access.pairApi(req, srv) },
       
       '/api/access': {
-        GET: (req, srv) => (access.isLocal(req, srv) ? handle(() => access.view()) : Response.json({ local: false })),
+        GET: (req, srv) => (access.isLocal(req, srv) ? handle(() => access.view()) : Response.json({ local: false, host: HERE } satisfies AwayView)),
         PUT: async (req, srv) => (access.isLocal(req, srv) ? handle(async () => access.save(await req.json())) : onlyHere()),
       },
       '/api/access/pair': { POST: (req, srv) => (access.isLocal(req, srv) ? handle(() => access.pair()) : onlyHere()) },

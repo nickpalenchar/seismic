@@ -3390,6 +3390,11 @@ export interface AccessView {
   platform: string;
 }
 
+export interface AwayView {
+  local: false;
+  host: string;
+}
+
 
 export const AGENT_ROLES = ['koordinator', 'worker', 'explorer', 'chores', 'review'] as const;
 export type AgentRole = (typeof AGENT_ROLES)[number];

@@ -1402,6 +1402,9 @@ const en = {
     another: 'Connect another device',
     first: 'For your phone to reach Seismic:',
     toSection: 'Devices and settings',
+    away: (host: string) => `Connected to ${host}`,
+    awayHint: 'To add more devices, use the host’s Seismic on its own machine.',
+    learnMore: 'Learn more',
   },
   
 
