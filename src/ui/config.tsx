@@ -44,7 +44,7 @@ import { ConfirmDialog, Dialog, DialogContent, DialogTitle } from './components/
 import { Checkbox } from './components/checkbox';
 import { CheckLabel } from './components/check-label';
 import { SavingSwitch } from './components/saving-switch';
-import { getAgentModels, getSetting, saveSetting } from './clients/seismic';
+import { getAgentModels, getConfiguration, getSetting, saveSetting } from './clients/seismic';
 import { Switch } from './components/switch';
 import { RadioGroup, RadioOption } from './components/radio';
 import { SegmentedControl } from './components/segmented';
@@ -85,11 +85,11 @@ declare global {
 type Ask = (text: string, project?: string) => void;
 
 
-type Section = 'defaults' | 'agents' | 'harnesses' | 'voice' | 'demos' | 'notices' | 'devices' | 'hints' | 'advanced' | 'developer';
+type Section = 'defaults' | 'agents' | 'harnesses' | 'voice' | 'demos' | 'notices' | 'devices' | 'hints' | 'advanced' | 'developer' | 'about';
 /** A field of prose in a setting (a voice's style, its sample text): the page's font, not a path's. */
 const proseFieldClass = (hook: string) => `${hook} block w-full max-w-[420px] resize-y text-sm leading-[1.45] py-1.5 px-2`;
 
-const SECTIONS: Section[] = ['defaults', 'agents', 'harnesses', 'voice', 'demos', 'notices', 'devices', 'hints', 'advanced', 'developer'];
+const SECTIONS: Section[] = ['defaults', 'agents', 'harnesses', 'voice', 'demos', 'notices', 'devices', 'hints', 'advanced', 'developer', 'about'];
 
 const SECTION_KEY = 'seismic-config-section';
 
@@ -251,6 +251,9 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectS
           </section>
           <section id="cfg-sec-developer" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'developer'}>
             <DeveloperBlock on={on && section === 'developer'} />
+          </section>
+          <section id="cfg-sec-about" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'about'}>
+            <AboutBlock on={on && section === 'about'} />
           </section>
         </div>
         {setupOn && <Setup onClose={() => setSetupOn(false)} />}
@@ -428,8 +431,22 @@ export function Info({ text }: { text: string }) {
   );
 }
 
+/** About Seismic: the server it runs, loaded once the section shows. */
+function AboutBlock({ on }: { on: boolean }) {
+  const [server, setServer] = useState<ConfigView['server'] | null>(null);
+  useEffect(() => {
+    if (on && !server) getConfiguration().then((v) => setServer(v.server), console.error);
+  }, [on]);
+  return (
+    <>
+      <Head title={t.config.sections.about} />
+      {server && <ServerBlock server={server} />}
+    </>
+  );
+}
+
 /** The server's own settings, from its command line: shown, not changed here. */
-export function ServerBlock({ server }: { server: ConfigView['server'] }) {
+function ServerBlock({ server }: { server: ConfigView['server'] }) {
   const c = t.config;
   return (
     <>
@@ -528,8 +545,7 @@ export function LanguageBlock({ on }: { on: boolean }) {
   };
   return (
     <>
-      <Head sub title={l.heading} file={view.file} />
-      <Field label={l.title} hint={l.hint}>
+      <Field label={l.title} hint={l.hint} className={K.cfgCompactFieldClass}>
         <Select aria-label={l.title} value={view.chosen ?? ''} disabled={busy} onValueChange={(picked) => choose((picked || null) as Language | null)}>
           <SelectItem value="">{l.system(l.names[view.system])}</SelectItem>
           {LANGUAGES.map((x) => (
@@ -539,7 +555,7 @@ export function LanguageBlock({ on }: { on: boolean }) {
           ))}
         </Select>
       </Field>
-      <Field label={l.conversation} hint={l.conversationHint}>
+      <Field label={l.conversation} hint={l.conversationHint} className={K.cfgCompactFieldClass}>
         <Select aria-label={l.conversation} value={view.conversationChosen ?? ''} disabled={busy} onValueChange={(picked) => converse((picked || null) as Language | null)}>
           <SelectItem value="">{l.asInterface(l.names[view.language])}</SelectItem>
           {LANGUAGES.map((x) => (
@@ -554,7 +570,7 @@ export function LanguageBlock({ on }: { on: boolean }) {
   );
 }
 
-/** Light or dark, or as the system: saved on its own, and the page takes it at once. */
+/** Light or dark, or as the system, in the menu's Appearance: saved on its own, and the page takes it at once. */
 export function ThemeBlock({ on }: { on: boolean }) {
   const [view, setView] = useState<ThemeView | null>(null);
   const [status, setStatus] = useState('');
@@ -578,8 +594,7 @@ export function ThemeBlock({ on }: { on: boolean }) {
   };
   return (
     <>
-      <Head sub title={l.title} hint={l.hint} file={view.file} />
-      <Field label={l.title}>
+      <Field label={l.title} hint={l.hint} className={K.cfgCompactFieldClass}>
         <SegmentedControl
           label={l.title}
           value={view.chosen ?? SYSTEM}
@@ -592,7 +607,7 @@ export function ThemeBlock({ on }: { on: boolean }) {
   );
 }
 
-/** Full or reduced motion, or as the system: saved on its own, and the page takes it at once. */
+/** Full or reduced motion, or as the system, in the menu's Appearance: saved on its own, and the page takes it at once. */
 export function MotionBlock({ on }: { on: boolean }) {
   const [view, setView] = useState<MotionView | null>(null);
   const [status, setStatus] = useState('');
@@ -616,8 +631,7 @@ export function MotionBlock({ on }: { on: boolean }) {
   };
   return (
     <>
-      <Head sub title={l.title} hint={l.hint} file={view.file} />
-      <Field label={l.title}>
+      <Field label={l.title} hint={l.hint} className={K.cfgCompactFieldClass}>
         <SegmentedControl
           label={l.title}
           value={view.chosen ?? SYSTEM}

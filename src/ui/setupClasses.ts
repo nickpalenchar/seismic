@@ -18,7 +18,7 @@ export const setupListClass = 'list-none p-0 my-1.5 mx-0';
 
 
 export const setupItemClass =
-  'grid grid-cols-[16px_auto_1fr] [.setup_&]:grid-cols-[16px_210px_1fr] gap-x-2 items-baseline py-1 px-0 text-sm [:is(#config,#prefs,#project-settings)_&]:py-1 [:is(#config,#prefs,#project-settings)_&]:text-sm [:is(#config,#prefs,#project-settings)_&]:border-b [:is(#config,#prefs,#project-settings)_&]:border-b-border [:is(#config,#prefs,#project-settings)_&:last-child]:border-b-0 [&_.hint]:m-0 [&_.hint]:[overflow-wrap:anywhere]';
+  'grid grid-cols-[16px_auto_1fr] [.setup_&]:grid-cols-[16px_210px_1fr] gap-x-2 items-baseline py-1 px-0 text-sm [:is(#config,#rules,#project-settings)_&]:py-1 [:is(#config,#rules,#project-settings)_&]:text-sm [:is(#config,#rules,#project-settings)_&]:border-b [:is(#config,#rules,#project-settings)_&]:border-b-border [:is(#config,#rules,#project-settings)_&:last-child]:border-b-0 [&_.hint]:m-0 [&_.hint]:[overflow-wrap:anywhere]';
 
 
 export const installClass =

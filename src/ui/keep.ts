@@ -16,7 +16,7 @@ export interface Kept {
   
   config?: boolean;
   
-  prefs?: boolean;
+  rules?: boolean;
   
   scroll: [string, number][];
   

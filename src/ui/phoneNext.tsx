@@ -258,25 +258,14 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
         <PhoneNavSheet
           open={menuOpen}
           onOpenChange={setMenuOpen}
-          projects={projects}
           project={project}
-          onProject={(id) =>
-            leaveForHome(() => {
-              setSeismicProject(id);
-              setMenuOpen(false);
-            })
-          }
           onInbox={() => {
             setMenuOpen(false);
             openNeeds();
           }}
-          onProjectSettings={() => {
-            setMenuOpen(false);
-            openSettings();
-          }}
           {...(sections.queued.length ? { onQueue: () => showSection('queued') } : {})}
           {...(sections.parked.length ? { onParked: () => showSection('parked') } : {})}
-          {...(needsOn ? { showing: 'inbox' as const } : settingsOn ? { showing: 'settings' as const } : {})}
+          {...(needsOn ? { showing: 'inbox' as const } : {})}
           canvases={[]}
         />
       )}

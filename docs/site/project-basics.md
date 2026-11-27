@@ -13,6 +13,18 @@ the left: the button hides it (a panel icon with an arrow pointing left) and sho
 arrow pointing right). On a smaller window the button shows a menu icon and the menu drops down
 under it.
 
+From top to bottom it holds:
+
+- **Inbox** and **Configure agents**: the agents, their **Rules** (how every agent works with
+  you), code review rules and how well they performed.
+- **Project**, named after the project that is open: its **Canvas**, **Table**, **Queue**,
+  **Parked** and **Archive**. To switch to another project, use the project's name in the bar or
+  ⌘P / Ctrl+P. The project's own settings are behind the button at the top right.
+- **Configure**: **Appearance** (light or dark, motion) opens within the menu; **Settings** opens
+  Seismic's configuration, with **About Seismic** as its last section. Below a line,
+  **Controls: mouse and keys** and **Give Feedback**, which sends a wish or a bug to the makers of
+  Seismic.
+
 ## Hints
 
 Seismic shows first-time hints that teach its features, such as a tip under the chat with

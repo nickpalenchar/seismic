@@ -32,7 +32,7 @@ import { CardSearch } from './cardSearch';
 import { useBarFit } from './barFit';
 import { UsagePill } from './usage';
 import { ConfigDialog, ConfigurationProblems, Problem, showAddSite, showDevicesSection } from './config';
-import { PrefsDialog } from './prefs';
+import { RulesDialog } from './rules';
 import { PhoneDialog } from './access';
 import { OpenPerformance, PerformanceDialog } from './performance';
 import { FeedbackLog } from './feedbackLog';
@@ -704,7 +704,7 @@ function Project({
     toggleKoordinator('type');
   };
   
-  const toggleConfig = () => (setPrefsOn(false), setCOn(!cOnRef.current));
+  const toggleConfig = () => (setRulesOn(false), setCOn(!cOnRef.current));
   
   const talkFromConfig = () => {
     setCOn(false);
@@ -713,12 +713,12 @@ function Project({
   const [helpOn, setHelpOn] = useState(false);
   const searchField = useRef<HTMLInputElement>(null);
   
-  const [prefsOn, setPrefsOn] = useState(false);
+  const [rulesOn, setRulesOn] = useState(false);
   
   const [newProjectOn, setNewProjectOn] = useState(false);
-  const openPrefs = () => {
+  const openRules = () => {
     setCOn(false);
-    setPrefsOn(true);
+    setRulesOn(true);
   };
   
   const [phoneOn, setPhoneOn] = useState(false);
@@ -728,7 +728,7 @@ function Project({
   const [perfOn, setPerfOn] = useState(!!perfAtStart);
   const openPerformance = useCallback(() => {
     setCOn(false);
-    setPrefsOn(false);
+    setRulesOn(false);
     setPerfOn(true);
   }, []);
   const wishOn = useWish().open;
@@ -1155,7 +1155,7 @@ function Project({
       ...(plan ? { plan, reading: !!readingRef.current } : {}),
       ...(sheet ? { sheet } : {}),
       ...(cOn ? { config: true } : {}),
-      ...(prefsOn ? { prefs: true } : {}),
+      ...(rulesOn ? { rules: true } : {}),
       ...collect(),
     });
   };
@@ -1257,7 +1257,7 @@ function Project({
     else if (k.sheet === 'agents') setAgentsOn(true);
     else if (k.sheet === 'archive') setAOn(true);
     if (k.config) setCOn(true);
-    if (k.prefs) setPrefsOn(true);
+    if (k.rules) setRulesOn(true);
     await openAgain(k, true);
     if (gone.current) return;
     stopRestore.current = restore(k);
@@ -2352,7 +2352,7 @@ function Project({
   const here = waitingIn({ ...snapshot, items, talk: kOn ? [] : snapshot.talk });
   const entries = inboxEntries(projects, { ...waiting, [snapshot.project.id]: here }, (id) => !!underway[id]);
   
-  useSwitcherFeed(waitingPerProject(entries), cOn || prefsOn || perfOn || phoneOn || newProjectOn);
+  useSwitcherFeed(waitingPerProject(entries), cOn || rulesOn || perfOn || phoneOn || newProjectOn);
   
   const queued = queueOrder(items).length;
   
@@ -2367,7 +2367,7 @@ function Project({
   const nav = {
     project: snapshot.project,
     projects,
-    onNew: () => (setPrefsOn(false), setCOn(false), setNewProjectOn(true)),
+    onNew: () => (setRulesOn(false), setCOn(false), setNewProjectOn(true)),
   };
   /** A one-click reply in the inbox: the entry leaves at once, a held one waits out "Undo", a refused one comes back with the reason. */
   const replyTo = (c: string, i: Item, r: QuickReply) =>
@@ -2453,6 +2453,7 @@ function Project({
       onProposalCard: (project: string, card: Item) => goToEntry({ project, card }),
       onProposalConfig: (project: string, repo: string, setting: string) => openSettingsAt({ project, repo, section: sectionOfSetting(setting), field: setting as SettingsFocus['field'] }),
     },
+    onRules: openRules,
     ...(modelFeedback ? { onPerformance: openPerformance, onFeedbackLog: () => location.assign(feedbackLogPath(snapshot.project.id)) } : {}),
     canvases,
     canvas: canvasId,
@@ -2462,17 +2463,20 @@ function Project({
       if (focusRef.current?.type === 'plan') closePlan();
       showCanvas(c);
     },
+    onTable: () => {
+      if (focusRef.current?.type === 'plan') closePlan();
+      showPage('table');
+    },
     onQueue: () => showPage('queue'),
     onParked: () => showPage('parked'),
     onArchived: () => setAOn(true),
-    onProjectSettings: () => !csOnRef.current && toggleProjectSettings(),
-    showing: aOn ? ('archived' as const) : fullPage.active === 'parked' || fullPage.active === 'queue' ? fullPage.active : csOn ? ('settings' as const) : undefined,
+    showing: aOn ? ('archived' as const) : fullPage.active === 'parked' || fullPage.active === 'queue' || fullPage.active === 'table' ? fullPage.active : undefined,
     onConfig: toggleConfig,
-    onPrefs: openPrefs,
     onHelp: () => {
       setHelpNote(undefined);
       setHelpOn(true);
     },
+    onFeedback: () => openWish(),
   };
   /**
    * "Go to card": the card unfolds over the inbox's view (or beside "Needs you"), which stays open;
@@ -2507,10 +2511,10 @@ function Project({
       return;
     }
     
-    if (prefsOn) {
+    if (rulesOn) {
       if (e.key === 'Escape') {
         e.preventDefault();
-        setPrefsOn(false);
+        setRulesOn(false);
       }
       return;
     }
@@ -2715,7 +2719,7 @@ function Project({
   const dockViews: DockView[] = [
     { id: 'needs-you', besideCard: true, title: t.needsYou.title, icon: ConciergeBell, component: () => (<NeedsYouSheet on={nyOn} entries={entries} current={snapshot.project.id} open={openCardId} onGo={goToEntry} onReply={replyTo} isRead={inboxRead.isRead} onRead={inboxRead.markRead} />) },
     { id: 'agents', besideCard: true, title: t.agents.title, icon: Bot, component: () => (<AgentsSheet on={agentsOn} items={items} open={openId ?? undefined} underway={isUnderway} onOpen={openFreshCard} project={snapshot.project.id} changed={snapshot} onGo={(project, card) => goToEntry({ project, card })} />) },
-    { id: 'settings', besideCard: true, title: t.projectSettings.title, icon: SlidersHorizontal, component: () => (<ProjectSettingsSheet project={snapshot.project.id} name={snapshot.project.name} homePath={snapshot.project.repos[0]?.path} onAddSite={() => (showAddSite(), setPrefsOn(false), setCOn(true))} on={csOn} covered={cOn} />) },
+    { id: 'settings', besideCard: true, title: t.projectSettings.title, icon: SlidersHorizontal, component: () => (<ProjectSettingsSheet project={snapshot.project.id} name={snapshot.project.name} homePath={snapshot.project.repos[0]?.path} onAddSite={() => (showAddSite(), setRulesOn(false), setCOn(true))} on={csOn} covered={cOn} />) },
     { id: 'seismic', besideCard: true, title: t.koordinator.title, icon: MessageSquare, buttonCloses: true, component: () => (<KoordinatorSheet on={kOn} onClose={() => toggleKoordinator()} entry={chatEntry.current} project={snapshot.project.id} projectName={snapshot.project.name} items={items} preferences={snapshot.preferences} settings={snapshot.settingProposals ?? []} repos={snapshot.project.repos} talk={snapshot.talk} chat={snapshot.chat} chatModel={snapshot.chatModel} chats={snapshot.chats} reshare={snapshot.reshare} onOpen={(i) => void openFresh(i)} onTell={tellChat} onProject={(c) => goTo(`${projectPath(c)}?talk`)} onConfig={(repo, setting) => openSettingsAt({ project: snapshot.project.id, repo, section: sectionOfSetting(setting), field: setting as SettingsFocus['field'] })} />) },
     { id: 'plan', slot: 'plan', title: sheetPlan?.title ?? '', icon: Columns3, close: () => void closePlan(), component: planComponent },
     { id: 'plan-doc', slot: 'plan', title: sheetPlan?.title ?? '', icon: FileText, width: 'read', close: () => void closePlan(), escape: () => { if (sheetPlan) void readPlan(sheetPlan, null); }, component: planComponent },
@@ -3074,15 +3078,7 @@ function Project({
           }}
         />
         <NewProjectDialog open={newProjectOn} onClose={() => setNewProjectOn(false)} />
-        <PrefsDialog
-          preferences={snapshot.preferences} repos={snapshot.project.repos}
-          on={prefsOn}
-          onClose={() => setPrefsOn(false)}
-          onConfig={() => {
-            setPrefsOn(false);
-            setCOn(true);
-          }}
-        />
+        <RulesDialog preferences={snapshot.preferences} repos={snapshot.project.repos} on={rulesOn} onClose={() => setRulesOn(false)} />
         {phoneOn && (
           <PhoneDialog
             onClose={() => setPhoneOn(false)}

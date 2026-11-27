@@ -160,6 +160,13 @@ scripts/desktop-strings.ts` writes and a test keeps current (2026-11-24).
   menu to choose between the two, a choice the window size already makes; undocking whenever a
   sheet leaves the project too little room, which swapped the sidebar for the dropdown each time
   a plan doc opened.
+- **The left menu is about the open project** (2026-11-27): under Inbox and Configure agents, a
+  "Project" section names the open project and lists its views (Canvas, Table, Queue, Parked,
+  Archive); a "Configure" section holds Appearance, Settings and, below a line, the controls and
+  "Give Feedback". The Preferences dialog is gone: its rules are Configure agents › Rules (a dialog
+  of their own), language and appearance a page sliding in within the menu, About Seismic the last
+  section of Settings. The menu lists no other projects: the project pill in the bar and ⌘P switch
+  them, and the project's settings are the button on the right.
 - **⌘P / Ctrl+P is the quick project switcher** (2026-11-22). Seismic uses the browser's print
   shortcut to search and switch projects within the page. Project menus and the keyboard legend
   show the active shortcut for the platform. On a Mac, iPhone or iPad it is ⌘P. Elsewhere it is

@@ -8,7 +8,7 @@
 
 
 
-import { Archive, ArrowLeft, Bot, Car, ChartLine, Check, ChevronDown, ChevronRight, Cog, FileCheck, Inbox, ListOrdered, PanelLeftClose, PanelLeftOpen, Plus, ScrollText, Settings, SlidersHorizontal, SquareMenu, Users, X } from 'lucide-react';
+import { Archive, ArrowLeft, Bot, Car, ChartLine, Check, ChevronDown, ChevronRight, CircleHelp, Cog, FileCheck, Inbox, ListOrdered, Map as MapIcon, MessageCircleHeart, PanelLeftClose, PanelLeftOpen, Plus, ScrollText, Settings, SquareMenu, SunMoon, Table2, Users, X } from 'lucide-react';
 import { type ComponentProps, createContext, type ReactNode, type Ref, useContext, useLayoutEffect, useRef, useState } from 'react';
 import type { Canvas, ProjectInfo } from '../core/types';
 import { projectPath, switchTo } from './address';
@@ -18,7 +18,7 @@ import { InboxList, type InboxProps } from './inbox';
 import { closeBarMenus, leaveMenu, Menu, MenuContent, MenuItem, MenuTrigger } from './components/menu';
 import { ProjectAgents } from './parts';
 import { switcherKeys, t } from './strings';
-import { openWish } from './wish';
+import { LanguageBlock, MotionBlock, ThemeBlock } from './config';
 import { Tooltip } from './components/tooltip';
 import { PillButton } from './components/pill';
 import { cn } from 'cn';
@@ -31,6 +31,8 @@ import { currentDesk, deskError, desks, openWorkspaces, useDesks } from './desks
 const list = 'm-0 list-none p-0';
 
 const tree = cn(list, 'mt-0.5 mb-1 pl-6');
+
+const sectionHead = 'mx-2.5 mt-4 mb-1.5 flex items-baseline gap-1.5 text-xs font-semibold tracking-[.04em] text-muted-foreground';
 const rowButton = 'flex w-full cursor-pointer items-center gap-2 rounded-sm bg-transparent px-2.5 py-1.5 text-left text-sm text-muted-foreground no-underline outline-none hover:bg-muted data-highlighted:bg-muted [&_svg]:flex-none';
 
 const menuPanel = 'w-[min(360px,calc(100vw-28px))] rounded-lg border border-glass-edge px-3.5 pt-3.5 pb-4';
@@ -143,19 +145,21 @@ export interface MenuActions {
   canvases: Canvas[];
   canvas?: string;
   onCanvas?: (c: Canvas) => void;
+  onTable?: () => void;
   onQueue?: () => void;
   onParked?: () => void;
   onArchived?: () => void;
-  onProjectSettings: () => void;
   
-  showing?: 'archived' | 'inbox' | 'parked' | 'queue' | 'settings';
+  showing?: 'archived' | 'inbox' | 'parked' | 'queue' | 'table';
   
   onConfig?: () => void;
-  onPrefs?: () => void;
   onHelp?: () => void;
+  onFeedback?: () => void;
 }
 
-export interface MenuProps extends ProjectsProps, MenuActions {}
+export interface MenuProps extends MenuActions {
+  project: ProjectInfo;
+}
 
 /**
  * The menu's sign and the logo in the bar, so it reads as a button. Where the window is wide enough
@@ -326,19 +330,23 @@ export function PhoneNavSheet({ open, onOpenChange, ...p }: MenuProps & { open: 
   );
 }
 
-/** The menu's two pages, the main one and "Configure agents", the second sliding in over the first. */
+/**
+ * The menu's pages: the main one, and "Configure agents", the inbox and "Appearance", each sliding in
+ * over it. Back on the main page, the focus returns to the entry that opened the page.
+ */
 function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: boolean; titlebar?: boolean; phone?: boolean }) {
-  const [page, setPage] = useState<'main' | 'agents' | 'inbox'>('main');
+  const [page, setPage] = useState<'main' | 'agents' | 'inbox' | 'appearance'>('main');
   const previousPage = useRef(page);
   const configureButton = useRef<HTMLButtonElement>(null);
+  const appearanceButton = useRef<HTMLButtonElement>(null);
   const backButton = useRef<HTMLButtonElement>(null);
   const inboxBackButton = useRef<HTMLButtonElement>(null);
+  const appearanceBackButton = useRef<HTMLButtonElement>(null);
   useLayoutEffect(() => {
     if (previousPage.current !== page) {
-      
-      
-      
-      const frame = requestAnimationFrame(() => (page === 'main' ? configureButton : page === 'agents' ? backButton : inboxBackButton).current?.focus());
+      const from = previousPage.current;
+      const target = page === 'agents' ? backButton : page === 'inbox' ? inboxBackButton : page === 'appearance' ? appearanceBackButton : from === 'appearance' ? appearanceButton : configureButton;
+      const frame = requestAnimationFrame(() => target.current?.focus());
       previousPage.current = page;
       return () => cancelAnimationFrame(frame);
     }
@@ -356,13 +364,15 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
   ].filter((e) => e.onClick || soon);
   
   const hasAgentsPage = agentEntries.length > 0 || !!p.onPerformance || !!p.onFeedbackLog;
+  const canvas = p.canvases.find((c) => c.id === p.canvas) ?? p.canvases[0];
+  const hasProjectEntries = !!(p.onCanvas && canvas) || !!(p.onTable ?? p.onQueue ?? p.onParked ?? p.onArchived);
   const inbox = (
     <Entry icon={<Inbox size={16} strokeWidth={2} aria-hidden />} label={m.inbox} on={p.showing === 'inbox'} keep={!!p.inbox} onClick={p.inbox ? () => setPage('inbox') : run(p.onInbox)} />
   );
   return (
     
     
-    <div className={cn('grid grid-cols-[100%_100%_100%] items-start transition-transform duration-300 ease-[cubic-bezier(.3,.9,.3,1)]', page === 'agents' && '-translate-x-full', page === 'inbox' && '-translate-x-[200%]')}>
+    <div className={cn('grid grid-cols-[100%_100%_100%_100%] items-start transition-transform duration-300 ease-[cubic-bezier(.3,.9,.3,1)]', page === 'agents' && '-translate-x-full', page === 'inbox' && '-translate-x-[200%]', page === 'appearance' && '-translate-x-[300%]')}>
       <InMenu.Provider value={!floating ? null : page === 'main' ? ACTIVE : INACTIVE}>
       <div className={pageClass(page !== 'main')} inert={page !== 'main'}>
         {!phone && !titlebar && <DeskSwitcher />}
@@ -374,44 +384,34 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
           {titlebar && inbox}
           {hasAgentsPage && <Entry icon={<Bot size={16} strokeWidth={2} aria-hidden />} label={m.configureAgents} focusRef={configureButton} keep onClick={() => setPage('agents')} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />}
         </NavList>
-        <h3 className="mx-2.5 mt-4 mb-1.5 text-xs font-semibold tracking-[.04em] text-muted-foreground uppercase">{m.projects}</h3>
+        {hasProjectEntries && <h3 className={sectionHead}>
+          <span className="flex-none uppercase">{m.project}</span>
+          <span className="min-w-0 truncate font-medium tracking-normal text-foreground" title={p.project.name}>{p.project.name}</span>
+        </h3>}
         <NavList className={list}>
-          {p.projects.map((c) =>
-            c.id === p.project.id ? (
-              <li key={c.id}>
-                <NavList className={list}>
-                  <ProjectRow project={c} here bold onProject={p.onProject} />
-                </NavList>
-                <NavList className={tree}>
-                  {p.onCanvas && p.canvases.map((v) => (
-                    <Entry key={v.id} icon={<CanvasIcon canvas={v} size={15} />} label={v.name} sub on={!p.showing && v.id === p.canvas} onClick={run(() => p.onCanvas!(v))} />
-                  ))}
-                  {p.onQueue && <Entry icon={<ListOrdered size={16} strokeWidth={2} aria-hidden />} label={m.queue} sub on={p.showing === 'queue'} onClick={run(p.onQueue)} />}
-                  {p.onParked && <Entry icon={<Car size={16} strokeWidth={2} aria-hidden />} label={m.parked} sub on={p.showing === 'parked'} onClick={run(p.onParked)} />}
-                  {p.onArchived && <Entry icon={<Archive size={16} strokeWidth={2} aria-hidden />} label={m.archived} sub on={p.showing === 'archived'} onClick={run(p.onArchived)} />}
-                  <Entry icon={<SlidersHorizontal size={16} strokeWidth={2} aria-hidden />} label={m.projectSettings} sub on={p.showing === 'settings'} onClick={run(p.onProjectSettings)} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />
-                </NavList>
-              </li>
-            ) : (
-              <ProjectRow key={c.id} project={c} here={false} onProject={p.onProject} />
-            ),
-          )}
-          {p.onNew && <NewProject onNew={p.onNew} />}
-        </NavList>
-        { }
-        {p.onConfig && <SwitcherHint className="mb-2" />}
-        {p.onConfig && (
-          <NavList className={cn(list, 'mt-0.5 border-t border-border pt-2.5')}>
-            <Entry icon={<Settings size={16} strokeWidth={2} aria-hidden />} label={m.settings} onClick={run(p.onConfig)} />
+          {p.onCanvas && canvas && <Entry icon={<MapIcon size={16} strokeWidth={2} aria-hidden />} label={m.canvas} on={!p.showing && p.canvases.length < 2} onClick={run(() => p.onCanvas!(canvas))} />}
+          {p.onCanvas && p.canvases.length > 1 && (
             <li>
               <NavList className={tree}>
-                {p.onPrefs && <Entry label={m.prefs} sub onClick={run(p.onPrefs)} />}
-                {p.onHelp && <Entry label={m.help} sub onClick={run(p.onHelp)} />}
-                <Entry label={t.wish.link} sub onClick={run(() => openWish())} />
+                {p.canvases.map((v) => (
+                  <Entry key={v.id} icon={<CanvasIcon canvas={v} size={15} />} label={v.name} sub on={!p.showing && v.id === p.canvas} onClick={run(() => p.onCanvas!(v))} />
+                ))}
               </NavList>
             </li>
-          </NavList>
-        )}
+          )}
+          {p.onTable && <Entry icon={<Table2 size={16} strokeWidth={2} aria-hidden />} label={m.table} on={p.showing === 'table'} onClick={run(p.onTable)} />}
+          {p.onQueue && <Entry icon={<ListOrdered size={16} strokeWidth={2} aria-hidden />} label={m.queue} on={p.showing === 'queue'} onClick={run(p.onQueue)} />}
+          {p.onParked && <Entry icon={<Car size={16} strokeWidth={2} aria-hidden />} label={m.parked} on={p.showing === 'parked'} onClick={run(p.onParked)} />}
+          {p.onArchived && <Entry icon={<Archive size={16} strokeWidth={2} aria-hidden />} label={m.archived} on={p.showing === 'archived'} onClick={run(p.onArchived)} />}
+        </NavList>
+        <h3 className={cn(sectionHead, 'uppercase')}>{m.configure}</h3>
+        <NavList className={list}>
+          <Entry icon={<SunMoon size={16} strokeWidth={2} aria-hidden />} label={m.appearance} focusRef={appearanceButton} keep onClick={() => setPage('appearance')} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />
+          {p.onConfig && <Entry icon={<Settings size={16} strokeWidth={2} aria-hidden />} label={m.settings} onClick={run(p.onConfig)} />}
+          {(p.onHelp || p.onFeedback) && <li role="separator" className="mx-2.5 my-1.5 h-px bg-border" />}
+          {p.onHelp && <Entry icon={<CircleHelp size={16} strokeWidth={2} aria-hidden />} label={m.help} onClick={run(p.onHelp)} />}
+          {p.onFeedback && <Entry icon={<MessageCircleHeart size={16} strokeWidth={2} aria-hidden />} label={t.wish.link} onClick={run(p.onFeedback)} />}
+        </NavList>
       </div>
       </InMenu.Provider>
       <InMenu.Provider value={!floating ? null : page === 'agents' ? ACTIVE : INACTIVE}>
@@ -448,6 +448,22 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
         {p.inbox && page === 'inbox' && (
           <InboxList {...p.inbox} onGo={(e) => { if (floating) leaveMenu(); p.inbox!.onGo(e); }} />
         )}
+      </div>
+      </InMenu.Provider>
+      <InMenu.Provider value={!floating ? null : page === 'appearance' ? ACTIVE : INACTIVE}>
+      { }
+      <div className={pageClass(page !== 'appearance')} inert={page !== 'appearance'} onKeyDown={floating ? (e) => { if (e.key !== 'Escape') e.stopPropagation(); } : undefined}>
+        <div className={head(titlebar)} {...drag}>
+          <Act sidebarItem={false} className="-ml-0.5 flex h-8 cursor-pointer items-center gap-2 rounded-sm bg-transparent px-2.5 text-base text-foreground hover:bg-muted" ref={appearanceBackButton} keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
+            <ArrowLeft size={16} strokeWidth={2} aria-hidden />
+            <b>{m.appearance}</b>
+          </Act>
+        </div>
+        <div className="px-1 pt-1">
+          <LanguageBlock on={page === 'appearance'} />
+          <ThemeBlock on={page === 'appearance'} />
+          <MotionBlock on={page === 'appearance'} />
+        </div>
       </div>
       </InMenu.Provider>
     </div>
@@ -574,11 +590,11 @@ function Entry({ icon, label, end, on, soon, sub, keep, onClick, focusRef }: { i
 }
 
 /** A project's row: a click switches there (the open one stays); its agents' pause. */
-function ProjectRow({ project: c, here, repos, bold, onGo, onProject }: { project: ProjectInfo; here: boolean; repos?: boolean; bold?: boolean; onGo?: () => void; onProject?: ((id: string) => void) | undefined }) {
+function ProjectRow({ project: c, here, repos, onGo, onProject }: { project: ProjectInfo; here: boolean; repos?: boolean; onGo?: () => void; onProject?: ((id: string) => void) | undefined }) {
   const menu = useContext(InMenu);
   const link = (
     <a
-      className={cn(rowButton, here && 'bg-muted text-foreground', here && bold && 'font-semibold', c.agents && 'pr-12')}
+      className={cn(rowButton, here && 'bg-muted text-foreground', c.agents && 'pr-12')}
       href={projectPath(c.id)}
       aria-current={here ? 'page' : undefined}
       onClick={(e) => {

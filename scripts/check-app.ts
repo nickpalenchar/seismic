@@ -123,9 +123,9 @@ try {
 } catch (e) {
   out.video = { ...out.video, ok: false, error: String(e) };
 }
-// the preferences, opened from the left menu as the owner would, offer the browser
+// the settings, opened from the left menu as the owner would, offer the browser
 const byText = (text) => [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === text);
-byText('Preferences')?.click();
+byText('Settings')?.click();
 await new Promise((r) => setTimeout(r, 500));
 // its About section, a tab that takes the mouse going down
 const about = byText('About Seismic');
