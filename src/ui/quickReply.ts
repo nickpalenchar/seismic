@@ -5,8 +5,8 @@
 
 
 import { answerText } from './answer';
-import { ApiError, api, cardsOn } from './api';
-import { answerCard, removeCard, restoreCard } from './clients/seismic';
+import { ApiError, cardsOn } from './api';
+import { actCard, answerCard, removeCard, restoreCard } from './clients/seismic';
 import { ACK_MS } from './tell';
 import { type CardAction, handedOver, type Item, openQuestions, type Question } from '../core/types';
 import { plain } from './markdown';
@@ -29,7 +29,7 @@ export interface QuickReply {
 
 export const QUICK_OPTIONS = 4;
 
-const act = (a: CardAction) => (id: string, keepalive: boolean) => api.act(id, a, keepalive);
+const act = (a: CardAction) => (id: string, keepalive: boolean) => actCard(id, a, keepalive);
 
 const answer = (words: Omit<Parameters<typeof answerCard>[1], 'action'>) => (id: string, keepalive: boolean) => answerCard(id, { action: 'answer', ...words }, keepalive).then(() => {});
 

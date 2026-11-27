@@ -4,7 +4,7 @@
 
 
 import type { AgentSetting, CardAction, CardPatch, ChatElsewhere, ModelInfo, ConfigSaved, ConfigView, Item, OwnerSetting, OwnerSettingChanges, OwnerSettingViews, ProjectConfig } from '../../core/types';
-import { agentSettingsSaved, call, cardBack, cardRemoved, cardSaved, projectOf, snapshotsOf } from '../api';
+import { agentSettingsSaved, api, call, cardBack, cardRemoved, cardSaved, projectOf, snapshotsOf } from '../api';
 
 
 const TIMEOUT_MS = 60_000;
@@ -162,4 +162,36 @@ export function getAgentModels(harness: ModelHarness, { fresh = false }: { fresh
     read.catch(() => void (modelsKept === kept && (modelsKept = null)));
   }
   return modelsKept!.read.then((models) => models[harness]);
+}
+
+/**
+ * An action on the card, sent to the URL it moved to (`/api/v1/cards/:cardId/…`); the card is shown
+ * as it comes back. One that has not moved yet goes through the old `api.act`.
+ */
+export async function actCard(id: string, a: CardAction, keepalive = false): Promise<void> {
+  switch (a.action) {
+    case 'start':
+    case 'force': return void (await startCardAgent(id, { ...(a.agent ? { agent: a.agent } : {}), skipWaitForCards: a.action === 'force' }));
+    case 'stop': return void (await stopCardAgent(id));
+    case 'approve': return void (await approveCard(id, { direct: !!a.direct }));
+    case 'dequeue': return void (await dequeueCard(id));
+    case 'message': return void (await sendCardMessage(id, a, keepalive));
+    case 'answer': return void (await answerCard(id, a, keepalive));
+    case 'pause': return void (await pauseCard(id, { safePoint: !!a.safePoint }));
+    case 'resume': return void (await resumeCard(id));
+    case 'snooze': return void (await snoozeCard(id, a.until));
+    case 'wake': return void (await wakeCard(id));
+    case 'startAt': return void (await setCardStartAt(id, a.at));
+    case 'pushMain': return void (await writeCard(id, 'POST', '/push-main', {}));
+    case 'keepMain': return void (await writeCard(id, 'POST', '/keep-main', {}));
+    case 'pushChanges': return void (await writeCard(id, 'POST', '/push-changes', {}));
+    case 'fold': return void (await writeCard(id, 'POST', '/fold', { land: a.land }));
+    case 'editHeld': return void (await writeCard(id, 'POST', '/edit-held', { body: a.body }));
+    case 'codeReview': return void (await writeCard(id, 'POST', '/code-review', a.agent ? { agent: a.agent } : {}));
+    case 'stopCodeReview': return void (await writeCard(id, 'POST', '/code-review/stop', {}));
+    case 'skipCodeReview': return void (await writeCard(id, 'POST', '/code-review/skip', {}));
+    case 'handOff': return void (await writeCard(id, 'POST', '/hand-off', { agent: a.agent }));
+    case 'reopenReviewItem': return void (await writeCard(id, 'POST', `/code-review/items/${a.number}/reopen`, {}));
+    default: return api.act(id, a, keepalive);
+  }
 }

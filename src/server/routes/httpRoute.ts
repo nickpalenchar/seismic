@@ -5,7 +5,7 @@
 
 
 import { BadRequest } from '../board';
-import type { ModelInfo } from '../../core/types';
+import type { CardAction, Item, ModelInfo } from '../../core/types';
 import type { Config } from '../config';
 import type { OwnerSettings } from '../ownerSettings';
 import type { ProjectRuntime } from '../project';
@@ -69,6 +69,14 @@ export abstract class HttpRoute {
     const project = this.dependencies.projectOfCard(request.params.cardId ?? '', options);
     if (!project) throw new NotFound('unknownCard', 'unknown card');
     return project;
+  }
+
+  /** The owner's action on the card the URL names, run as a click; answered with the card as it then stands. */
+  protected async pressCard(request: RouteRequest, action: CardAction): Promise<{ card: Item }> {
+    const project = this.projectOfCard(request);
+    const cardId = request.params.cardId!;
+    await project.press(cardId, action);
+    return { card: project.board.card(cardId)! };
   }
 
   /** The project the id names (`?project=`); none or an unknown one is a 404. */

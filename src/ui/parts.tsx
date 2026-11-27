@@ -12,7 +12,7 @@ import { agentFailed, type AppUpdate, type ProjectInfo, type ClonePool, finished
 import { CardMore } from './canvases';
 import { PlanTalk } from './koordinator';
 import { api } from './api';
-import { dequeueCard, pauseCard, resumeCard } from './clients/seismic';
+import { actCard, dequeueCard, pauseCard, resumeCard } from './clients/seismic';
 import type { Cam, Sides } from './camera';
 import type { Shape } from './groups';
 import { Doc, Inline, plain } from './markdown';
@@ -89,7 +89,7 @@ export function LimitNotice({ item, codexAllowed = !item.review?.contribution }:
   const [error, setError] = useState('');
   if (!hold && !limitedUntil && !review) return null;
   const u = t.usageOut;
-  const run = (a: CardAction) => { setError(''); return (a.action === 'resume' ? resumeCard(item.id) : api.act(item.id, a)).catch((e) => setError(failText(e))); };
+  const run = (a: CardAction) => { setError(''); return actCard(item.id, a).catch((e) => setError(failText(e))); };
   const setting = item.agent?.workerSetting;
   const identity = item.agent?.identity;
   const worker = hold?.model ? { harness: setting?.harness ?? 'claude', model: hold.model } : identity?.model ? identity : setting ?? identity;

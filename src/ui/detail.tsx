@@ -14,7 +14,7 @@ import { mockPage } from '../core/frame';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
 import { answers, answerText, OTHER, toggleOther } from './answer';
 import { ApiError, api, projectOf, cardAt, type Field, holdRestart, onCardEvent, onCardEventGone, onCardRefresh, onReconnect, refreshCard, useCardRefreshFailed } from './api';
-import { answerCard, approveCard, archiveCard, dequeueCard, pauseCard, resumeCard, sendCardMessage, setCardStartAt, snoozeCard, wakeCard, setShareOnApproval, startCardAgent, stopCardAgent, unarchiveCard } from './clients/seismic';
+import { actCard, sendCardMessage, archiveCard, pauseCard, resumeCard, setShareOnApproval, unarchiveCard } from './clients/seismic';
 import { cardPath } from './address';
 import { Naming, smartLink } from './cardLink';
 import { DuplicateMergePreview, MergeButton, MergeView } from './merge';
@@ -264,18 +264,7 @@ export function Detail(p: Props) {
   const actNow = (a: CardAction, done: ActDone, failed?: () => void) =>
     run(async () => {
       if (a.action === 'approve' || a.action === 'pushChanges') await saveHeld(item.id);
-      if (a.action === 'start' || a.action === 'force') await startCardAgent(item.id, { agent: a.agent, skipWaitForCards: a.action === 'force' });
-      else if (a.action === 'dequeue') await dequeueCard(item.id);
-      else if (a.action === 'stop') await stopCardAgent(item.id);
-      else if (a.action === 'approve') await approveCard(item.id, { direct: !!a.direct });
-      else if (a.action === 'message') await sendCardMessage(item.id, a);
-      else if (a.action === 'answer') await answerCard(item.id, a);
-      else if (a.action === 'pause') await pauseCard(item.id, { safePoint: !!a.safePoint });
-      else if (a.action === 'resume') await resumeCard(item.id);
-      else if (a.action === 'snooze') await snoozeCard(item.id, a.until);
-      else if (a.action === 'wake') await wakeCard(item.id);
-      else if (a.action === 'startAt') await setCardStartAt(item.id, a.at);
-      else await api.act(item.id, a);
+      await actCard(item.id, a);
       
       if (a.action === 'start' || a.action === 'force' || (a.action === 'accept' && a.start !== false)) updateDraft(cardDraft(item.id), { agent: undefined });
     }, done, failed);
@@ -811,7 +800,7 @@ export function Detail(p: Props) {
                 {item.review?.contribution && (item.review.contribution.results || item.review.contribution.findings || item.review.contribution.clash) && <Findings
                     item={item}
                     decides={!!ownerField(item) && !finished(item.state)}
-                    onPush={() => act({ action: 'pushMain' }, { close: true, ack: t.review.pushing(item.review!.contribution!.number), undo: () => api.act(item.id, { action: 'keepMain' }) })}
+                    onPush={() => act({ action: 'pushMain' }, { close: true, ack: t.review.pushing(item.review!.contribution!.number), undo: () => actCard(item.id, { action: 'keepMain' }) })}
                   />}
                 { }
                 {item.review?.blocked && item.state === 'waiting' && !!ownerField(item) && <Blocked item={item} act={act} />}
@@ -854,7 +843,7 @@ export function Detail(p: Props) {
                   }
                 />
                 {item.review?.pr && (item.state === 'inPr' || item.state === 'waiting') && (
-                  <PrBox pr={item.review?.pr} {...(item.review.contribution?.held && item.state === 'waiting' ? { held: item.review.contribution.held, author: item.review.contribution.author, card: item.id, save: (body: string) => api.act(item.id, { action: 'editHeld', body }) } : {})} />
+                  <PrBox pr={item.review?.pr} {...(item.review.contribution?.held && item.state === 'waiting' ? { held: item.review.contribution.held, author: item.review.contribution.author, card: item.id, save: (body: string) => actCard(item.id, { action: 'editHeld', body }) } : {})} />
                 )}
                 {(item.state === 'inPr' || item.state === 'waiting') && item.review?.morePrs?.map((pr) => <PrBox key={pr.url} pr={pr} />)}
                 {item.state === 'inPr' && !item.review?.pr && <p className="hint">{t.pr.opening}</p>}
@@ -3343,7 +3332,7 @@ const heldDraft = (id: string) => `${cardDraft(id)}:pr-text`;
 async function saveHeld(id: string) {
   const { text } = draftOf(heldDraft(id));
   if (!text.trim()) return;
-  await api.act(id, { action: 'editHeld', body: text });
+  await actCard(id, { action: 'editHeld', body: text });
   dropDraft(heldDraft(id));
 }
 

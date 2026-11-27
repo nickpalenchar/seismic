@@ -61,7 +61,15 @@ type Req = Request & { params: Record<string, string> };
 const notFound = () => new Response('Not found', { status: 404 });
 
 
-const V1_ACTIONS = new Set<string>(['start', 'force', 'stop', 'approve', 'dequeue', 'message', 'answer', 'pause', 'resume', 'snooze', 'wake', 'startAt']);
+/** The URL under a card (`/api/v1/cards/:cardId/…`) of an action that moved there: `startAt` is `start-at`, `skipCodeReview` is `code-review/skip`. */
+const v1PathOf = (action: string) =>
+  action === 'force' ? 'start'
+  : action === 'stopCodeReview' ? 'code-review/stop'
+  : action === 'skipCodeReview' ? 'code-review/skip'
+  : action === 'reopenReviewItem' ? 'code-review/items/:itemNumber/reopen'
+  : action.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+
+const V1_ACTIONS = new Set<string>(['start', 'force', 'stop', 'approve', 'dequeue', 'message', 'answer', 'pause', 'resume', 'snooze', 'wake', 'startAt', 'pushMain', 'keepMain', 'pushChanges', 'fold', 'editHeld', 'codeReview', 'stopCodeReview', 'skipCodeReview', 'handOff', 'reopenReviewItem']);
 
 
 /**
@@ -797,7 +805,7 @@ export function serve(
         POST: on(async (c, req) => {
           const a = (await req.json()) as CardAction;
           
-          if (a && V1_ACTIONS.has(a.action)) throw new BadRequest('invalid', `${a.action} goes through POST /api/v1/cards/:cardId/${a.action === 'force' ? 'start' : a.action === 'startAt' ? 'start-at' : a.action}`);
+          if (a && V1_ACTIONS.has(a.action)) throw new BadRequest('invalid', `${a.action} goes through POST /api/v1/cards/:cardId/${v1PathOf(a.action)}`);
           return c.press(req.params.id!, a);
         }),
       },
