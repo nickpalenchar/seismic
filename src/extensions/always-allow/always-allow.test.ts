@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { generic } from '../../adapters/generic';
 import { readShared } from '../../adapters';
 import { AGENT_DEFAULTS } from '../../core/types';
-import { codexRules } from '../../server/allow-rules';
+import { codexRules } from '../../server/allowRules';
 import { ProjectRuntime } from '../../server/project';
 import { Store } from '../../server/store';
 import { FakeRuntime, gitRepo, noForge, until } from '../../server/test/helpers/testing';

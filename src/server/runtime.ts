@@ -1,11 +1,11 @@
 
 
-import { LimitAttempts, limitWatch } from './limit-watch';
+import { LimitAttempts, limitWatch } from './limitWatch';
 import { type PermissionUpdate, type SpawnedProcess, type SpawnOptions } from '@anthropic-ai/claude-agent-sdk';
 import { type ChildProcess, execFile, spawn } from 'node:child_process';
 import { endSessionsHere } from './llms/harnesses/codexRpc';
 import { agentIdentity } from './llms/harnesses/identity';
-import { allowed } from './allow-rules';
+import { allowed } from './allowRules';
 import type { SeismicSkill } from './llms/skills/seismicSkill';
 import type { CapabilityCheck } from './llms/models/capabilityCheck';
 import type { SeismicModel } from './llms/models/seismicModel';
@@ -232,7 +232,7 @@ export function withAgentSetting(
 
 /**
  * A runtime whose Codex agents do not ask the owner for a command that a rule of the repository's
- * allow list covers (`allow-rules.ts`): Claude Code applies that list itself, Codex has none of
+ * allow list covers (`allowRules.ts`): Claude Code applies that list itself, Codex has none of
  * its own that Seismic sets. `rules` are those the owner confirmed for the agent's `cwd`; none while
  * the repository's configuration is held (`claudeHeld`) or not read at all (`untrusted`). Such a
  * command may also have network (`networkOnly`), as `seismic_run` gives it; a request for anything

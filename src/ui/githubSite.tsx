@@ -12,7 +12,7 @@ import type { GitFolder, GithubRepoList, GithubRepoView } from '../core/types';
 import { api } from './api';
 import { Button } from './components/button';
 import { Callout, CalloutDescription } from './components/callout';
-import { CheckLabel } from './components/check-label';
+import { CheckLabel } from './components/checkLabel';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './components/command';
 import { ConfirmDialog } from './components/dialog';
 import { Input } from './components/input';

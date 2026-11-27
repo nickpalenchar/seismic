@@ -9,7 +9,7 @@ import { LANGUAGES } from '../core/locale';
 import type { ListenBackend } from '../core/types';
 import { resource } from './resources';
 import { OWN_GROUP } from './spawn';
-import { cloudInUse, transcribeInCloud } from './voice-cloud';
+import { cloudInUse, transcribeInCloud } from './voiceCloud';
 
 
 

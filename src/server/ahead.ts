@@ -13,7 +13,7 @@ import { BadRequest, type Board, holdNow, replyNote } from './board';
 import { imageNote } from './images';
 import type { AgentSetting } from '../core/types';
 import type { AgentRuntime } from './runtime';
-import { TO_SEISMIC, toSeismicTool } from './to-seismic';
+import { TO_SEISMIC, toSeismicTool } from './toSeismic';
 import { describeTool, SPOKEN } from './workerSupervisor/workerSupervisor';
 
 export interface AheadOptions {

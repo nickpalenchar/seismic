@@ -7,7 +7,7 @@ import { MESSAGES } from '../../core/messages';
 import { Board } from '../board';
 import { ProjectRuntime } from '../project';
 import { Store } from '../store';
-import { writeSites } from '../demo-sites';
+import { writeSites } from '../demoSites';
 import type { SharePage, ShareTarget } from '../share';
 import { Sharing } from '../share';
 import { MANIFEST, parseEnv, siteKey, siteMissing, pagesHash, siteName, siteTarget, withinSite } from '../site';

@@ -17,9 +17,9 @@ import type { AgentAt, AgentIdentity, AgentSetting } from '../core/types';
 import { type Briefing, INFORM_RULES, inform, Interrupted, type OwnerAnswer } from './advisor';
 import { BadRequest, type Board, holdNow, replyNote } from './board';
 import { imageNote } from './images';
-import type { PlanAgents } from './plan-agents';
+import type { PlanAgents } from './planAgents';
 import type { AgentRuntime } from './runtime';
-import { TO_SEISMIC, toSeismicTool } from './to-seismic';
+import { TO_SEISMIC, toSeismicTool } from './toSeismic';
 import { describeTool, SPOKEN } from './workerSupervisor/workerSupervisor';
 import { clip, messageOf } from '../core/text';
 

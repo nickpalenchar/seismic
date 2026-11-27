@@ -12,7 +12,7 @@ import { cloneName, codexHint, machineHint, MachineSetup, runnable, tried, WELCO
 import { agentSetting, saveAgents, savedHarnesses } from '../settings';
 import { gitRepo } from './helpers/testing';
 import { HarnessCheck } from '../llms/harnesses';
-import { VoiceSetup } from '../voice-setup';
+import { VoiceSetup } from '../voiceSetup';
 import { git } from '../workstations';
 
 let dir: string;

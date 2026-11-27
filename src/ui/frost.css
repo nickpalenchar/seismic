@@ -22,12 +22,12 @@ html, body { margin: 0; height: 100%; overflow: hidden; background-color: var(--
    The name is Tailwind's too (its `animate-pulse`), so it stays here, unlayered, where the pin's `animate-[pulse_…]` finds it. */
 @keyframes pulse { 0% { transform: none; opacity: .85; } 80%, 100% { transform: scale(2.1); opacity: 0; } }
 
-/* the moving line of something at work (components/draw-line.tsx): its stroke slides in from the left under the
+/* the moving line of something at work (components/drawLine.tsx): its stroke slides in from the left under the
    line's clipping edge, fills it, and slides out to the right; a moving background repainted the card under it
    every frame (docs/design.md: animate transform and opacity only) */
 @keyframes draw { 0% { transform: translateX(-100%); } 55% { transform: none; } 100% { transform: translateX(100%); } }
 
-/* a glow running along a bar, left to right: the working bar (components/working-bar.tsx) and the one under a waiting
+/* a glow running along a bar, left to right: the working bar (components/workingBar.tsx) and the one under a waiting
    button (`armed` in components/button.tsx). The glow lies on a strip four times the bar's width, two glows on it,
    which slides by half its width under the bar's clipping edge: a move the compositor does on its own, where a
    moving background repainted the bar every frame (docs/design.md: animate transform and opacity only) */

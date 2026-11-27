@@ -1,0 +1,221 @@
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
+import { homedir, tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { DEFAULT_KEEP_DAYS, DemoSpace, keepDays, sweep, usage, workDirs } from '../demoSpace';
+import { STALL_MS } from '../stalls';
+
+const DAY = 24 * 3600;
+let demos: string;
+beforeEach(() => (demos = mkdtempSync(join(tmpdir(), 'seismic-demo-space-'))));
+afterEach(async () => { await rm(demos, { recursive: true, force: true }); }, 60_000);
+
+/** A rendered demo: video, a clip and its frames in `.work`, everything last written `days` ago. */
+function render(dir: string, days: number) {
+  const work = join(dir, '.work');
+  mkdirSync(join(work, 'frames'), { recursive: true });
+  writeFileSync(join(dir, 'demo.mp4'), 'v'.repeat(1000));
+  writeFileSync(join(work, 'abc.wav'), 'w'.repeat(2000));
+  writeFileSync(join(work, 'frames.txt'), 'ffconcat version 1.0\n');
+  for (let i = 0; i < 3; i++) writeFileSync(join(work, 'frames', `${i}.jpg`), 'f'.repeat(10_000));
+  const at = Date.now() / 1000 - days * DAY;
+  for (const p of [join(work, 'frames'), join(work, 'abc.wav'), join(work, 'frames.txt'), work]) utimesSync(p, at, at);
+  return work;
+}
+
+describe('the frames of old demos', () => {
+  test('go once a demo was last rendered longer ago than the days kept; video and clips stay', async () => {
+    const old = render(join(demos, 'old'), 20);
+    const fresh = render(join(demos, 'fresh'), 3);
+    const freed = await sweep(demos, 14);
+    expect(freed.demos).toBe(1);
+    expect(freed.bytes).toBeGreaterThanOrEqual(30_000);
+    expect(readdirSync(old).sort()).toEqual(['abc.wav']);
+    expect(existsSync(join(demos, 'old', 'demo.mp4'))).toBe(true);
+    expect(readdirSync(join(fresh, 'frames'))).toHaveLength(3);
+    
+    expect(await sweep(demos, 14)).toEqual({ demos: 0, bytes: 0 });
+  });
+
+  test('of a render in another voice, in its own subdirectory, go too', async () => {
+    const other = render(join(demos, 'export', 'qwen'), 30);
+    expect(await workDirs(demos)).toEqual([other]);
+    await sweep(demos, 14);
+    expect(existsSync(join(other, 'frames'))).toBe(false);
+  });
+
+  test('stay while a render of the demo runs', async () => {
+    const work = render(join(demos, 'busy'), 30);
+    writeFileSync(join(work, 'render.pid'), String(process.pid));
+    utimesSync(join(work, 'render.pid'), Date.now() / 1000 - 30 * DAY, Date.now() / 1000 - 30 * DAY);
+    utimesSync(work, Date.now() / 1000 - 30 * DAY, Date.now() / 1000 - 30 * DAY);
+    expect(await sweep(demos, 14)).toEqual({ demos: 0, bytes: 0 });
+    expect(existsSync(join(work, 'frames'))).toBe(true);
+  });
+
+  test('behind a link are not touched', async () => {
+    
+    const outside = mkdtempSync(join(tmpdir(), 'seismic-demo-space-outside-'));
+    try {
+      const kept = render(join(outside, 'kept'), 30);
+      mkdirSync(join(demos, 'linked'));
+      symlinkSync(kept, join(demos, 'linked', '.work'), 'dir');
+      const real = render(join(demos, 'real'), 30);
+      rmSync(join(real, 'frames'), { recursive: true });
+      symlinkSync(join(kept, 'frames'), join(real, 'frames'), 'dir');
+      expect(await workDirs(demos)).toEqual([real]);
+      await sweep(demos, 14);
+      expect(readdirSync(join(kept, 'frames'))).toHaveLength(3);
+      expect(existsSync(join(kept, 'frames.txt'))).toBe(true);
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  test('a recent file in the work directory counts as a recent render', async () => {
+    const work = render(join(demos, 'revoiced'), 30);
+    writeFileSync(join(work, 'state.json'), '{}');
+    expect(await sweep(demos, 14)).toEqual({ demos: 0, bytes: 0 });
+  });
+});
+
+test("what demos take, and their work directories' share of it", async () => {
+  render(join(demos, 'a'), 1);
+  render(join(demos, 'b', 'qwen'), 1);
+  writeFileSync(join(demos, 'notes.txt'), 'n'.repeat(500));
+  const used = await usage(demos);
+  expect(used.work).toBeGreaterThanOrEqual(2 * 32_000);
+  expect(used.bytes).toBeGreaterThanOrEqual(used.work + 2 * 1000 + 500);
+  expect(await usage(join(demos, 'none'))).toEqual({ bytes: 0, work: 0 });
+});
+
+test('nested demo directories count their work without following links', async () => {
+  const work = join(demos, 'demo', 'voice', '.work');
+  mkdirSync(join(work, 'frames', 'nested'), { recursive: true });
+  writeFileSync(join(work, 'frames', 'nested', 'frame.jpg'), 'frame');
+  const outside = mkdtempSync(join(tmpdir(), 'seismic-demo-space-count-outside-'));
+  try {
+    writeFileSync(join(outside, 'large.wav'), 'x'.repeat(10_000));
+    symlinkSync(join(outside, 'large.wav'), join(work, 'linked.wav'));
+    const counted = await usage(demos);
+    expect(counted.work).toBeGreaterThanOrEqual(5);
+    expect(counted.bytes).toBe(counted.work);
+    expect(counted.bytes).toBeLessThan(10_000);
+  } finally {
+    rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('one large directory fills the global metadata limit, even beside nested work', async () => {
+  const flat = join(demos, 'flat');
+  const nested = join(demos, 'nested');
+  const file = (name: string) => ({ name, isDirectory: () => false });
+  const directory = (name: string) => ({ name, isDirectory: () => true });
+  const tree = new Map<string, ReturnType<typeof file>[]>([
+    [flat, Array.from({ length: 48 }, (_, i) => file(`${i}.jpg`))],
+    [nested, Array.from({ length: 4 }, (_, i) => directory(`demo-${i}`))],
+  ]);
+  for (let i = 0; i < 4; i++) {
+    const demo = join(nested, `demo-${i}`);
+    tree.set(demo, [directory('.work')]);
+    tree.set(join(demo, '.work'), Array.from({ length: 16 }, (_, n) => file(`${n}.jpg`)));
+  }
+  let active = 0;
+  let highest = 0;
+  const observed = async <T>(value: T): Promise<T> => {
+    highest = Math.max(highest, ++active);
+    await Bun.sleep(0);
+    active--;
+    return value;
+  };
+  const io = {
+    entries: (path: string) => observed(tree.get(path) ?? []),
+    size: (_path: string) => observed(1),
+  };
+  expect(await usage(flat, io)).toEqual({ bytes: 48, work: 0 });
+  expect(highest).toBe(16);
+  highest = 0;
+  expect(await usage(nested, io)).toEqual({ bytes: 64, work: 64 });
+  expect(highest).toBe(16);
+  expect(active).toBe(0);
+});
+
+test("the days kept: the settings', else the default, which only the Seismic in the default home applies", () => {
+  const own = join(homedir(), '.seismic');
+  expect(keepDays({}, own)).toBe(DEFAULT_KEEP_DAYS);
+  expect(keepDays({ keepFrames: 'always' }, own)).toBeNull();
+  expect(keepDays({ keepFrames: 3 }, own)).toBe(3);
+  expect(keepDays({}, demos)).toBeNull();
+  expect(keepDays({ keepFrames: 30 }, demos)).toBe(30);
+});
+
+test('the view counts in the background, and a sweep deletes per the settings', async () => {
+  const work = render(join(demos, 'old'), 20);
+  const home = join(demos, 'home');
+  const space = new DemoSpace({ home, settings: () => ({ language: 'en', voice: 'piper', directory: demos, keepFrames: 7 }) });
+  expect(space.view()).toMatchObject({ keepDays: 7, defaultDays: null, busy: true });
+  await space.sweepSoon();
+  expect(existsSync(join(work, 'frames'))).toBe(false);
+  const view = space.view();
+  expect(view.busy).toBe(false);
+  expect(view.freed).toMatchObject({ demos: 1 });
+  expect(view.used!.bytes).toBeGreaterThan(0);
+});
+
+test('a settings file that does not read deletes nothing', async () => {
+  const work = render(join(demos, 'old'), 20);
+  const file = join(demos, 'demo.json');
+  writeFileSync(file, '{ not json');
+  const space = new DemoSpace({ home: join(homedir(), '.seismic'), settings: () => ({ language: 'en', voice: 'piper', directory: demos }), file });
+  await space.sweepSoon();
+  expect(existsSync(join(work, 'frames'))).toBe(true);
+});
+
+test('what was counted in another directory is not shown', async () => {
+  render(join(demos, 'a'), 1);
+  let directory = demos;
+  const space = new DemoSpace({ home: join(demos, 'home'), settings: () => ({ language: 'en', voice: 'piper', directory, keepFrames: 'always' }) });
+  await space.sweepSoon();
+  expect(space.view().used!.bytes).toBeGreaterThan(0);
+  directory = join(demos, 'none');
+  expect(space.view().used).toBeUndefined();
+  
+  await space.sweepSoon();
+  expect(space.view().used).toMatchObject({ bytes: 0, work: 0 });
+});
+
+test('looking through a large demo directory holds the server up for no noticeable time', async () => {
+  
+  
+  for (let i = 0; i < 1000; i++) {
+    const work = join(demos, `demo-${i}`, '.work');
+    mkdirSync(join(work, 'frames'), { recursive: true });
+    for (const f of ['frames.txt', ...Array.from({ length: 5 }, (_, c) => `clip-${c}.wav`)]) writeFileSync(join(work, f), '');
+  }
+  
+  
+  let turns = 0;
+  let longest = 0;
+  let last = performance.now();
+  let looking = true;
+  const turn = () => {
+    const now = performance.now();
+    longest = Math.max(longest, now - last);
+    last = now;
+    turns++;
+    if (looking) setImmediate(turn);
+  };
+  setImmediate(turn);
+  try {
+    expect(await sweep(demos, 14)).toEqual({ demos: 0, bytes: 0 });
+    
+    turn();
+    expect(turns).toBeGreaterThan(100);
+    await usage(demos);
+  } finally {
+    looking = false;
+  }
+  turn();
+  expect(longest).toBeLessThan(STALL_MS);
+}, 60_000);

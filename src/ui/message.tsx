@@ -16,7 +16,7 @@ import { scrollBehavior } from './motion';
 import { Message, MessageActions, MessageHead, MessageMeta, ReplyAction, DeleteAction } from './components/ai/message';
 import { CloseButton, LinkButton } from './components/button';
 import { Tooltip } from './components/tooltip';
-import { WorkingBar } from './components/working-bar';
+import { WorkingBar } from './components/workingBar';
 
 
 const workingColor: Record<string, string> = { worker: 'var(--working)', koordinator: 'var(--proposal)' };

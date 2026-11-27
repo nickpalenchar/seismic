@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { serverDir } from './helpers/paths';
 import { pagePolicy } from '../../core/frame';
-import { artifactFiles } from '../demo-page';
+import { artifactFiles } from '../demoPage';
 import { checkPlugin, DEMO_SKILL, DEMO_SKILL_FILE, demoSkillName, SEISMIC_PLUGIN, readChapters, serveDemoFile, serveMockFrame } from '../demo';
 
 const dir = mkdtempSync(join(tmpdir(), 'seismic-demo-'));

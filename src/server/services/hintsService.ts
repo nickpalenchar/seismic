@@ -1,7 +1,7 @@
 import { isHintId } from '../../registries/hintRegistry';
 import { BadRequest } from '../board';
 import { now, type Db } from '../schemas/common';
-import { seenHints } from '../schemas/seen-hints';
+import { seenHints } from '../schemas/seenHints';
 
 /** Which hints the owner has seen: what the page loads once and keeps in memory. */
 export class HintsService {

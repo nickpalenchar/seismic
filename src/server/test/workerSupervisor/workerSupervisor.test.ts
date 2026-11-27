@@ -7,7 +7,7 @@ import { needsYou, pausable, type ReviewItem } from '../../../core/types';
 import { BadRequest, Board } from '../../board';
 import { SEISMIC_PLUGIN } from '../../demo';
 import { Images } from '../../images';
-import { Restarter } from '../../self-update';
+import { Restarter } from '../../selfUpdate';
 import { artifact, until } from '../helpers/testing';
 import { WorkerSupervisor } from '../../workerSupervisor/workerSupervisor';
 import { board, dir, eachTest, flush, main, manual, runtime, setConversation, setLanguage, setWorkers, spaces, state, store, workers } from '../helpers/workerSupervisor';

@@ -21,7 +21,7 @@ import { projectPath } from '../../address';
 import { Button, CloseButton, LinkButton } from '../../components/button';
 import { RadioGroup, RadioOption } from '../../components/radio';
 import { Checkbox } from '../../components/checkbox';
-import { CheckLabel } from '../../components/check-label';
+import { CheckLabel } from '../../components/checkLabel';
 import { Badge } from '../../components/badge';
 import { Spinner } from '../../components/spinner';
 import { SeismicAgentStep } from './seismicAgent';

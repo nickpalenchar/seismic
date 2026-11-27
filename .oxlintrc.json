@@ -6,6 +6,11 @@
   "rules": { "seismic/documentation-comments": "error" },
   "overrides": [
     {
+      "files": ["src/server/**", "src/ui/**"],
+      "excludeFiles": ["src/server/routes/**"],
+      "rules": { "seismic/file-name-camel-case": "error" }
+    },
+    {
       "files": ["src/server/services/**"],
       "rules": { "seismic/service-class": "error" }
     },

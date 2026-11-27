@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { agyBaseChoice, AGENT_DEFAULTS, AGENT_EFFORTS, catalogModel, harnessChoice, modelEffort, modelEfforts, type AgentEffort, type AgentModel, type AgentSetting, type ModelInfo, type Harness } from '../../../core/types';
-import { catalogDefault, DefaultEffort, ModelOptions } from '../../agent-options';
+import { catalogDefault, DefaultEffort, ModelOptions } from '../../agentOptions';
 import { getAgentModels, getSetting, saveSetting } from '../../clients/seismic';
 import { Button } from '../../components/button';
 import { ExitSetup } from './how';

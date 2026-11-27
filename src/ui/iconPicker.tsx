@@ -8,7 +8,7 @@ import { CANVAS_ICON_COLORS, CANVAS_LUCIDE_ICONS, type CanvasIconColor, lucideIc
 import { lucideOf } from './canvasIcon';
 import { t } from './strings';
 import { Button } from './components/button';
-import { EmojiPicker } from './components/emoji-picker';
+import { EmojiPicker } from './components/emojiPicker';
 import { Input } from './components/input';
 import { Radio, RadioGroup } from './components/radio';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/tabs';

@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { type CardPatch, type Item, newRepoName, type RepoRef } from '../core/types';
 import { SegmentedControl } from './components/segmented';
 import { t } from './strings';
-import { CheckLabel } from './components/check-label';
+import { CheckLabel } from './components/checkLabel';
 import { Switch } from './components/switch';
 import { Input } from './components/input';
 

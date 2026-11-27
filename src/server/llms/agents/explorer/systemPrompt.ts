@@ -4,7 +4,7 @@
 
 import { type Language, ownersLanguage, repositoryLanguage } from '../../../../core/locale';
 import { MESSAGES } from '../../../../core/messages';
-import { TO_SEISMIC } from '../../../to-seismic';
+import { TO_SEISMIC } from '../../../toSeismic';
 
 
 export const WORDS: Record<Language, { parts: [string, string, string, string, string, string]; changed: string; pointer: string; approach: string }> = {

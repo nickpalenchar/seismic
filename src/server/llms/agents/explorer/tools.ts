@@ -7,9 +7,9 @@ import { z } from 'zod';
 import { type Mock, NEXT_STEPS, type NextStep, type PlannedPrototype, type Question, type SettledPart } from '../../../../core/types';
 import { type Asked, withPick } from '../../../advisor';
 import { type AgentTool } from '../../../runtime';
-import { toSeismicTool } from '../../../to-seismic';
+import { toSeismicTool } from '../../../toSeismic';
 import { clip } from '../../../../core/text';
-import { folderPath } from '../../../new-repo';
+import { folderPath } from '../../../newRepo';
 import type { Explorers, Live } from '../../../explorers';
 import { WORDS } from './systemPrompt';
 

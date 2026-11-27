@@ -11,7 +11,7 @@ import { spawn } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import { isAbsolute, resolve, sep } from 'node:path';
 import { z } from 'zod';
-import { allowed } from '../../allow-rules';
+import { allowed } from '../../allowRules';
 import { cleanEnv, endWithAgents, type AgentTool, type PermissionAnswer, type PermissionRequest } from '../../runtime';
 import { OWN_GROUP } from '../../spawn';
 

@@ -14,11 +14,11 @@ import { type CardDiff, cardDiff } from '../core/diff';
 import type { BlockedClone, PoolHost, WorkstationShortage } from '../core/types';
 import type { Store } from './store';
 import { HostError, hostName, LOST, onHost, remote, sh as shWord, type SshHost, TOKEN_HELPER, TOKEN_HELPER_ARGS } from './hosts';
-import { runAppCommand } from './app-command';
+import { runAppCommand } from './appCommand';
 import { messageOf } from '../core/text';
 import { oneAtATime } from '../core/one-at-a-time';
-import { LandingQueue, type LandingTurn } from './landing-queue';
-import { demoFile } from './demo-file';
+import { LandingQueue, type LandingTurn } from './landingQueue';
+import { demoFile } from './demoFile';
 import { sameRemote } from './repo';
 import { spawnOutput } from './spawn';
 

@@ -12,7 +12,7 @@ import { generic } from '../../adapters/generic';
 import { Board } from '../board';
 import { Store } from '../store';
 import { HostError, hostName, onHost, registerHost, remote, sessionFiles, type SshHost } from '../hosts';
-import { runAppCommand } from '../app-command';
+import { runAppCommand } from '../appCommand';
 import { type AgentEvent } from '../runtime';
 import { sdkRuntime } from '../llms/harnesses/claude';
 import { FakeRuntime, fakeSsh, gitRepo, identify, until } from './helpers/testing';

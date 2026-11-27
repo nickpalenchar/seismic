@@ -98,7 +98,7 @@ The broad set was these 19 files:
 
 Run with `bun test` and those paths; then `bun run typecheck` and `git diff --check`.
 Bun here is 1.3.14. Do not claim the whole suite passes from this focused set. An earlier unrelated
-`src/server/artifact-copy.test.ts` macro execution/security regression is known; it was not fixed
+`src/server/artifactCopy.test.ts` macro execution/security regression is known; it was not fixed
 in this task. Earlier full-suite runs also hit timeouts under heavy concurrency.
 
 ### Additional verified checks

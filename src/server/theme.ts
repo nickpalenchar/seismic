@@ -9,8 +9,8 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { REPO_DIR, REPO_DIRS } from '../adapters';
-import { themeData } from './artifact-copy';
-import { demoFile } from './demo-file';
+import { themeData } from './artifactCopy';
+import { demoFile } from './demoFile';
 import { GIT, isFolder } from './workstations';
 
 

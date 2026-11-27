@@ -16,6 +16,17 @@ function hasDescription(comment) {
 export default {
   meta: { name: 'seismic' },
   rules: {
+    'file-name-camel-case': {
+      create(context) {
+        const name = context.filename.split(/[\\/]/).pop().split('.')[0];
+        return {
+          'Program:exit'(program) {
+            if (/^_?[a-zA-Z][a-zA-Z0-9]*$/.test(name)) return;
+            context.report({ node: program, loc: { line: 1, column: 0 }, message: `File names are camelCase (or PascalCase for a component), not "${name}": rename it to ${name.replace(/[-_]+([a-zA-Z0-9])/g, (_, c) => c.toUpperCase())}.` });
+          },
+        };
+      },
+    },
     'service-class': {
       create(context) {
         const name = context.filename.split(/[\\/]/).pop().replace(/\.[^.]+$/, '');

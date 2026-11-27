@@ -8,8 +8,8 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { allowed, bashRules, codexRules } from '../../../../src/server/allow-rules.ts';
-import { writeCodexRules } from '../../../../src/server/codex-rules-file.ts';
+import { allowed, bashRules, codexRules } from '../../../../src/server/allowRules.ts';
+import { writeCodexRules } from '../../../../src/server/codexRulesFile.ts';
 import { repoInfo } from '../../../../src/server/repo.ts';
 
 const SETTINGS = join('.claude', 'settings.json');

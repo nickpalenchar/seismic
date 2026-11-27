@@ -12,7 +12,7 @@ import { isLabelValue, type Label, LABELS, LABEL_VALUES, type Labels } from '../
 import { createHash } from 'node:crypto';
 import { type ActivityCode, type ActivityEntry, type ActivityWho, type AgentAt, type AgentIdentity, type AgentSetting, type ChatModel, type Harness, type Canvas, canvasHolds, CANVAS_NAME_MAX, canvasNameProblem, type CodeReview, type CodeReviewMode, type CardArchiving, type Feedback, MAIN_CANVAS, type ReviewItem, type WorkConfig, type StoppedAt } from '../core/types';
 import { existsSync } from 'node:fs';
-import { FilePresence, type Present } from './file-presence';
+import { FilePresence, type Present } from './filePresence';
 import { basename, join } from 'node:path';
 import { arrangeWorkstreams, type Bounds, boundsOf, CARD_SIZE, freeSpotNear, GAP, MERGED_SIZE, type Place, PLAN_HEAD, placePlans, planDirNoteBox, placeWorkstreams, planSize, shapeOf, sizeOf, unionBounds } from '../core/layout';
 import type { Language } from '../core/locale';
@@ -104,7 +104,7 @@ import type { DecisionRow } from './schemas/decisions';
 import type { Friction, FrictionNote } from './schemas/friction';
 import type { GroupRow } from './schemas/groups';
 import type { HeldTalk, TalkWaitRow } from './schemas/talk';
-import type { Wait } from './schemas/needs-you';
+import type { Wait } from './schemas/needsYou';
 import { decidedOn } from '../core/inbox';
 import { kindOf, type NeedsYou } from '../core/waits';
 import type { Mark, Store } from './store';

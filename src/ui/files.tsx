@@ -9,8 +9,8 @@ import { createContext, type ReactNode, useContext, useEffect, useLayoutEffect, 
 import { type CardDiff, type DiffPart, diffSize, splitDiff } from '../core/diff';
 import { type ChangeRow, changeRows, diffRows, imageAt, type ShownFile } from '../core/files';
 import type { Item } from '../core/types';
-import { barTrigger, DiffTreeLayout, StatusBadge } from './diff-tree';
-import { treeOrder } from './diff-tree-entries';
+import { barTrigger, DiffTreeLayout, StatusBadge } from './diffTree';
+import { treeOrder } from './diffTreeEntries';
 import { api, cardFile } from './api';
 import { addedClass, ChangeNote, DiffStyleSwitch, DiffView, diffSizeClass, FileDiff, Lines, MARK, removedClass } from './diff';
 import { Doc, DocImages, SettlingImage } from './markdown';

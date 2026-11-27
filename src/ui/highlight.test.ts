@@ -1,6 +1,6 @@
 import { expect, spyOn, test } from 'bun:test';
 import { bundledThemes } from 'shiki/themes';
-import { parseHunks } from './diff-lines';
+import { parseHunks } from './diffLines';
 import { loadTokenizer, paintHunks } from './highlight';
 
 const darkLoad = spyOn(bundledThemes, 'github-dark');

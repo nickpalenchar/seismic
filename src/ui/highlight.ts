@@ -6,7 +6,7 @@ import { createJavaScriptRegexEngine } from 'shiki/engine/javascript';
 import { bundledLanguages } from 'shiki/langs';
 import { bundledThemes } from 'shiki/themes';
 import type { Theme } from '../core/types';
-import type { DiffLine, Hunk } from './diff-lines';
+import type { DiffLine, Hunk } from './diffLines';
 
 
 export interface Token {

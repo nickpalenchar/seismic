@@ -4,7 +4,7 @@
 
 
 import { unheardNow } from './contextUpdate';
-import { workerConfig } from '../../../worker-config';
+import { workerConfig } from '../../../workerConfig';
 import { z } from 'zod';
 import { LANGUAGE_NAMES } from '../../../../core/locale';
 import { type CardFile } from '../../../../core/files';
@@ -12,15 +12,15 @@ import { answering, AWAITED_STATES, awaited, isPausing, type CardLanding, type D
 import { BadRequest, type StoredDemo, titleKey } from '../../../board';
 import { type Asked, withPick } from '../../../advisor';
 import { checkArtifact, readChapters } from '../../../demo';
-import { artifactFiles } from '../../../demo-page';
+import { artifactFiles } from '../../../demoPage';
 import { remoteHost } from '../../../repo';
 import { type AgentTool } from '../../../runtime';
-import { toSeismicTool } from '../../../to-seismic';
+import { toSeismicTool } from '../../../toSeismic';
 import { hostName } from '../../../hosts';
 import { contributionOf, type PrState, type StoredContribution } from '../../../board';
 import { type PageTags, SEVERITIES } from '../../../../core/types';
 import { dimensions, outside, tagsOf } from '../../../../core/page-tags';
-import { type DataSignal, dataModelSignals } from '../../../data-models';
+import { type DataSignal, dataModelSignals } from '../../../dataModels';
 import { parsePrUrl, sameRepo } from '../../../forge';
 import { clip } from '../../../../core/text';
 import type { LandedState, Live, OwnCommits, WorkerSupervisor } from '../../../workerSupervisor/workerSupervisor';

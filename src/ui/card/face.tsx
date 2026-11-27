@@ -12,7 +12,7 @@ import { LIST_DOING, cardFlags, type CardPlace, chipLabelClass, dotClass, faceCl
 import { MergeProposedMark, Pin, PinDot, shownTitle, StateMarks, StateText, StoppedWords, Title, UnreadDot } from './pieces';
 import { cardKind, cardSummary, cardTone, stateVars } from './summary';
 import { Badge } from '../components/badge';
-import { DrawLine } from '../components/draw-line';
+import { DrawLine } from '../components/drawLine';
 
 export type CardSize = 'm' | 's' | 'xs' | 'inline';
 

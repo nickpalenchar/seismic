@@ -11,7 +11,7 @@ import type { DemoSettings } from '../../../plugin/skills/demo/lib/settings.ts';
 import { installVoice, piperFiles } from '../../../plugin/skills/demo/lib/voices.ts';
 import type { Language } from '../../core/locale';
 import { LocalTranscriber } from '../voice';
-import { CHECK_CLIP } from '../voice-setup';
+import { CHECK_CLIP } from '../voiceSetup';
 import { resource } from '../resources';
 
 const home = (process.env.SEISMIC_LIVE_VOICE ?? process.env.OBEYA_LIVE_VOICE);

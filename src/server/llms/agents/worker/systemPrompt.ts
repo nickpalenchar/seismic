@@ -4,7 +4,7 @@
 
 import { LANGUAGE_NAMES, ownersLanguage, repositoryLanguage } from '../../../../core/locale';
 import { type Item } from '../../../../core/types';
-import { TO_SEISMIC } from '../../../to-seismic';
+import { TO_SEISMIC } from '../../../toSeismic';
 import type { WorkerHost } from './tools';
 
 export function workerSystemPrompt(self: Pick<WorkerHost, 'o' | 'folder' | 'demoLanguage'>, preferences: string, prototype = false, card?: Item): string {

@@ -4,7 +4,7 @@
 
 import { Fragment } from 'react';
 import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, agyBaseChoice, catalogModel, modelEffort, modelEfforts, harnessChoice, projectAgentSetting, type AgentEffort, type AgentModel, type AgentRole, type ModelInfo, type Harness, type HarnessAvailability, type ProjectAgents, type ProjectSettingsView } from '../../core/types';
-import { catalogDefault, DefaultEffort, HarnessOptions, ModelOptions } from '../agent-options';
+import { catalogDefault, DefaultEffort, HarnessOptions, ModelOptions } from '../agentOptions';
 import { agentClass } from '../config';
 import { t } from '../strings';
 import { Select, SelectItem } from '../components/select';

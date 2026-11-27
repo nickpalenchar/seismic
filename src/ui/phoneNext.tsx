@@ -18,7 +18,7 @@ import { failText, t } from './strings';
 import { UsagePill } from './usage';
 import { seismicWorks, runs } from './talk';
 import { Badge } from './components/badge';
-import { DrawLine } from './components/draw-line';
+import { DrawLine } from './components/drawLine';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
 import { TalkIcon } from './parts';
 import { hostSpots, WorkingRows, WorkstationDots } from './workstations';

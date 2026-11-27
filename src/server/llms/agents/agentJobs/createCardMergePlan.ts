@@ -8,7 +8,7 @@ import { ownersLanguage } from '../../../../core/locale';
 import { mergeRank, type Item, type Merge } from '../../../../core/types';
 import type { Board } from '../../../board';
 import type { AgentRuntime, AgentTool } from '../../../runtime';
-import { workerConfig } from '../../../worker-config';
+import { workerConfig } from '../../../workerConfig';
 import { createCardMergePlanSystem } from '../../prompts/createCardMergePlanSystem';
 import { type JobRun, SeismicJob } from '../seismicJob';
 

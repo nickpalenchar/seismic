@@ -9,10 +9,10 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { codexRules } from '../src/server/allow-rules';
-import { isGeneratedCodexRules, writeCodexRules } from '../src/server/codex-rules-file';
+import { codexRules } from '../src/server/allowRules';
+import { isGeneratedCodexRules, writeCodexRules } from '../src/server/codexRulesFile';
 
-export { codexRules, prefixOf } from '../src/server/allow-rules';
+export { codexRules, prefixOf } from '../src/server/allowRules';
 
 const root = resolve(import.meta.dir, '..');
 const out = join(root, '.codex', 'rules', 'seismic.rules');

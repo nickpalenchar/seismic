@@ -16,7 +16,7 @@ import type { InboxProps } from './inbox';
 import { renderEntry } from './needsYou/renderers';
 import { useStoredState } from './stored';
 import { t } from './strings';
-import { CheckLabel } from './components/check-label';
+import { CheckLabel } from './components/checkLabel';
 import { Switch } from './components/switch';
 import { Badge } from './components/badge';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from './components/empty';

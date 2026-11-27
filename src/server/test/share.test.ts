@@ -7,7 +7,7 @@ import { BadRequest, Board, type SharedDemo, type StoredShare } from '../board';
 import { Store } from '../store';
 import { EXPORT_HTML_MAX } from '../../core/types';
 import type { Forge } from '../forge';
-import { demoPageHtml } from '../demo-page';
+import { demoPageHtml } from '../demoPage';
 import { DEMO_MARKER, Sharing, declinesApproval, withDemoLink } from '../share';
 import { siteKey } from '../site';
 import { missedChanges, PAGE_CHANGES, pagesVersion } from '../../core/page-changes';

@@ -81,7 +81,7 @@ and permission; `launch()` in `workerSupervisor/workerSupervisor.ts` starts it w
   calls them with the card's state (`WorkerContext`). They reach `WorkerSupervisor` through `WorkerHost` and `BriefingHost`,
   `Pick`s of the members they use, which are public now (about 40 methods plus `o`, `live`, `folder`, `shares`).
   The constants and helpers they share with `workerSupervisor/workerSupervisor.ts` (`END_TURN`, `landedOf`, `snoozedUntil`, the proposal
-  questions and others) are the `WorkerConfig` class (`src/server/worker-config.ts`, one default instance `workerConfig`, to be injected
+  questions and others) are the `WorkerConfig` class (`src/server/workerConfig.ts`, one default instance `workerConfig`, to be injected
   later); `agents/worker/*` import `workerSupervisor/workerSupervisor.ts` for types only.
 - [x] The parts of the worker's `contextUpdate` (`agents/worker/contextUpdate.ts`: the owner's words that waited, the
   demo page's news, preferences, decisions of its plan, a restart or pause still due) are functions of the card's

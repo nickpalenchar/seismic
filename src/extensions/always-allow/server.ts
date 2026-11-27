@@ -4,7 +4,7 @@
 
 
 
-import { plainCommands } from '../../server/allow-rules';
+import { plainCommands } from '../../server/allowRules';
 import { messageOf } from '../../core/text';
 import type { PermissionContext, ServerExtension } from '../server';
 import { claudeAlwaysRules, codexAlwaysRules, networkOnly, ruleValue, shownRule } from './rules';

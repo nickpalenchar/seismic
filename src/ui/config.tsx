@@ -10,9 +10,9 @@ import { forwardRef, Fragment, lazy, type ReactNode, Suspense, useEffect, useMem
 import { allowsDemo, HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, qwen3IsClone, qwen3Speaker, STYLED_VOICES } from '../../plugin/skills/demo/lib/voice-choices.ts';
 import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, agyBaseChoice, modelEffort, modelEfforts, harnessChoice, needsGit, projectAgentSetting, CARD_ARCHIVING, type CardArchiving, RIGHT_CLICK, type RightClick, CODE_REVIEW_MODES, type CodeReviewSetting, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type ModelInfo, type Harness, type AgentsView, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, type RepoConfig, type RepoSettings, type RepoTrust, type TrustGroup, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type NotificationsView, type VoiceKind, type VoiceSetupView } from '../core/types';
-import { catalogDefault, DefaultEffort, HarnessOptions, ModelOptions, useConnectedHarnesses } from './agent-options';
+import { catalogDefault, DefaultEffort, HarnessOptions, ModelOptions, useConnectedHarnesses } from './agentOptions';
 import { patchOf } from '../core/diff';
-import { extension, linesOf, textsOf, visible } from './trust-lines';
+import { extension, linesOf, textsOf, visible } from './trustLines';
 import { parseTagLines, tagLines } from '../core/page-tags';
 import { LANGUAGES } from '../core/locale';
 import { SUGGEST_TOGGLES, type SuggestSettings, type SuggestToggle, suggestToggles } from '../core/labels';
@@ -42,8 +42,8 @@ import { Button, CloseButton, IconButton, LinkButton } from './components/button
 import { focusSettingsSheet } from './projectSettings/focus';
 import { ConfirmDialog, Dialog, DialogContent, DialogTitle } from './components/dialog';
 import { Checkbox } from './components/checkbox';
-import { CheckLabel } from './components/check-label';
-import { SavingSwitch } from './components/saving-switch';
+import { CheckLabel } from './components/checkLabel';
+import { SavingSwitch } from './components/savingSwitch';
 import { getAgentModels, getConfiguration, getSetting, saveSetting } from './clients/seismic';
 import { Switch } from './components/switch';
 import { RadioGroup, RadioOption } from './components/radio';
@@ -3016,7 +3016,7 @@ export function Problem({ problem, where, ask, retried, onShow }: { problem: Con
   );
 }
 
-const CodeDiff = lazy(() => import('./diff-code'));
+const CodeDiff = lazy(() => import('./diffCode'));
 
 /**
  * The commands of a repository that wait for the owner's trust (problem `untrusted`): each group

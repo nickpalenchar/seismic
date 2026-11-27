@@ -23,7 +23,7 @@ import { installVoice } from '../../plugin/skills/demo/lib/voices.ts';
 import { BadRequest } from './board';
 import type { ProjectRuntime } from './project';
 import type { Config } from './config';
-import { previewGitSetup, setUpGit, withoutGit } from './git-setup';
+import { previewGitSetup, setUpGit, withoutGit } from './gitSetup';
 import { saveClaudeToken } from './hosts';
 import { repoInfo } from './repo';
 import { COMPILED } from './resources';
@@ -33,7 +33,7 @@ import { connectedHarnesses, type HarnessCheck } from './llms/harnesses';
 import { installedAgy } from './llms/harnesses/agy';
 import { installedCodex } from './llms/harnesses/codex';
 import { extendPath, freshPath, which } from './path';
-import type { VoiceSetup } from './voice-setup';
+import type { VoiceSetup } from './voiceSetup';
 
 type Env = Record<string, string | undefined>;
 

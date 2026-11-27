@@ -12,7 +12,7 @@ import { Board, type StoredContribution } from '../board';
 import { ProjectRuntime } from '../project';
 import { Store } from '../store';
 import type { ContributionInfo, Forge, PrStatus } from '../forge';
-import { PrWatcher } from '../pr-watcher';
+import { PrWatcher } from '../prWatcher';
 import { artifact, FakeRuntime, gitRepo, identify, until } from './helpers/testing';
 import { WorkerSupervisor } from '../workerSupervisor/workerSupervisor';
 import { git, Workstations } from '../workstations';

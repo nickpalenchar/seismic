@@ -20,7 +20,7 @@ import { createServer } from 'node:net';
 import { homedir, tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { adoptOldConfig, CONFIG_FILE } from '../src/server/config';
-import { databaseFile, moveDefaultHome } from '../src/server/home-move';
+import { databaseFile, moveDefaultHome } from '../src/server/homeMove';
 import { ownerHeaders } from '../src/server/owner';
 import { waitUp } from './wait-up';
 

@@ -18,7 +18,7 @@ import type { QuickReply } from './quickReply';
 import { useStoredState } from './stored';
 import { t } from './strings';
 import { emptyInboxClass, entryListClass, inboxBarClass } from './inboxClasses';
-import { CheckLabel } from './components/check-label';
+import { CheckLabel } from './components/checkLabel';
 import { Switch } from './components/switch';
 import { SegmentedControl } from './components/segmented';
 

@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gitRepo } from '../../../../src/server/test/helpers/testing';
-import { codexRules } from '../../../../src/server/allow-rules';
+import { codexRules } from '../../../../src/server/allowRules';
 
 let dir: string;
 let n = 0;

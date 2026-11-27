@@ -15,7 +15,7 @@ import { git, gitOrNull, planBaselineTag, HERE } from '../workstations';
 import { type SkillPlace, Skills } from '../skills';
 import { SEISMIC_PLUGIN } from '../demo';
 import { STALL_MS } from '../stalls';
-import { writeSites } from '../demo-sites';
+import { writeSites } from '../demoSites';
 import { MANIFEST, siteKey } from '../site';
 
 let dir: string;

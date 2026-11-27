@@ -41,14 +41,14 @@ use crate::window::placed::{self, Placed};
 use crate::{desks::{local_view, rebuild_revision, RebuildRevision}, no_window, post, Seismic};
 use uuid::Uuid;
 
-/// The exit code with which the server asks the shell to install the update (src/server/self-update.ts).
+/// The exit code with which the server asks the shell to install the update (src/server/selfUpdate.ts).
 pub const EXIT: i32 = 77;
 const EVERY: Duration = Duration::from_secs(6 * 3600);
 /// After a check that failed (offline, say).
 const AGAIN: Duration = Duration::from_secs(30 * 60);
-/// The switch for checking for releases (docs/release.md), with `UPDATES_ENABLED` in src/server/app-update.ts.
+/// The switch for checking for releases (docs/release.md), with `UPDATES_ENABLED` in src/server/appUpdate.ts.
 const CHECK_RELEASES: bool = true;
-/// Where a .deb update is fetched by hand, as the server expects it (`RELEASES` in src/server/app-update.ts).
+/// Where a .deb update is fetched by hand, as the server expects it (`RELEASES` in src/server/appUpdate.ts).
 const RELEASES: &str = "https://github.com/nickpalenchar/seismic/releases";
 
 /// A newer version, downloaded and checked; or for a .deb, where to get it.

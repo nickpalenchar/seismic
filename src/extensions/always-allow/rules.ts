@@ -3,8 +3,8 @@
 
 
 
-import { codexRules } from '../../server/allow-rules';
-import { isGeneratedCodexRules } from '../../server/codex-rules-file';
+import { codexRules } from '../../server/allowRules';
+import { isGeneratedCodexRules } from '../../server/codexRulesFile';
 
 export const ALLOW_FILE = '.claude/settings.json';
 export const CODEX_RULES_FILE = '.codex/rules/seismic.rules';

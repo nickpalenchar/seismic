@@ -29,7 +29,7 @@ import { projectPath, cardPath, named, projectNamed, queryWithout, readAddress }
 import { layerOpen } from './components/ui';
 import { Badge } from './components/badge';
 import { PillButton } from './components/pill';
-import { DrawLine } from './components/draw-line';
+import { DrawLine } from './components/drawLine';
 import { cn } from 'cn';
 import { usePhoneEnvironment, pageClass } from './phoneEnvironment';
 import { usePhoneProjects } from './phoneProjects';

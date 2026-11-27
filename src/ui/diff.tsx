@@ -6,7 +6,7 @@ import { cn } from 'cn';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { type CardDiff, type DiffPart, diffSize, type FolderChange, shownChanges, splitDiff } from '../core/diff';
 import { diffRows } from '../core/files';
-import { DiffTreeLayout } from './diff-tree';
+import { DiffTreeLayout } from './diffTree';
 import type { Item } from '../core/types';
 import { api } from './api';
 import { useCopy } from './copy';
@@ -218,7 +218,7 @@ export function Lines({ n }: { n: { added: number; removed: number } }) {
 }
 
 
-const CodeDiff = lazy(() => import('./diff-code'));
+const CodeDiff = lazy(() => import('./diffCode'));
 
 /** The switch between a diff's two layouts, on the desktop only. */
 export function DiffStyleSwitch() {

@@ -1,7 +1,7 @@
 import { normalize, overlaps } from '../../core/path-overlap';
-import { workerConfig } from '../worker-config';
+import { workerConfig } from '../workerConfig';
 import type { LandingNotice } from '../workstations';
-import { LimitAttempts, limitWatch } from '../limit-watch';
+import { LimitAttempts, limitWatch } from '../limitWatch';
 
 
 
@@ -29,7 +29,7 @@ import { type AgentEvent, type AgentRuntime, type AgentSession, type AgentTool, 
 import { BACKGROUND_GRACE, BACKGROUND_LIMIT, failureReason } from '../llms/harnesses/claude';
 import { execTools } from '../llms/harnesses/codexExecTools';
 import { type Forward, HOST_DIR, hostName, remote } from '../hosts';
-import { runAppCommand } from '../app-command';
+import { runAppCommand } from '../appCommand';
 import { readingShared } from '../../adapters';
 import { branchName, type CardWorkstations, type FileAt, type FileVersions, gitSteps, ownFile, type Landed, type Lease, type PullStopped, shortageOf, together, WorkstationError, type Workstations } from '../workstations';
 import type { FolderWorkstations, UndoReport } from '../folder';
@@ -37,10 +37,10 @@ import { contributionOf, type PrState, type Shipped, type StoredContribution } f
 import { type Doing, onTool, onToolDone, shownDoing, THINKING_AFTER } from '../doing';
 import { type ChangeRoute, type Clash, needsOwner, type FindingPick, type CodeReviewSetting, type Finding, type FindingStatus, type HeldChanges, type PageTags, PUSH_HOLD_MS, SEVERITIES, type Severity } from '../../core/types';
 import { CAPTURED_CHANGES, gitAsync, gitOrNull, writeToGitDir } from '../workstations';
-import { defaultBranchCommit } from '../read-tree';
+import { defaultBranchCommit } from '../readTree';
 import type { CardRow } from '../schemas/cards/cards';
 import { workConfig } from '../feedback';
-import { type DataSignal, isSchemaPage, SIGNALS_NAMED } from '../data-models';
+import { type DataSignal, isSchemaPage, SIGNALS_NAMED } from '../dataModels';
 import { type Forge, parsePrUrl, sameRepo } from '../forge';
 import { clip, messageOf } from '../../core/text';
 import { holdsNotes } from '../../core/queue';

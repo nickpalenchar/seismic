@@ -19,7 +19,7 @@ import { pastedShots, pickedShots, usePasteHint } from './pasteHint';
 import { failText, pasteKeys, t } from './strings';
 import { motionMs } from './motion';
 import { behindThumb, type Box, onto, ZOOM_EASE, ZOOM_MS } from './zoomBox';
-import { PromptInputButton } from './components/ai/prompt-input';
+import { PromptInputButton } from './components/ai/promptInput';
 import { Button, CloseButton } from './components/button';
 import { Tooltip } from './components/tooltip';
 import { Spinner } from './components/spinner';

@@ -19,7 +19,7 @@ import type { AgentEvent, AgentSession, AgentSpec, AgentTool } from '../../../ru
 import { gitRepo, until } from '../../helpers/testing';
 import { git } from '../../../workstations';
 
-const fake = join(fixturesDir, 'fake-agy.ts');
+const fake = join(fixturesDir, 'fakeAgy.ts');
 const fixtureModels = () => parseAgyModels(readFileSync(join(fixturesDir, 'agy-models.txt'), 'utf8'));
 const launch = (_command: string, args: string[], options: Parameters<Parameters<typeof createAgyRuntime>[0] & {}>[2]) => spawn('bun', [fake, ...args], { ...options, stdio: ['pipe', 'pipe', 'pipe'] });
 const sessions: AgentSession[] = [];

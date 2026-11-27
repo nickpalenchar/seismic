@@ -37,9 +37,9 @@ import { ConfigError, readingRepo, resolveProject, type StartFailure } from './p
 import type { Store } from './store';
 import { freshPath } from './path';
 import { sameRemote } from './repo';
-import type { DemoSpace } from './demo-space';
+import type { DemoSpace } from './demoSpace';
 import type { Forge } from './forge';
-import { commitShared, proposeShared, pushShared } from './shared-settings';
+import { commitShared, proposeShared, pushShared } from './sharedSettings';
 import { gitCalls, gitSteps, leavingClones } from './workstations';
 import { VERSION } from './resources';
 import { agentSetting, projectDefaults, projectSettingsShape, renamedBaselines, savedHarnesses, tidyProjectSettings, withProjectDefaults } from './settings';

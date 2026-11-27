@@ -27,7 +27,7 @@ import { ConfirmDialog } from '../components/dialog';
 import { Separator } from '../components/separator';
 import { Badge } from '../components/badge';
 import { Callout, CalloutDescription } from '../components/callout';
-import { CheckLabel } from '../components/check-label';
+import { CheckLabel } from '../components/checkLabel';
 import { Checkbox } from '../components/checkbox';
 import { SegmentedControl } from '../components/segmented';
 import { Switch } from '../components/switch';

@@ -9,8 +9,8 @@ import type { Item, Revising } from '../../../../core/types';
 import type { Board } from '../../../board';
 import { imageNote } from '../../../images';
 import type { AgentRuntime, AgentTool } from '../../../runtime';
-import { toSeismicTool } from '../../../to-seismic';
-import { workerConfig } from '../../../worker-config';
+import { toSeismicTool } from '../../../toSeismic';
+import { workerConfig } from '../../../workerConfig';
 import { reviseProposalSystem, toSeismicNote } from '../../prompts/reviseProposalSystem';
 import { type JobRun, SeismicJob } from '../seismicJob';
 

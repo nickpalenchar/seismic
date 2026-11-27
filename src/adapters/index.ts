@@ -1,5 +1,5 @@
 import { serverExtensions as extensions } from '../extensions/server';
-import { defaultBranchCommit } from '../server/read-tree';
+import { defaultBranchCommit } from '../server/readTree';
 import { onGitHub } from '../server/repo';
 import { HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { type ClaudeFile, type HandoverArtifact, isNested, SHARED_FIELDS, type NESTED_SETTINGS, type NestedSetting, type RepoSettings, type RepoValues, type SharedSettings } from '../core/types';

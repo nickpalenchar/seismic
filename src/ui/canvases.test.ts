@@ -5,7 +5,7 @@ import { type Canvas, canvasNamedBy, canvasOfHash, type Item } from '../core/typ
 import { nameProblem, parkedStubsOf, stubsOf } from './canvases';
 import { iconsMatching } from './iconPicker';
 import { lucideOf } from './canvasIcon';
-import { columnsFor } from './components/emoji-picker';
+import { columnsFor } from './components/emojiPicker';
 
 const canvases: Canvas[] = [
   { id: 'm', name: 'main' },

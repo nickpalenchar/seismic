@@ -6,7 +6,7 @@
 import { cn } from 'cn';
 import { RadioGroup as RadioGroupPrimitive } from 'radix-ui';
 import type { ComponentProps, ReactNode } from 'react';
-import { CheckLabel } from './check-label';
+import { CheckLabel } from './checkLabel';
 
 export function RadioGroup({ label, labelledBy, ...props }: Omit<ComponentProps<typeof RadioGroupPrimitive.Root>, 'aria-label' | 'aria-labelledby'> & { label?: string; labelledBy?: string }) {
   return <RadioGroupPrimitive.Root data-slot="radio-group" aria-label={label} aria-labelledby={labelledBy} {...props} />;

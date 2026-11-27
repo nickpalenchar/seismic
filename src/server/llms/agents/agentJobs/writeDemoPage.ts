@@ -5,7 +5,7 @@
 import { z } from 'zod';
 import { LANGUAGE_NAMES } from '../../../../core/locale';
 import type { Demo, DemoPage, Item, PageTags } from '../../../../core/types';
-import type { PageLanguage } from '../../../demo-page';
+import type { PageLanguage } from '../../../demoPage';
 import type { AgentRuntime, AgentTool } from '../../../runtime';
 import { writeDemoPageSystem } from '../../prompts/writeDemoPageSystem';
 import { SeismicJob } from '../seismicJob';

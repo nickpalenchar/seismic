@@ -4,7 +4,7 @@
 
 
 
-import { workerConfig } from './worker-config';
+import { workerConfig } from './workerConfig';
 import { basename } from 'node:path';
 import { formatQuestion, type Item, type Question, type Revising } from '../core/types';
 import { BadRequest, type Board } from './board';

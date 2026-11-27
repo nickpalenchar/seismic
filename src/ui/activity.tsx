@@ -13,7 +13,7 @@ import { OtherCanvas } from './canvases';
 import { CardFace, cardLook } from './card';
 import { useStoredState } from './stored';
 import { clock, t } from './strings';
-import { CheckLabel } from './components/check-label';
+import { CheckLabel } from './components/checkLabel';
 import { Switch } from './components/switch';
 import { agentsEmptyClass, inboxBarClass } from './inboxClasses';
 

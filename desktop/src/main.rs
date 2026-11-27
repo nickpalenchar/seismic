@@ -180,7 +180,7 @@ fn answers(port: u16) -> bool {
 
 pub(crate) fn home() -> PathBuf {
   seismic_env("HOME").map(PathBuf::from).unwrap_or_else(|| {
-    // the default home moved from ~/.obeya to ~/.seismic (src/server/home-move.ts), by the server's
+    // the default home moved from ~/.obeya to ~/.seismic (src/server/homeMove.ts), by the server's
     // first start after the rename: until then the old one is the home, so that nothing (the log, the
     // window's place) makes ~/.seismic before the server moves ~/.obeya there; its symlink then leads on
     let user = std::env::home_dir().unwrap_or_default();

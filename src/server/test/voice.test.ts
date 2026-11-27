@@ -5,8 +5,8 @@ import { join } from 'node:path';
 import type { ListenBackend } from '../../core/types';
 import { resource } from '../resources';
 import { listenBackend, LocalTranscriber, looping, silence, VoiceIn } from '../voice';
-import { CloudError, cloudInUse, readVoiceFile, VOICE_FILE } from '../voice-cloud';
-import { CHECK_CLIP, VoiceSetup } from '../voice-setup';
+import { CloudError, cloudInUse, readVoiceFile, VOICE_FILE } from '../voiceCloud';
+import { CHECK_CLIP, VoiceSetup } from '../voiceSetup';
 
 test('a loop is one word, phrase or syllable six times in a row, whatever the case and punctuation', () => {
   for (const loop of [

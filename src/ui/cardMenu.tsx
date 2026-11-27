@@ -17,7 +17,7 @@ import { badgeClass } from './components/badge';
 import { prioClass } from './labelClasses';
 import { Cards } from './message';
 import { t } from './strings';
-import { PromptInputHint } from './components/ai/prompt-input';
+import { PromptInputHint } from './components/ai/promptInput';
 
 
 export interface LinkFieldHandle {

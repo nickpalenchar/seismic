@@ -218,7 +218,7 @@ async function inner(code: string, path: string, file: string) {
   
   const { Store } = existsSync(join(code, 'src/server/store.ts')) ? await import(join(code, 'src/server/store.ts')) : await import(join(code, 'src/server/db.ts'));
   const { Board } = await import(join(code, 'src/server/board.ts'));
-  const { projectData } = await import(join(code, 'src/server/data-export.ts'));
+  const { projectData } = await import(join(code, 'src/server/dataExport.ts'));
   const store = new Store(path);
   const models = typeof store.cards === 'object';
   

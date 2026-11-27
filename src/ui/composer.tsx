@@ -21,7 +21,7 @@ import { AttachButton, ShotStrip, useShotInput } from './shots';
 import { t } from './strings';
 import type { Skill } from '../core/types';
 import { HoldToTalk, MicIcon, TAP_MS, useHeldByTouch } from './voice';
-import { PromptInput, PromptInputBody, PromptInputButton, PromptInputHint, PromptInputSubmit, PromptInputTextarea, PromptInputTools } from './components/ai/prompt-input';
+import { PromptInput, PromptInputBody, PromptInputButton, PromptInputHint, PromptInputSubmit, PromptInputTextarea, PromptInputTools } from './components/ai/promptInput';
 import { Tooltip } from './components/tooltip';
 
 

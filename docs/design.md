@@ -94,7 +94,7 @@ cycling through terminals.
   curated `CHANGELOG.md` section per version, each entry linking its demo, with the commits folded under it; rejected:
   commit subjects as notes (hundreds of lines per release, unreadable for users). Kill switches:
   `DISTRIBUTION` in `scripts/distribution.ts`, `CHECK_RELEASES` in `desktop/src/update.rs`,
-  `UPDATES_ENABLED` in `src/server/app-update.ts`. `docs/release.md` has the process.
+  `UPDATES_ENABLED` in `src/server/appUpdate.ts`. `docs/release.md` has the process.
 - **The Koordinator is called Seismic in the UI** (2026-10-09): the owner has one counterpart, not a
   product plus a component in it.
 - **Opening the chat panel writes nothing** (2026-11-25): within 15 minutes of closing it, the panel
@@ -312,7 +312,7 @@ Formats to stay compatible with:
   exists, a repository with neither gets `.seismic/`.
 - Seismic's home is `~/.seismic` (`~/.seismic-dev` for a `-dev` checkout), or `SEISMIC_HOME`; its
   database is `seismic.db`. The first start after the rename moves `~/.obeya` there in one rename
-  (`src/server/home-move.ts`): only for the default home, only where `~/.seismic` is absent, `~/.obeya`
+  (`src/server/homeMove.ts`): only for the default home, only where `~/.seismic` is absent, `~/.obeya`
   is a real folder and no Seismic runs on it. Nothing is copied; `~/.obeya` becomes a symlink; the
   worktree links (`git worktree repair`), the home paths in the database, `sessions/` and the JSON
   files, and Claude Code's session folders (`~/.claude/projects/<cwd with non-alphanumerics as

@@ -11,7 +11,7 @@ import { BadRequest, type Board, excerpt, replyNote } from './board';
 import type { Place } from '../core/layout';
 import { type Config, configShape } from './config';
 import { parsePrUrl } from './forge';
-import { folderPath } from './new-repo';
+import { folderPath } from './newRepo';
 import type { TalkWaitRow } from './schemas/talk';
 import type { Mark, Moment } from './store';
 import { type AgentRuntime, type AgentSession } from './runtime';
