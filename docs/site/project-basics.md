@@ -22,7 +22,9 @@ From top to bottom it holds:
   the top left of the project, or ⌘P / Ctrl+P. The project's own settings are behind the button at
   the top right.
 - **Configure**: **Appearance** (light or dark, motion) opens within the menu; **Settings** opens
-  Seismic's configuration, with **About Seismic** as its last section. Below a line,
+  Seismic's configuration, with **About Seismic** as its last section. **Settings → Project
+  defaults** holds the choices every new project starts with; it does not change existing projects,
+  and each project can override them in its own project settings. Below a line,
   **Controls: mouse and keys** and **Give Feedback**, which sends a wish or a bug to the makers of
   Seismic.
 
