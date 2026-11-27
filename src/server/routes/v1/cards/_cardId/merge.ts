@@ -9,6 +9,6 @@ export class Merge extends HttpRoute {
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {
     const body = await this.bodyOf(request);
     if (typeof body.with !== 'string') throw new BadRequest('invalid', 'with must name the card to merge with');
-    return this.pressCard(request, { action: 'merge', with: body.with });
+    return this.runCardAction(request, { action: 'merge', with: body.with });
   };
 }

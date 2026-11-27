@@ -23,12 +23,12 @@ export class Share extends HttpRoute {
     const { demo, add } = await this.bodyOf(request);
     if (demo !== undefined && !Number.isInteger(demo)) throw new BadRequest('invalid', 'demo must be a demo number');
     if (add !== undefined && typeof add !== 'boolean') throw new BadRequest('invalid', 'add must be true or false');
-    return this.pressCard(request, { action: 'share', ...(demo === undefined ? {} : { demo: demo as number }), ...(add ? { add } : {}) } as CardAction);
+    return this.runCardAction(request, { action: 'share', ...(demo === undefined ? {} : { demo: demo as number }), ...(add ? { add } : {}) } as CardAction);
   };
 
   override DELETE = async (request: RouteRequest): Promise<{ card: Item }> => {
     const { demo } = await this.bodyOf(request);
     if (demo !== undefined && !Number.isInteger(demo)) throw new BadRequest('invalid', 'demo must be a demo number');
-    return this.pressCard(request, { action: 'unshare', ...(demo === undefined ? {} : { demo: demo as number }) });
+    return this.runCardAction(request, { action: 'unshare', ...(demo === undefined ? {} : { demo: demo as number }) });
   };
 }

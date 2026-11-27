@@ -9,6 +9,6 @@ export class Build extends HttpRoute {
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {
     const body = await this.bodyOf(request);
     if (body.agent !== undefined && (typeof body.agent !== 'object' || body.agent === null || Array.isArray(body.agent))) throw new BadRequest('invalid', 'agent must be an agent setting');
-    return this.pressCard(request, { ...body, action: 'build' } as CardAction);
+    return this.runCardAction(request, { ...body, action: 'build' } as CardAction);
   };
 }

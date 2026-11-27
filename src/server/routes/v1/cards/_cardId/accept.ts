@@ -11,6 +11,6 @@ export class Accept extends HttpRoute {
     for (const key of ['start', 'idea'] as const) if (body[key] !== undefined && typeof body[key] !== 'boolean') throw new BadRequest('invalid', `${key} must be true or false`);
     if (body.picks !== undefined && !Array.isArray(body.picks)) throw new BadRequest('invalid', 'picks must be a list');
     if (body.agent !== undefined && (typeof body.agent !== 'object' || body.agent === null || Array.isArray(body.agent))) throw new BadRequest('invalid', 'agent must be an agent setting');
-    return this.pressCard(request, { ...body, action: 'accept' } as CardAction);
+    return this.runCardAction(request, { ...body, action: 'accept' } as CardAction);
   };
 }

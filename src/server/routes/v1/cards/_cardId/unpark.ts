@@ -5,5 +5,5 @@ import { HttpRoute, type RouteRequest } from '../../../httpRoute';
 export class Unpark extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/unpark';
 
-  override POST = (request: RouteRequest): Promise<{ card: Item }> => this.pressCard(request, { action: 'unpark' });
+  override POST = (request: RouteRequest): Promise<{ card: Item }> => this.runCardAction(request, { action: 'unpark' });
 }

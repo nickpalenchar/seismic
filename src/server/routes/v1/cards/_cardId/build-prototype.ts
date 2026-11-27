@@ -9,6 +9,6 @@ export class BuildPrototype extends HttpRoute {
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {
     const body = await this.bodyOf(request);
     if (body.workstream !== undefined && typeof body.workstream !== 'string') throw new BadRequest('invalid', 'workstream must be text');
-    return this.pressCard(request, { ...body, action: 'buildPrototype' } as CardAction);
+    return this.runCardAction(request, { ...body, action: 'buildPrototype' } as CardAction);
   };
 }

@@ -10,6 +10,6 @@ export class Reorder extends HttpRoute {
     const body = await this.bodyOf(request);
     if (typeof body.earlier !== 'boolean') throw new BadRequest('invalid', 'earlier must be true or false');
     if (body.places !== undefined && !Number.isInteger(body.places)) throw new BadRequest('invalid', 'places must be a whole number');
-    return this.pressCard(request, { ...body, action: 'reorder' } as CardAction);
+    return this.runCardAction(request, { ...body, action: 'reorder' } as CardAction);
   };
 }

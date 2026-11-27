@@ -5,5 +5,5 @@ import { HttpRoute, type RouteRequest } from '../../../httpRoute';
 export class Undo extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/undo';
 
-  override POST = (request: RouteRequest): Promise<{ card: Item }> => this.pressCard(request, { action: 'undo' });
+  override POST = (request: RouteRequest): Promise<{ card: Item }> => this.runCardAction(request, { action: 'undo' });
 }

@@ -9,6 +9,6 @@ export class CodeReview extends HttpRoute {
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {
     const { agent } = await this.bodyOf(request);
     if (agent !== undefined && (typeof agent !== 'object' || agent === null || Array.isArray(agent))) throw new BadRequest('invalid', 'agent must be an agent setting');
-    return this.pressCard(request, agent === undefined ? { action: 'codeReview' } : { action: 'codeReview', agent: agent as AgentSetting });
+    return this.runCardAction(request, agent === undefined ? { action: 'codeReview' } : { action: 'codeReview', agent: agent as AgentSetting });
   };
 }

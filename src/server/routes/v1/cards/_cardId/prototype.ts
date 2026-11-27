@@ -9,6 +9,6 @@ export class Prototype extends HttpRoute {
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {
     const body = await this.bodyOf(request);
     if (body.text !== undefined && typeof body.text !== 'string') throw new BadRequest('invalid', 'text must be text');
-    return this.pressCard(request, { ...body, action: 'prototype' } as CardAction);
+    return this.runCardAction(request, { ...body, action: 'prototype' } as CardAction);
   };
 }

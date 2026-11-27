@@ -9,6 +9,6 @@ export class Unsay extends HttpRoute {
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {
     const body = await this.bodyOf(request);
     if (!Number.isInteger(body.id)) throw new BadRequest('invalid', 'id must name what was said');
-    return this.pressCard(request, { action: 'unsay', id: body.id as number });
+    return this.runCardAction(request, { action: 'unsay', id: body.id as number });
   };
 }

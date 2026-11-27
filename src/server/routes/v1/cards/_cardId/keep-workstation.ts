@@ -5,5 +5,5 @@ import { HttpRoute, type RouteRequest } from '../../../httpRoute';
 export class KeepWorkstation extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/keep-workstation';
 
-  override POST = (request: RouteRequest): Promise<{ card: Item }> => this.pressCard(request, { action: 'keepWorkstation' });
+  override POST = (request: RouteRequest): Promise<{ card: Item }> => this.runCardAction(request, { action: 'keepWorkstation' });
 }

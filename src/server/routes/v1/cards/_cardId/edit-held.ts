@@ -9,6 +9,6 @@ export class EditHeld extends HttpRoute {
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {
     const { body } = await this.bodyOf(request);
     if (typeof body !== 'string') throw new BadRequest('invalid', 'body must be text');
-    return this.pressCard(request, { action: 'editHeld', body });
+    return this.runCardAction(request, { action: 'editHeld', body });
   };
 }

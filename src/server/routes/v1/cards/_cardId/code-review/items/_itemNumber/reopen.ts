@@ -9,6 +9,6 @@ export class ReopenReviewItem extends HttpRoute {
   override POST = (request: RouteRequest): Promise<{ card: Item }> => {
     const number = Number(request.params.itemNumber);
     if (!Number.isSafeInteger(number)) throw new BadRequest('invalid', 'the item must be a number');
-    return this.pressCard(request, { action: 'reopenReviewItem', number });
+    return this.runCardAction(request, { action: 'reopenReviewItem', number });
   };
 }

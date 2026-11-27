@@ -9,6 +9,6 @@ export class Release extends HttpRoute {
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {
     const body = await this.bodyOf(request);
     if (body.now !== undefined && typeof body.now !== 'boolean') throw new BadRequest('invalid', 'now must be true or false');
-    return this.pressCard(request, { action: 'release', ...(body.now ? { now: true } : {}) });
+    return this.runCardAction(request, { action: 'release', ...(body.now ? { now: true } : {}) });
   };
 }

@@ -1,4 +1,4 @@
-import type { Item } from '../../core/types';
+import type { CardAction, Item } from '../../core/types';
 import type { ProjectRuntime } from '../project';
 
 /** What is known of cards across the projects that run: which project each belongs to. */
@@ -16,6 +16,14 @@ export class CardService {
   /** The project of the first of the cards, which a call about several keeps to one project; none when it is unknown or there are none. */
   getProjectRuntimeForCards(cardIds: string[]): ProjectRuntime | undefined {
     return cardIds[0] === undefined ? undefined : this.getProjectRuntimeForCard(cardIds[0]);
+  }
+
+  /** The owner's action on the card, run as a click; the card as it then stands. None when the card is unknown. */
+  async performAction(cardId: string, action: CardAction): Promise<Item | undefined> {
+    const project = this.getProjectRuntimeForCard(cardId);
+    if (!project) return undefined;
+    await project.press(cardId, action);
+    return project.board.card(cardId);
   }
 
   /** The card as its project shows it; none for an unknown or deleted one. */

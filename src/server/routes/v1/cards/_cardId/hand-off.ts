@@ -9,6 +9,6 @@ export class HandOff extends HttpRoute {
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {
     const { agent } = await this.bodyOf(request);
     if (typeof agent !== 'object' || agent === null || Array.isArray(agent)) throw new BadRequest('invalid', 'agent must be an agent setting');
-    return this.pressCard(request, { action: 'handOff', agent: agent as AgentSetting });
+    return this.runCardAction(request, { action: 'handOff', agent: agent as AgentSetting });
   };
 }

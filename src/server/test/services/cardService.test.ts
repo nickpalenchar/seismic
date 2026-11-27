@@ -23,3 +23,11 @@ test('finds the project of a list of cards by its first, and the card as the pro
   expect(service.getCard(card.id)?.title).toBe('A');
   expect(service.getCard('nope')).toBeUndefined();
 });
+
+test("runs the owner's action on a card and answers with it; an unknown card has none", async () => {
+  const service = new CardService(() => [server.shop(), server.website()]);
+  const card = server.shop().board.create({ title: 'A', x: 0, y: 0 });
+  const named = await service.performAction(card.id, { action: 'name' });
+  expect(named?.id).toBe(card.id);
+  expect(await service.performAction('nope', { action: 'undo' })).toBeUndefined();
+});

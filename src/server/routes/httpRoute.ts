@@ -76,11 +76,10 @@ export abstract class HttpRoute {
   }
 
   /** The owner's action on the card the URL names, run as a click; answered with the card as it then stands. */
-  protected async pressCard(request: RouteRequest, action: CardAction): Promise<{ card: Item }> {
-    const project = this.getProjectRuntimeForCard(request);
-    const cardId = request.params.cardId!;
-    await project.press(cardId, action);
-    return { card: this.dependencies.cards.getCard(cardId)! };
+  protected async runCardAction(request: RouteRequest, action: CardAction): Promise<{ card: Item }> {
+    const card = await this.dependencies.cards.performAction(request.params.cardId ?? '', action);
+    if (!card) throw new NotFound('unknownCard', 'unknown card');
+    return { card };
   }
 
   /** The project the id names (`?project=`); none or an unknown one is a 404. */
