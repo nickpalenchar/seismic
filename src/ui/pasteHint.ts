@@ -3,16 +3,12 @@
 
 
 import { useEffect, useSyncExternalStore } from 'react';
-import { know, known } from './known';
-
-
-export const PASTE_KNOWN = 'seismic-paste-known';
 
 const PASTE_DUE = 'seismic-paste-hint';
 
 let due: string | null = (() => {
   try {
-    return known(PASTE_KNOWN) ? null : localStorage.getItem(PASTE_DUE);
+    return localStorage.getItem(PASTE_DUE);
   } catch {
     return null;
   }
@@ -47,15 +43,14 @@ export function hintField(due: string | null, fields: string[]): string | null {
 /** Only where there is a keyboard to paste with: a phone has none to hint at. */
 const hasKeyboard = () => typeof matchMedia === 'function' && matchMedia('(any-pointer: fine)').matches;
 
-/** Screenshots picked from disk into field `key` arrived: the hint is due there, unless the owner knows. */
+/** Screenshots picked from disk into field `key` arrived: the hint is due there. The caller checks that the hint still shows. */
 export function pickedShots(key: string) {
-  if (known(PASTE_KNOWN) || !hasKeyboard()) return;
+  if (!hasKeyboard()) return;
   setDue(key);
 }
 
-/** The owner pasted a screenshot or confirmed the hint: they know, and the hint goes for good. */
+/** The owner pasted a screenshot or confirmed the hint: it is no longer due anywhere. */
 export function pastedShots() {
-  know(PASTE_KNOWN);
   if (due) setDue(null);
 }
 

@@ -9,6 +9,7 @@ import type { CardAction, Item, ModelInfo } from '../../core/types';
 import type { Config } from '../config';
 import type { OwnerSettings } from '../ownerSettings';
 import type { ProjectRuntime } from '../project';
+import type { HintsService } from '../services/hintsService';
 import { NotFound } from './notFound';
 
 
@@ -31,6 +32,8 @@ export interface RouteDependencies {
   allProjects: () => ProjectRuntime[];
 
   ownerSettings?: OwnerSettings;
+
+  hints: HintsService;
   
   configuration?: Config;
 

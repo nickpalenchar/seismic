@@ -12,7 +12,8 @@ import { IMAGE_TYPES, MAX_FILE_BYTES, MAX_IMAGE_BYTES } from '../core/types';
 import { api, ApiError, at, shownProject } from './api';
 import { droppedPath, withBytes } from './appDrop';
 import { appended, draftIn, draftOf, dropDraft, insertFiles, markupOf, pathWord, setMarkup, updateDraft, useDraft } from './draft';
-import { know, used, useHintsOn } from './known';
+import { HintLabel } from './components/hint';
+import { useHint } from './hints';
 import { badgeOf, CLICK_PX, drawMarks, EDGE, type Mark, markOf, markSize, type Point, RED, roundedRect } from './marks';
 import { pastedShots, pickedShots, usePasteHint } from './pasteHint';
 import { failText, pasteKeys, t } from './strings';
@@ -180,7 +181,17 @@ export function useShotInput({ draft, name, initial = [], onChange, off = false,
     updateDraft(key, (d) => ({ images: fn(d.images) }));
     live().change.current?.(draftOf(key).images);
   };
-  const pasteHint = usePasteHint(key, !off);
+  const pasteSeen = useHint('paste');
+  const pasteHint = usePasteHint(key, !off) && pasteSeen.shown;
+  /** The owner pasted a screenshot or confirmed the hint: they know, and the hint goes for good. */
+  const pasted = () => {
+    pasteSeen.markSeen();
+    pastedShots();
+  };
+  /** Screenshots picked from disk arrived: the hint that pasting works too is due, unless it does not show. */
+  const picked = () => {
+    if (pasteSeen.shown) pickedShots(key);
+  };
   /** The screenshots among `files` as screenshots, the others by their paths. How many arrived. */
   const attach = async (files: File[]) => {
     if (off) return 0;
@@ -195,6 +206,8 @@ export function useShotInput({ draft, name, initial = [], onChange, off = false,
     key,
     off,
     pasteHint,
+    pasted,
+    picked,
     images,
     uploading,
     uploadingImages,
@@ -264,7 +277,7 @@ export function useShotInput({ draft, name, initial = [], onChange, off = false,
       const files = imageFiles(e.clipboardData.files);
       if (off || !files.length) return;
       e.preventDefault();
-      pastedShots();
+      pasted();
       attach(files);
     },
   };
@@ -302,7 +315,7 @@ export function ShotStrip({ shots }: { shots: ShotInput }) {
       {shots.pasteHint && (
         <div className="c-paste-hint basis-full flex items-center gap-3 py-2 px-2.5 rounded-xs bg-working/8 text-sm leading-[1.4] [&_p]:m-0 [&_p]:flex-1" role="note">
           <p>{t.shots.pasteHint(pasteKeys())}</p>
-          <Button variant="primary" size="small" onClick={pastedShots}>
+          <Button variant="primary" size="small" onClick={shots.pasted}>
             {t.newCardHint.ok}
           </Button>
         </div>
@@ -358,7 +371,7 @@ export function AttachButton({ shots, title = t.shots.attach, className }: { sho
         hidden
         onChange={(e) => {
           
-          void shots.attach(imageFiles(e.target.files)).then((n) => n && pickedShots(shots.key));
+          void shots.attach(imageFiles(e.target.files)).then((n) => n && shots.picked());
           e.target.value = '';
           back();
         }}
@@ -408,8 +421,6 @@ function useEnlarge(shots?: ShotInput) {
   };
 }
 
-
-const MARKS_KNOWN = 'seismic-marks-known';
 
 /** The marks over the image, in its pixels (`w`×`h`), and the frame being drawn (`drawing`). */
 function MarkLayer({ marks, w, h, drawing }: { marks: Mark[]; w: number; h: number; drawing?: Mark | null }) {
@@ -465,14 +476,10 @@ function Lightbox({ src, thumb, marking, onClose }: { src: string; thumb: HTMLIm
   marksRef.current = marks;
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [drag, setDrag] = useState<{ a: Point; b: Point; from: Point; moved: number } | null>(null);
-  const [marksUsed, setMarksUsed] = useState(() => used(MARKS_KNOWN));
-  const hintsOn = useHintsOn();
-  const marksKnown = marksUsed || !hintsOn;
+  const marksHint = useHint('marks');
   const add = (m: Mark) => {
     setMarks((cur) => [...cur, m]);
-    if (marksUsed) return;
-    setMarksUsed(true);
-    know(MARKS_KNOWN);
+    marksHint.markSeen();
   };
   const undo = () => setMarks((cur) => cur.slice(0, -1));
   /** Where the pointer is on the image, in its pixels. */
@@ -595,7 +602,7 @@ function Lightbox({ src, thumb, marking, onClose }: { src: string; thumb: HTMLIm
             {size && <MarkLayer marks={marks} w={size.w} h={size.h} drawing={drawing} />}
           </svg>
           <div className="lb-bar flex items-center gap-2 py-1.5 pr-1.5 pl-3.5 rounded-sm bg-card shadow-lift cursor-default animate-[fade_.38s_ease-out] transition-opacity duration-200 group-[.closing]/lb:opacity-0 pointer-coarse:flex-wrap pointer-coarse:max-w-full" onClick={(e) => e.stopPropagation()}>
-            {!marksKnown && <span className="lb-hint text-sm text-muted-foreground mr-1.5">{t.shots.markHint}</span>}
+            <HintLabel hintId="marks" className="lb-hint text-sm text-muted-foreground mr-1.5">{t.shots.markHint}</HintLabel>
             <Button title={t.shots.undoTitle} disabled={!marks.length} onClick={undo}>
               <Undo2 size={14} strokeWidth={1.75} aria-hidden="true" />
               {t.shots.undo}

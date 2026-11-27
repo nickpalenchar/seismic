@@ -12,6 +12,7 @@ import { BadRequest } from './board';
 import { bunRoutes, respond } from './routes/httpRoute';
 import { v1Routes } from './routes/v1';
 import { OwnerSettings } from './ownerSettings';
+import { HintsService } from './services/hintsService';
 import { type Dropped, findDropped, localImage } from './files';
 import type { ProjectRuntime } from './project';
 import { SiteSetup } from './site-setup';
@@ -489,7 +490,7 @@ export function serve(
       ...extensionRoutes,
       ...uiRoutes(development),
       
-      ...bunRoutes(v1Routes({ projectOfCard, projectById: (id) => byId.get(id), projectOfChat, allProjects: () => projects.all(), ownerSettings, configuration: config, ...(config ? { agentModels: async (harness) => (offersCatalog(config, harness, machine) ? (harness === 'codex' ? codexModels() : agyModels()) : []) } : {}) })),
+      ...bunRoutes(v1Routes({ projectOfCard, projectById: (id) => byId.get(id), projectOfChat, allProjects: () => projects.all(), ownerSettings, hints: new HintsService(access.store.orm), configuration: config, ...(config ? { agentModels: async (harness) => (offersCatalog(config, harness, machine) ? (harness === 'codex' ? codexModels() : agyModels()) : []) } : {}) })),
       
       '/login': { GET: (req, srv) => access.loginRoute(req, srv) },
       

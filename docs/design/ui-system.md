@@ -176,19 +176,28 @@ scripts/desktop-strings.ts` writes and a test keeps current (2026-11-24).
   dialog holds the focus trap and Escape, so a picker left over it would take no typing and its
   Escape would close the view underneath. The picker can open over project dialogs where it can own keyboard input, and Escape dismisses just the picker and
   restores focus to the previous control or its menu trigger.
-- **Hints are one pattern with one memory** (2026-11-27): a hint is a one-time message that goes
-  once the owner has used what it points to or dismissed it, and stays gone in that browser. Each
-  has a key `seismic-<name>-known` in local storage (`known`/`know`/`useKnown` in `src/ui/known.ts`);
-  no other key may end in `-known`. Types so far: the *alert hint* (`AlertHint`,
-  `components/hint.tsx`), shadcn's Alert (through Callout) with a ✕ at its top right, for a tip
-  that has a place of its own; the inline hints (a label on a button until it is first used, a key
-  shown on hover) stay as they are and share the same keys. Settings has a section of its own,
-  Hints: "Enable first-time hints" turns every hint off (`known` answers true for all) without
-  touching the keys, so turning it back on shows only the hints not dismissed before; "Reset all
+- **Hints are one pattern with one memory, kept on the server** (2026-11-27, replacing the
+  per-browser keys of the same day): a hint is a one-time message that goes once the owner has used
+  what it points to or dismissed it, and stays gone on every device. Each is registered with a
+  unique id and a description in `src/registries/hintRegistry.ts`; the components take only a registered
+  id (`HintId`) and the server stores only those. The ids seen are the `seen_hints` table, behind
+  the `HintsService` (`src/server/services/hintsService.ts`: `getSeenHints`, `markHintSeen`,
+  `resetHints`; `/api/v1/hints`). The page loads them once per page load, before its first paint
+  (`loadSeenHints` in `main.tsx`), keeps them in `HintsProvider` (`src/ui/hints.ts`, React state
+  and context, no external store), and marks a hint seen in the page at once and on the server
+  after. When they cannot be loaded no hint shows and none is recorded. Types so far: the *alert
+  hint* (`AlertHint`, `components/hint.tsx`), shadcn's Alert (through Callout) with a ✕ at its top
+  right, for a tip that has a place of its own; the *label hint* (`HintLabel`), text on a button
+  that is otherwise only an icon, until its first use; other inline hints (a key shown on hover)
+  use `useHint` directly. Settings has a section of its own, Hints: "Enable first-time hints"
+  turns every hint off without touching which were seen, so turning it back on shows only the
+  hints not seen before (this one switch stays in the browser's local storage); "Reset all
   hints", confirmed in a dialog whose confirm button is the primary blue (the reset loses nothing
-  the owner made, so it is not red), removes every hint key. Alert hints follow both at once, the
-  others with the next page load. Rejected: hints remembered on the server, which would carry
-  a dismissal to the phone where the tip may read differently.
+  the owner made, so it is not red), empties the table. A hint that must read differently on the
+  phone is its own registered id. Hints seen in another tab or device show their change with the
+  next page load. A page from before this change sent the `seismic-<id>-known` keys of its local
+  storage to the server once, then removed them. Rejected: keeping hints per browser, which
+  showed them again on every device.
 - **Phone settings and Needs you share one history step**: switching between them replaces that
   step; closing returns to the project. Pages covering the project make its controls inert.
 - **Clone values parked while choosing worktrees belong to the repository draft**, rather than

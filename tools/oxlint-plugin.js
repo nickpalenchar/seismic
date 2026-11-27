@@ -16,6 +16,36 @@ function hasDescription(comment) {
 export default {
   meta: { name: 'seismic' },
   rules: {
+    'service-class': {
+      create(context) {
+        const name = context.filename.split(/[\\/]/).pop().replace(/\.[^.]+$/, '');
+        return {
+          'Program:exit'(program) {
+            const loc = { line: 1, column: 0 };
+            if (!/^[a-z][A-Za-z0-9]*Service$/.test(name)) {
+              context.report({ node: program, loc, message: `A file under services/ is named <name>Service.ts (camelCase), not "${name}".` });
+              return;
+            }
+            const className = name.charAt(0).toUpperCase() + name.slice(1);
+            let hasClass = false;
+            for (const node of program.body) {
+              if (!node.type.startsWith('Export')) continue;
+              const declaration = node.type === 'ExportNamedDeclaration' ? node.declaration : undefined;
+              if (declaration?.type === 'ClassDeclaration' && declaration.id?.name === className) {
+                hasClass = true;
+                continue;
+              }
+              if (declaration?.type === 'TSTypeAliasDeclaration' || declaration?.type === 'TSInterfaceDeclaration') continue;
+              if (!declaration && node.exportKind === 'type') continue;
+              context.report({ node, message: `${name}.ts exports ${className} and types or interfaces, nothing else.` });
+            }
+            if (!hasClass) {
+              context.report({ node: program, loc, message: `${name}.ts must export a class named ${className}.` });
+            }
+          },
+        };
+      },
+    },
     'documentation-comments': {
       meta: { fixable: 'code' },
       create(context) {

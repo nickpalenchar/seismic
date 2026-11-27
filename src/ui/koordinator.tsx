@@ -31,7 +31,7 @@ import { PageChangeList } from './page-changes';
 import { fromLinkClass, occasionClass, prefActionsClass, prefRowClass, prefTextClass, proposalRowClass, proposalsClass, proposalTextClass, settingLabelClass, settingValueClass, targetClass } from './prefsClasses';
 import { WishReplyLink } from './wish';
 import { ClockMark } from './snooze';
-import { know } from './known';
+import { useHints } from './hints';
 import { AlertHint } from './components/hint';
 import { cardPath, switchTo } from './address';
 import { CardLink, Naming } from './cardLink';
@@ -268,8 +268,6 @@ function PendingMessage({ text, images }: { text: string; images?: string[] }) {
 }
 
 
-const REVIEW_KNOWN = 'seismic-review-pr-known';
-
 const NEW_REVIEW_MS = 10 * 60_000;
 
 /**
@@ -280,16 +278,17 @@ const NEW_REVIEW_MS = 10 * 60_000;
  */
 function ReviewHint({ items, repos }: { items: Item[]; repos: RepoRef[] }) {
   const seen = useRef<Set<string> | null>(null);
+  const { markSeen } = useHints();
   useEffect(() => {
     const reviews = items.filter((i) => i.review?.contribution);
     const first = !seen.current;
     const ids = (seen.current ??= new Set());
     const made = reviews.some((i) => !ids.has(i.id) && Date.now() - Date.parse(i.createdAt ?? '') < NEW_REVIEW_MS);
     for (const i of reviews) ids.add(i.id);
-    if (!first && made) know(REVIEW_KNOWN);
-  }, [items]);
+    if (!first && made) markSeen('review-pr');
+  }, [items, markSeen]);
   if (!repos.some((r) => r.forge)) return null;
-  return <AlertHint id={REVIEW_KNOWN} title={t.review.hintTitle} className="mb-2">{t.review.hint}</AlertHint>;
+  return <AlertHint hintId="review-pr"title={t.review.hintTitle} className="mb-2">{t.review.hint}</AlertHint>;
 }
 
 /**

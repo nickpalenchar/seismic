@@ -34,7 +34,7 @@ import { applyTheme } from './theme';
 import { applyMotion } from './motion';
 import { canNotify, notificationsChanged, type Permission, permission, requestPermission } from './desktopNotify';
 import { WishLink } from './wish';
-import { forgetAllHints, setHintsOn, useHintsOn } from './known';
+import { useHints } from './hints';
 import { projectPath } from './address';
 import { scrollBehavior } from './motion';
 import { Badge } from './components/badge';
@@ -266,23 +266,21 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectS
  */
 function HintsBlock() {
   const r = t.config.hints;
-  const on = useHintsOn();
+  const { enabled: on, setEnabled, reset: resetHints } = useHints();
   const [asking, setAsking] = useState(false);
   const [result, setResult] = useState<'done' | 'failed' | null>(null);
   const reset = () => {
-    try {
-      forgetAllHints();
-      setResult('done');
-    } catch {
-      setResult('failed');
-    }
+    resetHints().then(
+      () => setResult('done'),
+      () => setResult('failed'),
+    );
   };
   return (
     <>
       <Head title={t.config.sections.hints} hint={r.sectionHint} />
       <Field label={r.enableTitle} hint={r.enableHint}>
         <CheckLabel>
-          <Switch checked={on} aria-label={r.enable} className="hints-enable" onCheckedChange={setHintsOn} />
+          <Switch checked={on} aria-label={r.enable} className="hints-enable" onCheckedChange={setEnabled} />
           {r.enable}
         </CheckLabel>
       </Field>

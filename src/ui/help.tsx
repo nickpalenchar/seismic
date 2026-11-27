@@ -80,5 +80,3 @@ export function Help({ onClose, note }: { onClose: () => void; note?: 'button' |
 
 const quiet = 'text-xs text-muted-foreground';
 
-
-export const HELP_KEY_KNOWN = 'seismic-help-key-known';

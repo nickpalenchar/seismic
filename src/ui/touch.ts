@@ -10,8 +10,6 @@ export interface Pos {
 }
 
 
-export const TOUCH_HOLD_KNOWN = 'seismic-touch-hold-known';
-
 export const HOLD_MS = 400;
 
 export const SLOP = 10;

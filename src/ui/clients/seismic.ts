@@ -196,3 +196,12 @@ export async function actCard(id: string, a: CardAction, keepalive = false): Pro
     }
   }
 }
+
+/** The ids of the hints the owner has seen. Throws when the server cannot say: hints then do not show. */
+export const getSeenHints = async (): Promise<string[]> => (await call<{ hints: string[] }>('GET', '/api/v1/hints', undefined, false, 3000)).hints;
+
+/** Records that the hint `id` has been seen. */
+export const markHintSeen = (id: string) => call<{ seen: string }>('PUT', `/api/v1/hints/${encodeURIComponent(id)}`, undefined, true, TIMEOUT_MS);
+
+/** Brings every hint back: none counts as seen. */
+export const resetHints = () => call<{ reset: number }>('DELETE', '/api/v1/hints', undefined, false, TIMEOUT_MS);

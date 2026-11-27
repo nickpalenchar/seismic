@@ -15,7 +15,7 @@ import { NotifyAsk, useDesktopNotifications } from './desktopNotify';
 import { api, ApiError, beforeReload, cardsOn, onNotice, quietAtStart, reportFocus, setProject, useProject } from './api';
 import { groupAt, GroupNames, growFrom, hintBubbleClass, inside, Lasso, MarkHint, Marked, Ring, TerritoryLayer, useTerritories } from './groups';
 import { depLayerClass, handleColour, manualRemoveClass } from './depsClasses';
-import { buzz, pinchCam, TOUCH_HOLD_KNOWN, Touches } from './touch';
+import { buzz, pinchCam, Touches } from './touch';
 import { besideSheet, BOTTOM, type Cam, camFor, camKey, centreOn, chase, dragLimit, edgeScroll, FAR, flying, flyTo, keepInView, lastCanvas, lastCanvasKey, MAX_ZOOM, midX, MIN_ZOOM, NO_SIDES, overviewCam, placeIn, shows, type Sides, stopFlight, TOP, toWorld } from './camera';
 import { plain } from './markdown';
 import { CanvasRing, Canvases, CanvasStubs, CanvasTabs, CardMore, hiddenCard, parkedStubsOf, stubsOf } from './canvases';
@@ -55,9 +55,10 @@ import { anchoredPath, nearestEdge } from './manualLinks';
 import type { ManualAnchor } from '../core/types';
 import { collect, keep, keptKey, type Kept, leaveSheet, restore, sheetKey, type SideSheet, takeKept, takeSheetLeft } from './keep';
 import { Sign } from './logo';
-import { Help, HelpButton, HELP_KEY_KNOWN } from './help';
-import { know, used, useHintsOn } from './known';
-import { addAll, MARK_KNOWN, markable, MOVE_MARKED_KNOWN, movesWith, shifted, toggle } from './selection';
+import { Help, HelpButton } from './help';
+import { useHint, useHints } from './hints';
+import { HintLabel } from './components/hint';
+import { addAll, markable, movesWith, shifted, toggle } from './selection';
 import { closeWish, keepWish, openWish, useWish, WishDialog } from './wish';
 import { PlanDirNote, planDirBoxes, useHiddenEmptyNotes } from './planDirs';
 import { pastedShots } from './pasteHint';
@@ -224,9 +225,6 @@ function NoProject() {
 
 const KEPT_PROJECTS = 'seismic-phone-projects';
 
-const DEP_KNOWN = 'seismic-dep-known';
-
-const NEEDS_YOU_KNOWN = 'seismic-needs-you-known';
 /** The keyboard's focus is on a control, reached by Tab rather than left there by a click: Tab goes on from it, as anywhere. */
 const onControl = (t: EventTarget | null) => t instanceof HTMLElement && t !== document.body && t.matches(':focus-visible');
 function keepProjects(list: ProjectInfo[]) {
@@ -735,14 +733,12 @@ function Project({
   }, []);
   const wishOn = useWish().open;
   
-  const hintsOn = useHintsOn();
-  const [helpUsed, setHelpUsed] = useState(() => used(HELP_KEY_KNOWN));
-  const helpKnown = helpUsed || !hintsOn;
+  const { markSeen: markHintSeen } = useHints();
+  const helpHint = useHint('help-key');
   const [helpNote, setHelpNote] = useState<'button' | 'gone'>();
-  
-  const [needsYouUsed, setNeedsYouUsed] = useState(() => used(NEEDS_YOU_KNOWN));
-  const needsYouKnown = needsYouUsed || !hintsOn;
-  
+
+  const needsYouHint = useHint('needs-you');
+
   
   const [problemsOf, setProblemsOf] = useState<{ project: string; n: number }>();
   
@@ -1711,6 +1707,7 @@ function Project({
       const key = fieldFor(where());
       if (!files.length || !takesImages(key)) return;
       e.preventDefault();
+      markHintSeen('paste');
       pastedShots();
       void attachTo(key, files);
     };
@@ -1753,14 +1750,8 @@ function Project({
   
   const [touchFocus, setTouchFocus] = useState<string | null>(null);
   
-  const [holdUsed, setHoldUsed] = useState(() => used(TOUCH_HOLD_KNOWN));
-  const holdKnown = holdUsed || !hintsOn;
+  const holdHint = useHint('touch-hold');
   const coarse = useMemo(() => matchMedia('(pointer: coarse)').matches, []);
-  const learnHold = () => {
-    if (holdUsed) return;
-    know(TOUCH_HOLD_KNOWN);
-    setHoldUsed(true);
-  };
   const [connection, setConnection] = useState<{ from: string; side: Side; x: number; y: number; target?: string; anchor?: ManualAnchor } | null>(null);
   
   const [handle, setHandle] = useState<{ id: string; side: Side } | null>(null);
@@ -1791,8 +1782,7 @@ function Project({
     return clip(i ? plain(i.title) || titleFrom(i.body) || t.titlePlaceholder : '…', 50);
   };
   
-  const [depUsed, setDepUsed] = useState(() => used(DEP_KNOWN));
-  const depKnown = depUsed || !hintsOn;
+  const depHint = useHint('dep');
   
   
   const [removing, setRemoving] = useState<{ key: string; sent?: true }[]>([]);
@@ -1825,15 +1815,12 @@ function Project({
   const [selection, setSelection] = useState<string[]>([]);
   const marked = selection.filter((id) => placed.some((p) => p.item.id === id));
   
-  const [markUsed, setMarkUsed] = useState(() => used(MARK_KNOWN));
-  const markKnown = markUsed || !hintsOn;
-  const [moveUsed, setMoveUsed] = useState(() => used(MOVE_MARKED_KNOWN));
-  const moveKnown = moveUsed || !hintsOn;
+  const markedHint = useHint('mark');
+  const moveHint = useHint('move-marked');
   const [markHint, setMarkHint] = useState<{ at: Pos; key: number } | null>(null);
   useEffect(() => {
-    if (!marked.length || markUsed) return;
-    know(MARK_KNOWN);
-    setMarkUsed(true);
+    if (!marked.length || markedHint.seen) return;
+    markedHint.markSeen();
     setMarkHint(null);
   }, [marked.length]);
   useEffect(() => {
@@ -2008,10 +1995,7 @@ function Project({
         const centre = across ? { x: at.x + Math.sign(dx || 1) * w / 2, y: at.y } : { x: at.x, y: at.y + Math.sign(dy) * h / 2 };
         createAt(centre, { made: (card) => api.dependency(from, card.id, false, false, { fromSide: side, toSide, offset: 0.5 }).catch((err) => showAck(failText(err))) })
           .catch(console.error);
-        if (!depUsed) {
-          know(DEP_KNOWN);
-          setDepUsed(true);
-        }
+        depHint.markSeen();
       } else if (conn.target) {
         
         if (pendingRemovals.current.has(`${conn.from}:${conn.target}`)) keepDependency(`${conn.from}:${conn.target}`);
@@ -2019,10 +2003,7 @@ function Project({
           const { target, anchor } = conn;
           api.dependency(from, target, false, false, anchor).catch((err) => showAck(err instanceof ApiError && err.code === 'dependencyCycle' ? t.deps.cycle(titleOf(from), titleOf(target)) : failText(err)));
         }
-        if (!depUsed) {
-          know(DEP_KNOWN);
-          setDepUsed(true);
-        }
+        depHint.markSeen();
       }
       setConnection(null);
       setTouchFocus(null);
@@ -2262,11 +2243,8 @@ function Project({
           console.error(err);
           setMoved(({ [x.id]: _, ...rest }) => rest);
         });
-      if (d.with.length && !moveUsed) {
-        know(MOVE_MARKED_KNOWN);
-        setMoveUsed(true);
-      }
-      if (!d.with.length && !markKnown) setMarkHint({ at, key: Date.now() });
+      if (d.with.length) moveHint.markSeen();
+      if (!d.with.length && markedHint.shown) setMarkHint({ at, key: Date.now() });
     } else if (d.moved) return;
     else if (d.shift) setSelection((sel) => toggle(sel, markable(i)));
     else open(i);
@@ -2312,7 +2290,7 @@ function Project({
     doubleTap: (at) => newCardAt(at.x, at.y),
     hold: (at, target) => {
       buzz();
-      learnHold();
+      holdHint.markSeen();
       setTouchFocus(null);
       if (!target) {
         lassoRef.current = [at];
@@ -2572,12 +2550,9 @@ function Project({
     }
     if (e.key === '?' && !typing) {
       e.preventDefault();
-      setHelpNote(helpKnown ? undefined : 'gone');
+      setHelpNote(helpHint.shown ? 'gone' : undefined);
       setHelpOn(true);
-      if (!helpUsed) {
-        know(HELP_KEY_KNOWN);
-        setHelpUsed(true);
-      }
+      helpHint.markSeen();
       return;
     }
     
@@ -2881,18 +2856,18 @@ function Project({
           <Marked
             {...markedAt(markedBox)}
             count={marked.length}
-            {...(!moveKnown && marked.length > 1 ? { hint: touchy ? t.touch.move : t.marked.move } : {})}
+            {...(moveHint.shown && marked.length > 1 ? { hint: touchy ? t.touch.move : t.marked.move } : {})}
             onGroup={(at) => setRing({ at, ids: marked, kind: 'groups' })}
           />
         )}
         {markHint && <MarkHint key={markHint.key} at={markHint.at} text={touchy ? t.touch.markHowTo : t.marked.howTo} />}
-        {(coarse || touchy) && !holdKnown && !!items.length && !focus && (
+        {(coarse || touchy) && holdHint.shown && !!items.length && !focus && (
           <p id="touchhint" className="fixed z-30 top-[82px] left-[calc(var(--left)_+_(100vw_-_var(--left)_-_var(--side))_/_2)] [transform:translateX(-50%)] flex items-center gap-3 max-w-[min(520px,calc(100vw_-_40px))] m-0 py-2 pr-2 pl-3.5 rounded-xs bg-foreground text-background font-sans text-base/[1.35] [box-shadow:var(--lift)]">
             {t.touch.hold}
-            <button className="flex-none py-1.5 px-3 border border-background/40 rounded-xs bg-transparent text-inherit [font:inherit] cursor-pointer" onClick={learnHold}>{t.touch.ok}</button>
+            <button className="flex-none py-1.5 px-3 border border-background/40 rounded-xs bg-transparent text-inherit [font:inherit] cursor-pointer" onClick={holdHint.markSeen}>{t.touch.ok}</button>
           </p>
         )}
-        {connection && !depKnown && (
+        {connection && depHint.shown && (
           <p id="dephint" className={cn(hintBubbleClass, 'fixed z-40 pointer-events-none [transform:translate(16px,16px)] animate-[fade_.15s_ease-out]')} style={{ left: cam.x + connection.x * cam.s, top: cam.y + connection.y * cam.s }}>
             {connection.target ? t.deps.waits(titleOf(connection.from), titleOf(connection.target)) : (touchy ? t.touch.pick : t.deps.pick)(titleOf(connection.from))}
           </p>
@@ -2930,7 +2905,7 @@ function Project({
             {oldBun && <OldBunPill version={oldBun} />}
             {online && update && restart?.reason !== 'update' && <UpdatePill update={update} />}
             {online && source && <SourcePill source={source} />}
-            {!helpKnown && (
+            {helpHint.shown && (
               <HelpButton
                 on={helpOn}
                 onClick={() => {
@@ -2988,15 +2963,12 @@ function Project({
                     aria-expanded={nyOn}
                     aria-pressed={nyOn}
                     onClick={() => {
-                      if (!needsYouUsed) {
-                        know(NEEDS_YOU_KNOWN);
-                        setNeedsYouUsed(true);
-                      }
+                      needsYouHint.markSeen();
                       toggleNeedsYou();
                     }}
                 >
                   <BarIcon icon={ConciergeBell} />
-                  {!needsYouKnown && <span className="font-semibold group-data-[fit~='2']/row:hidden">{t.needsYou.label}</span>}
+                  <HintLabel hintId="needs-you" className="font-semibold group-data-[fit~='2']/row:hidden">{t.needsYou.label}</HintLabel>
                   {needsYouCards > 0 && <Badge variant="count" tone="waiting">{needsYouCards}</Badge>}
                 </PillButton>
               </Tooltip>

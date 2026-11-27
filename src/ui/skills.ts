@@ -6,10 +6,6 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import type { Skill } from '../core/types';
 import { api } from './api';
-import { know, known } from './known';
-
-
-export const SKILLS_KNOWN = 'seismic-skills-known';
 
 
 const FRESH_MS = 60_000;
@@ -44,10 +40,6 @@ export function useSkills(cardId: string | undefined, fresh?: unknown): Skill[] 
   }, [cardId, fresh]);
   return useSyncExternalStore(subscribe, () => (cardId ? lists.get(cardId)?.skills : NONE));
 }
-
-/** The owner used the menu: they know it. */
-export const usedSkills = () => know(SKILLS_KNOWN);
-export const knowsSkills = () => known(SKILLS_KNOWN);
 
 
 export interface Slash {

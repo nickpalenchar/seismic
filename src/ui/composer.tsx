@@ -15,7 +15,8 @@ import { useFitHeight } from './fitHeight';
 import { Quote } from './message';
 import { type Reply, replyOn, setReply, useReply } from './reply';
 import { ListboxMenu, type ListboxState, useListbox } from './components/listbox';
-import { knowsSkills, matching, type Slash, skillWord, slashAt, useSkills, usedSkills } from './skills';
+import { useHint } from './hints';
+import { matching, type Slash, skillWord, slashAt, useSkills } from './skills';
 import { AttachButton, ShotStrip, useShotInput } from './shots';
 import { t } from './strings';
 import type { Skill } from '../core/types';
@@ -100,6 +101,7 @@ export function Composer({
   const reply = useReply(key);
   const [focused, setFocused] = useState(false);
   const skillList = useSkills(skills, focused);
+  const skillsHint = useHint('skills');
   
   const [slash, setSlash] = useState<Slash | null>(null);
   const [dismissed, setDismissed] = useState<number | null>(null);
@@ -122,7 +124,7 @@ export function Composer({
     el.setSelectionRange(from, to);
     typeInto(el, word);
     if (skip) el.setSelectionRange(el.selectionStart + skip, el.selectionStart + skip);
-    usedSkills();
+    skillsHint.markSeen();
   };
   const list = useListbox({
     count: menu?.length ?? 0,
@@ -131,7 +133,7 @@ export function Composer({
     pickKeys: ['Tab'],
     resetOn: slash?.query,
     onPick: (i) => pickSkill(menu![i]!.name),
-    onNavigate: usedSkills,
+    onNavigate: skillsHint.markSeen,
     
     onEscape: () => slash && setDismissed(slash.start),
   });
@@ -288,7 +290,7 @@ export function Composer({
       ) : typeof seismic === 'string' ? (
         <PromptInputHint>→ {seismic}</PromptInputHint>
       ) : (
-        focused && !!skillList?.length && !knowsSkills() && <PromptInputHint>{t.skills.hint}</PromptInputHint>
+        focused && !!skillList?.length && skillsHint.shown && <PromptInputHint>{t.skills.hint}</PromptInputHint>
       )}
     </PromptInput>
   );

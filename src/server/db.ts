@@ -756,6 +756,10 @@ export const MIGRATIONS = [
   `ALTER TABLE device_tokens ADD COLUMN presented INTEGER;
    ALTER TABLE devices ADD COLUMN enrollment_order INTEGER NOT NULL DEFAULT 0;
    UPDATE devices SET enrollment_order = rowid;`,
+  `CREATE TABLE IF NOT EXISTS seen_hints (
+     id TEXT PRIMARY KEY,
+     seen_at TEXT NOT NULL
+   );`,
 ];
 
 

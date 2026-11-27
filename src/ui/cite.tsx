@@ -10,11 +10,11 @@ import { Quote } from 'lucide-react';
 import { type RefObject, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cite } from './draft';
-import { know, known } from './known';
+import { HintLabel } from './components/hint';
+import { useHint } from './hints';
 import { t } from './strings';
 import { Tooltip } from './components/tooltip';
 
-const KNOWN = 'seismic-cite-known';
 
 /** The marked text as the quote has it: one line, without the spaces around it. */
 export const citable = (marked: string) => marked.replace(/\s+/g, ' ').trim();
@@ -117,7 +117,7 @@ function hearFrames() {
  */
 export function CiteButton({ box, draft, anywhere, onCite }: { box: RefObject<HTMLElement | null>; draft: string; anywhere?: boolean; onCite?: () => void }) {
   const [marked, setMarked] = useState<Marked | null>(null);
-  const [named, setNamed] = useState(() => !known(KNOWN));
+  const citeHint = useHint('cite');
   useEffect(() => {
     hearFrames();
     const touch = matchMedia('(pointer: coarse)').matches;
@@ -194,7 +194,7 @@ export function CiteButton({ box, draft, anywhere, onCite }: { box: RefObject<HT
             'fixed z-50 flex h-7 min-w-7 cursor-pointer items-center justify-center gap-1 rounded-xs bg-foreground px-1.5 py-0 text-sm text-background shadow-glass select-none hover:bg-foreground/85 pointer-coarse:h-9 pointer-coarse:min-w-9',
             
             !marked.below ? '[transform:translate(-50%,calc(-100%-6px))]' : marked.left ? '[transform:translate(calc(-100%+2px),6px)]' : '[transform:translate(-50%,6px)] pointer-coarse:[transform:translate(-50%,30px)]',
-            named && 'pr-2 pl-2',
+            citeHint.shown && 'pr-2 pl-2',
           )}
           style={{ left: marked.x, top: marked.y }} aria-label={t.talk.citeHint}
           
@@ -206,12 +206,11 @@ export function CiteButton({ box, draft, anywhere, onCite }: { box: RefObject<HT
             setMarked(null);
             cite(draft, t.talk.cited(marked.text));
             onCite?.();
-            know(KNOWN);
-            setNamed(false);
+            citeHint.markSeen();
           }}
       >
         <Quote size={15} strokeWidth={2} aria-hidden="true" />
-        {named && <span>{t.talk.cite}</span>}
+        <HintLabel hintId="cite">{t.talk.cite}</HintLabel>
       </button>
     </Tooltip>,
     document.body,

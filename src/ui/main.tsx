@@ -9,6 +9,7 @@ import { handOver, restartHeld, snapshotSession, takeHandOver } from './api';
 import { restoreDraftOverflow } from './draftSession';
 import { takeAppDrops } from './appDrop';
 import { pinAboveKeyboard } from './keyboard';
+import { HintsProvider, loadSeenHints } from './hints';
 import { loadLanguageAndTheme } from './theme';
 
 upgradeAddress();
@@ -26,14 +27,16 @@ if (window.seismicApp) {
   window.seismicConfirmDeparture?.();
   delete window.seismicConfirmDeparture;
 }
-await loadLanguageAndTheme();
+const [, seenHints] = await Promise.all([loadLanguageAndTheme(), loadSeenHints()]);
 if (window.seismicApp?.handedOver) await takeHandOver(window.seismicRestoredDrafts);
 takeAppDrops();
 pinAboveKeyboard();
 followShell();
 createRoot(document.getElementById('root')!).render(
   <UiRoot>
-    <App />
-    {window.seismicApp && <AttachmentSwitchDialog />}
+    <HintsProvider initial={seenHints}>
+      <App />
+      {window.seismicApp && <AttachmentSwitchDialog />}
+    </HintsProvider>
   </UiRoot>,
 );

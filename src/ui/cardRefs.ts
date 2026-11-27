@@ -6,12 +6,6 @@
 
 import type { Item } from '../core/types';
 import { named } from './address';
-import { know, known } from './known';
-
-
-export const CARD_REFS_KNOWN = 'seismic-card-refs-known';
-export const usedCardRefs = () => know(CARD_REFS_KNOWN);
-export const knowsCardRefs = () => known(CARD_REFS_KNOWN);
 
 
 const SHOWN = 8;

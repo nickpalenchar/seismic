@@ -68,9 +68,11 @@ import { Read } from './chats/_chatId/read';
 import { RecentChat } from './chats/recent';
 import { Configuration } from './configuration';
 import { Health } from './health';
+import { HintsRoute } from './hints';
+import { HintSeen } from './hints/_hintId';
 import { Settings } from './settings';
 import { Setting } from './settings/_settingName';
 
 export function v1Routes(dependencies: RouteDependencies): HttpRoute[] {
-  return [Card, Undo, Name, Arrange, TakeWorkstation, KeepWorkstation, AsIdea, Release, Reorder, Unsay, Ask, Consult, PageTags, Unaccept, DismissDuplicate, ApproveMerge, Separate, Dismiss, Keep, Unbuild, StayHere, SplitOff, PlanDoc, Park, Unpark, Drop, Discard, Accept, Merge, Revise, Discuss, Build, Prototype, BuildPrototype, CodeReview, ReopenReviewItem, SkipCodeReview, StopCodeReview, EditHeld, Fold, HandOff, KeepMain, PushChanges, PushMain, Answer, Approve, Message, Pause, Resume, Snooze, StartAt, Wake, Archive, Dequeue, Restore, Share, Start, Stop, Unarchive, Chats, Chat, Open, Read, Unwait, RecentChat, Configuration, Health, Settings, Setting, Agents].map((Route) => new Route(dependencies));
+  return [Card, Undo, Name, Arrange, TakeWorkstation, KeepWorkstation, AsIdea, Release, Reorder, Unsay, Ask, Consult, PageTags, Unaccept, DismissDuplicate, ApproveMerge, Separate, Dismiss, Keep, Unbuild, StayHere, SplitOff, PlanDoc, Park, Unpark, Drop, Discard, Accept, Merge, Revise, Discuss, Build, Prototype, BuildPrototype, CodeReview, ReopenReviewItem, SkipCodeReview, StopCodeReview, EditHeld, Fold, HandOff, KeepMain, PushChanges, PushMain, Answer, Approve, Message, Pause, Resume, Snooze, StartAt, Wake, Archive, Dequeue, Restore, Share, Start, Stop, Unarchive, Chats, Chat, Open, Read, Unwait, RecentChat, Configuration, Health, Settings, Setting, HintsRoute, HintSeen, Agents].map((Route) => new Route(dependencies));
 }

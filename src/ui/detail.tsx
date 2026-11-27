@@ -22,7 +22,7 @@ import { LinkField, type LinkFieldHandle } from './cardMenu';
 import { useCopy } from './copy';
 import { manualPrerequisites } from './deps';
 import { firstOpening } from './demoSeen';
-import { know, known } from './known';
+import { useHint } from './hints';
 import { Branch } from './diff';
 import { ResultFiles, REVIEW } from './files';
 import { DiscardChanges, FolderBox, FolderLine, useFolderDiff } from './folder';
@@ -2462,8 +2462,6 @@ const SEEK_S = 5;
 
 const MENU_FOCUS_MS = 1000;
 
-const SEEK_KEYS_KNOWN = 'seismic-seek-keys-known';
-
 /**
  * ← and → jump back and forward in the demo video, without a click on its progress bar first. The
  * browser's controls keep every key to themselves once clicked (Space too, which then neither paused
@@ -2476,6 +2474,7 @@ const SEEK_KEYS_KNOWN = 'seismic-seek-keys-known';
  */
 function useSeekKeys(video: RefObject<HTMLVideoElement | null>) {
   const [hint, setHint] = useState(false);
+  const seekKeysHint = useHint('seek-keys');
   const hide = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -2486,7 +2485,7 @@ function useSeekKeys(video: RefObject<HTMLVideoElement | null>) {
       const to = v.currentTime + (e.key === 'ArrowLeft' ? -SEEK_S : SEEK_S);
       v.currentTime = Math.max(0, Number.isFinite(v.duration) ? Math.min(v.duration, to) : to);
       setHint(false);
-      know(SEEK_KEYS_KNOWN);
+      seekKeysHint.markSeen();
     };
     addEventListener('keydown', key);
     return () => {
@@ -2500,7 +2499,7 @@ function useSeekKeys(video: RefObject<HTMLVideoElement | null>) {
     if (!matchMedia('(pointer: fine)').matches || performance.now() - gaveBack.current < MENU_FOCUS_MS) return;
     v.blur();
     gaveBack.current = performance.now();
-    if (known(SEEK_KEYS_KNOWN)) return;
+    if (!seekKeysHint.shown) return;
     setHint(true);
     clearTimeout(hide.current);
     hide.current = setTimeout(() => setHint(false), 4000);
@@ -2508,8 +2507,6 @@ function useSeekKeys(video: RefObject<HTMLVideoElement | null>) {
   return { hint, focused };
 }
 
-
-const ZOOM_KEY_KNOWN = 'seismic-zoom-key-known';
 
 /**
  * The demo video shown large over the greyed page, short of full screen: the same video element
@@ -2523,7 +2520,7 @@ function useZoom(video: RefObject<HTMLVideoElement | null>) {
   const screen = useRef<HTMLDivElement>(null);
   const backdrop = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<{ from: Box; to: Box; closing?: boolean } | null>(null);
-  const [keyKnown, setKeyKnown] = useState(() => known(ZOOM_KEY_KNOWN));
+  const zoomKeyHint = useHint('zoom-key');
   const boxRef = useRef(box);
   boxRef.current = box;
   const toggle = () => {
@@ -2564,8 +2561,7 @@ function useZoom(video: RefObject<HTMLVideoElement | null>) {
       if (e.repeat || !forTheVideo(e) || keyedVideo() !== video.current) return;
       e.preventDefault();
       toggleRef.current();
-      setKeyKnown(true);
-      know(ZOOM_KEY_KNOWN);
+      zoomKeyHint.markSeen();
     };
     addEventListener('keydown', key);
     return () => removeEventListener('keydown', key);
@@ -2587,7 +2583,7 @@ function useZoom(video: RefObject<HTMLVideoElement | null>) {
       els.forEach((el) => el?.removeEventListener('wheel', still));
     };
   }, [zoomed]);
-  return { player, screen, backdrop, box, toggle, keyKnown };
+  return { player, screen, backdrop, box, toggle, keyKnown: !zoomKeyHint.shown };
 }
 
 /**

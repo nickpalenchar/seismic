@@ -6,6 +6,10 @@
   "rules": { "seismic/documentation-comments": "error" },
   "overrides": [
     {
+      "files": ["src/server/services/**"],
+      "rules": { "seismic/service-class": "error" }
+    },
+    {
       "files": ["src/ui/**"],
       "excludeFiles": ["**/*.test.ts", "**/*.test.tsx"],
       "rules": { "react-hooks/rules-of-hooks": "error" }

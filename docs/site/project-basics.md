@@ -18,8 +18,9 @@ under it.
 Seismic shows first-time hints that teach its features, such as a tip under the chat with
 Seismic. Close one with its × and it stays gone; others go once you have used what they point
 to. **Settings → Hints** turns them all off or back on with **Enable first-time hints** (hints you
-dismissed stay dismissed), and **Reset all hints** shows every one again. Both apply to the
-browser you use them in.
+dismissed stay dismissed), and **Reset all hints** shows every one again. A dismissed hint stays
+gone on every device that opens your Seismic; the on/off switch applies to the browser you use it
+in. If Seismic cannot load which hints you have seen, none shows.
 
 ## Canvases
 

@@ -24,6 +24,7 @@ export { groups } from './groups';
 export { needsYou } from './needs-you';
 export { preferences } from './preferences';
 export { projects } from './projects';
+export { seenHints } from './seen-hints';
 export { settingProposals } from './setting-proposals';
 export { settings } from './settings';
 export { talk } from './talk';

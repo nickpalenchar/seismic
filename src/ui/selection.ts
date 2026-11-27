@@ -22,7 +22,3 @@ export const movesWith = (sel: string[], id: string) => (sel.includes(id) ? sel.
 export const shifted = (cards: { id: string; start: Pos }[], by: Pos) =>
   Object.fromEntries(cards.map((c) => [c.id, { x: Math.round(c.start.x + by.x), y: Math.round(c.start.y + by.y) }]));
 
-
-export const MARK_KNOWN = 'seismic-mark-known';
-
-export const MOVE_MARKED_KNOWN = 'seismic-move-marked-known';

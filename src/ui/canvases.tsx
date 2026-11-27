@@ -15,7 +15,8 @@ import { CanvasIcon, canvasText } from './canvasIcon';
 import { IconPicker, type IconPickerView, pickerLabel as cdLabel } from './iconPicker';
 import { depLineClass } from './depsClasses';
 import { ballClass, captionClass, haloClass, radialClass, ringBackClass, tagClass } from './ringClasses';
-import { know, used, useHintsOn } from './known';
+import { HintLabel } from './components/hint';
+import { useHint } from './hints';
 import { loptClass, prioBtnClass, prioMenuClass, prioPickClass } from './labelClasses';
 import { plain } from './markdown';
 import { useSortable } from './sortable';
@@ -46,7 +47,6 @@ export const Canvases = createContext<CanvasesView>({ canvases: [], move: () => 
 export const canvasOf = (canvases: Canvas[], i: Pick<Item, 'canvas'>) => canvases.find((c) => c.id === i.canvas) ?? canvases[0];
 
 
-const KNOWN = 'seismic-canvases-known';
 
 
 const LEAVE_MS = 260;
@@ -73,17 +73,11 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow, o
   const [drawer, setDrawer] = useState(false);
   const [dialog, setDialog] = useState<{ edit?: string } | null>(null);
   const [deleting, setDeleting] = useState<Pick<Canvas, 'id' | 'name'>>();
-  const [isUsed, setUsed] = useState(() => used(KNOWN));
-  const hintsOn = useHintsOn();
-  const isKnown = isUsed || !hintsOn;
+  const newCanvasHint = useHint('canvases');
   const leave = useRef<ReturnType<typeof setTimeout>>(undefined);
   const box = useRef<HTMLDivElement>(null);
   const several = canvases.length > 1;
-  const learn = () => {
-    if (isUsed) return;
-    know(KNOWN);
-    setUsed(true);
-  };
+  const learn = newCanvasHint.markSeen;
   
   const byKey = useRef(false);
   
@@ -169,9 +163,9 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow, o
                   </TabsTrigger>
                 ))}
               <Tooltip content={t.canvases.newCanvas}>
-                <button className={ctabClass(isKnown || several ? 'off' : 'named')} aria-label={t.canvases.newCanvas} onClick={startNew}>
+                <button className={ctabClass(!newCanvasHint.shown || several ? 'off' : 'named')} aria-label={t.canvases.newCanvas} onClick={startNew}>
                   <Plus size={14} strokeWidth={2.4} aria-hidden />
-                  {!isKnown && !several && <span className={ctabName}>{t.canvases.newCanvas}</span>}
+                  {!several && <HintLabel hintId="canvases" className={ctabName}>{t.canvases.newCanvas}</HintLabel>}
                 </button>
               </Tooltip>
             </TabsList>

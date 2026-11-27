@@ -10,7 +10,8 @@ import type { Item } from '../core/types';
 import { cardPath } from './address';
 import { projectOf } from './api';
 import { SmartLink } from './cardLink';
-import { type CardSearch, cardSearchAt, knowsCardRefs, lines, linkText, matchingCards, referenced, textOf, usedCardRefs } from './cardRefs';
+import { type CardSearch, cardSearchAt, lines, linkText, matchingCards, referenced, textOf } from './cardRefs';
+import { useHint } from './hints';
 import { ListboxMenu, type ListboxState, useListbox } from './components/listbox';
 import { badgeClass } from './components/badge';
 import { prioClass } from './labelClasses';
@@ -169,6 +170,7 @@ export const LinkField = forwardRef<
       getSelection()?.collapseToEnd();
     },
   }));
+  const cardRefsHint = useHint('card-refs');
   const menu = focused && found && dismissed !== found.search.start ? matchingCards(items, found.search.query, self.id) : [];
   const pick = (card: Item) => {
     const el = root.current;
@@ -186,7 +188,7 @@ export const LinkField = forwardRef<
     const sel = getSelection()!;
     sel.removeAllRanges();
     sel.collapse(space, 1);
-    usedCardRefs();
+    cardRefsHint.markSeen();
     read();
   };
   const list = useListbox({
@@ -232,7 +234,7 @@ export const LinkField = forwardRef<
         onKeyDown={list.onKeyDown}
       />
       {menu.length > 0 && <CardMenu cards={menu} box={list} at={found?.place} />}
-      {focused && !menu.length && !knowsCardRefs() && <PromptInputHint className="card-refs-hint">{t.cardRefs.hint}</PromptInputHint>}
+      {focused && !menu.length && cardRefsHint.shown && <PromptInputHint className="card-refs-hint">{t.cardRefs.hint}</PromptInputHint>}
     </>
   );
 });
