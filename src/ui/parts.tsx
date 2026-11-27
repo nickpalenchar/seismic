@@ -331,46 +331,83 @@ export const CardView = memo(
 
 
 
-/** The pause or play on a project's row; `item` where the row is a dropdown's, which makes the button an item of it that the arrow keys reach and that leaves the menu open. */
-export function ProjectAgents({ project, item }: { project: ProjectInfo; item?: { active: boolean } | null }) {
-  const [asked, setAsked] = useState(false);
+type AgentsTurn = 'pause' | 'resume';
+
+/**
+ * A project's pause and resume of its agents, for the pill's rows and the phone's menu: the turns
+ * it offers (a project can have agents at work and paused ones at once, so both), the one asked for
+ * until the server answers, and the one that failed until the next is asked for.
+ */
+export function useProjectAgents(project: ProjectInfo) {
+  const [asked, setAsked] = useState<AgentsTurn | null>(null);
+  const [failed, setFailed] = useState<AgentsTurn | null>(null);
   const a = project.agents;
-  if (!a) return null;
-  const pause = a.running > 0;
-  const label = pause ? t.projectPause.pause(a.running) : t.projectPause.resume(a.paused);
-  const click = (e: MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setAsked(true);
-    (pause ? api.pauseAgents(project.id) : api.resumeAgents(project.id)).catch(console.error).finally(() => setAsked(false));
+  const turns: AgentsTurn[] = !a ? [] : [...(a.running > 0 ? ['pause' as const] : []), ...(a.paused > 0 ? ['resume' as const] : [])];
+  const label = (turn: AgentsTurn) => (turn === 'pause' ? t.projectPause.pause(a?.running ?? 0) : t.projectPause.resume(a?.paused ?? 0));
+  const run = (turn: AgentsTurn) => {
+    if (asked) return;
+    setAsked(turn);
+    setFailed(null);
+    (turn === 'pause' ? api.pauseAgents(project.id) : api.resumeAgents(project.id))
+      .catch((e) => {
+        console.error(e);
+        setFailed(turn);
+      })
+      .finally(() => setAsked(null));
   };
-  const turn = (
-    
-    <button
-      type="button"
-      className="grid h-5 w-[26px] cursor-pointer place-items-center rounded-xs border after:absolute after:inset-0 after:content-[''] border-border bg-transparent p-0 text-muted-foreground opacity-0 transition-opacity duration-120 group-focus-within/project:opacity-55 group-hover/project:opacity-55 hover:border-muted-foreground! hover:text-foreground! hover:opacity-100! focus-visible:border-muted-foreground! focus-visible:text-foreground! focus-visible:opacity-100! data-highlighted:border-muted-foreground! data-highlighted:text-foreground! data-highlighted:opacity-100! [@media(hover:none)]:opacity-55"
-      aria-label={`${label}: ${project.name}`} disabled={asked} onClick={click}>
-      {pause ? <PauseMark /> : <PlayMark />}
-    </button>
-  );
+  return { turns, label, run, asked, failed };
+}
+
+/** Under a project's pause or resume that failed: what did not happen, read out as it shows. */
+export function AgentsFailed({ failed, className }: { failed: AgentsTurn | null; className?: string }) {
+  if (!failed) return null;
   return (
-    
-    <span
-      className={cn(
-        
-        'absolute top-1/2 right-2.5 flex h-5 w-[26px] -translate-y-1/2 items-center justify-center [@media(hover:none)]:inset-y-0 [@media(hover:none)]:right-0 [@media(hover:none)]:h-auto [@media(hover:none)]:w-11 [@media(hover:none)]:translate-y-0',
-      )}
-    >
-      {pause && <DrawLine className="w-[26px] group-focus-within/project:hidden group-hover/project:hidden [@media(hover:none)]:hidden" />}
-      <Tooltip content={label} side="right">
+    <p role="alert" className={cn('m-0 px-2.5 pb-1 text-xs text-destructive', className)}>
+      {failed === 'pause' ? t.projectPause.pauseFailed : t.projectPause.resumeFailed}
+    </p>
+  );
+}
+
+/**
+ * The pause and play on a project's row, the play beside the pause while some of its agents are at
+ * work and others paused; `item` where the row is a dropdown's, which makes each button an item of
+ * it that the arrow keys reach and that leaves the menu open.
+ */
+export function ProjectAgents({ project, item, agents }: { project: ProjectInfo; item?: { active: boolean } | null; agents: ReturnType<typeof useProjectAgents> }) {
+  const { turns, label, run, asked } = agents;
+  if (!turns.length) return null;
+  const button = (turn: AgentsTurn) => {
+    const button = (
+      <button
+        type="button"
+        className="relative grid h-5 w-[26px] cursor-pointer place-items-center rounded-xs border border-border bg-transparent p-0 text-muted-foreground opacity-0 transition-opacity duration-120 group-focus-within/project:opacity-55 group-hover/project:opacity-55 hover:border-muted-foreground! hover:text-foreground! hover:opacity-100! focus-visible:border-muted-foreground! focus-visible:text-foreground! focus-visible:opacity-100! disabled:cursor-default data-highlighted:border-muted-foreground! data-highlighted:text-foreground! data-highlighted:opacity-100! [@media(hover:none)]:h-full [@media(hover:none)]:w-11 [@media(hover:none)]:border-0 [@media(hover:none)]:opacity-55"
+        aria-label={`${label(turn)}: ${project.name}`}
+        disabled={!!asked}
+        onClick={(e: MouseEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          run(turn);
+        }}
+      >
+        {turn === 'pause' ? <PauseMark /> : <PlayMark />}
+      </button>
+    );
+    return (
+      <Tooltip key={turn} content={label(turn)} side="right">
         {item ? (
-          <MenuItem asChild disabled={asked || !item.active} onSelect={(e) => e.preventDefault()}>
-            {turn}
+          <MenuItem asChild disabled={!!asked || !item.active} onSelect={(e) => e.preventDefault()}>
+            {button}
           </MenuItem>
         ) : (
-          turn
+          button
         )}
       </Tooltip>
+    );
+  };
+  return (
+    <span className="absolute top-1/2 right-2.5 flex h-5 -translate-y-1/2 items-center gap-1 [@media(hover:none)]:inset-y-0 [@media(hover:none)]:right-0 [@media(hover:none)]:h-auto [@media(hover:none)]:translate-y-0 [@media(hover:none)]:gap-0">
+      {turns.includes('pause') && <DrawLine className="pointer-events-none absolute right-0 w-[26px] group-focus-within/project:hidden group-hover/project:hidden [@media(hover:none)]:hidden" />}
+      {[...turns].reverse().map(button)}
     </span>
   );
 }

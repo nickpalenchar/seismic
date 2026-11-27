@@ -169,7 +169,8 @@ scripts/desktop-strings.ts` writes and a test keeps current (2026-11-24).
   project"), which stays at the start of the project, beside the docked menu too, and ⌘P switch
   them; the project's settings are the button on the right. The pill's rows keep each project's
   pause of its agents; the phone's picker is a native select that only switches, so on the phone
-  the Project section ends with the open project's pause or resume (2026-11-27).
+  the Project section ends with the open project's pause and resume (2026-11-27). Both show while
+  some agents work and others are paused, on the pill's rows too: a single toggle hid the resume.
 - **⌘P / Ctrl+P is the quick project switcher** (2026-11-22). Seismic uses the browser's print
   shortcut to search and switch projects within the page. Project menus and the keyboard legend
   show the active shortcut for the platform. On a Mac, iPhone or iPad it is ⌘P. Elsewhere it is

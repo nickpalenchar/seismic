@@ -301,6 +301,8 @@ const en = {
   projectPause: {
     pause: (n: number) => (n === 1 ? 'Pause 1 running agent' : `Pause ${n} running agents`),
     resume: (n: number) => (n === 1 ? 'Resume 1 paused agent' : `Resume ${n} paused agents`),
+    pauseFailed: 'The agents did not pause. Try again.',
+    resumeFailed: 'The agents did not resume. Try again.',
   },
   nav: {
     button: 'Switch project',

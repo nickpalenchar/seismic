@@ -11,13 +11,12 @@
 import { Archive, ArrowLeft, Bot, Car, ChartLine, Check, ChevronDown, ChevronRight, CircleHelp, Cog, FileCheck, Inbox, ListOrdered, Map as MapIcon, MessageCircleHeart, PanelLeftClose, PanelLeftOpen, Pause, Play, Plus, ScrollText, Settings, SquareMenu, SunMoon, Table2, Users, X } from 'lucide-react';
 import { type ComponentProps, createContext, type ReactNode, type Ref, useContext, useLayoutEffect, useRef, useState } from 'react';
 import type { Canvas, ProjectInfo } from '../core/types';
-import { api } from './api';
 import { projectPath, switchTo } from './address';
 import { CanvasIcon, ProjectIcon } from './canvasIcon';
 import { Sign, Wordmark } from './logo';
 import { InboxList, type InboxProps } from './inbox';
 import { closeBarMenus, leaveMenu, Menu, MenuContent, MenuItem, MenuTrigger } from './components/menu';
-import { ProjectAgents } from './parts';
+import { AgentsFailed, ProjectAgents, useProjectAgents } from './parts';
 import { switcherKeys, t } from './strings';
 import { LanguageBlock, MotionBlock, ThemeBlock } from './config';
 import { Tooltip } from './components/tooltip';
@@ -432,7 +431,7 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
           {p.onQueue && <Entry icon={<ListOrdered size={16} strokeWidth={2} aria-hidden />} label={m.queue} on={p.showing === 'queue'} onClick={run(p.onQueue)} />}
           {p.onParked && <Entry icon={<Car size={16} strokeWidth={2} aria-hidden />} label={m.parked} on={p.showing === 'parked'} onClick={run(p.onParked)} />}
           {p.onArchived && <Entry icon={<Archive size={16} strokeWidth={2} aria-hidden />} label={m.archived} on={p.showing === 'archived'} onClick={run(p.onArchived)} />}
-          {phone && <AgentsEntry project={p.project} />}
+          {phone && <AgentsEntries project={p.project} />}
         </NavList>
         <h3 className={cn(sectionHead, 'uppercase')}>{m.configure}</h3>
         <NavList className={list}>
@@ -593,7 +592,7 @@ function Act({ onAct, keep, disabled, tip, sidebarItem = true, children, ...prop
 }
 
 /** One of the menu's entries: an icon, its label and what stands at its end; greyed out with "Coming soon" while it opens nothing yet. */
-function Entry({ icon, label, end, on, soon, sub, keep, onClick, focusRef }: { icon?: ReactNode; label: string; end?: ReactNode; on?: boolean; soon?: boolean; sub?: boolean; keep?: boolean; onClick?: () => void; focusRef?: Ref<HTMLButtonElement> }) {
+function Entry({ icon, label, end, on, soon, disabled, sub, keep, onClick, focusRef }: { icon?: ReactNode; label: string; end?: ReactNode; on?: boolean; soon?: boolean; disabled?: boolean; sub?: boolean; keep?: boolean; onClick?: () => void; focusRef?: Ref<HTMLButtonElement> }) {
   const menu = useContext(InMenu);
   const Item = menu ? 'li' : SidebarMenuItem;
   return (
@@ -606,7 +605,7 @@ function Entry({ icon, label, end, on, soon, sub, keep, onClick, focusRef }: { i
           on && 'bg-muted font-semibold',
         )}
         aria-current={on || undefined}
-        disabled={soon}
+        disabled={soon || disabled}
         title={soon ? t.leftMenu.comingSoon : undefined}
         keep={keep}
         onAct={onClick}
@@ -620,36 +619,37 @@ function Entry({ icon, label, end, on, soon, sub, keep, onClick, focusRef }: { i
 }
 
 /**
- * On the phone, the open project's pause or play of its agents (ProjectAgents on the desktop pill's
- * rows): the menu lists no projects there and the bar's picker only switches. The menu stays open,
- * the label turning once the agents have.
+ * On the phone, the open project's pause and resume of its agents (ProjectAgents on the desktop
+ * pill's rows): the menu lists no projects there and the bar's picker only switches. Both show
+ * while some agents are at work and others paused. The menu stays open, the labels turning once the
+ * agents have, and a request that fails says so under them.
  */
-function AgentsEntry({ project }: { project: ProjectInfo }) {
-  const [asked, setAsked] = useState(false);
-  const a = project.agents;
-  if (!a) return null;
-  const pause = a.running > 0;
-  const Mark = pause ? Pause : Play;
+function AgentsEntries({ project }: { project: ProjectInfo }) {
+  const agents = useProjectAgents(project);
   return (
-    <Entry
-      icon={<Mark size={16} strokeWidth={2} aria-hidden />}
-      label={pause ? t.projectPause.pause(a.running) : t.projectPause.resume(a.paused)}
-      keep
-      onClick={() => {
-        if (asked) return;
-        setAsked(true);
-        (pause ? api.pauseAgents(project.id) : api.resumeAgents(project.id)).catch(console.error).finally(() => setAsked(false));
-      }}
-    />
+    <>
+      {agents.turns.map((turn) => (
+        <Entry
+          key={turn}
+          icon={turn === 'pause' ? <Pause size={16} strokeWidth={2} aria-hidden /> : <Play size={16} strokeWidth={2} aria-hidden />}
+          label={agents.label(turn)}
+          disabled={!!agents.asked}
+          keep
+          onClick={() => agents.run(turn)}
+        />
+      ))}
+      {agents.failed && <li><AgentsFailed failed={agents.failed} /></li>}
+    </>
   );
 }
 
 /** A project's row: a click switches there (the open one stays); its agents' pause. */
 function ProjectRow({ project: c, here, repos, onGo, onProject }: { project: ProjectInfo; here: boolean; repos?: boolean; onGo?: () => void; onProject?: ((id: string) => void) | undefined }) {
   const menu = useContext(InMenu);
+  const agents = useProjectAgents(c);
   const link = (
     <a
-      className={cn(rowButton, here && 'bg-muted text-foreground', c.agents && 'pr-12')}
+      className={cn(rowButton, here && 'bg-muted text-foreground', agents.turns.length === 1 && 'pr-12', agents.turns.length === 2 && 'pr-20')}
       href={projectPath(c.id)}
       aria-current={here ? 'page' : undefined}
       onClick={(e) => {
@@ -674,8 +674,11 @@ function ProjectRow({ project: c, here, repos, onGo, onProject }: { project: Pro
   );
   return (
     <SidebarMenuItem data-row className="group/project relative [[data-row]+&]:mt-0.5">
-      {menu ? <MenuItem asChild disabled={!menu.active} onSelect={leaveMenu}>{link}</MenuItem> : <SidebarMenuButton asChild>{link}</SidebarMenuButton>}
-      <ProjectAgents project={c} item={menu} />
+      <div className="relative">
+        {menu ? <MenuItem asChild disabled={!menu.active} onSelect={leaveMenu}>{link}</MenuItem> : <SidebarMenuButton asChild>{link}</SidebarMenuButton>}
+        <ProjectAgents project={c} item={menu} agents={agents} />
+      </div>
+      <AgentsFailed failed={agents.failed} />
     </SidebarMenuItem>
   );
 }

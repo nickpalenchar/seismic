@@ -20,15 +20,19 @@ From top to bottom it holds:
 - **Project**, named after the project that is open: its **Canvas**, **Table**, **Queue**,
   **Parked** and **Archive**. To switch to another project or add one, use the project's name at
   the top left of the project, or ⌘P / Ctrl+P. The project's own settings are behind the button at
-  the top right. To pause all of a project's agents at once, use the pause button beside the
-  project in that list; on a phone, **Pause running agents** at the end of the Project section
-  pauses the open project's agents, and **Resume paused agents** lets them go on.
+  the top right.
 - **Configure**: **Appearance** (light or dark, motion) opens within the menu; **Settings** opens
   Seismic's configuration, with **About Seismic** as its last section. **Settings → Project
   defaults** holds the choices every new project starts with; it does not change existing projects,
   and each project can override them in its own project settings. Below a line,
   **Controls: mouse and keys** and **Give Feedback**, which sends a wish or a bug to the makers of
   Seismic.
+
+To pause all of a project's agents at once, open the list under the project's name at the top
+left: each project there has a pause button while its agents are at work, and a play button while
+some of them are paused. On a phone, the Project section of the menu ends with the same two for the
+open project, with how many agents each one concerns, for example **Pause 2 running agents** and
+**Resume 1 paused agent**. If a pause or resume does not go through, a line under it says so.
 
 ## Hints
 
