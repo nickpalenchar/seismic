@@ -366,6 +366,27 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
   const hasAgentsPage = agentEntries.length > 0 || !!p.onPerformance || !!p.onFeedbackLog;
   const canvas = p.canvases.find((c) => c.id === p.canvas) ?? p.canvases[0];
   const hasProjectEntries = !!(p.onCanvas && canvas) || !!(p.onTable ?? p.onQueue ?? p.onParked ?? p.onArchived);
+  /**
+   * A page beside the main one. Docked or on the phone, Escape in it goes back to the main page and
+   * reaches nothing under the menu (`data-esc-back` keeps the window's own Escape off it). In the
+   * dropdown, Escape closes the dropdown; `ownKeys` keeps its other keys from the dropdown's typeahead
+   * and arrows, for the fields on the page.
+   */
+  const subPage = (name: typeof page, ownKeys?: boolean) => ({
+    className: pageClass(page !== name),
+    inert: page !== name,
+    ...(floating
+      ? ownKeys ? { onKeyDown: (e: React.KeyboardEvent) => { if (e.key !== 'Escape') e.stopPropagation(); } } : {}
+      : {
+          'data-esc-back': '',
+          onKeyDown: (e: React.KeyboardEvent) => {
+            if (e.key !== 'Escape') return;
+            e.preventDefault();
+            e.stopPropagation();
+            setPage('main');
+          },
+        }),
+  });
   const inbox = (
     <Entry icon={<Inbox size={16} strokeWidth={2} aria-hidden />} label={m.inbox} on={p.showing === 'inbox'} keep={!!p.inbox} onClick={p.inbox ? () => setPage('inbox') : run(p.onInbox)} />
   );
@@ -415,7 +436,7 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
       </div>
       </InMenu.Provider>
       <InMenu.Provider value={!floating ? null : page === 'agents' ? ACTIVE : INACTIVE}>
-      <div className={pageClass(page !== 'agents')} inert={page !== 'agents'}>
+      <div {...subPage('agents')}>
         <div className={head(titlebar)} {...drag}>
           <Act sidebarItem={false} className="-ml-0.5 flex h-8 cursor-pointer items-center gap-2 rounded-sm bg-transparent px-2.5 text-base text-foreground hover:bg-muted" ref={backButton} keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
             <ArrowLeft size={16} strokeWidth={2} aria-hidden />
@@ -437,7 +458,7 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
       </InMenu.Provider>
       <InMenu.Provider value={!floating ? null : page === 'inbox' ? ACTIVE : INACTIVE}>
       { }
-      <div className={pageClass(page !== 'inbox')} inert={page !== 'inbox'} onKeyDown={floating ? (e) => { if (e.key !== 'Escape') e.stopPropagation(); } : undefined}>
+      <div {...subPage('inbox', true)}>
         <div className={head(titlebar)} {...drag}>
           <Act sidebarItem={false} className="-ml-0.5 flex h-8 cursor-pointer items-center gap-2 rounded-sm bg-transparent px-2.5 text-base text-foreground hover:bg-muted" ref={inboxBackButton} keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
             <ArrowLeft size={16} strokeWidth={2} aria-hidden />
@@ -452,7 +473,7 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
       </InMenu.Provider>
       <InMenu.Provider value={!floating ? null : page === 'appearance' ? ACTIVE : INACTIVE}>
       { }
-      <div className={pageClass(page !== 'appearance')} inert={page !== 'appearance'} onKeyDown={floating ? (e) => { if (e.key !== 'Escape') e.stopPropagation(); } : undefined}>
+      <div {...subPage('appearance', true)}>
         <div className={head(titlebar)} {...drag}>
           <Act sidebarItem={false} className="-ml-0.5 flex h-8 cursor-pointer items-center gap-2 rounded-sm bg-transparent px-2.5 text-base text-foreground hover:bg-muted" ref={appearanceBackButton} keep onAct={() => setPage('main')} tip={m.back} aria-label={m.back}>
             <ArrowLeft size={16} strokeWidth={2} aria-hidden />

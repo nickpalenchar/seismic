@@ -165,8 +165,9 @@ scripts/desktop-strings.ts` writes and a test keeps current (2026-11-24).
   Archive); a "Configure" section holds Appearance, Settings and, below a line, the controls and
   "Give Feedback". The Preferences dialog is gone: its rules are Configure agents › Rules (a dialog
   of their own), language and appearance a page sliding in within the menu, About Seismic the last
-  section of Settings. The menu lists no other projects: the project pill in the bar and ⌘P switch
-  them, and the project's settings are the button on the right.
+  section of Settings. The menu lists no other projects: the project pill (switching and "New
+  project"), which stays at the start of the project, beside the docked menu too, and ⌘P switch
+  them; the project's settings are the button on the right.
 - **⌘P / Ctrl+P is the quick project switcher** (2026-11-22). Seismic uses the browser's print
   shortcut to search and switch projects within the page. Project menus and the keyboard legend
   show the active shortcut for the platform. On a Mac, iPhone or iPad it is ⌘P. Elsewhere it is

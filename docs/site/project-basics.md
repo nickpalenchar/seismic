@@ -7,7 +7,7 @@ A **Project** is the unit Seismic keeps memory for. Everything you do in Seismic
 
 ## The menu
 
-The menu holds the inbox, your projects, the agents' configuration and the settings. Its button
+The menu holds the inbox, the agents' configuration, the open project's views and the settings. Its button
 sits at the top left, beside the Seismic logo. On a wide window the menu is docked as a sidebar on
 the left: the button hides it (a panel icon with an arrow pointing left) and shows it again (the
 arrow pointing right). On a smaller window the button shows a menu icon and the menu drops down
@@ -18,8 +18,9 @@ From top to bottom it holds:
 - **Inbox** and **Configure agents**: the agents, their **Rules** (how every agent works with
   you), code review rules and how well they performed.
 - **Project**, named after the project that is open: its **Canvas**, **Table**, **Queue**,
-  **Parked** and **Archive**. To switch to another project, use the project's name in the bar or
-  ⌘P / Ctrl+P. The project's own settings are behind the button at the top right.
+  **Parked** and **Archive**. To switch to another project or add one, use the project's name at
+  the top left of the project, or ⌘P / Ctrl+P. The project's own settings are behind the button at
+  the top right.
 - **Configure**: **Appearance** (light or dark, motion) opens within the menu; **Settings** opens
   Seismic's configuration, with **About Seismic** as its last section. Below a line,
   **Controls: mouse and keys** and **Give Feedback**, which sends a wish or a bug to the makers of

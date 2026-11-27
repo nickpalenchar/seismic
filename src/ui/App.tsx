@@ -2935,9 +2935,9 @@ function Project({
         <div
           id="floating-row"
           ref={rowRef}
-          className={cn('group/row pointer-events-none fixed top-[58px] right-[calc(var(--side,0px)+14px)] left-[calc(var(--left,0px)+48px)] z-24 flex items-center gap-2.5 transition-[right,left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none [&>*]:pointer-events-auto')}
+          className={cn('group/row pointer-events-none fixed top-[58px] right-[calc(var(--side,0px)+14px)] z-24 flex items-center gap-2.5 transition-[right,left] duration-450 ease-[cubic-bezier(.3,.9,.3,1)] resizing:transition-none [&>*]:pointer-events-auto', side.left ? 'left-[calc(var(--left,0px)+14px)]' : 'left-[calc(var(--left,0px)+48px)]')}
         >
-          {!side.left && <NavPill {...nav} />}
+          <NavPill {...nav} />
           <div className="right ml-auto flex flex-none items-center gap-2.5 [&>*]:pointer-events-auto">
             <Tooltip content={t.projectSettings.button}>
               <PillButton size="bar" on={csOn} className="px-2.5 [&_[data-variant=count]]:ml-1" aria-label={t.projectSettings.button} aria-expanded={csOn} onClick={toggleProjectSettings}>
