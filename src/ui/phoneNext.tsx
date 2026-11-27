@@ -22,7 +22,8 @@ import { DrawLine } from './components/draw-line';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './components/collapsible';
 import { TalkIcon } from './parts';
 import { hostSpots, WorkingRows, WorkstationDots } from './workstations';
-import { api, ApiError } from './api';
+import { ApiError } from './api';
+import { actCard } from './clients/seismic';
 import { needsYouCount } from '../core/inbox';
 import { plain } from './markdown';
 import { cn } from 'cn';
@@ -123,7 +124,7 @@ export function PhoneNext({ projects: loaded }: { projects: ProjectInfo[] }) {
   /** Gives a card its workstation back during the undo window after it was taken, with what came of it, as the status bar does. */
   const keepWorkstation = async (i: Item) => {
     try {
-      await api.act(i.id, { action: 'keepWorkstation' });
+      await actCard(i.id, { action: 'keepWorkstation' });
       showAck(t.workstations.keptBack(plain(i.title)));
     } catch (e) {
       showAck(e instanceof ApiError && e.code === 'notEvictable' ? t.voice.tooLate : failText(e));

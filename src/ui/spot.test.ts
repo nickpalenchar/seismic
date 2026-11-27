@@ -1,5 +1,4 @@
 import { expect, spyOn, test } from 'bun:test';
-import { api } from './api';
 import { beginSpotSend, finishWatching, take, watch } from './spot';
 
 test('a timestamped send resumes only the demo it was written on', () => {
@@ -23,7 +22,7 @@ test('a timestamped send resumes only the demo it was written on', () => {
 });
 
 test('ending a viewing session waits for all its timestamped sends', () => {
-  const act = spyOn(api, 'act').mockResolvedValue(undefined);
+  const act = spyOn(globalThis, 'fetch').mockImplementation((async () => Response.json({ card: { id: 'card' } })) as unknown as typeof fetch);
   try {
     const first = beginSpotSend('card');
     const second = beginSpotSend('card');
@@ -33,7 +32,7 @@ test('ending a viewing session waits for all its timestamped sends', () => {
     expect(act).not.toHaveBeenCalled();
     second();
     expect(act).toHaveBeenCalledTimes(1);
-    expect(act).toHaveBeenCalledWith('card', { action: 'release' });
+    expect(String(act.mock.calls[0]![0])).toBe('/api/v1/cards/card/release');
     other();
     expect(act).toHaveBeenCalledTimes(1);
   } finally {
@@ -42,7 +41,7 @@ test('ending a viewing session waits for all its timestamped sends', () => {
 });
 
 test('reopening during an upload cancels the old release and allows a later release', () => {
-  const act = spyOn(api, 'act').mockResolvedValue(undefined);
+  const act = spyOn(globalThis, 'fetch').mockImplementation((async () => Response.json({ card: { id: 'card' } })) as unknown as typeof fetch);
   const video = new EventTarget() as unknown as HTMLVideoElement;
   const done = beginSpotSend('card');
   finishWatching('card');
@@ -52,7 +51,7 @@ test('reopening during an upload cancels the old release and allows a later rele
     expect(act).not.toHaveBeenCalled();
     finishWatching('card');
     expect(act).toHaveBeenCalledTimes(1);
-    expect(act).toHaveBeenCalledWith('card', { action: 'release' });
+    expect(String(act.mock.calls[0]![0])).toBe('/api/v1/cards/card/release');
   } finally {
     unwatch();
     act.mockRestore();

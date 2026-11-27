@@ -22,12 +22,12 @@ test('a call about a card goes to its project, though another is in view as it g
   
   cardsOn('website', ['c1']);
   setProject('shop');
-  await api.act('c1', { action: 'release' });
+  await api.openCardFile('c1', 'a.txt');
   await api.command('Das Logo ist zu klein.', { card: 'c1' });
   
-  await api.act('c2', { action: 'release' });
+  await api.openCardFile('c2', 'a.txt');
   await api.command('Neue Karte', null);
-  expect(fetched).toEqual(['/api/c/website/cards/c1/act', '/api/c/website/command?card=c1', '/api/c/shop/cards/c2/act', '/api/c/shop/command']);
+  expect(fetched).toEqual(['/api/c/website/cards/c1/open', '/api/c/website/command?card=c1', '/api/c/shop/cards/c2/open', '/api/c/shop/command']);
 });
 
 /** A tab's session storage, as the page has it. */

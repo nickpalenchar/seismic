@@ -8,7 +8,7 @@ import { GripVertical } from 'lucide-react';
 import { type ReactNode, type RefObject, useState } from 'react';
 import { drawnWaits, move, movable, notStarted, queueOrder, reach } from '../core/queue';
 import type { Item } from '../core/types';
-import { api } from './api';
+import { actCard } from './clients/seismic';
 import { CardFace } from './card';
 import { questionClass } from './cardClasses';
 import { Naming } from './cardLink';
@@ -35,7 +35,7 @@ export function useQueueSort(items: Item[], scroller: RefObject<HTMLElement | nu
       reach: (id) => ({ earlier: reach(id, true, items).places, later: reach(id, false, items).places }),
       drop: (id, places) => {
         setFailed(undefined);
-        return api.act(id, { action: 'reorder', earlier: places < 0, places: Math.abs(places) }).catch((err) => {
+        return actCard(id, { action: 'reorder', earlier: places < 0, places: Math.abs(places) }).catch((err) => {
           setFailed({ id, text: failText(err) });
           throw err;
         });
@@ -216,7 +216,7 @@ export function useQueueMove(item: Item, items: Item[]): { buttons: ReactNode; p
             e.stopPropagation();
             if (blocked) return setWhy({ id: item.id, text: blocked });
             setWhy(undefined);
-            api.act(item.id, { action: 'reorder', earlier }).catch((err) => setWhy({ id: item.id, text: failText(err), error: true }));
+            actCard(item.id, { action: 'reorder', earlier }).catch((err) => setWhy({ id: item.id, text: failText(err), error: true }));
           }}
         >
           {earlier ? '↑' : '↓'}

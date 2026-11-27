@@ -36,6 +36,18 @@ import { Discuss } from './cards/_cardId/discuss';
 import { Build } from './cards/_cardId/build';
 import { Prototype } from './cards/_cardId/prototype';
 import { BuildPrototype } from './cards/_cardId/build-prototype';
+import { Undo } from './cards/_cardId/undo';
+import { Name } from './cards/_cardId/name';
+import { Arrange } from './cards/_cardId/arrange';
+import { TakeWorkstation } from './cards/_cardId/take-workstation';
+import { KeepWorkstation } from './cards/_cardId/keep-workstation';
+import { AsIdea } from './cards/_cardId/as-idea';
+import { Release } from './cards/_cardId/release';
+import { Reorder } from './cards/_cardId/reorder';
+import { Unsay } from './cards/_cardId/unsay';
+import { Ask } from './cards/_cardId/ask';
+import { Consult } from './cards/_cardId/consult';
+import { PageTags } from './cards/_cardId/page-tags';
 import { Dequeue } from './cards/_cardId/dequeue';
 import { Message } from './cards/_cardId/message';
 import { Pause } from './cards/_cardId/pause';
@@ -60,5 +72,5 @@ import { Settings } from './settings';
 import { Setting } from './settings/_settingName';
 
 export function v1Routes(dependencies: RouteDependencies): HttpRoute[] {
-  return [Card, Unaccept, DismissDuplicate, ApproveMerge, Separate, Dismiss, Keep, Unbuild, StayHere, SplitOff, PlanDoc, Park, Unpark, Drop, Discard, Accept, Merge, Revise, Discuss, Build, Prototype, BuildPrototype, CodeReview, ReopenReviewItem, SkipCodeReview, StopCodeReview, EditHeld, Fold, HandOff, KeepMain, PushChanges, PushMain, Answer, Approve, Message, Pause, Resume, Snooze, StartAt, Wake, Archive, Dequeue, Restore, Share, Start, Stop, Unarchive, Chats, Chat, Open, Read, Unwait, RecentChat, Configuration, Health, Settings, Setting, Agents].map((Route) => new Route(dependencies));
+  return [Card, Undo, Name, Arrange, TakeWorkstation, KeepWorkstation, AsIdea, Release, Reorder, Unsay, Ask, Consult, PageTags, Unaccept, DismissDuplicate, ApproveMerge, Separate, Dismiss, Keep, Unbuild, StayHere, SplitOff, PlanDoc, Park, Unpark, Drop, Discard, Accept, Merge, Revise, Discuss, Build, Prototype, BuildPrototype, CodeReview, ReopenReviewItem, SkipCodeReview, StopCodeReview, EditHeld, Fold, HandOff, KeepMain, PushChanges, PushMain, Answer, Approve, Message, Pause, Resume, Snooze, StartAt, Wake, Archive, Dequeue, Restore, Share, Start, Stop, Unarchive, Chats, Chat, Open, Read, Unwait, RecentChat, Configuration, Health, Settings, Setting, Agents].map((Route) => new Route(dependencies));
 }

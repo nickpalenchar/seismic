@@ -25,7 +25,7 @@ import { type ActDone, Detail, type Pending } from './detail';
 import { Cards, KoordinatorAgent } from './message';
 import { motionMs, reducedMotion, sizeSettled } from './motion';
 import type { Heard, Where } from './api';
-import { archiveCard, dequeueCard, getAgentModels, patchCard, removeCard, restoreCard, startCardAgent, unarchiveCard } from './clients/seismic';
+import { actCard, archiveCard, dequeueCard, getAgentModels, patchCard, removeCard, restoreCard, startCardAgent, unarchiveCard } from './clients/seismic';
 import { replyOn, setReply } from './reply';
 import { ArchiveView } from './archive';
 import { CardSearch } from './cardSearch';
@@ -1030,7 +1030,7 @@ function Project({
     
     const draft = openDraft.current;
     if (i?.source === 'manual' && !draft.title.trim()) {
-      if (nameless(draft)) saved.then(() => api.act(i.id, { action: 'name' })).catch(console.error);
+      if (nameless(draft)) saved.then(() => actCard(i.id, { action: 'name' })).catch(console.error);
       else if (!keepUntitled) removeCard(i.id).catch(console.error);
     }
     
@@ -1482,7 +1482,7 @@ function Project({
 
   const keepWorkstation = useCallback(async (i: Item) => {
     try {
-      await api.act(i.id, { action: 'keepWorkstation' });
+      await actCard(i.id, { action: 'keepWorkstation' });
       showAck(t.workstations.keptBack(plain(i.title)));
     } catch (e) {
       showAck(e instanceof ApiError && e.code === 'notEvictable' ? t.voice.tooLate : failText(e));
@@ -1490,7 +1490,7 @@ function Project({
   }, []);
   const takeWorkstation = useCallback(async (i: Item) => {
     try {
-      await api.act(i.id, { action: 'takeWorkstation' });
+      await actCard(i.id, { action: 'takeWorkstation' });
       showAck(t.workstations.taken(plain(i.title)), () => keepWorkstation(i), EVICT_HOLD_MS);
     } catch (e) {
       fail(e);
@@ -1505,7 +1505,7 @@ function Project({
   const arrange = useCallback(async (p: Item) => {
     const before = [p, ...itemsRef.current.filter((i) => i.parent === p.id)].map(({ id, x, y }) => ({ id, x, y }));
     try {
-      await api.act(p.id, { action: 'arrange' });
+      await actCard(p.id, { action: 'arrange' });
       showAck(t.plan.arranged, async () => {
         try {
           await Promise.all(before.map(({ id, x, y }) => patchCard(id, { x, y })));

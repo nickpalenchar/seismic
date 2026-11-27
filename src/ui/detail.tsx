@@ -1660,7 +1660,7 @@ function Conversation({
       {turn.e.id === held.at(-1) && (
         <div className="held-note self-end flex items-center justify-end flex-wrap gap-x-2.5 gap-y-1 -mt-0.5 mx-0.5 mb-1 text-xs text-muted-foreground text-right">
           {t.demo.held(held.length)}
-          <button className="held-send py-1 px-2.5 border border-working/45 rounded-xs bg-card text-working [font:inherit] font-semibold cursor-pointer hover:bg-working/12" title={t.demo.sendNowHint} onClick={() => void api.act(item.id, { action: 'release', now: true }).catch(() => {})}>
+          <button className="held-send py-1 px-2.5 border border-working/45 rounded-xs bg-card text-working [font:inherit] font-semibold cursor-pointer hover:bg-working/12" title={t.demo.sendNowHint} onClick={() => void actCard(item.id, { action: 'release', now: true }).catch(() => {})}>
             {t.demo.sendNow}
           </button>
         </div>
@@ -1771,8 +1771,7 @@ const turn = (cardId: string, action: 'pause' | 'resume') => void (action === 'p
  * into the card's field when it is empty.
  */
 const takeBack = (cardId: string, e: CardEvent) =>
-  void api
-    .act(cardId, { action: 'unsay', id: e.id })
+  void actCard(cardId, { action: 'unsay', id: e.id })
     .then(() => giveBack(cardDraft(cardId), e.text, e.images))
     .catch(() => {});
 

@@ -1,6 +1,5 @@
 import { expect, test } from 'bun:test';
 import type { CardAction, Item, ItemIdea, ItemReview } from '../core/types';
-import { api } from './api';
 import { quickReplies } from './quickReply';
 import { t } from './strings';
 
@@ -8,28 +7,21 @@ const card = (over: Partial<Item>): Item => ({ id: 'x', kind: 'task', state: 'wa
 
 /** What each reply sends to the card, by its label. */
 async function sent(i: Item) {
-  const was = api.act;
   const out: [string, CardAction | 'remove', boolean][] = [];
-  try {
-    for (const q of quickReplies(i)) {
-      let a: CardAction | 'remove' = 'remove';
-      api.act = async (_id, x) => void (a = x);
-      
-      const fetched = globalThis.fetch;
-      globalThis.fetch = (async (_url: string, init: RequestInit) => {
-        if (init.method === 'DELETE') a = 'remove';
-        const moved = /\/api\/v1\/cards\/[^/]+\/([a-z-]+)$/.exec(_url)?.[1];
-        if (moved) {
-          a = { action: moved, ...JSON.parse(String(init.body ?? '{}')) } as CardAction;
-          return Response.json({ card: i });
-        }
-        return new Response(null, { status: 204 });
-      }) as typeof fetch;
-      await q.send(i.id, false).finally(() => (globalThis.fetch = fetched));
-      out.push([q.label, a, !!q.primary]);
-    }
-  } finally {
-    api.act = was;
+  for (const q of quickReplies(i)) {
+    let a: CardAction | 'remove' = 'remove';
+    const fetched = globalThis.fetch;
+    globalThis.fetch = (async (_url: string, init: RequestInit) => {
+      if (init.method === 'DELETE') a = 'remove';
+      const moved = /\/api\/v1\/cards\/[^/]+\/([a-z-]+)$/.exec(_url)?.[1];
+      if (moved) {
+        a = { action: moved, ...JSON.parse(String(init.body ?? '{}')) } as CardAction;
+        return Response.json({ card: i });
+      }
+      return new Response(null, { status: 204 });
+    }) as typeof fetch;
+    await q.send(i.id, false).finally(() => (globalThis.fetch = fetched));
+    out.push([q.label, a, !!q.primary]);
   }
   return out;
 }

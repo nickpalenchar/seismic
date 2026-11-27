@@ -14,7 +14,7 @@ import { agyBaseChoice, chatModelFor, withAgyBase, harnessChoice, projectAgentSe
 import { catalogDefault, ModelOptions } from './agent-options';
 import { api, onAgentSettingsChange } from './api';
 import { chatLongClosed, chatWentQuiet, markChatClosed } from './chatReopen';
-import { createChat, getAgentModels, getRecentChat, openChat, readChat, setChatModel, stopWaiting } from './clients/seismic';
+import { actCard, createChat, getAgentModels, getRecentChat, openChat, readChat, setChatModel, stopWaiting } from './clients/seismic';
 import { Inline, plain } from './markdown';
 import { AnswerFiles, Body, Continues, Msg, Quote, Reading, ThreadCard } from './message';
 import { type Reply, setReply, talkEv, talkQuote } from './reply';
@@ -319,7 +319,7 @@ export function PlanTalk({ on, plan, talk, items, onOpen }: { on: boolean; plan:
           label={t.plan.askSend}
           onSend={(text, images, replyTo) => {
             setError('');
-            return api.act(plan.id, { action: 'consult', text, ...(images ? { images } : {}), ...(replyTo && typeof replyTo !== 'number' ? { replyTo } : {}) }).catch((e) => setError(failText(e)));
+            return actCard(plan.id, { action: 'consult', text, ...(images ? { images } : {}), ...(replyTo && typeof replyTo !== 'number' ? { replyTo } : {}) }).catch((e) => setError(failText(e)));
           }}
         />
       )}

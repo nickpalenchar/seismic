@@ -5,7 +5,7 @@ import { extensionSettings, serverExtensions as extensions } from '../extensions
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
 import { join, resolve } from 'node:path';
-import { type ActivityPage, agentListens, type ProjectInfo, type ProjectSettingsView, type CardAction, type ClientMessage, type DeveloperView, type Harness, type Item, type MachineSectionId, type NewCard, type PageTags, type PendingRestart, type ServerMessage, type SpotInput, type TalkRef, isTalkRef, MAX_FILE_BYTES, needsYou, type Waiting, waitingIn } from '../core/types';
+import { type ActivityPage, agentListens, type ProjectInfo, type ProjectSettingsView, type ClientMessage, type DeveloperView, type Harness, type Item, type MachineSectionId, type NewCard, type PageTags, type PendingRestart, type ServerMessage, type SpotInput, type TalkRef, isTalkRef, MAX_FILE_BYTES, needsYou, type Waiting, waitingIn } from '../core/types';
 import { uiRoutes } from './ui';
 import { guarded, LOCAL_HOSTS, refusal } from './access';
 import { BadRequest } from './board';
@@ -59,17 +59,6 @@ const emojiMessages = emojiMessagesFile as unknown as string;
 type Req = Request & { params: Record<string, string> };
 
 const notFound = () => new Response('Not found', { status: 404 });
-
-
-/** The URL under a card (`/api/v1/cards/:cardId/…`) of an action that moved there: `startAt` is `start-at`, `skipCodeReview` is `code-review/skip`. */
-const v1PathOf = (action: string) =>
-  action === 'force' ? 'start'
-  : action === 'stopCodeReview' ? 'code-review/stop'
-  : action === 'skipCodeReview' ? 'code-review/skip'
-  : action === 'reopenReviewItem' ? 'code-review/items/:itemNumber/reopen'
-  : action.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
-
-const V1_ACTIONS = new Set<string>(['start', 'force', 'stop', 'approve', 'dequeue', 'message', 'answer', 'pause', 'resume', 'snooze', 'wake', 'startAt', 'pushMain', 'keepMain', 'pushChanges', 'fold', 'editHeld', 'codeReview', 'stopCodeReview', 'skipCodeReview', 'handOff', 'reopenReviewItem', 'accept', 'unaccept', 'merge', 'dismissDuplicate', 'approveMerge', 'separate', 'dismiss', 'keep', 'revise', 'discuss', 'build', 'unbuild', 'stayHere', 'splitOff', 'planDoc', 'park', 'unpark', 'drop', 'prototype', 'buildPrototype', 'discard']);
 
 
 /**
@@ -801,15 +790,6 @@ export function serve(
       },
       
       '/api/c/:project/archive': { GET: on((c) => c.board.archived()), POST: on((c) => ({ ids: c.board.archiveDone() })) },
-      '/api/c/:project/cards/:id/act': {
-        POST: on(async (c, req) => {
-          const a = (await req.json()) as CardAction;
-          
-          if (a && V1_ACTIONS.has(a.action)) throw new BadRequest('invalid', `${a.action} goes through POST /api/v1/cards/:cardId/${v1PathOf(a.action)}`);
-          return c.press(req.params.id!, a);
-        }),
-      },
-      
       '/api/c/:project/cards/:id/stand-in': { POST: on(async (c, req) => ({ result: await c.standIn(req.params.id!, (await req.json()) as Parameters<typeof c.standIn>[1]) })) },
       '/api/c/:project/cards/:id/events': { GET: on((c, req) => c.board.events(req.params.id!)) },
       

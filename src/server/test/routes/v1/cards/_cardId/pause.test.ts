@@ -12,9 +12,3 @@ test('pause, resume and start-at are refused for a card they do not fit, a wrong
   expect(await code(await server.send('POST', `/api/v1/cards/${c.id}/start-at`, { at: 5 }))).toEqual([400, 'invalid']);
   expect(await code(await server.send('POST', '/api/v1/cards/nope/resume'))).toEqual([404, 'unknownCard']);
 });
-
-test('the old act route no longer takes them', async () => {
-  const c = server.shop().board.create({ title: 'A', x: 0, y: 0 });
-  for (const action of ['pause', 'resume', 'snooze', 'wake', 'startAt'])
-    expect(await code(await server.send('POST', `/api/c/${server.shop().id}/cards/${c.id}/act`, { action }))).toEqual([400, 'invalid']);
-});

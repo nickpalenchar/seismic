@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, setSystemTime, test } from 'bu
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import type { CardAction, ClientMessage, Item, ServerMessage } from '../../core/types';
+import type { ClientMessage, Item, ServerMessage } from '../../core/types';
 import type { Board } from '../board';
 import { Projects, ProjectRuntime } from '../project';
 import type { Command } from '../commands';
@@ -68,7 +68,6 @@ const card = () => board.create({ title: 'A', x: 0, y: 0 });
 const post = (path: string, body: string) => fetch(new URL(path, server.url), { method: 'POST', headers: { 'content-type': 'application/json' }, body });
 const codeOf = async (res: Promise<Response>) => ((await (await res).json()) as { code: string }).code;
 const api = (path: string) => `/api/c/main${path}`;
-const act = (id: string, a: CardAction | { action: string; text?: unknown }) => post(api(`/cards/${id}/act`), JSON.stringify(a));
 
 const v1 = (id: string, action: 'start' | 'stop' | 'approve' | 'dequeue' | 'message' | 'answer' | 'dismiss', body: unknown = {}) => post(`/api/v1/cards/${id}/${action}`, JSON.stringify(body));
 
@@ -90,9 +89,8 @@ describe('refused requests', () => {
     expect(await codeOf(v1(c.id, 'dismiss'))).toBe('notProposal');
     expect(await codeOf(v1('nope', 'start'))).toBe('unknownCard');
     
-    for (const action of ['start', 'force', 'stop', 'approve', 'dequeue', 'message', 'answer'] as const) expect(await codeOf(act(c.id, { action }))).toBe('invalid');
-    expect(await codeOf(act(c.id, { action: 'fly' }))).toBe('invalid');
-    expect(await codeOf(post(api(`/cards/${c.id}/act`), '{'))).toBe('invalid');
+    expect(await codeOf(post(`/api/v1/cards/${c.id}/message`, "{"))).toBe('invalid');
+    expect((await post(api(`/cards/${c.id}/act`), JSON.stringify({ action: 'stop' }))).status).toBe(404);
     expect(await codeOf(post(api('/cards'), JSON.stringify({ title: 'x', x: 'links', y: 0 })))).toBe('invalid');
   });
 

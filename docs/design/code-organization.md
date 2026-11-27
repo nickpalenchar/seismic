@@ -86,14 +86,14 @@ Represents endpoints that are registered to the server, which can be called in a
     (`{ safePoint }`), `resume`, `snooze` (`{ until }`), `wake` and `start-at` (`{ at }`, `null` to clear).
     So do landing and review: `push-main`, `keep-main`, `push-changes`, `fold` (`{ land }`), `edit-held`
     (`{ body }`), `hand-off` (`{ agent }`) and the code review under `code-review` (`POST` starts it, then
-    `stop`, `skip` and `items/:itemNumber/reopen`). The rest of `POST /api/c/:project/cards/:id/act`
+    `stop`, `skip` and `items/:itemNumber/reopen`).
     Proposals and ideas follow: `accept`, `unaccept`, `merge`, `dismiss`, `keep`, `revise`, `discuss`,
     `build`, `unbuild`, `park`, `unpark`, `drop`, `prototype`, `discard` and the rest, each a `POST` named
-    for the action in kebab-case. What stays on `POST /api/c/:project/cards/:id/act` (`undo`, `unsay`,
-    `release`, `name`, `reorder`, `arrange`, the workstation choices, `ask`, `consult`, `asIdea`,
-    `share`, `pageTags`) is still legacy.
-  - The models of the harnesses are read at `GET /api/v1/agents?models=codex,agy`; the page reads them
-    once when a project loads and keeps them for a minute, the settings read them afresh.
+    for the action in kebab-case. So do the rest, so `POST /api/c/:project/cards/:id/act` is gone: `undo`,
+    `unsay`, `release`, `name`, `reorder`, `arrange`, the workstation choices (`take-workstation`,
+    `keep-workstation`), `ask`, `consult`, `as-idea` and `page-tags`; the demo page's share is `POST` and
+    `DELETE` on `/share`, beside the `PATCH` of "Share on approval". The UI sends any of them through
+    `actCard` (`src/ui/clients/seismic.ts`).
   - Params name what they stand for (`:cardId`), never a bare `:id`.
   - A card's URL names the card alone, not its project: the server finds the project from the card
     (`HttpRoute.projectOfCard`), so a call can't go to the wrong project when the page shows another.

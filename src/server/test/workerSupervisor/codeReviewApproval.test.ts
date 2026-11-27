@@ -90,10 +90,6 @@ for (const scenario of ['running', 'fixing', 'verifying', 'unsent', 'unsentDurin
           await workers.approve(id, { direct: !!direct });
           return Response.json({ card: board.item(id) });
         }
-        if (path.endsWith('/act')) {
-          actions.push(await req.json() as CardAction);
-          return new Response(null, { status: 204 });
-        }
         if (path.endsWith('/events') || path.endsWith('/skills')) return Response.json([]);
         if (path.endsWith('/diff')) return Response.json(null);
         if (path.endsWith('/app')) return Response.json({ up: false });

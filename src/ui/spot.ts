@@ -6,6 +6,7 @@
 import { useSyncExternalStore } from 'react';
 import { chapterAt, type SpotInput } from '../core/types';
 import { api } from './api';
+import { actCard } from './clients/seismic';
 import { scrollBehavior } from './motion';
 import { MAX_SIDE } from './shots';
 
@@ -164,7 +165,7 @@ export function beginSpotSend(cardId: string): () => void {
 export function finishWatching(cardId: string): void {
   const pending = sending.get(cardId);
   if (pending) pending.release = true;
-  else void api.act(cardId, { action: 'release' }).catch(() => {});
+  else void actCard(cardId, { action: 'release' }).catch(() => {});
 }
 
 /** What the server gets of a place taken before: its time, the demo it is in, and its frame, uploaded now. */

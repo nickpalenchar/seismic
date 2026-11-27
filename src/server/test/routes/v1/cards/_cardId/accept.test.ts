@@ -22,9 +22,3 @@ test('an unknown card is a 404 on each of them', async () => {
     expect(await code(await post('nope', path))).toEqual([404, 'unknownCard']);
   for (const path of ['merge', 'revise', 'discuss']) expect(await code(await post('nope', path, { text: 'x', with: 'y' }))).toEqual([404, 'unknownCard']);
 });
-
-test('the old act route no longer takes them', async () => {
-  const c = server.shop().board.create({ title: 'A', x: 0, y: 0 });
-  for (const action of ['accept', 'unaccept', 'merge', 'dismissDuplicate', 'approveMerge', 'separate', 'dismiss', 'keep', 'revise', 'discuss', 'build', 'unbuild', 'stayHere', 'splitOff', 'planDoc', 'park', 'unpark', 'drop', 'prototype', 'buildPrototype', 'discard'])
-    expect(await code(await server.send('POST', `/api/c/${server.shop().id}/cards/${c.id}/act`, { action }))).toEqual([400, 'invalid']);
-});

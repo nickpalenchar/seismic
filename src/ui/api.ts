@@ -11,7 +11,7 @@ import { afterAttachments } from './attachmentSwitch';
 import { prepareSessionHandOver, sessionWithDrafts } from './draftSession';
 import type { CardDiff } from '../core/diff';
 import { type Place, placeParam } from '../core/layout';
-import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, RemoteSetting, Harness, HarnessAvailability, CloudPreset, ProjectConfig, ProjectInfo, ProjectSnapshot, ClientMessage, ConfigSaved, CardAction, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, SetupRepoCheck, VoiceSetupView, CardEvent, Item, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Usage, Waiting, Feedback, FeedbackAnswer, ProjectSettings, ProjectSettingsView, DeveloperView, Canvas } from '../core/types';
+import type { ProjectReposView, RepoConfig, AccessView, ActivityPage, Pairing, RemoteSetting, Harness, HarnessAvailability, CloudPreset, ProjectConfig, ProjectInfo, ProjectSnapshot, ClientMessage, ConfigSaved, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, SetupRepoCheck, VoiceSetupView, CardEvent, Item, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Usage, Waiting, Feedback, FeedbackAnswer, ProjectSettings, ProjectSettingsView, DeveloperView, Canvas } from '../core/types';
 import type { Wish } from '../core/wish';
 import { sameJson } from './sameJson';
 import { noteMessage, watchPageStalls } from './stalls';
@@ -316,11 +316,6 @@ export const api = {
   archived: () => call<Item[]>('GET', at('/archive')),
   /** Archives every finished card of the owner's on the project. */
   archiveDone: () => call<{ ids: string[] }>('POST', at('/archive')),
-  /** An action on the card; `keepalive` for one sent as the page goes. */
-  act: async (id: string, a: CardAction, keepalive = false) => {
-    await call<void>('POST', cardAt(id, '/act'), a, keepalive);
-    if (a.action === 'release' && a.now) await refreshCard(id);
-  },
   /** "Make it a card": a looked-up thread moves onto a Question card, which comes back. */
   threadCard: (thread: number) => call<Item>('POST', at(`/threads/${thread}/card`)),
   /** Opens an answer's file with the system's app, or without `file` the thread's directory. */
