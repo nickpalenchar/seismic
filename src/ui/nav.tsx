@@ -8,9 +8,10 @@
 
 
 
-import { Archive, ArrowLeft, Bot, Car, ChartLine, Check, ChevronDown, ChevronRight, CircleHelp, Cog, FileCheck, Inbox, ListOrdered, Map as MapIcon, MessageCircleHeart, PanelLeftClose, PanelLeftOpen, Plus, ScrollText, Settings, SquareMenu, SunMoon, Table2, Users, X } from 'lucide-react';
+import { Archive, ArrowLeft, Bot, Car, ChartLine, Check, ChevronDown, ChevronRight, CircleHelp, Cog, FileCheck, Inbox, ListOrdered, Map as MapIcon, MessageCircleHeart, PanelLeftClose, PanelLeftOpen, Pause, Play, Plus, ScrollText, Settings, SquareMenu, SunMoon, Table2, Users, X } from 'lucide-react';
 import { type ComponentProps, createContext, type ReactNode, type Ref, useContext, useLayoutEffect, useRef, useState } from 'react';
 import type { Canvas, ProjectInfo } from '../core/types';
+import { api } from './api';
 import { projectPath, switchTo } from './address';
 import { CanvasIcon, ProjectIcon } from './canvasIcon';
 import { Sign, Wordmark } from './logo';
@@ -372,7 +373,7 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
   
   const hasAgentsPage = agentEntries.length > 0 || !!p.onPerformance || !!p.onFeedbackLog;
   const canvas = p.canvases.find((c) => c.id === p.canvas) ?? p.canvases[0];
-  const hasProjectEntries = !!(p.onCanvas && canvas) || !!(p.onTable ?? p.onQueue ?? p.onParked ?? p.onArchived);
+  const hasProjectEntries = !!(p.onCanvas && canvas) || !!(p.onTable ?? p.onQueue ?? p.onParked ?? p.onArchived) || (!!phone && !!p.project.agents);
   /**
    * A page beside the main one. Docked or on the phone, Escape in it goes back to the main page and
    * reaches nothing under the menu (`data-esc-back` keeps the window's own Escape off it). In the
@@ -431,6 +432,7 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
           {p.onQueue && <Entry icon={<ListOrdered size={16} strokeWidth={2} aria-hidden />} label={m.queue} on={p.showing === 'queue'} onClick={run(p.onQueue)} />}
           {p.onParked && <Entry icon={<Car size={16} strokeWidth={2} aria-hidden />} label={m.parked} on={p.showing === 'parked'} onClick={run(p.onParked)} />}
           {p.onArchived && <Entry icon={<Archive size={16} strokeWidth={2} aria-hidden />} label={m.archived} on={p.showing === 'archived'} onClick={run(p.onArchived)} />}
+          {phone && <AgentsEntry project={p.project} />}
         </NavList>
         <h3 className={cn(sectionHead, 'uppercase')}>{m.configure}</h3>
         <NavList className={list}>
@@ -614,6 +616,31 @@ function Entry({ icon, label, end, on, soon, sub, keep, onClick, focusRef }: { i
         {soon ? <span className="ml-auto flex-none text-xs">{t.leftMenu.comingSoon}</span> : end}
       </Act>
     </Item>
+  );
+}
+
+/**
+ * On the phone, the open project's pause or play of its agents (ProjectAgents on the desktop pill's
+ * rows): the menu lists no projects there and the bar's picker only switches. The menu stays open,
+ * the label turning once the agents have.
+ */
+function AgentsEntry({ project }: { project: ProjectInfo }) {
+  const [asked, setAsked] = useState(false);
+  const a = project.agents;
+  if (!a) return null;
+  const pause = a.running > 0;
+  const Mark = pause ? Pause : Play;
+  return (
+    <Entry
+      icon={<Mark size={16} strokeWidth={2} aria-hidden />}
+      label={pause ? t.projectPause.pause(a.running) : t.projectPause.resume(a.paused)}
+      keep
+      onClick={() => {
+        if (asked) return;
+        setAsked(true);
+        (pause ? api.pauseAgents(project.id) : api.resumeAgents(project.id)).catch(console.error).finally(() => setAsked(false));
+      }}
+    />
   );
 }
 
