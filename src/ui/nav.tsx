@@ -9,7 +9,7 @@
 
 
 import { Archive, ArrowLeft, Bot, Car, ChartLine, Check, ChevronDown, ChevronRight, CircleHelp, Cog, FileCheck, Inbox, ListOrdered, Map as MapIcon, MessageCircleHeart, PanelLeftClose, PanelLeftOpen, Pause, Play, Plus, ScrollText, Settings, SquareMenu, SunMoon, Table2, Users, X } from 'lucide-react';
-import { type ComponentProps, createContext, type ReactNode, type Ref, useContext, useLayoutEffect, useRef, useState } from 'react';
+import { type ComponentProps, createContext, type ReactNode, type Ref, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Canvas, ProjectInfo } from '../core/types';
 import { projectPath, switchTo } from './address';
 import { CanvasIcon, ProjectIcon } from './canvasIcon';
@@ -339,6 +339,9 @@ export function PhoneNavSheet({ open, onOpenChange, ...p }: MenuProps & { open: 
  * The menu's pages: the main one, and "Configure agents", the inbox and "Appearance", each sliding in
  * over it. Back on the main page, the focus returns to the entry that opened the page. The menu is a
  * container (`menu`), so Appearance stacks its choices in a menu under 300 px (cfgCompactFieldClass).
+ * Docked, the main page keeps its height until it has slid away (`shown`), so Configure stays at its
+ * foot meanwhile; and the sticky head (in the app on a Mac) and Configure cover the menu's ends, so
+ * the scroller keeps their heights clear when it brings a focused entry into view.
  */
 function MenuBody({ floating, titlebar, phone, docked, ...p }: MenuProps & { floating?: boolean; titlebar?: boolean; phone?: boolean; docked?: boolean }) {
   const [page, setPage] = useState<'main' | 'agents' | 'inbox' | 'appearance'>('main');
@@ -358,6 +361,23 @@ function MenuBody({ floating, titlebar, phone, docked, ...p }: MenuProps & { flo
       return () => cancelAnimationFrame(frame);
     }
   }, [page]);
+  const [shown, setShown] = useState(page);
+  useEffect(() => {
+    const timer = setTimeout(() => setShown(page), 300);
+    return () => clearTimeout(timer);
+  }, [page]);
+  const footerBox = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const box = footerBox.current;
+    const scroller = box?.closest<HTMLElement>('[data-sidebar=content]');
+    if (!docked || !box || !scroller) return;
+    scroller.style.scrollPaddingTop = titlebar ? '50px' : '';
+    const fit = () => { scroller.style.scrollPaddingBottom = page === 'main' ? `${box.offsetHeight}px` : ''; };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(box);
+    return () => { observer.disconnect(); scroller.style.scrollPaddingTop = ''; scroller.style.scrollPaddingBottom = ''; };
+  }, [docked, titlebar, page]);
   const m = t.leftMenu;
   const drag = titlebar ? { 'data-tauri-drag-region': '' } : {};
   
@@ -400,9 +420,9 @@ function MenuBody({ floating, titlebar, phone, docked, ...p }: MenuProps & { flo
   return (
     
     
-    <div className={cn('@container/menu grid grid-cols-[100%_100%_100%_100%] items-start transition-transform', docked && 'flex-1 duration-300 ease-[cubic-bezier(.3,.9,.3,1)]', page === 'agents' && '-translate-x-full', page === 'inbox' && '-translate-x-[200%]', page === 'appearance' && '-translate-x-[300%]')}>
+    <div className={cn('@container/menu grid grid-cols-[100%_100%_100%_100%] items-start transition-transform duration-300 ease-[cubic-bezier(.3,.9,.3,1)]', docked && 'flex-1', page === 'agents' && '-translate-x-full', page === 'inbox' && '-translate-x-[200%]', page === 'appearance' && '-translate-x-[300%]')}>
       <InMenu.Provider value={!floating ? null : page === 'main' ? ACTIVE : INACTIVE}>
-      <div className={cn(pageClass(page !== 'main'), docked && 'flex flex-col self-stretch')} inert={page !== 'main'}>
+      <div className={cn(pageClass(page !== 'main', page !== 'main' && (!docked || shown !== 'main')), docked && 'flex flex-col self-stretch')} inert={page !== 'main'}>
         {!phone && !titlebar && <DeskSwitcher />}
         <div className={head(titlebar)} {...drag}>
           {!titlebar && <NavList className={cn(list, 'min-w-0 flex-1')}>{inbox}</NavList>}
@@ -433,7 +453,7 @@ function MenuBody({ floating, titlebar, phone, docked, ...p }: MenuProps & { flo
           {p.onArchived && <Entry icon={<Archive size={16} strokeWidth={2} aria-hidden />} label={m.archived} on={p.showing === 'archived'} onClick={run(p.onArchived)} />}
           {phone && <AgentsEntries project={p.project} />}
         </NavList>
-        <div className={footer(docked)}>
+        <div ref={footerBox} className={footer(docked)}>
         <h3 className={cn(sectionHead, 'uppercase')}>{m.configure}</h3>
         <NavList className={list}>
           <Entry icon={<SunMoon size={16} strokeWidth={2} aria-hidden />} label={m.appearance} focusRef={appearanceButton} keep onClick={() => setPage('appearance')} end={<ChevronRight size={16} strokeWidth={2} className="ml-auto flex-none text-muted-foreground" aria-hidden />} />
@@ -552,8 +572,8 @@ function DeskSwitcher() {
   );
 }
 
-/** One of the menu's pages; the one out of view hides once it has slid away, and takes no height. */
-const pageClass = (away: boolean) => cn('min-w-0', away && 'invisible h-0 [transition:visibility_0s_.3s]');
+/** One of the menu's pages; the one out of view hides once it has slid away, and takes no height while `collapsed`. */
+const pageClass = (away: boolean, collapsed = away) => cn('min-w-0', away && 'invisible [transition:visibility_0s_.3s]', collapsed && 'h-0');
 
 /**
  * A page's head: the inbox's entry or the way back. In the app on a Mac the window's
