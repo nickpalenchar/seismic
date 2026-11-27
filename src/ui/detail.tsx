@@ -14,7 +14,7 @@ import { mockPage } from '../core/frame';
 import { mmss } from '../../plugin/skills/demo/lib/timeline.ts';
 import { answers, answerText, OTHER, toggleOther } from './answer';
 import { ApiError, api, projectOf, cardAt, type Field, holdRestart, onCardEvent, onCardEventGone, onCardRefresh, onReconnect, refreshCard, useCardRefreshFailed } from './api';
-import { answerCard, approveCard, archiveCard, dequeueCard, sendCardMessage, setShareOnApproval, startCardAgent, stopCardAgent, unarchiveCard } from './clients/seismic';
+import { answerCard, approveCard, archiveCard, dequeueCard, pauseCard, resumeCard, sendCardMessage, setCardStartAt, snoozeCard, wakeCard, setShareOnApproval, startCardAgent, stopCardAgent, unarchiveCard } from './clients/seismic';
 import { cardPath } from './address';
 import { Naming, smartLink } from './cardLink';
 import { DuplicateMergePreview, MergeButton, MergeView } from './merge';
@@ -270,6 +270,11 @@ export function Detail(p: Props) {
       else if (a.action === 'approve') await approveCard(item.id, { direct: !!a.direct });
       else if (a.action === 'message') await sendCardMessage(item.id, a);
       else if (a.action === 'answer') await answerCard(item.id, a);
+      else if (a.action === 'pause') await pauseCard(item.id, { safePoint: !!a.safePoint });
+      else if (a.action === 'resume') await resumeCard(item.id);
+      else if (a.action === 'snooze') await snoozeCard(item.id, a.until);
+      else if (a.action === 'wake') await wakeCard(item.id);
+      else if (a.action === 'startAt') await setCardStartAt(item.id, a.at);
       else await api.act(item.id, a);
       
       if (a.action === 'start' || a.action === 'force' || (a.action === 'accept' && a.start !== false)) updateDraft(cardDraft(item.id), { agent: undefined });
@@ -1769,7 +1774,7 @@ function Conversation({
 }
 
 /** Pauses the agent's turn on the card, or lets the paused agent go on; the card shows it once the server has. */
-const turn = (cardId: string, action: 'pause' | 'resume') => void api.act(cardId, { action }).catch(() => {});
+const turn = (cardId: string, action: 'pause' | 'resume') => void (action === 'pause' ? pauseCard(cardId) : resumeCard(cardId)).catch(() => {});
 
 /**
  * Takes back words of the owner's the agent has not read (a note waiting for its next step, a

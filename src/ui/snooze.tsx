@@ -7,7 +7,7 @@ import { Clock } from 'lucide-react';
 import { cn } from 'cn';
 import { useState } from 'react';
 import type { CardEvent, Item, Snooze } from '../core/types';
-import { api } from './api';
+import { snoozeCard, wakeCard } from './clients/seismic';
 import { clock, t } from './strings';
 import { Button, type ButtonVariant } from './components/button';
 import { Popover, PopoverContent, PopoverTrigger } from './components/popover';
@@ -156,8 +156,8 @@ export function SnoozeMenu({
 }
 
 /** Snoozes the card until `until`, or wakes it; the card shows it once the server has. */
-const snooze = (cardId: string, until: string) => void api.act(cardId, { action: 'snooze', until }).catch(() => {});
-const wake = (cardId: string) => void api.act(cardId, { action: 'wake' }).catch(() => {});
+const snooze = (cardId: string, until: string) => void snoozeCard(cardId, until).catch(() => {});
+const wake = (cardId: string) => void wakeCard(cardId).catch(() => {});
 
 /** The line in the conversation where the card was snoozed, while it still is: with "Wake now" and "Change". */
 export function SnoozeLine({ item, e, at }: { item: Item; e: CardEvent; at: string }) {

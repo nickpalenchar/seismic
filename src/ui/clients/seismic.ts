@@ -70,6 +70,21 @@ export const sendCardMessage = (id: string, message: Extract<CardAction, { actio
 export const answerCard = (id: string, answer: Extract<CardAction, { action: 'answer' }>, keepalive = false) =>
   writeCard(id, 'POST', '/answer', answer, { keepalive });
 
+/** The card's agent paused (`safePoint`: when its turn ends). */
+export const pauseCard = (id: string, { safePoint = false }: { safePoint?: boolean } = {}) => writeCard(id, 'POST', '/pause', safePoint ? { safePoint } : {});
+
+/** The paused card's agent goes on (a card at its retry limit tries again). */
+export const resumeCard = (id: string) => writeCard(id, 'POST', '/resume', {});
+
+/** The card snoozed until `until`. */
+export const snoozeCard = (id: string, until: string) => writeCard(id, 'POST', '/snooze', { until });
+
+/** The snoozed card woken before its time. */
+export const wakeCard = (id: string) => writeCard(id, 'POST', '/wake', {});
+
+/** When the accepted proposal starts (`at`), or with `null` no longer at a time. */
+export const setCardStartAt = (id: string, at: string | null) => writeCard(id, 'POST', '/start-at', { at });
+
 /** The card's agent stopped: the card is planned again. */
 export const stopCardAgent = (id: string) => writeCard(id, 'POST', '/stop', {});
 

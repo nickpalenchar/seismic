@@ -61,7 +61,7 @@ type Req = Request & { params: Record<string, string> };
 const notFound = () => new Response('Not found', { status: 404 });
 
 
-const V1_ACTIONS = new Set<string>(['start', 'force', 'stop', 'approve', 'dequeue', 'message', 'answer']);
+const V1_ACTIONS = new Set<string>(['start', 'force', 'stop', 'approve', 'dequeue', 'message', 'answer', 'pause', 'resume', 'snooze', 'wake', 'startAt']);
 
 
 /**
@@ -797,7 +797,7 @@ export function serve(
         POST: on(async (c, req) => {
           const a = (await req.json()) as CardAction;
           
-          if (a && V1_ACTIONS.has(a.action)) throw new BadRequest('invalid', `${a.action} goes through POST /api/v1/cards/:cardId/${a.action === 'force' ? 'start' : a.action}`);
+          if (a && V1_ACTIONS.has(a.action)) throw new BadRequest('invalid', `${a.action} goes through POST /api/v1/cards/:cardId/${a.action === 'force' ? 'start' : a.action === 'startAt' ? 'start-at' : a.action}`);
           return c.press(req.params.id!, a);
         }),
       },

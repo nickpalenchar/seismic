@@ -82,7 +82,9 @@ Represents endpoints that are registered to the server, which can be called in a
     fields share.
   - The owner's words to a card are `POST /api/v1/cards/:cardId/message` (its agent, a Question card's
     thread, a review card's decisions) and `POST /api/v1/cards/:cardId/answer` (the question it waits
-    on); both answer with `{ card }`. The rest of `POST /api/c/:project/cards/:id/act` is still legacy.
+    on); both answer with `{ card }`. So do the run controls, each a `POST` of its own: `pause`
+    (`{ safePoint }`), `resume`, `snooze` (`{ until }`), `wake` and `start-at` (`{ at }`, `null` to clear).
+    The rest of `POST /api/c/:project/cards/:id/act` is still legacy.
   - The models of the harnesses are read at `GET /api/v1/agents?models=codex,agy`; the page reads them
     once when a project loads and keeps them for a minute, the settings read them afresh.
   - Params name what they stand for (`:cardId`), never a bare `:id`.
