@@ -161,7 +161,8 @@ export interface MenuProps extends ProjectsProps, MenuActions {}
  * The menu's sign and the logo in the bar, so it reads as a button. Where the window is wide enough
  * the menu is docked on the left: a click hides the sidebar or shows it again, the sign showing which
  * it does. Otherwise the menu drops down under it; docking closes that dropdown, so narrowing the
- * window again leaves it closed. Narrow, the bar shows the sign alone in it (barFit.ts).
+ * window again leaves it closed. The button stays the dropdown's trigger in both, so a dropdown that
+ * docking closes hands the focus back to it; docked, the trigger's own opening is held back. Narrow, the bar shows the sign alone in it (barFit.ts).
  */
 export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { docked: boolean; dockedOn: boolean; onDocked: (on: boolean) => void }) {
   const [open, setOpen] = useState(false);
@@ -173,8 +174,17 @@ export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { d
       data-on={on || undefined}
       className="-ml-1.5 mr-1 flex h-[34px] cursor-pointer items-center gap-1 rounded-xs bg-transparent px-1.5 text-foreground hover:bg-foreground/7 data-[on]:bg-foreground/7"
       aria-label={t.leftMenu.button}
-      aria-expanded={docked ? dockedOn : undefined}
-      onClick={docked ? () => onDocked(!dockedOn) : undefined}
+      {...(docked && {
+        'aria-expanded': dockedOn,
+        'aria-haspopup': undefined,
+        onClick: () => onDocked(!dockedOn),
+        onPointerDown: (e: React.PointerEvent) => e.preventDefault(),
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'ArrowDown') return;
+          e.preventDefault();
+          if (e.key !== 'ArrowDown') onDocked(!dockedOn);
+        },
+      })}
     >
       <Icon className="mr-1 block flex-none" size={18} strokeWidth={2} aria-hidden />
       { }
@@ -187,10 +197,10 @@ export function MenuButton({ docked, dockedOn, onDocked, ...p }: MenuProps & { d
     </button>
   );
   return (
-    <Menu open={open} onOpenChange={setOpen}>
+    <Menu open={open} onOpenChange={(o) => setOpen(o && !docked)}>
       <div>
         { }
-        <Tooltip content={t.leftMenu.button}>{docked ? logo : <MenuTrigger asChild>{logo}</MenuTrigger>}</Tooltip>
+        <Tooltip content={t.leftMenu.button}><MenuTrigger asChild>{logo}</MenuTrigger></Tooltip>
       </div>
       <MenuContent className={cn(menuPanel, 'w-[min(310px,calc(100vw-28px))] overflow-x-hidden')}>
         <MenuBody {...p} floating />
