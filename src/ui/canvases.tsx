@@ -9,6 +9,7 @@ import { Car, Clock, GripVertical, MoreHorizontal, Pencil, Plus, Trash2, X } fro
 import type { Bounds } from '../core/layout';
 import { type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type Item, MAIN_CANVAS, parkable, parkableStopping, inParkingLot, offCanvas } from '../core/types';
 import { api } from './api';
+import { actCard } from './clients/seismic';
 import { randomCanvasIcon } from '../core/canvas-icons';
 import { CanvasIcon, canvasText } from './canvasIcon';
 import { IconPicker, type IconPickerView, pickerLabel as cdLabel } from './iconPicker';
@@ -550,7 +551,7 @@ export function CardMore({ item, floating, onClose }: { item: Item; floating?: b
     ? buttonVariants({ size: 'icon' })
     : cn(prioBtnClass(), 'inline-grid h-5 place-items-center px-1 py-0 text-muted-foreground');
   const parking = (action: 'park' | 'unpark') => {
-    void api.act(item.id, { action }).catch(console.error);
+    void actCard(item.id, { action }).catch(console.error);
   };
   return (
     <span className={`${prioPickClass} card-more`}>

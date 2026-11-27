@@ -70,7 +70,7 @@ const codeOf = async (res: Promise<Response>) => ((await (await res).json()) as 
 const api = (path: string) => `/api/c/main${path}`;
 const act = (id: string, a: CardAction | { action: string; text?: unknown }) => post(api(`/cards/${id}/act`), JSON.stringify(a));
 
-const v1 = (id: string, action: 'start' | 'stop' | 'approve' | 'dequeue' | 'message' | 'answer', body: unknown = {}) => post(`/api/v1/cards/${id}/${action}`, JSON.stringify(body));
+const v1 = (id: string, action: 'start' | 'stop' | 'approve' | 'dequeue' | 'message' | 'answer' | 'dismiss', body: unknown = {}) => post(`/api/v1/cards/${id}/${action}`, JSON.stringify(body));
 
 describe('refused requests', () => {
   test('carry a stable code and an English detail', async () => {
@@ -87,7 +87,7 @@ describe('refused requests', () => {
     expect(await codeOf(v1(c.id, 'answer', { text: '', picks: ['Ja'] }))).toBe('noQuestion');
     expect(await codeOf(v1(c.id, 'approve'))).toBe('notReady');
     expect(await codeOf(v1(c.id, 'start', { skipWaitForCards: true }))).toBe('notQueued');
-    expect(await codeOf(act(c.id, { action: 'dismiss' }))).toBe('notProposal');
+    expect(await codeOf(v1(c.id, 'dismiss'))).toBe('notProposal');
     expect(await codeOf(v1('nope', 'start'))).toBe('unknownCard');
     
     for (const action of ['start', 'force', 'stop', 'approve', 'dequeue', 'message', 'answer'] as const) expect(await codeOf(act(c.id, { action }))).toBe('invalid');
@@ -1617,11 +1617,7 @@ describe('freeing and discarding workstations', () => {
     git(clone!.path, 'commit', '--quiet', '-am', 'Button');
     hold('checkout');
     const discarding = Date.now();
-    const discarded = await fetch(new URL(`/api/c/${shop.board.project.id}/cards/${prototype.id}/act`, server.url), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ action: 'discard' }),
-    });
+    const discarded = await fetch(new URL(`/api/v1/cards/${prototype.id}/discard`, server.url), { method: 'POST' });
     expect(discarded.ok).toBe(true);
     expect(Date.now() - discarding).toBeLessThan(1000);
     expect(shop.board.archived().find((i) => i.id === prototype.id)).toMatchObject({ idea: { prototypeEnd: 'discarded' } });

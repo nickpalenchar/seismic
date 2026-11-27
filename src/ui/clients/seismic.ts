@@ -192,6 +192,30 @@ export async function actCard(id: string, a: CardAction, keepalive = false): Pro
     case 'skipCodeReview': return void (await writeCard(id, 'POST', '/code-review/skip', {}));
     case 'handOff': return void (await writeCard(id, 'POST', '/hand-off', { agent: a.agent }));
     case 'reopenReviewItem': return void (await writeCard(id, 'POST', `/code-review/items/${a.number}/reopen`, {}));
+    case 'unaccept': return void (await writeCard(id, 'POST', '/unaccept', {}));
+    case 'dismissDuplicate': return void (await writeCard(id, 'POST', '/dismiss-duplicate', {}));
+    case 'approveMerge': return void (await writeCard(id, 'POST', '/approve-merge', {}));
+    case 'separate': return void (await writeCard(id, 'POST', '/separate', {}));
+    case 'dismiss': return void (await writeCard(id, 'POST', '/dismiss', {}));
+    case 'keep': return void (await writeCard(id, 'POST', '/keep', {}));
+    case 'unbuild': return void (await writeCard(id, 'POST', '/unbuild', {}));
+    case 'stayHere': return void (await writeCard(id, 'POST', '/stay-here', {}));
+    case 'splitOff': return void (await writeCard(id, 'POST', '/split-off', {}));
+    case 'planDoc': return void (await writeCard(id, 'POST', '/plan-doc', {}));
+    case 'park': return void (await writeCard(id, 'POST', '/park', {}));
+    case 'unpark': return void (await writeCard(id, 'POST', '/unpark', {}));
+    case 'drop': return void (await writeCard(id, 'POST', '/drop', {}));
+    case 'discard': return void (await writeCard(id, 'POST', '/discard', {}));
+    case 'accept':
+    case 'build':
+    case 'prototype':
+    case 'buildPrototype':
+    case 'revise':
+    case 'discuss': {
+      const { action, ...rest } = a;
+      return void (await writeCard(id, 'POST', `/${action.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`, rest));
+    }
+    case 'merge': return void (await writeCard(id, 'POST', '/merge', { with: a.with }));
     default: return api.act(id, a, keepalive);
   }
 }

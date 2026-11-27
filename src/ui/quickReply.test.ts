@@ -18,8 +18,9 @@ async function sent(i: Item) {
       const fetched = globalThis.fetch;
       globalThis.fetch = (async (_url: string, init: RequestInit) => {
         if (init.method === 'DELETE') a = 'remove';
-        if (_url.endsWith('/answer')) {
-          a = JSON.parse(String(init.body)) as CardAction;
+        const moved = /\/api\/v1\/cards\/[^/]+\/([a-z-]+)$/.exec(_url)?.[1];
+        if (moved) {
+          a = { action: moved, ...JSON.parse(String(init.body ?? '{}')) } as CardAction;
           return Response.json({ card: i });
         }
         return new Response(null, { status: 204 });

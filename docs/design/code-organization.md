@@ -87,7 +87,11 @@ Represents endpoints that are registered to the server, which can be called in a
     So do landing and review: `push-main`, `keep-main`, `push-changes`, `fold` (`{ land }`), `edit-held`
     (`{ body }`), `hand-off` (`{ agent }`) and the code review under `code-review` (`POST` starts it, then
     `stop`, `skip` and `items/:itemNumber/reopen`). The rest of `POST /api/c/:project/cards/:id/act`
-    (proposals and ideas, `undo`, `unsay`, `release`, ...) is still legacy.
+    Proposals and ideas follow: `accept`, `unaccept`, `merge`, `dismiss`, `keep`, `revise`, `discuss`,
+    `build`, `unbuild`, `park`, `unpark`, `drop`, `prototype`, `discard` and the rest, each a `POST` named
+    for the action in kebab-case. What stays on `POST /api/c/:project/cards/:id/act` (`undo`, `unsay`,
+    `release`, `name`, `reorder`, `arrange`, the workstation choices, `ask`, `consult`, `asIdea`,
+    `share`, `pageTags`) is still legacy.
   - The models of the harnesses are read at `GET /api/v1/agents?models=codex,agy`; the page reads them
     once when a project loads and keeps them for a minute, the settings read them afresh.
   - Params name what they stand for (`:cardId`), never a bare `:id`.

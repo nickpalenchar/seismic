@@ -69,7 +69,7 @@ const v1PathOf = (action: string) =>
   : action === 'reopenReviewItem' ? 'code-review/items/:itemNumber/reopen'
   : action.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 
-const V1_ACTIONS = new Set<string>(['start', 'force', 'stop', 'approve', 'dequeue', 'message', 'answer', 'pause', 'resume', 'snooze', 'wake', 'startAt', 'pushMain', 'keepMain', 'pushChanges', 'fold', 'editHeld', 'codeReview', 'stopCodeReview', 'skipCodeReview', 'handOff', 'reopenReviewItem']);
+const V1_ACTIONS = new Set<string>(['start', 'force', 'stop', 'approve', 'dequeue', 'message', 'answer', 'pause', 'resume', 'snooze', 'wake', 'startAt', 'pushMain', 'keepMain', 'pushChanges', 'fold', 'editHeld', 'codeReview', 'stopCodeReview', 'skipCodeReview', 'handOff', 'reopenReviewItem', 'accept', 'unaccept', 'merge', 'dismissDuplicate', 'approveMerge', 'separate', 'dismiss', 'keep', 'revise', 'discuss', 'build', 'unbuild', 'stayHere', 'splitOff', 'planDoc', 'park', 'unpark', 'drop', 'prototype', 'buildPrototype', 'discard']);
 
 
 /**

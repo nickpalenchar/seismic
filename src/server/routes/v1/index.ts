@@ -15,6 +15,27 @@ import { HandOff } from './cards/_cardId/hand-off';
 import { KeepMain } from './cards/_cardId/keep-main';
 import { PushChanges } from './cards/_cardId/push-changes';
 import { PushMain } from './cards/_cardId/push-main';
+import { Unaccept } from './cards/_cardId/unaccept';
+import { DismissDuplicate } from './cards/_cardId/dismiss-duplicate';
+import { ApproveMerge } from './cards/_cardId/approve-merge';
+import { Separate } from './cards/_cardId/separate';
+import { Dismiss } from './cards/_cardId/dismiss';
+import { Keep } from './cards/_cardId/keep';
+import { Unbuild } from './cards/_cardId/unbuild';
+import { StayHere } from './cards/_cardId/stay-here';
+import { SplitOff } from './cards/_cardId/split-off';
+import { PlanDoc } from './cards/_cardId/plan-doc';
+import { Park } from './cards/_cardId/park';
+import { Unpark } from './cards/_cardId/unpark';
+import { Drop } from './cards/_cardId/drop';
+import { Discard } from './cards/_cardId/discard';
+import { Accept } from './cards/_cardId/accept';
+import { Merge } from './cards/_cardId/merge';
+import { Revise } from './cards/_cardId/revise';
+import { Discuss } from './cards/_cardId/discuss';
+import { Build } from './cards/_cardId/build';
+import { Prototype } from './cards/_cardId/prototype';
+import { BuildPrototype } from './cards/_cardId/build-prototype';
 import { Dequeue } from './cards/_cardId/dequeue';
 import { Message } from './cards/_cardId/message';
 import { Pause } from './cards/_cardId/pause';
@@ -39,5 +60,5 @@ import { Settings } from './settings';
 import { Setting } from './settings/_settingName';
 
 export function v1Routes(dependencies: RouteDependencies): HttpRoute[] {
-  return [Card, CodeReview, ReopenReviewItem, SkipCodeReview, StopCodeReview, EditHeld, Fold, HandOff, KeepMain, PushChanges, PushMain, Answer, Approve, Message, Pause, Resume, Snooze, StartAt, Wake, Archive, Dequeue, Restore, Share, Start, Stop, Unarchive, Chats, Chat, Open, Read, Unwait, RecentChat, Configuration, Health, Settings, Setting, Agents].map((Route) => new Route(dependencies));
+  return [Card, Unaccept, DismissDuplicate, ApproveMerge, Separate, Dismiss, Keep, Unbuild, StayHere, SplitOff, PlanDoc, Park, Unpark, Drop, Discard, Accept, Merge, Revise, Discuss, Build, Prototype, BuildPrototype, CodeReview, ReopenReviewItem, SkipCodeReview, StopCodeReview, EditHeld, Fold, HandOff, KeepMain, PushChanges, PushMain, Answer, Approve, Message, Pause, Resume, Snooze, StartAt, Wake, Archive, Dequeue, Restore, Share, Start, Stop, Unarchive, Chats, Chat, Open, Read, Unwait, RecentChat, Configuration, Health, Settings, Setting, Agents].map((Route) => new Route(dependencies));
 }
