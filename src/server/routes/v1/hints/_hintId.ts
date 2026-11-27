@@ -4,9 +4,9 @@ import { HttpRoute, type RouteRequest } from '../../httpRoute';
 export class HintSeen extends HttpRoute {
   readonly path = '/api/v1/hints/:hintId';
 
-  override PUT = (request: RouteRequest): { seen: string } => {
+  override PUT = async (request: RouteRequest): Promise<{ seen: string }> => {
     const id = request.params.hintId!;
-    this.dependencies.hints.markHintSeen(id);
+    await this.dependencies.hints.markHintSeen(id);
     return { seen: id };
   };
 }

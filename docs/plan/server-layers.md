@@ -54,7 +54,13 @@ Checked in the code on 2026-11-13; counts may be off by a few. Each workstream r
 - `lib/`: helpers (`path.ts`, `zip.ts`, `images.ts` …).
 - `jobs/` (not in the WIP docs): background loops that are neither a request nor a service call
   (`pr-watcher`, `limit-watch`, `stalls`, `awake`, `self-update`, the landing queue).
-- **Layer rule:** routes → services → models, never upward and never skipping a layer. A test that reads
+- `repositories/` (owner's decision, 2026-11-27): the query classes in `schemas/` and `Store` become
+  repositories, one per table, with a shared base that caches reads (see the Repository Layer in
+  `code-organization.md`). `Store` is deprecated: its tables move one at a time (`HintRepository` is
+  first, and `HintsService` uses it), its multi-table writes to the repository of their record or
+  to a service, and then it goes. Repositories are async; how a write across repositories joins one
+  (synchronous) transaction is open.
+- **Layer rule:** routes → services → repositories → models, never upward and never skipping a layer. A test that reads
   the imports enforces it, like `schema.test.ts` does for the schema; no new lint tool.
 - **Tests** stay beside their source file and move with it.
 - **DI: LoopBack** (owner's decision): `@loopback/context` with `@model`/`@service`/`@route` decorators; an

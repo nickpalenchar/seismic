@@ -63,8 +63,15 @@ export interface Utterance {
   title?: string;
 }
 
+/**
+ * Every table's queries and the transactions across them.
+ *
+ * @deprecated Repositories (`src/server/repositories/`) are becoming the only way to reach a table;
+ * new code asks a repository. The tables here move to repositories one at a time, and the
+ * multi-table writes to the repository of their record or to a service; then `Store` goes.
+ */
 export class Store {
-  
+
   readonly db: Database;
   readonly orm: Db;
   readonly projects: Projects;

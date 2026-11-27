@@ -4,7 +4,7 @@ import { HttpRoute } from '../httpRoute';
 export class HintsRoute extends HttpRoute {
   readonly path = '/api/v1/hints';
 
-  override GET = (): { hints: string[] } => ({ hints: this.dependencies.hints.getSeenHints() });
+  override GET = async (): Promise<{ hints: string[] }> => ({ hints: await this.dependencies.hints.getSeenHints() });
 
-  override DELETE = (): { reset: number } => ({ reset: this.dependencies.hints.resetHints() });
+  override DELETE = async (): Promise<{ reset: number }> => ({ reset: await this.dependencies.hints.resetHints() });
 }

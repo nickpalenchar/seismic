@@ -21,9 +21,41 @@ The data layer is the database, sqlite3
 
 #### Data Layer Rules
 
-- schema files should only contain query logic (CRUD operations)
 - a file name should map directly to a table.
-- the file should contain the table schema, basic query operations, and any indexes.
+- the file should contain the table schema and any indexes. Query operations still in a file move to
+  that table's repository (see the Repository Layer).
+
+### Repository Layer
+
+- relevant paths: `src/server/repositories/`
+
+Repositories are the only way to reach a table: a service asks a repository, never the database, and
+gets records back (immutable classes, not rows). Decided 2026-11-27, replacing `Store` (deprecated),
+which holds every table's query class and the multi-table writes.
+
+#### Repository Layer Rules
+
+- A repository extends `Repository` (`repositories/repository.ts`) and implements `idOf` and the
+  `…Uncached` methods (`findUncached`, `createManyUncached`, …); the base class provides `find`,
+  `findMany`, `create`, `createMany`, `update`, `updateMany`, `delete`, `deleteMany`, `findOrCreate`
+  (a repository whose table can do it atomically overrides it), `uncacheById` and `uncacheAll`.
+- The methods are async, though the SQLite driver is not. A transaction takes a synchronous
+  function, so nothing inside one can `await` a repository; how a write that spans repositories
+  goes through a transaction is not settled yet.
+- Reads are cached in memory: 1000 keys for the single records and 1000 for the query results, a
+  minute each, the entry used least recently going first. A query's `ids` is a set, so
+  `{ ids: [4, 1, 3] }` and `{ ids: [1, 3, 4] }` share an entry, and `findMany` does not promise the order
+  of the ids asked for.
+- A write evicts the record it touches and every cached query result before it answers. A read
+  that began before a write does not refill the cache with what it read, and a failed write drops
+  the whole cache. Eviction is synchronous: in-memory eviction costs nothing, and deferring it would
+  leave a window where a read sees the old record (rejected: a fire-and-forget eviction).
+- Records are shared between callers once cached, so a record is frozen, and `findMany` hands out a
+  copy of its list.
+- Anything that writes a table without going through its repository leaves a stale cache for up to a
+  minute. A table's repository therefore owns all of that table's writes before it caches.
+- A repository wraps no query class: it is the query class, moved here as its table is converted.
+  `schemas/` keeps the table definitions.
 
 ### Service Layer
 
