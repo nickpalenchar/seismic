@@ -7,7 +7,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { Sign } from '../../logo';
 import { t } from '../../strings';
-import { Button, LinkButton } from '../../components/button';
+import { Button, ExternalLink } from '../../components/button';
 import { RadioGroup, RadioOption } from '../../components/radio';
 import { ConfirmDialog } from '../../components/dialog';
 import { Spinner } from '../../components/spinner';
@@ -77,9 +77,9 @@ export function HowStep({ onHere }: { onHere: () => void }) {
             ))}
           </RadioGroup>
           <div>
-            <LinkButton className="text-sm" onClick={() => window.open(GUIDE, '_blank', 'noopener')}>
+            <ExternalLink className="text-sm" href={GUIDE}>
               {h.learnMore}
-            </LinkButton>
+            </ExternalLink>
           </div>
           {choice === 'remote' ? (
             <>

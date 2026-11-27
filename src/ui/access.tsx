@@ -6,11 +6,11 @@
 import { Cloud } from 'lucide-react';
 import { Fragment, type ReactNode, useEffect, useState } from 'react';
 import { encode } from 'uqr';
-import type { AccessView, AwayView, RemoteSetting } from '../core/types';
+import type { AccessView, RemoteSetting } from '../core/types';
 import { api } from './api';
 import { Field, Head } from './config';
 import { clock, failText, shortDay, t } from './strings';
-import { Button, CloseButton, LinkButton } from './components/button';
+import { Button, CloseButton, ExternalLink } from './components/button';
 import { Callout, CalloutDescription, CalloutTitle } from './components/callout';
 import { GUIDE } from './desks/shell';
 import { Dialog, DialogContent, DialogTitle } from './components/dialog';
@@ -40,13 +40,19 @@ const DEVICES_GUIDE = `${GUIDE}#what-the-other-machine-needs`;
  * The view of the section while `on`, looked at again every few seconds: Tailscale logged in
  * meanwhile, a phone paired. A browser on another machine gets only that machine's name, as `away`.
  */
-function useAccess(on: boolean): [AccessView | null, (v: AccessView) => void, AwayView | null] {
+function useAccess(on: boolean): [AccessView | null, (v: AccessView) => void, string | null] {
   const [view, setView] = useState<AccessView | null>(null);
-  const [away, setAway] = useState<AwayView | null>(null);
+  const [away, setAway] = useState<string | null>(null);
   useEffect(() => {
     if (!on) return;
     let live = true;
-    const load = () => api.access().then((v) => live && (v.local ? setView(v) : setAway(v)), console.error);
+    const load = () =>
+      api.access().then((v) => {
+        if (!live) return;
+        if (!v.local) return setAway(v.host);
+        const json = JSON.stringify(v);
+        setView((old) => (old && JSON.stringify(old) === json ? old : v));
+      }, console.error);
     void load();
     const timer = setInterval(load, 2500);
     return () => {
@@ -193,15 +199,13 @@ function Qr({ text, size = 220 }: { text: string; size?: number }) {
 function Away({ host }: { host: string }) {
   const a = t.access;
   return (
-    <Callout className="acc-away max-w-[720px]">
+    <Callout role="note" className="acc-away max-w-[720px]">
       <Cloud aria-hidden />
       <CalloutTitle>{a.away(host)}</CalloutTitle>
       <CalloutDescription>
         <p className="m-0">
           {a.awayHint}{' '}
-          <LinkButton className="text-sm" onClick={() => window.open(DEVICES_GUIDE, '_blank', 'noopener')}>
-            {a.learnMore}
-          </LinkButton>
+          <ExternalLink href={DEVICES_GUIDE}>{a.learnMore}</ExternalLink>
         </p>
       </CalloutDescription>
     </Callout>
@@ -217,7 +221,7 @@ export function AccessSection({ on, onConnect }: { on: boolean; onConnect: () =>
     return (
       <>
         <Head title={t.config.sections.devices} hint={a.hint} />
-        {away && <Away host={away.host} />}
+        {away && <Away host={away} />}
       </>
     );
   const remove = async (id: string) => {

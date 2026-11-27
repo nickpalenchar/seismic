@@ -106,7 +106,12 @@ export function LinkButton(props: Omit<ButtonProps, 'variant' | 'size'>) {
   return <Button variant="link" {...props} />;
 }
 
-export type IconButtonProps = Omit<ComponentProps<'button'>, 'children' | 'aria-label'> & {
+/** A link to a page outside Seismic (the docs, say), opened in a new tab; it looks like `LinkButton`. */
+export function ExternalLink({ className, ...props }: Omit<ComponentProps<'a'>, 'target' | 'rel'>) {
+  return <a className={cn('text-primary underline underline-offset-4 cursor-pointer', className)} target="_blank" rel="noreferrer" {...props} />;
+}
+
+export type IconButtonProps =Omit<ComponentProps<'button'>, 'children' | 'aria-label'> & {
   icon: ReactNode;
   
   label: string;

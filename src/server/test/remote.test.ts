@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { hostname, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AccessView, Pairing } from '../../core/types';
 import { ProjectRuntime } from '../project';
@@ -8,7 +8,6 @@ import { Store } from '../store';
 import { Access, deviceName, LINK_MS, machineAddresses, PAIRING_MS, UNUSED_MS } from '../remote';
 import { serve } from '../server';
 import { Tailscale } from '../tailscale';
-import { HERE } from '../workstations';
 import { Push } from '../push';
 import { asOwner, fakeTailscale, gitRepo, heard, noForge, tailscaleStatus, until } from './helpers/testing';
 import { b64u } from '../webpush';
@@ -1078,7 +1077,7 @@ describe('pairing', () => {
     await turnOn();
     const cookie = cookieOf(await viaTailnet(`/pair?code=${(await pairing()).code}`));
     const own = { cookie, origin: `https://${NAME}`, 'content-type': 'application/json' };
-    expect(await (await viaTailnet('/api/access', { cookie })).json()).toEqual({ local: false, host: HERE });
+    expect(await (await viaTailnet('/api/access', { cookie })).json()).toEqual({ local: false, host: hostname() });
     expect((await viaTailnet('/api/access/pair', own, { method: 'POST' })).status).toBe(403);
     expect((await viaTailnet('/api/access', own, { method: 'PUT', body: JSON.stringify({ remote: null }) })).status).toBe(403);
     const id = (await view()).devices[0]!.id;
