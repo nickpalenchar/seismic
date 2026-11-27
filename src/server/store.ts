@@ -3,11 +3,12 @@ import { sql } from 'drizzle-orm';
 import type { CardEvent, TalkAfter, TalkMoved, TalkRef } from '../core/types';
 import { MAIN_CANVAS } from '../core/types';
 import { openDatabase } from './db';
+import { CardRepository } from './repositories/cardRepository';
 import { DatabaseProvider } from './repositories/databaseProvider';
 import { Activity } from './schemas/activity';
 import { AgentRuns } from './schemas/agentRuns';
 import { Canvases } from './schemas/canvases';
-import { type CardRow, Cards, type CardUpdate, type NewRow, type PartsUpdate, type RowUpdate } from './schemas/cards/cards';
+import { type CardRow, Cards, type CardUpdate, type NewRow, type PartsUpdate } from './schemas/cards/cards';
 import { Demos } from './schemas/cards/demos';
 import { Holds } from './schemas/cards/holds';
 import { Ideas } from './schemas/cards/ideas';
@@ -76,6 +77,7 @@ export class Store {
   readonly db: Database;
   readonly orm: Db;
   readonly database: DatabaseProvider;
+  readonly cardRepository: CardRepository;
   readonly projects: Projects;
   readonly canvases: Canvases;
   readonly cards: Cards;
@@ -109,6 +111,7 @@ export class Store {
     this.db = client;
     this.orm = orm;
     this.database = new DatabaseProvider(orm);
+    this.cardRepository = new CardRepository(this.database, { cacheTimeToLiveMilliseconds: 0 });
     this.projects = new Projects(orm);
     this.canvases = new Canvases(orm);
     this.cards = new Cards(orm);
@@ -164,39 +167,12 @@ export class Store {
    * plan's, else on its project's `main`.
    */
   addCards(rows: NewRow[]): CardRow[] {
-    const mains = new Map<string, string>();
-    const main = (projectId: string) => mains.get(projectId) ?? mains.set(projectId, this.canvases.main(projectId)).get(projectId)!;
-    const ids = this.transaction(() => {
-      const split = rows.map((r) => splitParts(r));
-      const ids = this.cards.insert(
-        split.map(([r]) => ({ ...r, canvas_id: r.canvas_id ?? (r.parent_id ? this.cards.get(r.parent_id)?.canvas_id : undefined) ?? main(r.project_id) })),
-      );
-      split.forEach(([, parts], i) => this.setParts(ids[i]!, parts));
-      return ids;
-    });
-    return ids.map((id) => this.cards.get(id)!);
+    return this.cardRepository.insertCards(rows);
   }
 
   /** Changes the card's own fields and those of its parts, in one transaction; it counts as changed when only a part did. */
   updateCard(id: string, update: CardUpdate) {
-    const [fields, parts] = splitParts(update);
-    this.transaction(() => {
-      const touched = this.setParts(id, parts);
-      if (Object.keys(fields).length) this.cards.update(id, fields as RowUpdate);
-      else if (touched) this.cards.touch(id);
-    });
-  }
-
-  /** Sets the card's parts as `parts` changes them; whether it changes any. */
-  private setParts(id: string, parts: PartsUpdate): boolean {
-    const { idea, review, demo, plan, labels, hold } = parts;
-    if (idea) this.ideas.set(id, idea);
-    if (review) this.reviews.set(id, review);
-    if (demo) this.demos.set(id, demo);
-    if (plan) this.plans.set(id, plan);
-    if (labels) this.labels.set(id, labels);
-    if (hold !== undefined) this.holds.set(id, hold);
-    return [idea, review, demo, plan, labels].some((p) => p && Object.keys(p).length) || hold !== undefined;
+    this.cardRepository.applyUpdate(id, update);
   }
 
   /**
@@ -304,11 +280,4 @@ export class Store {
       .reverse()
       .map((r) => ({ at: r.at, kind: r.kind, text: r.text, ...(r.cardId ? { cardId: r.cardId } : {}), ...(r.title ? { title: r.title } : {}) }));
   }
-}
-
-/** A card's own fields and its parts, apart. */
-function splitParts<T extends PartsUpdate>(update: T): [Omit<T, keyof PartsUpdate>, PartsUpdate] {
-  const { idea, review, demo, plan, labels, hold, ...fields } = update;
-  const parts: PartsUpdate = { idea, review, demo, plan, labels, ...(hold !== undefined ? { hold } : {}) };
-  return [fields, parts];
 }

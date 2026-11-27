@@ -25,7 +25,7 @@ export interface RepositoryOptions {
  *
  * The options: `cacheMaxKeys` is how many keys each of the two caches (single records, query results)
  * holds, 1000 by default; `cacheTimeToLiveMilliseconds` is how long a read stays good, a minute by
- * default; `now` is for a test to set.
+ * default, and 0 turns the cache off; `now` is for a test to set.
  *
  * A query's `ids` list is a set: `{ ids: [4, 1, 3] }` and `{ ids: [1, 3, 4] }` hit one cache entry, and
  * `findMany` makes no promise about the order of its records. Other list fields in a query keep their
