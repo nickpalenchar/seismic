@@ -83,14 +83,19 @@ interface ProjectsProps {
   onProject?: (id: string) => void;
 }
 
-/** The floating row's switcher: the project's name, and under it the projects. */
+/**
+ * The floating row's switcher: the project's name, and under it the projects. Where the row runs
+ * short (a docked menu and a sheet beside the project), its name gives way first; where even then the
+ * controls at the row's right end would run under the sheet, it steps aside at the last step, as it
+ * did beside the docked menu before (⌘P, or hiding the menu, still switch projects).
+ */
 export function NavPill(p: ProjectsProps) {
   const [open, setOpen] = useState(false);
   const home = p.project.repos[0];
   return (
     <Menu open={open} onOpenChange={setOpen}>
       { }
-      <div className="relative flex-none group-data-[fit~='3']/row:min-w-0 group-data-[fit~='3']/row:flex-[0_1_auto]">
+      <div className="relative flex-none group-data-[fit~='3']/row:min-w-0 group-data-[fit~='3']/row:flex-[0_1_auto] group-data-[fit~='4']/row:hidden">
         <MenuTrigger asChild>
           <PillButton size="bar" on={open} className="group-data-[fit~='3']/row:max-w-full group-data-[fit~='3']/row:[&_b]:overflow-hidden group-data-[fit~='3']/row:[&_b]:text-ellipsis" title={t.nav.button}>
             <ProjectIcon icon={p.project.icon} />
@@ -338,6 +343,7 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
   const [page, setPage] = useState<'main' | 'agents' | 'inbox' | 'appearance'>('main');
   const previousPage = useRef(page);
   const configureButton = useRef<HTMLButtonElement>(null);
+  const inboxButton = useRef<HTMLButtonElement>(null);
   const appearanceButton = useRef<HTMLButtonElement>(null);
   const backButton = useRef<HTMLButtonElement>(null);
   const inboxBackButton = useRef<HTMLButtonElement>(null);
@@ -345,8 +351,8 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
   useLayoutEffect(() => {
     if (previousPage.current !== page) {
       const from = previousPage.current;
-      const target = page === 'agents' ? backButton : page === 'inbox' ? inboxBackButton : page === 'appearance' ? appearanceBackButton : from === 'appearance' ? appearanceButton : configureButton;
-      const frame = requestAnimationFrame(() => target.current?.focus());
+      const target = page === 'agents' ? backButton : page === 'inbox' ? inboxBackButton : page === 'appearance' ? appearanceBackButton : from === 'appearance' ? appearanceButton : from === 'inbox' ? inboxButton : configureButton;
+      const frame = requestAnimationFrame(() => target.current?.focus({ preventScroll: true }));
       previousPage.current = page;
       return () => cancelAnimationFrame(frame);
     }
@@ -388,7 +394,7 @@ function MenuBody({ floating, titlebar, phone, ...p }: MenuProps & { floating?: 
         }),
   });
   const inbox = (
-    <Entry icon={<Inbox size={16} strokeWidth={2} aria-hidden />} label={m.inbox} on={p.showing === 'inbox'} keep={!!p.inbox} onClick={p.inbox ? () => setPage('inbox') : run(p.onInbox)} />
+    <Entry icon={<Inbox size={16} strokeWidth={2} aria-hidden />} label={m.inbox} focusRef={inboxButton} on={p.showing === 'inbox'} keep={!!p.inbox} onClick={p.inbox ? () => setPage('inbox') : run(p.onInbox)} />
   );
   return (
     
