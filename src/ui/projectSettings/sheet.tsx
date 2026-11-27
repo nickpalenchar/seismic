@@ -11,15 +11,16 @@
 
 
 
-import { Archive, Bot, Cog, BrickWall, ChevronLeft, ChevronRight, CircleX, Film, GitPullRequest, Laptop, Lock, type LucideIcon, MessageSquareCode, Sparkle, Sparkles, TriangleAlert } from 'lucide-react';
-import { type KeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from 'react';
+import { Archive, Bot, Cog, BrickWall, ChevronLeft, ChevronRight, CircleX, Film, GitPullRequest, Laptop, Lock, type LucideIcon, MessageSquareCode, Sparkle, Sparkles, Star, TriangleAlert } from 'lucide-react';
+import { type KeyboardEvent, type ReactNode, useContext, useEffect, useId, useRef, useState } from 'react';
 import type { AgentRole, ConfigProblem, ConfigProblemCode, ProjectAgents, ProjectSettings, ProjectSettingsView } from '../../core/types';
 import { SUGGEST_TOGGLES, suggestToggles, type SuggestToggle } from '../../core/labels';
 import { api } from '../api';
 import { getAgentModels } from '../clients/seismic';
-import { AdapterSetup, CardArchiveField, Head, PlanBaselineField, ProjectSiteField, REPO_SETTING_GROUPS, RepoProblems, RepoSettingRows, repoName, repoSettingsAt, RightClickField, ShareSettings, type Takeover, workPlace, Workstations } from '../config';
+import { AdapterSetup, CardArchiveField, Head, ModelFeedbackDocs, PlanBaselineField, ProjectSiteField, REPO_SETTING_GROUPS, RepoProblems, RepoSettingRows, repoName, repoSettingsAt, RightClickField, ShareSettings, type Takeover, workPlace, Workstations } from '../config';
 import { cfgGroupClass, cfgGroupHeadClass, settingsSheetClass } from '../configClasses';
 import { Docked, sheetTitleClass } from '../docked';
+import { OpenPerformance } from '../performance';
 import { failText, t } from '../strings';
 import { Button, LinkButton } from '../components/button';
 import { ConfirmDialog } from '../components/dialog';
@@ -40,7 +41,7 @@ import { onSettingsFocus, SECTIONS, type Section, type SettingsFocus, takeSettin
 import { cn } from 'cn';
 
 
-const ICONS: Record<Section, LucideIcon> = { project: Cog, commands: BrickWall, agents: Bot, suggestions: Sparkle, environment: Laptop, reviews: MessageSquareCode, git: GitPullRequest, archiving: Archive, demos: Film };
+const ICONS: Record<Section, LucideIcon> = { project: Cog, commands: BrickWall, agents: Bot, suggestions: Sparkle, environment: Laptop, reviews: MessageSquareCode, feedback: Star, git: GitPullRequest, archiving: Archive, demos: Film };
 
 
 
@@ -227,6 +228,7 @@ function SectionList({ view, repos, focus, onOpen }: { view: ProjectSettingsView
     demos: site ? hostOf(site) : undefined,
     agents: places.size > 1 ? l.workIn.mixed : places.size ? l.workIn[[...places][0]!] : undefined,
     reviews: view.settings.codeReviews.on ? <Badge className="bg-success-subtle py-0 text-success-strong">{l.enabled}</Badge> : undefined,
+    feedback: view.settings.modelFeedback ? <Badge className="bg-success-subtle py-0 text-success-strong">{l.enabled}</Badge> : undefined,
     git:
       home && homeValues && home.git !== false
         ? (() => {
@@ -386,6 +388,8 @@ function SectionBody(p: BodyProps) {
       return <Reviews {...p} />;
     case 'suggestions':
       return <Suggestions view={view} save={save} />;
+    case 'feedback':
+      return <ModelFeedback view={view} save={save} />;
     case 'git':
       return <RepoPart {...p} />;
     case 'archiving':
@@ -580,7 +584,7 @@ function RepoProblemsOf({ problems, repos, at }: { problems: ConfigProblem[]; re
 }
 
 /** A setting that is on or off: its name with the switch beside it, what it does below. */
-function SwitchRow({ title, hint, checked, disabled, onChange, children }: { title: string; hint?: string; checked: boolean; disabled?: boolean; onChange: (on: boolean) => void; children?: ReactNode }) {
+function SwitchRow({ title, hint, checked, disabled, onChange, children }: { title: ReactNode; hint?: ReactNode; checked: boolean; disabled?: boolean; onChange: (on: boolean) => void; children?: ReactNode }) {
   const id = useId();
   return (
     <div className="cs-switch py-2.5">
@@ -622,6 +626,28 @@ function Reviews({ view, save, catalogs, busy, choose }: BodyProps) {
         </>
       )}
     </>
+  );
+}
+
+/** "Model feedback": whether approving an agent's work asks for a rating, and the ratings compared, where it is on. */
+function ModelFeedback({ view, save }: { view: ProjectSettingsView; save: (s: ProjectSettings) => Promise<void> }) {
+  const l = t.feedback.setting;
+  const openPerformance = useContext(OpenPerformance);
+  const on = view.settings.modelFeedback;
+  const title = (
+    <span className="inline-flex items-center gap-2">
+      {l.title}
+      <Badge variant="secondary">{l.beta}</Badge>
+    </span>
+  );
+  return (
+    <SwitchRow title={title} hint={<>{l.hint} <ModelFeedbackDocs /></>} checked={on} onChange={(modelFeedback) => save({ modelFeedback })}>
+      {on && openPerformance && (
+        <Button size="small" className="cs-perf mt-2.5" title={t.performance.openHint} onClick={openPerformance}>
+          {t.performance.open}
+        </Button>
+      )}
+    </SwitchRow>
   );
 }
 

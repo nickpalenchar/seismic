@@ -2906,6 +2906,7 @@ export interface ProjectSettings {
   agents?: ProjectAgents;
   
   codeReviews?: Partial<CodeReviewSetting>;
+  modelFeedback?: boolean;
   
   demoSite?: ProjectDemoSite | null;
 }
@@ -3276,18 +3277,12 @@ export interface NotificationsView {
 }
 
 
-export interface FeedbackPromptView {
-  
-  file: string;
-  on: boolean;
-}
 
 
 
 
 
-
-export const OWNER_SETTINGS = ['language', 'theme', 'motion', 'notifications', 'usageMeter', 'feedbackPrompt', 'projectDefaults', 'agents', 'codexAutoReview', 'demo'] as const;
+export const OWNER_SETTINGS = ['language', 'theme', 'motion', 'notifications', 'usageMeter', 'projectDefaults', 'agents', 'codexAutoReview', 'demo'] as const;
 export type OwnerSetting = (typeof OWNER_SETTINGS)[number];
 
 
@@ -3297,7 +3292,6 @@ export interface OwnerSettingViews {
   motion: MotionView;
   notifications: NotificationsView;
   usageMeter: UsageMeterView;
-  feedbackPrompt: FeedbackPromptView;
   projectDefaults: ProjectDefaultsView;
   agents: AgentsView;
   codexAutoReview: AgentsView;
@@ -3312,7 +3306,6 @@ export interface OwnerSettingChanges {
   motion: { motion: Motion | null };
   notifications: { on: boolean };
   usageMeter: { on: boolean };
-  feedbackPrompt: { on: boolean };
   projectDefaults: ProjectSettings;
   
   agents: Partial<Record<AgentRole, Partial<AgentSetting>>>;

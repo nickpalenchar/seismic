@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { chosenConversationLanguage, chosenLanguage, conversationLanguageIn, OWNER_SETTINGS_FILE as SETTINGS_FILE, ownerLanguageIn, ownerSettingsWritten, systemLanguage } from '../../plugin/skills/demo/lib/language.ts';
 import { suggestToggles } from '../core/labels';
 import { type Language, LANGUAGES } from '../core/locale';
-import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, type AgentRole, type AgentSetting, type AgentsView, type LanguageView, type RemoteSetting, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type ProjectAgents, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ProjectDemoSite, HARNESSES, CODE_REVIEW_MODES, CARD_ARCHIVING, RIGHT_CLICK, type CodeReviewSetting } from '../core/types';
+import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_MODELS, AGENT_ROLES, type AgentRole, type AgentSetting, type AgentsView, type LanguageView, type RemoteSetting, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type NotificationsView, type ProjectAgents, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ProjectDemoSite, HARNESSES, CODE_REVIEW_MODES, CARD_ARCHIVING, RIGHT_CLICK, type CodeReviewSetting } from '../core/types';
 import { BadRequest } from './board';
 import { firstProjectHarness, projectAgentSetting, type Harness, type ProjectConfig } from '../core/types';
 
@@ -36,8 +36,6 @@ interface Settings {
   
   usageMeter?: false;
   
-  feedbackPrompt?: true;
-  
   notifications?: boolean;
   
   projectDefaults?: ProjectSettings;
@@ -51,7 +49,7 @@ function read(home: string): Settings {
     const theme = THEMES.find((x) => x === o.theme);
     const motion = MOTIONS.find((x) => x === o.motion);
     const harnesses = Array.isArray(o.harnesses) ? HARNESSES.filter((h) => (o.harnesses as unknown[]).includes(h)) : undefined;
-    return { ...o, language, conversationLanguage, theme, motion, harnesses, agents: agentsOf(o.agents), remote: remoteOf(o.remote) ?? undefined, usageMeter: o.usageMeter === false ? false : undefined, codexAutoReview: o.codexAutoReview === false ? false : undefined, feedbackPrompt: o.feedbackPrompt === true ? true : undefined, notifications: typeof o.notifications === 'boolean' ? o.notifications : undefined, projectDefaults: projectSettingsShape.safeParse(renamedBaselines(o.projectDefaults ?? o.canvasDefaults)).data };
+    return { ...o, language, conversationLanguage, theme, motion, harnesses, agents: agentsOf(o.agents), remote: remoteOf(o.remote) ?? undefined, usageMeter: o.usageMeter === false ? false : undefined, codexAutoReview: o.codexAutoReview === false ? false : undefined, notifications: typeof o.notifications === 'boolean' ? o.notifications : undefined, projectDefaults: projectSettingsShape.safeParse(renamedBaselines(o.projectDefaults ?? o.canvasDefaults)).data };
   } catch {
     return {};
   }
@@ -116,17 +114,37 @@ export function saveUsageMeter(home: string, input: unknown): UsageMeterView {
   return usageMeterView(home);
 }
 
-export const feedbackPromptView = (home: string): FeedbackPromptView => ({ file: join(home, SETTINGS_FILE), on: read(home).feedbackPrompt === true });
-
-/** Saves whether approving work asks for feedback on it (`{ on }`); the responses given stay either way. Other settings in the file stay. */
-export function saveFeedbackPrompt(home: string, input: unknown): FeedbackPromptView {
-  const on = (input as { on?: unknown } | null)?.on;
-  if (typeof on !== 'boolean') throw new BadRequest('invalid', 'on must be true or false');
-  save(home, 'feedbackPrompt', on ? true : null, `feedback ${on ? 'asked for' : 'not asked for'} after approvals,`);
-  return feedbackPromptView(home);
+/**
+ * Feedback after approval was once one setting for all of Seismic (`feedbackPrompt`); it is each
+ * project's "Enable model feedback" now. Where it was on, each project of the configuration file
+ * that says nothing of it takes it on, and so do Project defaults; then the old key goes.
+ */
+export function moveFeedbackPrompt(home: string, configFile: string) {
+  let saved: Record<string, unknown>;
+  try {
+    saved = JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8')) as Record<string, unknown>;
+  } catch {
+    return;
+  }
+  if (!('feedbackPrompt' in saved)) return;
+  const settings = read(home);
+  if (saved.feedbackPrompt === true) {
+    try {
+      const projects = JSON.parse(readFileSync(configFile, 'utf8')) as unknown;
+      if (Array.isArray(projects)) {
+        for (const c of projects) if (c && typeof c === 'object' && !('modelFeedback' in c)) c.modelFeedback = true;
+        writeFileSync(configFile, `${JSON.stringify(projects, null, 2)}\n`);
+      }
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') return console.error(`Seismic: model feedback stays on for all projects until ${configFile} reads:`, e);
+    }
+    settings.projectDefaults = { ...settings.projectDefaults, modelFeedback: settings.projectDefaults?.modelFeedback ?? true };
+  }
+  write(home, { ...settings, feedbackPrompt: undefined } as Settings);
+  console.log(`Seismic: feedback after approval is a project setting now ("Enable model feedback")${saved.feedbackPrompt === true ? ', on in every project' : ''}`);
 }
 
-export const notificationsView = (home: string): NotificationsView => ({ file: join(home, SETTINGS_FILE), on: read(home).notifications ?? null });
+export const notificationsView =(home: string): NotificationsView => ({ file: join(home, SETTINGS_FILE), on: read(home).notifications ?? null });
 
 /** Saves whether the desktop notifies the owner when a card needs them (`{ on }`). Other settings in the file stay. */
 export function saveNotifications(home: string, input: unknown): NotificationsView {
@@ -157,6 +175,7 @@ export const projectSettingsShape = z.object({
   suggestMerges: z.boolean().optional(),
   agents: z.object({ koordinator: ownAgent, worker: ownAgent, explorer: ownAgent, chores: ownAgent, review: ownAgent }).strict().optional(),
   codeReviews: z.object({ on: z.boolean().optional(), mode: z.enum(CODE_REVIEW_MODES).optional() }).strict().optional(),
+  modelFeedback: z.boolean().optional(),
   demoSite: z
     .object({
       url: z.string().trim().regex(/^https?:\/\/\S+$/),
@@ -214,6 +233,7 @@ export const PROJECT_SETTINGS: { [K in keyof ProjectSettings]-?: (saved: Project
   
   agents: projectAgents,
   codeReviews,
+  modelFeedback: (saved) => saved === true,
   
   demoSite,
 };
@@ -264,7 +284,7 @@ export function withProjectDefaults<C extends ProjectSettings>(projects: C[], de
 }
 
 /** Saves one of the owner's choices, or with `null` takes it out; the other settings in the file stay. */
-function save<K extends 'language' | 'conversationLanguage' | 'theme' | 'motion' | 'remote' | 'usageMeter' | 'codexAutoReview' | 'feedbackPrompt' | 'notifications' | 'projectDefaults'>(home: string, key: K, value: Settings[K] | null, what: string) {
+function save<K extends 'language' | 'conversationLanguage' | 'theme' | 'motion' | 'remote' | 'usageMeter' | 'codexAutoReview' | 'notifications' | 'projectDefaults'>(home: string, key: K, value: Settings[K] | null, what: string) {
   
   write(home, { ...read(home), canvasDefaults: undefined, [key]: value ?? undefined } as Settings);
   console.log(`Seismic: ${what} saved to ${join(home, SETTINGS_FILE)}`);

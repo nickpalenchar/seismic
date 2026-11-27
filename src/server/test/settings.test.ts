@@ -6,7 +6,7 @@ import { languageOf } from '../../core/locale';
 import { AGENT_DEFAULTS, type AgentSetting } from '../../core/types';
 import { withAgentSetting } from '../runtime';
 import { OWNER_SETTINGS_FILE as SETTINGS_FILE, systemLanguage } from '../../../plugin/skills/demo/lib/language.ts';
-import { agentSetting, agentsView, appliedProjectSettings, conversationLanguage, languageView, ownerLanguage, saveAgents, saveCodexAutoReview, saveLanguage, saveTheme, saveMotion, motionView, saveUsageMeter, themeView, usageMeterView, feedbackPromptView, saveFeedbackPrompt, projectDefaults, saveProjectDefaults, notificationsView, saveNotifications, startAgentSetting } from '../settings';
+import { agentSetting, agentsView, appliedProjectSettings, conversationLanguage, languageView, ownerLanguage, saveAgents, saveCodexAutoReview, saveLanguage, saveTheme, saveMotion, motionView, saveUsageMeter, themeView, usageMeterView, moveFeedbackPrompt, projectDefaults, saveProjectDefaults, notificationsView, saveNotifications, startAgentSetting } from '../settings';
 import { FakeRuntime } from './helpers/testing';
 
 const homes: string[] = [];
@@ -198,15 +198,37 @@ test('the usage limits in the bar: shown until turned off, which alone stands in
   expect(usageMeterView(home).on).toBe(true);
 });
 
-test('feedback after approval: not asked for until turned on, which alone stands in the file', () => {
+test('model feedback: off for a project that says nothing of it, on where it says so', () => {
+  expect(appliedProjectSettings({}).modelFeedback).toBe(false);
+  expect(appliedProjectSettings({ modelFeedback: true }).modelFeedback).toBe(true);
   const home = scratchHome();
-  expect(feedbackPromptView(home).on).toBe(false);
-  saveUsageMeter(home, { on: false });
-  expect(saveFeedbackPrompt(home, { on: true }).on).toBe(true);
-  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ usageMeter: false, feedbackPrompt: true });
-  expect(saveFeedbackPrompt(home, { on: false }).on).toBe(false);
-  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ usageMeter: false });
-  for (const bad of [{ on: 'no' }, {}, null]) expect(() => saveFeedbackPrompt(home, bad)).toThrow();
+  expect(projectDefaults(home).modelFeedback).toBe(false);
+  expect(saveProjectDefaults(home, { modelFeedback: true }).defaults.modelFeedback).toBe(true);
+  expect(() => saveProjectDefaults(home, { modelFeedback: 'yes' })).toThrow();
+});
+
+test('the old Seismic-wide feedback setting, once on, moves into every project that says nothing of it and into Project defaults', () => {
+  const home = scratchHome();
+  const projects = join(home, 'projects.json');
+  writeFileSync(join(home, SETTINGS_FILE), JSON.stringify({ usageMeter: false, feedbackPrompt: true }));
+  writeFileSync(projects, JSON.stringify([{ repos: [{ path: '/a' }] }, { modelFeedback: false, repos: [{ path: '/b' }] }]));
+  moveFeedbackPrompt(home, projects);
+  expect(JSON.parse(readFileSync(projects, 'utf8'))).toEqual([{ repos: [{ path: '/a' }], modelFeedback: true }, { modelFeedback: false, repos: [{ path: '/b' }] }]);
+  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ usageMeter: false, projectDefaults: { modelFeedback: true } });
+  
+  writeFileSync(projects, '[]');
+  moveFeedbackPrompt(home, projects);
+  expect(readFileSync(projects, 'utf8')).toBe('[]');
+});
+
+test('the old feedback setting, never turned on, goes without touching the projects; a file without projects is fine', () => {
+  const home = scratchHome();
+  writeFileSync(join(home, SETTINGS_FILE), JSON.stringify({ feedbackPrompt: false, theme: 'dark' }));
+  moveFeedbackPrompt(home, join(home, 'projects.json'));
+  expect(JSON.parse(readFileSync(join(home, SETTINGS_FILE), 'utf8'))).toEqual({ theme: 'dark' });
+  writeFileSync(join(home, SETTINGS_FILE), JSON.stringify({ feedbackPrompt: true }));
+  moveFeedbackPrompt(home, join(home, 'projects.json'));
+  expect(projectDefaults(home).modelFeedback).toBe(true);
 });
 
 test('desktop notifications: not decided until the owner chose, then on or off as saved', () => {

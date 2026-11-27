@@ -2502,10 +2502,10 @@ const en = {
     quoted: (text: string) => `“${text}”`,
     thanks: 'Thanks, saved.',
     setting: {
-      title: 'Feedback after approval',
-      label: 'Ask after each approval',
-      preview: 'Preview',
-      hint: 'After you approve a card, Seismic asks how well the agent did: 1 to 5 stars and an optional comment, saved with the harness, model and effort that did the work. Skipping holds nothing up. Off by default while this is a preview. Turned off, Seismic asks no more; responses already given are kept. Applies at once.',
+      title: 'Enable model feedback',
+      beta: 'Beta',
+      hint: 'Prompts users to give ratings (1-5) about model performance, and presents performance dashboards for assessment of quality of work.',
+      learnMore: 'Learn more',
     },
   },
   notifications: {
@@ -2673,6 +2673,7 @@ const en = {
       reviews: 'Code reviews',
       git: 'Git and releasing',
       archiving: 'Card archiving',
+      feedback: 'Model feedback',
       demos: 'Demos',
     },
     commandsHint: 'Commands from the repo config that Seismic may run.',
@@ -2740,7 +2741,7 @@ const en = {
     summary: (responses: number, ratings: number, uncredited: number) =>
       `${responses} ${responses === 1 ? 'response' : 'responses'} · ${ratings} ${ratings === 1 ? 'rating' : 'ratings'}${uncredited ? ` · ${uncredited} not credited to one model` : ''}`,
     none: 'No ratings yet',
-    noneHint: 'After you approve a card, Seismic asks how well the agent did. Your answers are compared here.',
+    noneHint: 'In a project with model feedback enabled, Seismic asks how well the agent did after you approve a card. Your answers are compared here.',
     noMatch: 'No responses match these filters',
     clear: 'Clear filters',
     tooFew: (n: number, few: number) => `${n === 0 ? 'No stars yet' : n === 1 ? 'Only one rating' : `Only ${n} ratings`}: too few to compare models (${few} or more). So far:`,

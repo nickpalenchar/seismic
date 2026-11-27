@@ -5,7 +5,7 @@
 import type { SettingKey } from '../config';
 
 
-export const SECTIONS = ['project', 'commands', 'agents', 'suggestions', 'environment', 'reviews', 'git', 'archiving', 'demos'] as const;
+export const SECTIONS = ['project', 'commands', 'agents', 'suggestions', 'environment', 'reviews', 'feedback', 'git', 'archiving', 'demos'] as const;
 export type Section = (typeof SECTIONS)[number];
 
 export interface SettingsFocus {

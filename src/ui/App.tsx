@@ -758,7 +758,7 @@ function Project({
     return () => { active = false; };
   }, [snapshot.project.id, configRevs]);
   useEffect(() => void getAgentModels('codex').catch(() => {}), [snapshot.project.id]);
-  useEffect(() => void api.shownProjectSettings().then((v) => setRightClick(v.settings.rightClick), () => {}), [snapshot.project.id, csOn, cOn, configRevs]);
+  useEffect(() => void api.shownProjectSettings().then((v) => (setRightClick(v.settings.rightClick), setModelFeedback(v.settings.modelFeedback)), () => {}), [snapshot.project.id, csOn, cOn, configRevs]);
   
   const [archived, setArchived] = useState<Item[]>([]);
   const archivedRef = useRef(archived);
@@ -1845,6 +1845,7 @@ function Project({
   const [ring, setRing] = useState<{ at: Pos; ids: string[]; kind: RightClick } | null>(null);
   
   const [rightClick, setRightClick] = useState<RightClick>('groups');
+  const [modelFeedback, setModelFeedback] = useState(false);
   const markedBox = unionBounds(placed.filter((p) => marked.includes(p.item.id)).map((p) => p.b));
   /** Where the line for what is marked stands: over its top right corner, below it where the bar leaves no room, always in view. */
   const markedAt = (b: Bounds) => {
@@ -2467,8 +2468,7 @@ function Project({
       onProposalCard: (project: string, card: Item) => goToEntry({ project, card }),
       onProposalConfig: (project: string, repo: string, setting: string) => openSettingsAt({ project, repo, section: sectionOfSetting(setting), field: setting as SettingsFocus['field'] }),
     },
-    onPerformance: openPerformance,
-    onFeedbackLog: () => location.assign(feedbackLogPath(snapshot.project.id)),
+    ...(modelFeedback ? { onPerformance: openPerformance, onFeedbackLog: () => location.assign(feedbackLogPath(snapshot.project.id)) } : {}),
     canvases,
     canvas: canvasId,
     onCanvas: (c: Canvas) => {

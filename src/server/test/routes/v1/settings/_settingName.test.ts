@@ -15,8 +15,6 @@ let server: ReturnType<typeof serve>;
 
 let meters: boolean[];
 
-let changed: number;
-
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'seismic-settings-route-'));
   const web = gitRepo(join(dir, 'web'));
@@ -24,10 +22,6 @@ beforeEach(() => {
   const config = new Config({ file: join(dir, 'home', 'projects.json'), source: 'args', started: [{ repos: [{ path: web }] }], store, running: () => ['web'], server: { port: 4417, home: dir, permissionMode: 'auto' }, ttsLock: join(dir, 'tts.lock') });
   project = new ProjectRuntime({ repos: [{ path: web }] }, { store, home: dir, runtime: new FakeRuntime(), forge: noForge, config });
   meters = [];
-  changed = 0;
-  const board = project.board;
-  const tell = board.changed.bind(board);
-  board.changed = () => (changed++, tell());
   const meter = { setOn: (on: boolean) => void meters.push(on), current: () => null, onChange: () => () => {} } as unknown as UsageMeter;
   server = serve([project], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }), warm: () => {} } }, 0, false, config, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, [meter]);
 });
@@ -56,13 +50,10 @@ test('each setting reads and saves on its own, keeping the other settings in the
   expect((await call('GET', '/api/v1/settings/theme')).body.setting.chosen).toBe('dark');
 });
 
-test('what a save sets going besides the file: the usage meters, the pages following "Ask for feedback"', async () => {
+test('what a save sets going besides the file: the usage meters', async () => {
   await call('PUT', '/api/v1/settings/usageMeter', { on: false });
   await call('PUT', '/api/v1/settings/usageMeter', { on: true });
   expect(meters).toEqual([false, true]);
-  const before = changed;
-  expect((await call('PUT', '/api/v1/settings/feedbackPrompt', { on: true })).body.setting.on).toBe(true);
-  expect(changed).toBeGreaterThan(before);
 });
 
 test('refused: a setting there is not, a value the setting does not take, a body that is no object, no owner key', async () => {

@@ -290,6 +290,13 @@ cycling through terminals.
   mark means the same on both. It is saved in Seismic's configuration beside the project's name, as
   part of what the owner calls the project on this machine, not in the repository's settings, which
   are shared with everyone working on it. Rejected: a separate set of project icons.
+- **Model feedback is a project setting** (2026-11-27): "Enable model feedback" (beta, off where
+  left out) is `modelFeedback` in a project's settings and in Project defaults; it governs the
+  rating prompt after approval and whether the menu shows the ratings' dashboards for the project
+  shown. Rejected: one switch for all of Seismic under "Notifications and limits" (its first form),
+  since whether rating fits depends on the project. The old owner setting `feedbackPrompt`, where
+  it was on, moves at startup into every project that says nothing of it and into Project
+  defaults, then goes.
 - **A popover inside the Configuration dialog is modal** (2026-11-19): the dialog keeps its content
   mounted outside its own subtree, so a non-modal popover there counts as outside it and a press in
   the popover closes the dialog.

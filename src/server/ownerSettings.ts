@@ -10,14 +10,12 @@ import { BadRequest } from './board';
 import { NotFound } from './routes/notFound';
 import {
   agentsView,
-  feedbackPromptView,
   languageView,
   motionView,
   notificationsView,
   projectDefaultsView,
   saveAgents,
   saveCodexAutoReview,
-  saveFeedbackPrompt,
   saveLanguage,
   saveMotion,
   saveNotifications,
@@ -37,8 +35,6 @@ export interface OwnerSettingsOptions {
   demo: { view: () => DemoSettingsView; save: (input: unknown) => DemoSettingsView };
   
   onUsageMeter?: (view: UsageMeterView) => void;
-  
-  onFeedbackPrompt?: () => void;
 }
 
 const entries = ({ home, demo }: OwnerSettingsOptions): { [N in OwnerSetting]: Entry<N> } => ({
@@ -47,7 +43,6 @@ const entries = ({ home, demo }: OwnerSettingsOptions): { [N in OwnerSetting]: E
   motion: { view: () => motionView(home), save: (input) => saveMotion(home, input) },
   notifications: { view: () => notificationsView(home), save: (input) => saveNotifications(home, input) },
   usageMeter: { view: () => usageMeterView(home), save: (input) => saveUsageMeter(home, input) },
-  feedbackPrompt: { view: () => feedbackPromptView(home), save: (input) => saveFeedbackPrompt(home, input) },
   projectDefaults: { view: () => projectDefaultsView(home), save: (input) => saveProjectDefaults(home, input) },
   agents: { view: () => agentsView(home), save: (input) => saveAgents(home, input) },
   codexAutoReview: { view: () => agentsView(home), save: (input) => saveCodexAutoReview(home, input) },
@@ -81,7 +76,6 @@ export class OwnerSettings {
   save<N extends OwnerSetting>(name: N, input: unknown): OwnerSettingViews[N] {
     const saved = this.entries[name].save(input);
     if (name === 'usageMeter') this.o.onUsageMeter?.(saved as UsageMeterView);
-    if (name === 'feedbackPrompt') this.o.onFeedbackPrompt?.();
     return saved;
   }
 

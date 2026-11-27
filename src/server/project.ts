@@ -106,8 +106,6 @@ export interface ProjectDeps {
   
   conversation?: () => Language;
   
-  asksFeedback?: () => boolean;
-  
   limitMargin?: number;
   
   agents?: (role: AgentRole) => AgentSetting;
@@ -323,7 +321,7 @@ export class ProjectRuntime {
       (repo, commit) => !!this.repos.find((r) => r.ref.id === repo)?.read.holds(commit),
       deps.language,
       deps.conversation,
-      deps.asksFeedback,
+      () => this.settings().modelFeedback,
     );
     const board = this.board;
     this.showOldNames();
@@ -1087,6 +1085,7 @@ export class ProjectRuntime {
     }
     const reviewsBefore = JSON.stringify(this.settings().codeReviews);
     const archiveBefore = this.settings().archive;
+    const feedbackBefore = this.settings().modelFeedback;
     this.config = resolved.config;
     const namesBefore = JSON.stringify([this.board.project.name, this.board.project.oldNames, this.board.project.icon]);
     if (resolved.name !== this.board.project.name) {
@@ -1127,7 +1126,8 @@ export class ProjectRuntime {
       r.workers.resumeAll(true);
     });
     
-    if (this.settings().archive !== archiveBefore) this.board.changed();
+    if (this.settings().modelFeedback !== feedbackBefore) this.configChanged();
+    else if (this.settings().archive !== archiveBefore) this.board.changed();
     
     if (JSON.stringify(this.settings().codeReviews) !== reviewsBefore) for (const r of this.repos) (r.workers.holdAutoReviews(), void r.workers.codeReviewsChanged());
     return this.settingsChanged();
@@ -1305,15 +1305,16 @@ export class ProjectRuntime {
   /** The repository did not start as the configuration has it (`before`: it runs on as it was set up before): the page reads the configuration's problems again. */
   private fail(repo: string, e: unknown, before = false) {
     this.failed.set(repo, { detail: messageOf(e), ...(before ? { before: true as const } : {}) });
-    this.failuresChanged();
+    this.configChanged();
   }
 
   /** The repository runs as the configuration has it, or left it. */
   private ran(repo: string) {
-    if (this.failed.delete(repo)) this.failuresChanged();
+    if (this.failed.delete(repo)) this.configChanged();
   }
 
-  private failuresChanged() {
+  /** The page reads the project's settings and the configuration's problems again (`configRev`). */
+  private configChanged() {
     this.board.project.configRev = (this.board.project.configRev ?? 0) + 1;
     this.board.changed();
   }

@@ -941,9 +941,9 @@ describe('Project defaults', () => {
   });
 
   test('start with every label suggested, and keep what the owner saves of them', () => {
-    expect(projectDefaultsView(dir)).toEqual({ file: join(dir, 'settings.json'), defaults: { planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: true, priority: true }, suggestLabels: true, suggestCards: true, suggestMerges: true, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null } });
+    expect(projectDefaultsView(dir)).toEqual({ file: join(dir, 'settings.json'), defaults: { planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: true, priority: true }, suggestLabels: true, suggestCards: true, suggestMerges: true, agents: {}, codeReviews: { on: false, mode: 'auto' }, modelFeedback: false, demoSite: null } });
     saveProjectDefaults(dir, { suggest: { complexity: false } });
-    expect(projectDefaults(dir)).toEqual({ planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: false, priority: true }, suggestLabels: true, suggestCards: true, suggestMerges: true, agents: {}, codeReviews: { on: false, mode: 'auto' }, demoSite: null });
+    expect(projectDefaults(dir)).toEqual({ planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: false, priority: true }, suggestLabels: true, suggestCards: true, suggestMerges: true, agents: {}, codeReviews: { on: false, mode: 'auto' }, modelFeedback: false, demoSite: null });
     
     saveProjectDefaults(dir, { archive: 'landed' });
     expect(projectDefaults(dir).archive).toBe('landed');
@@ -967,7 +967,7 @@ describe('Project defaults', () => {
     await c.save([{ name: 'Web', repos: [{ path: web }] }, { repos: [{ path: api }] }]);
     expect(readConfigFile(file)).toEqual([
       { name: 'Web', repos: [{ path: web }] },
-      { planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: true, priority: false }, suggestLabels: true, suggestCards: true, suggestMerges: true, codeReviews: { on: false, mode: 'auto' }, repos: [{ path: api }] },
+      { planBaselines: true, archive: 'manual', rightClick: 'groups', suggest: { category: true, complexity: true, priority: false }, suggestLabels: true, suggestCards: true, suggestMerges: true, codeReviews: { on: false, mode: 'auto' }, modelFeedback: false, repos: [{ path: api }] },
     ]);
     
     saveProjectDefaults(dir, { suggest: { category: false, priority: true } });

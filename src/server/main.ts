@@ -84,7 +84,7 @@ import { useLib } from '../../plugin/skills/demo/lib/here.ts';
 import { DEMO_SETTINGS_FILE, expandHome, readDemoSettings } from '../../plugin/skills/demo/lib/settings.ts';
 import { DemoSpace } from './demo-space';
 import { qwen3Serve } from '../../plugin/skills/demo/lib/voices.ts';
-import { agentSetting, agentsView, configuredHarnesses, conversationLanguage, feedbackPromptView, ownerLanguage, savedHarnesses, usageMeterView } from './settings';
+import { agentSetting, agentsView, configuredHarnesses, conversationLanguage, moveFeedbackPrompt, ownerLanguage, savedHarnesses, usageMeterView } from './settings';
 import { loginLink } from './owner';
 import { databaseFile, moveDefaultHome, moveNotice } from './home-move';
 import { Stalls } from './stalls';
@@ -190,6 +190,7 @@ if (!values.dev && !seismicEnv('SUPERVISED')) {
 
 let started: ProjectConfig[];
 const source = values.config || !positionals.length ? 'file' : 'args';
+if (source === 'file') moveFeedbackPrompt(home, configFile);
 if (source === 'file' && !values.config && !existsSync(configFile)) {
   
   started = [];
@@ -351,7 +352,6 @@ projects = new Projects(
     ...(seismicEnv('PR_POLL') ? { prPollMs: Number(seismicEnv('PR_POLL')) * 1000 } : {}),
     language: () => ownerLanguage(home),
     conversation: () => conversationLanguage(home),
-    asksFeedback: () => feedbackPromptView(home).on,
     agents: (role) => agentSetting(home, role),
     codexAutoReview: () => agentsView(home).codexAutoReview,
     harnesses: () => {

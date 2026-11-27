@@ -46,7 +46,7 @@ const saved = () => JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8'))
 
 test('every setting reads together, by its name', async () => {
   const { settings } = (await call('GET', '/api/v1/settings')).body;
-  expect(Object.keys(settings).sort()).toEqual(['agents', 'codexAutoReview', 'demo', 'feedbackPrompt', 'language', 'motion', 'notifications', 'projectDefaults', 'theme', 'usageMeter']);
+  expect(Object.keys(settings).sort()).toEqual(['agents', 'codexAutoReview', 'demo', 'language', 'motion', 'notifications', 'projectDefaults', 'theme', 'usageMeter']);
   expect(settings.theme).toEqual({ file: join(dir, 'settings.json'), chosen: null });
 });
 

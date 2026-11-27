@@ -6,11 +6,10 @@ import { parkClones, restoreClones } from './workstationDraft';
 
 
 import { Info as InfoIcon, Trash2 } from 'lucide-react';
-import { forwardRef, Fragment, lazy, type ReactNode, Suspense, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { OpenPerformance } from './performance';
+import { forwardRef, Fragment, lazy, type ReactNode, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { allowsDemo, HANDOVER_ARTIFACTS } from '../../plugin/skills/demo/lib/artifacts.ts';
 import { DEFAULT_STYLE, QWEN3_SPEAKER, QWEN3_SPEAKERS, qwen3IsClone, qwen3Speaker, STYLED_VOICES } from '../../plugin/skills/demo/lib/voice-choices.ts';
-import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, agyBaseChoice, modelEffort, modelEfforts, harnessChoice, needsGit, projectAgentSetting, CARD_ARCHIVING, type CardArchiving, RIGHT_CLICK, type RightClick, CODE_REVIEW_MODES, type CodeReviewSetting, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type ModelInfo, type Harness, type AgentsView, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, type RepoConfig, type RepoSettings, type RepoTrust, type TrustGroup, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type FeedbackPromptView, type NotificationsView, type VoiceKind, type VoiceSetupView } from '../core/types';
+import { AGENT_DEFAULTS, AGENT_EFFORTS, AGENT_ROLES, agyBaseChoice, modelEffort, modelEfforts, harnessChoice, needsGit, projectAgentSetting, CARD_ARCHIVING, type CardArchiving, RIGHT_CLICK, type RightClick, CODE_REVIEW_MODES, type CodeReviewSetting, type AgentEffort, type AgentModel, type AgentRole, type AgentSetting, type ModelInfo, type Harness, type AgentsView, type ProjectDefaults, type ProjectDefaultsView, type ProjectSettings, type ConfigChecked, type DeveloperView, type ConfigProblem, type ConfigProblemCode, type ConfigView, type DemoSettings, type HandoverArtifact, type DemoSettingsView, type DemoSpaceView, type DemoVoiceCheck, type ProjectDemoSite, type ProjectDemoSiteState, type DemoSitesView, type TagProposalJob, type Language, type HostConfig, type LanguageView, type NarrationLanguage, type RepoConfig, type RepoSettings, type RepoTrust, type TrustGroup, type RepoValues, type ResolvedProject, type SettingsShared, type SettingValue, layerSettings, SHARED_FIELDS, NESTED_SETTINGS, type NestedSetting, isNested, type PageTags, type SetupCheck, START_FAILED, type Theme, THEMES, type ThemeView, type Motion, MOTIONS, type MotionView, type UsageMeterView, type NotificationsView, type VoiceKind, type VoiceSetupView } from '../core/types';
 import { catalogDefault, DefaultEffort, HarnessOptions, ModelOptions, useConnectedHarnesses } from './agent-options';
 import { patchOf } from '../core/diff';
 import { extension, linesOf, textsOf, visible } from './trust-lines';
@@ -234,7 +233,6 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectS
             <Head title={c.sections.notices} />
             <NotificationsBlock on={on} />
             <UsageBlock on={on} />
-            <FeedbackBlock on={on} />
           </section>
           <section id="cfg-sec-devices" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'devices'}>
             <AccessSection on={on && section === 'devices'} onConnect={onConnect} />
@@ -701,40 +699,28 @@ function NotificationsBlock({ on }: { on: boolean }) {
   );
 }
 
-/** Whether approving work asks for feedback on it: saved on its own, and every open page follows at once. */
-function FeedbackBlock({ on }: { on: boolean }) {
-  const [view, setView] = useState<FeedbackPromptView | null>(null);
-  const openPerformance = useContext(OpenPerformance);
-  const [status, setStatus] = useState('');
-  useEffect(() => {
-    if (on) getSetting('feedbackPrompt').then(setView, console.error);
-  }, [on]);
-  if (!view) return null;
-  const l = t.feedback.setting;
-  const choose = async (asks: boolean) => {
-    setStatus('');
-    try {
-      setView(await saveSetting('feedbackPrompt', { on: asks }));
-    } catch (e) {
-      setStatus(failText(e));
-    }
-  };
+const MODEL_FEEDBACK_DOCS = 'https://seismic.im/docs/reference/model-feedback/';
+
+/** "Learn more" after the hint of "Enable model feedback": the docs page, in the browser. */
+export function ModelFeedbackDocs() {
   return (
-    <>
-      <Head sub title={l.title} hint={l.hint} file={view.file} />
-      <Field label={l.title}>
-        <SavingSwitch checked={view.on} save={choose}>
-          {l.label}
-          <Badge variant="secondary">{l.preview}</Badge>
-        </SavingSwitch>
-        {openPerformance && (
-          <Button size="small" className="cfg-perf [:is(#config,#prefs,#project-settings)_&]:mt-2.5" title={t.performance.openHint} onClick={openPerformance}>
-            {t.performance.open}
-          </Button>
-        )}
-      </Field>
-      {status && <p className={`hint ${statusClass}`}>{status}</p>}
-    </>
+    <LinkButton type="button" className="cfg-feedback-docs h-auto p-0 align-baseline" onClick={() => window.open(MODEL_FEEDBACK_DOCS, '_blank', 'noopener')}>
+      {t.feedback.setting.learnMore}
+    </LinkButton>
+  );
+}
+
+/** "Enable model feedback" with its Beta badge: in Project defaults (a project's settings sheet has its own section); off where left out. */
+function ModelFeedbackField({ value, onChange }: { value: boolean | undefined; onChange: (on: boolean) => void }) {
+  const l = t.feedback.setting;
+  return (
+    <Field label={t.projectSettings.sections.feedback} hint={<>{l.hint} <ModelFeedbackDocs /></>}>
+      <CheckLabel>
+        <Switch checked={value === true} aria-label={l.title} onCheckedChange={onChange} />
+        {l.title}
+        <Badge variant="secondary">{l.beta}</Badge>
+      </CheckLabel>
+    </Field>
   );
 }
 
@@ -877,6 +863,7 @@ function ProjectDefaultsBlock({ view, onSaved, onProjectSettings }: { view: Proj
     
     agents: <Field label={c.defaults.agents}>{c.defaults.agentsValue}</Field>,
     codeReviews: <CodeReviewField value={view.defaults.codeReviews} onChange={(codeReviews) => save({ codeReviews })} />,
+    modelFeedback: <ModelFeedbackField value={view.defaults.modelFeedback} onChange={(modelFeedback) => save({ modelFeedback })} />,
     
     demoSite: <Field label={t.config.projectSite.label}>{t.config.projectSite.defaults}</Field>,
   };

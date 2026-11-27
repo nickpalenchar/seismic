@@ -358,7 +358,6 @@ export function serve(
           const configured = machine?.harnesses();
           for (const m of usage) m.setOn(view.on && (!m.harness || (configured?.includes(m.harness) ?? true)));
         },
-        onFeedbackPrompt: () => projects.all().forEach((x) => x.board.changed()),
       })
     : undefined;
   const projectOfCard = (cardId: string, options?: { deleted?: boolean }) =>

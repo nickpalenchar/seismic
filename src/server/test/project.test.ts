@@ -407,6 +407,22 @@ test('the Koordinator reads which labels Seismic may suggest from the project to
   expect(suggestable(project.koordinator.suggests())).toEqual(['complexity']);
 });
 
+test('model feedback is asked for while the project has it on, and turning it on or off has the page read the settings again', async () => {
+  fresh();
+  const web = repo('web', 'Web');
+  project.shutdown();
+  project = new ProjectRuntime({ name: 'Q', repos: [{ path: web }] }, { store: new Store(':memory:'), home: dir, runtime: new FakeRuntime(), forge: noForge });
+  expect(project.board.asksFeedback()).toBe(false);
+  const rev = project.board.project.configRev ?? 0;
+  await project.apply({ name: 'Q', modelFeedback: true, repos: [{ path: web }] });
+  expect(project.board.asksFeedback()).toBe(true);
+  expect(project.board.project.configRev).toBe(rev + 1);
+  await project.apply({ name: 'Q', modelFeedback: true, suggestCards: false, repos: [{ path: web }] });
+  expect(project.board.project.configRev).toBe(rev + 1);
+  await project.apply({ name: 'Q', repos: [{ path: web }] });
+  expect(project.board.asksFeedback()).toBe(false);
+});
+
 test("a project without a name is named after its repository; a project that does not start leaves the others running", () => {
   project.shutdown();
   const store = new Store(':memory:');
