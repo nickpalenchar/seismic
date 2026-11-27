@@ -119,6 +119,7 @@ const en = {
   progress: (live: number, all: number) => `${live} of ${all} live`,
   newCard: 'New task',
   newCardHint: { ok: 'Got it' },
+  hints: { dismiss: 'Dismiss this hint' },
   touch: {
     hold: 'Press and hold a card to move it, or the empty project to mark cards with a lasso.',
     ok: 'Got it',
@@ -956,8 +957,8 @@ const en = {
     laterHint: 'The agent makes it a planned task of its own beside this card, outside the PR, bundled findings as one; the PR does not wait for it.',
     selfOff: (author: string) => `${author} does not allow edits by maintainers: findings go to ${author}.`,
     waits: 'Waiting for the contributor',
-    hint: 'Tip: “Review PR #5” reviews someone else’s pull request on a card.',
-    hideHint: 'Hide the tip',
+    hintTitle: 'Review a pull request',
+    hint: '“Review PR #5” reviews someone else’s pull request on a card.',
   },
   
   codeReview: {
@@ -1604,6 +1605,16 @@ const en = {
       title: 'Reconfigure Setup',
       hint: 'Click the button to relaunch the initial setup dialogue.',
       relaunch: 'Relaunch Setup',
+    },
+    resetHints: {
+      title: 'Hints',
+      hint: 'Tips you dismissed or have learned stay hidden in this browser. Resetting shows them all again.',
+      button: 'Reset all hints',
+      confirmTitle: 'Reset all hints?',
+      confirmBody: 'Every hint you dismissed or have learned shows again in this browser, until you dismiss or use it once more.',
+      confirm: 'Reset hints',
+      back: 'Cancel',
+      done: 'All hints show again.',
     },
     unsaved: 'Not saved',
     language: {

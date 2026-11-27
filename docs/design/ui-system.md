@@ -176,6 +176,17 @@ scripts/desktop-strings.ts` writes and a test keeps current (2026-11-24).
   dialog holds the focus trap and Escape, so a picker left over it would take no typing and its
   Escape would close the view underneath. The picker can open over project dialogs where it can own keyboard input, and Escape dismisses just the picker and
   restores focus to the previous control or its menu trigger.
+- **Hints are one pattern with one memory** (2026-11-27): a hint is a one-time message that goes
+  once the owner has used what it points to or dismissed it, and stays gone in that browser. Each
+  has a key `seismic-<name>-known` in local storage (`known`/`know`/`useKnown` in `src/ui/known.ts`);
+  no other key may end in `-known`. Types so far: the *alert hint* (`AlertHint`,
+  `components/hint.tsx`), shadcn's Alert (through Callout) with a ✕ at its top right, for a tip
+  that has a place of its own; the inline hints (a label on a button until it is first used, a key
+  shown on hover) stay as they are and share the same keys. Settings → Advanced has "Reset all
+  hints", confirmed in a dialog whose confirm button is the primary blue (the reset loses nothing
+  the owner made, so it is not red); it removes every hint key, and alert hints come back at once,
+  the others with the next page load. Rejected: hints remembered on the server, which would carry
+  a dismissal to the phone where the tip may read differently.
 - **Phone settings and Needs you share one history step**: switching between them replaces that
   step; closing returns to the project. Pages covering the project make its controls inert.
 - **Clone values parked while choosing worktrees belong to the repository draft**, rather than

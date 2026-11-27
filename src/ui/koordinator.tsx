@@ -31,7 +31,8 @@ import { PageChangeList } from './page-changes';
 import { fromLinkClass, occasionClass, prefActionsClass, prefRowClass, prefTextClass, proposalRowClass, proposalsClass, proposalTextClass, settingLabelClass, settingValueClass, targetClass } from './prefsClasses';
 import { WishReplyLink } from './wish';
 import { ClockMark } from './snooze';
-import { know, known } from './known';
+import { know } from './known';
+import { AlertHint } from './components/hint';
 import { cardPath, switchTo } from './address';
 import { CardLink, Naming } from './cardLink';
 import { MadeCover } from './made';
@@ -271,24 +272,15 @@ const REVIEW_KNOWN = 'seismic-review-pr-known';
 
 /**
  * Under Seismic's field, where a repository of the project is on a forge and until the owner has had a
- * review card once or closed it: one quiet line on how to have someone else's pull request reviewed.
+ * review card once or closed it: an alert hint on how to have someone else's pull request reviewed.
  */
 function ReviewHint({ items, repos }: { items: Item[]; repos: RepoRef[] }) {
   const used = items.some((i) => i.review?.contribution);
-  const [closed, setClosed] = useState(() => known(REVIEW_KNOWN));
   useEffect(() => {
     if (used) know(REVIEW_KNOWN);
   }, [used]);
-  if (used || closed || !repos.some((r) => r.forge)) return null;
-  return (
-    <p className="tell-hint flex items-center gap-1 -mt-0.5 mx-0 mb-2 text-2xs text-muted-foreground [&_span]:flex-1 [&_span]:min-w-0">
-      <span>{t.review.hint}</span>
-      <CloseButton label={t.review.hideHint} size="small" onClick={() => {
-          know(REVIEW_KNOWN);
-          setClosed(true);
-        }} />
-    </p>
-  );
+  if (used || !repos.some((r) => r.forge)) return null;
+  return <AlertHint id={REVIEW_KNOWN} title={t.review.hintTitle} className="mb-2">{t.review.hint}</AlertHint>;
 }
 
 /**

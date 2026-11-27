@@ -35,6 +35,7 @@ import { applyTheme } from './theme';
 import { applyMotion } from './motion';
 import { canNotify, notificationsChanged, type Permission, permission, requestPermission } from './desktopNotify';
 import { WishLink } from './wish';
+import { forgetAllHints } from './known';
 import { projectPath } from './address';
 import { scrollBehavior } from './motion';
 import { Badge } from './components/badge';
@@ -245,6 +246,7 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectS
               <p className="hint">{c.reconfigureSetup.hint}</p>
               <Button size="small" onClick={() => setSetupOn(true)}>{c.reconfigureSetup.relaunch}</Button>
             </section>
+            <ResetHints />
             <ProjectExport on={on && section === 'advanced'} />
           </section>
           <section id="cfg-sec-developer" role="tabpanel" className={K.cfgSecClass} hidden={section !== 'developer'}>
@@ -255,6 +257,32 @@ export function ConfigDialog({ on, usage, onClose, onTalk, onConnect, onProjectS
       </DialogContent>
       </Tabs>
     </Dialog>
+  );
+}
+
+/** "Reset all hints": after a confirmation, every hint this browser has put away shows again. */
+function ResetHints() {
+  const r = t.config.resetHints;
+  const [asking, setAsking] = useState(false);
+  const [done, setDone] = useState(false);
+  return (
+    <section className="mb-6" aria-labelledby="cfg-reset-hints">
+      <h3 id="cfg-reset-hints">{r.title}</h3>
+      <p className="hint">{r.hint}</p>
+      <div className="flex items-center gap-3">
+        <Button size="small" className="reset-hints" onClick={() => { setDone(false); setAsking(true); }}>{r.button}</Button>
+        {done && <span role="status" className="text-sm text-muted-foreground">{r.done}</span>}
+      </div>
+      <ConfirmDialog
+        open={asking}
+        onOpenChange={setAsking}
+        title={r.confirmTitle}
+        confirm={{ label: r.confirm, variant: 'primary', className: 'reset-hints-confirm', onClick: () => { forgetAllHints(); setDone(true); } }}
+        cancel={r.back}
+      >
+        <p className="[[data-slot=confirm-dialog]_&]:mt-0 [[data-slot=confirm-dialog]_&]:mb-4">{r.confirmBody}</p>
+      </ConfirmDialog>
+    </section>
   );
 }
 
