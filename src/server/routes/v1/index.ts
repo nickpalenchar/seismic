@@ -60,6 +60,15 @@ import { StartAt } from './cards/_cardId/start-at';
 import { Stop } from './cards/_cardId/stop';
 import { Unarchive } from './cards/_cardId/unarchive';
 import { Wake } from './cards/_cardId/wake';
+import { Dependencies } from './cards/_cardId/dependencies';
+import { Dependency } from './cards/_cardId/dependencies/_toCardId';
+import { Ungroup } from './cards/ungroup';
+import { Canvases } from './canvases';
+import { CanvasById } from './canvases/_canvasId';
+import { CanvasCards } from './canvases/_canvasId/cards';
+import { Groups } from './groups';
+import { GroupById } from './groups/_groupId';
+import { GroupCards } from './groups/_groupId/cards';
 import { Chats } from './chats';
 import { Chat } from './chats/_chatId';
 import { Unwait } from './chats/_chatId/exchanges/_exchangeId/unwait';
@@ -74,5 +83,5 @@ import { Settings } from './settings';
 import { Setting } from './settings/_settingName';
 
 export function v1Routes(dependencies: RouteDependencies): HttpRoute[] {
-  return [Card, Undo, Name, Arrange, TakeWorkstation, KeepWorkstation, AsIdea, Release, Reorder, Unsay, Ask, Consult, PageTags, Unaccept, DismissDuplicate, ApproveMerge, Separate, Dismiss, Keep, Unbuild, StayHere, SplitOff, PlanDoc, Park, Unpark, Drop, Discard, Accept, Merge, Revise, Discuss, Build, Prototype, BuildPrototype, CodeReview, ReopenReviewItem, SkipCodeReview, StopCodeReview, EditHeld, Fold, HandOff, KeepMain, PushChanges, PushMain, Answer, Approve, Message, Pause, Resume, Snooze, StartAt, Wake, Archive, Dequeue, Restore, Share, Start, Stop, Unarchive, Chats, Chat, Open, Read, Unwait, RecentChat, Configuration, Health, Settings, Setting, HintsRoute, HintSeen, Agents].map((Route) => new Route(dependencies));
+  return [Card, Undo, Name, Arrange, TakeWorkstation, KeepWorkstation, AsIdea, Release, Reorder, Unsay, Ask, Consult, PageTags, Unaccept, DismissDuplicate, ApproveMerge, Separate, Dismiss, Keep, Unbuild, StayHere, SplitOff, PlanDoc, Park, Unpark, Drop, Discard, Accept, Merge, Revise, Discuss, Build, Prototype, BuildPrototype, CodeReview, ReopenReviewItem, SkipCodeReview, StopCodeReview, EditHeld, Fold, HandOff, KeepMain, PushChanges, PushMain, Answer, Approve, Message, Pause, Resume, Snooze, StartAt, Wake, Archive, Dequeue, Restore, Share, Start, Stop, Unarchive, Chats, Chat, Open, Read, Unwait, RecentChat, Configuration, Health, Dependencies, Dependency, Ungroup, Canvases, CanvasById, CanvasCards, Groups, GroupById, GroupCards, Settings, Setting, HintsRoute, HintSeen, Agents].map((Route) => new Route(dependencies));
 }

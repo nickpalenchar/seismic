@@ -3,8 +3,8 @@
 
 
 
-import type { AgentSetting, CardAction, CardPatch, ChatElsewhere, ModelInfo, ConfigSaved, ConfigView, Item, OwnerSetting, OwnerSettingChanges, OwnerSettingViews, ProjectConfig } from '../../core/types';
-import { agentSettingsSaved, call, cardBack, cardRemoved, cardSaved, projectOf, snapshotsOf } from '../api';
+import type { AgentSetting, Canvas, CardAction, Group, ManualAnchor, CardPatch, ChatElsewhere, ModelInfo, ConfigSaved, ConfigView, Item, OwnerSetting, OwnerSettingChanges, OwnerSettingViews, ProjectConfig } from '../../core/types';
+import { agentSettingsSaved, call, cardBack, cardRemoved, cardSaved, projectOf, shownProject, snapshotsOf } from '../api';
 
 
 const TIMEOUT_MS = 60_000;
@@ -143,6 +143,38 @@ export const stopWaiting = async (chat: number, exchange: number, card: string):
 /** The chat the owner talked in last on the project, and when; `null` while nothing was said in any. */
 export const getRecentChat = async (project: string): Promise<{ id: number; at: string } | null> =>
   (await call<{ chat: { id: number; at: string } | null }>('GET', `/api/v1/chats/recent?project=${encodeURIComponent(project)}`, undefined, false, TIMEOUT_MS)).chat;
+
+/** A new group with the cards in it (a name a group has already puts them into that one); `hue` the colour. */
+export const createGroup = async (name: string, cards: string[], hue?: number): Promise<Group> =>
+  (await call<{ group: Group }>('POST', '/api/v1/groups', { name, cards, ...(hue === undefined ? {} : { hue }) }, false, TIMEOUT_MS)).group;
+
+/** Ends the group: its cards belong to none. Answers with what brings it back. */
+export const endGroup = (group: string) => call<{ group: Group; cards: string[] }>('DELETE', `/api/v1/groups/${encodeURIComponent(group)}`, undefined, false, TIMEOUT_MS);
+
+/** Puts the cards into the group, or with `null` into none. */
+export const assignCards = (cards: string[], group: string | null): Promise<void> =>
+  call<void>('POST', group === null ? '/api/v1/cards/ungroup' : `/api/v1/groups/${encodeURIComponent(group)}/cards`, { cards }, false, TIMEOUT_MS);
+
+/** A new canvas on the shown project, last in its order. */
+export const createCanvas = async (name: string, icon?: string): Promise<Canvas> =>
+  (await call<{ canvas: Canvas }>('POST', '/api/v1/canvases', { project: shownProject(), name, ...(icon ? { icon } : {}) }, false, TIMEOUT_MS)).canvas;
+
+/** The canvas renamed, given another icon (`null` takes it away) or moved in the order (`position`, from 1). */
+export const updateCanvas = async (id: string, change: { name?: string; icon?: string | null; position?: number }): Promise<Canvas> =>
+  (await call<{ canvas: Canvas }>('PATCH', `/api/v1/canvases/${encodeURIComponent(id)}`, change, false, TIMEOUT_MS)).canvas;
+
+/** The canvas removed; `expected` is what the owner was told it holds, `moveTo` where its cards go. */
+export const deleteCanvas = (id: string, expected: { parked: number; snoozed: number }, moveTo?: string): Promise<void> =>
+  call<void>('DELETE', `/api/v1/canvases/${encodeURIComponent(id)}`, { expected, moveTo }, false, TIMEOUT_MS);
+
+/** The cards onto the canvas. */
+export const moveToCanvas = (cards: string[], canvas: string): Promise<void> => call<void>('POST', `/api/v1/canvases/${encodeURIComponent(canvas)}/cards`, { cards }, false, TIMEOUT_MS);
+
+/** Draws or removes the owner's arrow from one card to another (`anchor`: the edges and place it was drawn at); `keepalive` for one sent as the page goes. */
+export const setDependency = (from: string, to: string, { remove = false, keepalive = false, anchor }: { remove?: boolean; keepalive?: boolean; anchor?: ManualAnchor } = {}): Promise<void> =>
+  remove
+    ? call<void>('DELETE', `${getCardById(from)}/dependencies/${encodeURIComponent(to)}`, undefined, keepalive, TIMEOUT_MS)
+    : call<void>('POST', `${getCardById(from)}/dependencies`, { to, ...(anchor ? { anchor } : {}) }, keepalive, TIMEOUT_MS);
 
 type ModelHarness = 'codex' | 'agy';
 

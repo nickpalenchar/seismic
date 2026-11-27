@@ -11,7 +11,7 @@ import { afterAttachments } from './attachmentSwitch';
 import { prepareSessionHandOver, sessionWithDrafts } from './draftSession';
 import type { CardDiff } from '../core/diff';
 import { type Place, placeParam } from '../core/layout';
-import type { ProjectReposView, RepoConfig, AccessView, AwayView, ActivityPage, Pairing, RemoteSetting, Harness, HarnessAvailability, CloudPreset, ProjectConfig, ProjectInfo, ProjectSnapshot, ClientMessage, ConfigSaved, ConfigChecked, DemoSettings, Group, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, SetupRepoCheck, VoiceSetupView, CardEvent, Item, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Usage, Waiting, Feedback, FeedbackAnswer, ProjectSettings, ProjectSettingsView, DeveloperView, Canvas } from '../core/types';
+import type { ProjectReposView, RepoConfig, AccessView, AwayView, ActivityPage, Pairing, RemoteSetting, Harness, HarnessAvailability, CloudPreset, ProjectConfig, ProjectInfo, ProjectSnapshot, ClientMessage, ConfigSaved, ConfigChecked, DemoSettings, DemoSettingsView, DemoVoiceCheck, ProjectDemoSiteState, DemoSitesView, GithubRepoList, GithubRepoView, TagProposalJob, PageTags, NarrationLanguage, FirstProject, GitSetupPreview, MachineItem, MachineSectionId, MachineView, SetupCheck, SetupFolder, SetupRepoCheck, VoiceSetupView, CardEvent, Item, NewCard, Notice, OwnerHold, PendingRestart, PlanHistory, RepoTrust, ServerMessage, SettingsShared, Skill, SourceUpdate, SpotInput, TalkRef, AppUpdate, Usage, Waiting, Feedback, FeedbackAnswer, ProjectSettings, ProjectSettingsView, DeveloperView } from '../core/types';
 import type { Wish } from '../core/wish';
 import { sameJson } from './sameJson';
 import { noteMessage, watchPageStalls } from './stalls';
@@ -288,15 +288,8 @@ export const api = {
   installUpdate: () => call<{ updating: boolean }>('POST', '/api/app-update/install'),
   /** Fast-forwards the checkout Seismic runs from to its upstream; Seismic then restarts with the new code once the workers paused. */
   pullSource: () => call<{ source: SourceUpdate | null }>('POST', '/api/source-update/pull'),
-  /** Draws or removes an owner-drawn arrow, `anchor` the edges and place it was drawn at; `keepalive` for one sent as the page goes. */
-  dependency: (from: string, to: string, remove = false, keepalive = false, anchor?: import('../core/types').ManualAnchor) => call<void>(remove ? 'DELETE' : 'POST', at('/dependencies'), { from, to, ...(anchor ? { anchor } : {}) }, keepalive),
   create: (c: NewCard) => call<Item>('POST', at('/cards'), c),
   
-  createCanvas: (name: string, icon?: string) => call<Canvas>('POST', at('/canvases'), { name, ...(icon ? { icon } : {}) }),
-  updateCanvas: (id: string, p: { name?: string; icon?: string | null; position?: number }) => call<Canvas>('PATCH', at(`/canvases/${encodeURIComponent(id)}`), p),
-  deleteCanvas: (id: string, expected: { parked: number; snoozed: number }, moveTo?: string) =>
-    call<void>('DELETE', at(`/canvases/${encodeURIComponent(id)}`), { expected, moveTo }),
-  moveToCanvas: (cards: string[], canvas: string) => call<void>('POST', at(`/canvases/${encodeURIComponent(canvas)}/cards`), { cards }),
   /** The card that writes a repository's settings for everyone, on the project it belongs to (not necessarily the shown one). */
   adapterSetup: (project: string, repo: string) => call<Item>('POST', `/api/c/${encodeURIComponent(project)}/adapter-setup`, { repo }),
   /** The note on a repository's plan directory stays where the owner put it (its top left). */
@@ -321,12 +314,6 @@ export const api = {
   /** Opens an answer's file with the system's app, or without `file` the thread's directory. */
   openAnswer: (thread: number, file?: string) => call<void>('POST', at(`/threads/${thread}/open`), file === undefined ? {} : { file }),
   openCardFile: (id: string, file: string, show = false) => call<void>('POST', cardAt(id, '/open'), { file, ...(show ? { show } : {}) }),
-  /** A new group with the cards in it; a name a group has already puts them into that one. */
-  createGroup: (name: string, cards: string[], hue?: number) => call<Group>('POST', at('/groups'), { name, cards, hue }),
-  /** Ends the group: its cards belong to none. Returns what brings it back. */
-  deleteGroup: (id: string) => call<{ group: Group; cards: string[] }>('DELETE', at(`/groups/${id}`)),
-  /** Puts the cards into the group, or with `null` into none. */
-  assign: (cards: string[], group: string | null) => call<void>('POST', at('/assign'), { cards, group }),
   /** Stores a screenshot for a message; the message names it by the id. */
   uploadImage: async (image: Blob, project?: string, signal?: AbortSignal) => {
     const res = await fetch(at('/images', project), { method: 'POST', headers: { 'content-type': image.type }, body: image, signal });

@@ -8,8 +8,7 @@ import { cn } from 'cn';
 import { Car, Clock, GripVertical, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react';
 import type { Bounds } from '../core/layout';
 import { type Canvas, CANVAS_NAME_MAX, canvasNameProblem, type Item, MAIN_CANVAS, parkable, parkableStopping, inParkingLot, offCanvas } from '../core/types';
-import { api } from './api';
-import { actCard } from './clients/seismic';
+import { actCard, createCanvas, deleteCanvas, updateCanvas } from './clients/seismic';
 import { randomCanvasIcon } from '../core/canvas-icons';
 import { CanvasIcon, canvasText } from './canvasIcon';
 import { IconPicker, type IconPickerView, pickerLabel as cdLabel } from './iconPicker';
@@ -209,7 +208,7 @@ export function CanvasTabs({ project, canvases, shown, waiting, empty, onShow, o
           onPick={pick}
           onEdit={(c) => (open(false), setDialog({ edit: c.id }))}
           onNew={startNew}
-          onRemove={(c) => void api.deleteCanvas(c.id, { parked: 0, snoozed: 0 }).catch(onDeleteError)}
+          onRemove={(c) => void deleteCanvas(c.id, { parked: 0, snoozed: 0 }).catch(onDeleteError)}
           onMoveAway={(c) => (open(false), setDeleting({ id: c.id, name: c.name }))}
         />
       </PopoverContent>
@@ -264,7 +263,7 @@ function Drawer({ canvases, shown, waiting, empty, onPick, onEdit, onNew, onRemo
       drop: (id, places) => {
         setFailed(undefined);
         const n = canvases.findIndex((c) => c.id === id);
-        return api.updateCanvas(id, { position: n + places + 1 }).catch((err) => {
+        return updateCanvas(id, { position: n + places + 1 }).catch((err) => {
           setFailed(failText(err));
           throw err;
         });
@@ -339,7 +338,7 @@ function DeleteCanvasDialog({ target, canvas, others, onClose }: { target: Pick<
     setFailed(undefined);
     setBusy(true);
     try {
-      await api.deleteCanvas(canvas.id, { parked, snoozed }, moving ? to : undefined);
+      await deleteCanvas(canvas.id, { parked, snoozed }, moving ? to : undefined);
       onClose();
     } catch (err) {
       setFailed(failText(err));
@@ -433,8 +432,8 @@ export function CanvasDialog({ project, canvases, canvas, onClose, onDone }: { p
     try {
       const n = name.replace(/\s+/g, ' ').trim();
       const done = canvas
-        ? await api.updateCanvas(canvas.id, { ...(isMain || n === canvas.name ? {} : { name: n }), ...(icon !== (canvas.icon ?? null) ? { icon } : {}) })
-        : await api.createCanvas(n, icon ?? undefined);
+        ? await updateCanvas(canvas.id, { ...(isMain || n === canvas.name ? {} : { name: n }), ...(icon !== (canvas.icon ?? null) ? { icon } : {}) })
+        : await createCanvas(n, icon ?? undefined);
       setDraft(null);
       onDone(done);
     } catch (err) {

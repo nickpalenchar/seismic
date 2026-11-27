@@ -89,6 +89,32 @@ export abstract class HttpRoute {
     return project;
   }
 
+  /** The project of the group the URL names (`:groupId`); an unknown group is a 404. */
+  protected projectOfGroup(request: RouteRequest): ProjectRuntime {
+    const id = request.params.groupId ?? '';
+    const project = this.dependencies.allProjects().find((candidate) => candidate.board.hasGroup(id));
+    if (!project) throw new NotFound('unknownGroup', 'unknown group');
+    return project;
+  }
+
+  /** The project of the canvas the URL names (`:canvasId`); an unknown canvas is a 404. */
+  protected projectOfCanvas(request: RouteRequest): ProjectRuntime {
+    const id = request.params.canvasId ?? '';
+    const project = this.dependencies.allProjects().find((candidate) => candidate.board.hasCanvas(id));
+    if (!project) throw new NotFound('unknownCanvas', 'unknown canvas');
+    return project;
+  }
+
+  /** The project of the first of the cards (a list of card ids); none, or an unknown one, is refused. */
+  protected projectOfCards(cards: unknown): ProjectRuntime {
+    if (!Array.isArray(cards) || !cards.every((id) => typeof id === 'string')) throw new BadRequest('invalid', 'cards must be a list of card ids');
+    const first = cards[0] as string | undefined;
+    if (first === undefined) throw new BadRequest('invalid', 'a card is needed');
+    const project = this.dependencies.projectOfCard(first);
+    if (!project) throw new NotFound('unknownCard', 'unknown card');
+    return project;
+  }
+
   /** The project of the chat the URL names (`:chatId`) and the chat's id; an unknown chat is a 404. */
   protected projectOfChat(request: RouteRequest): { project: ProjectRuntime; chat: number } {
     const chat = Number(request.params.chatId);

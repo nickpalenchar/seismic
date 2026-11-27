@@ -749,46 +749,6 @@ export function serve(
       
       
       
-      '/api/c/:project/groups': {
-        POST: on(async (c, req) => {
-          const { name, cards, hue } = ((await req.json()) ?? {}) as { name?: string; cards?: string[]; hue?: number };
-          return c.board.createGroup(name, cards, hue);
-        }),
-      },
-      '/api/c/:project/groups/:id': {
-        PATCH: on(async (c, req) => c.board.renameGroup(req.params.id!, (((await req.json()) ?? {}) as { name?: string }).name)),
-        DELETE: on((c, req) => c.board.deleteGroup(req.params.id!)),
-      },
-      
-      
-      '/api/c/:project/canvases': {
-        GET: on((c) => c.board.canvases()),
-        POST: on(async (c, req) => {
-          const { name, icon } = ((await req.json()) ?? {}) as { name?: unknown; icon?: unknown };
-          return c.board.createCanvas(name, icon);
-        }),
-      },
-      '/api/c/:project/canvases/:id': {
-        PATCH: on(async (c, req) => c.board.updateCanvas(req.params.id!, ((await req.json()) ?? {}) as { name?: unknown; icon?: unknown; position?: unknown })),
-        DELETE: on(async (c, req) => {
-          const { moveTo, expected } = ((await req.json().catch(() => null)) ?? {}) as { moveTo?: unknown; expected?: { parked?: unknown; snoozed?: unknown } };
-          return c.board.deleteCanvas(req.params.id!, moveTo, expected);
-        }),
-      },
-      '/api/c/:project/canvases/:id/cards': {
-        POST: on(async (c, req) => c.board.moveToCanvas((((await req.json()) ?? {}) as { cards?: unknown }).cards, req.params.id!)),
-      },
-      '/api/c/:project/assign': {
-        POST: on(async (c, req) => {
-          const { cards, group } = ((await req.json()) ?? {}) as { cards?: string[]; group?: string | null };
-          return c.board.group(cards, group ?? null);
-        }),
-      },
-      '/api/c/:project/dependencies': {
-        POST: on(async (c, req) => { const { from, to, anchor } = await req.json() as { from: string; to: string; anchor?: import('../core/types').ManualAnchor }; c.board.connect(from, to, false, anchor); }),
-        DELETE: on(async (c, req) => { const { from, to } = await req.json() as { from: string; to: string }; c.board.connect(from, to, true); }),
-      },
-      
       '/api/c/:project/archive': { GET: on((c) => c.board.archived()), POST: on((c) => ({ ids: c.board.archiveDone() })) },
       '/api/c/:project/cards/:id/stand-in': { POST: on(async (c, req) => ({ result: await c.standIn(req.params.id!, (await req.json()) as Parameters<typeof c.standIn>[1]) })) },
       '/api/c/:project/cards/:id/events': { GET: on((c, req) => c.board.events(req.params.id!)) },

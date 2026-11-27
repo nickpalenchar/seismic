@@ -3215,6 +3215,16 @@ export class Board {
     }
   }
 
+  /** Whether the project has the group `id`. */
+  hasGroup(id: string): boolean {
+    return this.store.groups.get(id)?.projectId === this.project.id;
+  }
+
+  /** Whether the project has the canvas `id`. */
+  hasCanvas(id: string): boolean {
+    return this.store.canvases.get(id)?.projectId === this.project.id;
+  }
+
   private ownCanvas(id: unknown): CanvasRow {
     const c = typeof id === 'string' ? this.store.canvases.get(id) : null;
     if (!c || c.projectId !== this.project.id) throw new BadRequest('unknownCanvas', 'unknown canvas');

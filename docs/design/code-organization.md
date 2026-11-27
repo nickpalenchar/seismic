@@ -94,6 +94,12 @@ Represents endpoints that are registered to the server, which can be called in a
     `keep-workstation`), `ask`, `consult`, `as-idea` and `page-tags`; the demo page's share is `POST` and
     `DELETE` on `/share`, beside the `PATCH` of "Share on approval". The UI sends any of them through
     `actCard` (`src/ui/clients/seismic.ts`).
+  - Groups and canvases have global ids, so their URLs name them alone: `POST /api/v1/groups`
+    (`{ name, cards }`, on the cards' project), `PATCH` and `DELETE /groups/:groupId`, `POST
+    /groups/:groupId/cards` to fill one and `POST /cards/ungroup` to empty cards out of theirs;
+    `POST /api/v1/canvases` (`{ project, name }`), `PATCH` and `DELETE /canvases/:canvasId` and `POST
+    /canvases/:canvasId/cards`. The owner's arrows are `POST /cards/:cardId/dependencies` (`{ to }`) and
+    `DELETE /cards/:cardId/dependencies/:toCardId`. The UI calls them through `seismic.ts`.
   - Params name what they stand for (`:cardId`), never a bare `:id`.
   - A card's URL names the card alone, not its project: the server finds the project from the card
     (`HttpRoute.projectOfCard`), so a call can't go to the wrong project when the page shows another.

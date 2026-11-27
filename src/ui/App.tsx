@@ -25,7 +25,7 @@ import { type ActDone, Detail, type Pending } from './detail';
 import { Cards, KoordinatorAgent } from './message';
 import { motionMs, reducedMotion, sizeSettled } from './motion';
 import type { Heard, Where } from './api';
-import { actCard, archiveCard, dequeueCard, getAgentModels, patchCard, removeCard, restoreCard, startCardAgent, unarchiveCard } from './clients/seismic';
+import { actCard, archiveCard, assignCards, createGroup, endGroup, dequeueCard, getAgentModels, moveToCanvas, patchCard, removeCard, restoreCard, setDependency, startCardAgent, unarchiveCard } from './clients/seismic';
 import { replyOn, setReply } from './reply';
 import { ArchiveView } from './archive';
 import { CardSearch } from './cardSearch';
@@ -1104,7 +1104,7 @@ function Project({
     }
     if (focusRef.current?.type === 'plan' && focusRef.current.id === i.id) await closePlan(false);
     try {
-      await api.moveToCanvas([i.id], to.id);
+      await moveToCanvas([i.id], to.id);
       showAck(t.canvases.moved(title, canvasText(to)));
     } catch (err) {
       fail(err);
@@ -1857,8 +1857,8 @@ function Project({
     const one = r.ids.length === 1 ? placed.find((p) => p.item.id === r.ids[0])?.b : undefined;
     growFrom(r.ids, one ? centre(one) : toWorld(camRef.current, r.at.x, r.at.y));
     try {
-      if ('name' in to) await api.createGroup(to.name, r.ids);
-      else await api.assign(r.ids, to.group);
+      if ('name' in to) await createGroup(to.name, r.ids);
+      else await assignCards(r.ids, to.group);
     } catch (e) {
       fail(e);
     }
@@ -1869,11 +1869,11 @@ function Project({
     if (!(to.queue && 'behind' in to.queue && to.queue.behind.includes(from))) {
       
       setRemoving((r) => [...r, { key, sent: true }]);
-      api.dependency(from, to.id, true).then(
+      setDependency(from, to.id, { remove: true }).then(
         () =>
           showAck(t.deps.removed, () => {
             setRemoving((r) => r.filter((x) => x.key !== key));
-            api.dependency(from, to.id).catch(fail);
+            setDependency(from, to.id).catch(fail);
           }),
         (e) => {
           setRemoving((r) => r.filter((x) => x.key !== key));
@@ -1885,7 +1885,7 @@ function Project({
     setRemoving((r) => [...r, { key }]);
     const send = (keepalive = false) => {
       setRemoving((r) => r.map((x) => (x.key === key ? { key, sent: true } : x)));
-      api.dependency(from, to.id, true, keepalive).catch((e) => {
+      setDependency(from, to.id, { remove: true, keepalive }).catch((e) => {
         setRemoving((r) => r.filter((x) => x.key !== key));
         fail(e);
       });
@@ -1906,8 +1906,8 @@ function Project({
   async function deleteGroup(g: Group) {
     setRing(null);
     try {
-      const gone = await api.deleteGroup(g.id);
-      showAck(t.groups.removed(g.name), () => api.createGroup(gone.group.name, gone.cards, gone.group.hue));
+      const gone = await endGroup(g.id);
+      showAck(t.groups.removed(g.name), () => createGroup(gone.group.name, gone.cards, gone.group.hue));
     } catch (e) {
       fail(e);
     }
@@ -1930,9 +1930,9 @@ function Project({
     setRing(null);
     const from = r.ids.map((id) => [id, byId(id)?.canvas ?? canvases[0]?.id] as const);
     try {
-      await api.moveToCanvas(r.ids, to.id);
+      await moveToCanvas(r.ids, to.id);
       const names = r.ids.length === 1 ? plain(byId(r.ids[0]!)?.title ?? '') || titleFrom(byId(r.ids[0]!)?.body ?? '') : t.canvases.cards(r.ids.length);
-      showAck(t.canvases.moved(names, canvasText(to)), () => Promise.all([...new Set(from.map(([, c]) => c))].map((c) => c && api.moveToCanvas(from.filter(([, x]) => x === c).map(([id]) => id), c))).then(() => {}));
+      showAck(t.canvases.moved(names, canvasText(to)), () => Promise.all([...new Set(from.map(([, c]) => c))].map((c) => c && moveToCanvas(from.filter(([, x]) => x === c).map(([id]) => id), c))).then(() => {}));
     } catch (err) {
       fail(err);
     }
@@ -1993,7 +1993,7 @@ function Project({
         const across = Math.abs(dx) * h >= Math.abs(dy) * w;
         const toSide: Side = across ? (dx < 0 ? 'right' : 'left') : (dy < 0 ? 'bottom' : 'top');
         const centre = across ? { x: at.x + Math.sign(dx || 1) * w / 2, y: at.y } : { x: at.x, y: at.y + Math.sign(dy) * h / 2 };
-        createAt(centre, { made: (card) => api.dependency(from, card.id, false, false, { fromSide: side, toSide, offset: 0.5 }).catch((err) => showAck(failText(err))) })
+        createAt(centre, { made: (card) => setDependency(from, card.id, { anchor: { fromSide: side, toSide, offset: 0.5 } }).catch((err) => showAck(failText(err))) })
           .catch(console.error);
         depHint.markSeen();
       } else if (conn.target) {
@@ -2001,7 +2001,7 @@ function Project({
         if (pendingRemovals.current.has(`${conn.from}:${conn.target}`)) keepDependency(`${conn.from}:${conn.target}`);
         else {
           const { target, anchor } = conn;
-          api.dependency(from, target, false, false, anchor).catch((err) => showAck(err instanceof ApiError && err.code === 'dependencyCycle' ? t.deps.cycle(titleOf(from), titleOf(target)) : failText(err)));
+          setDependency(from, target, { anchor }).catch((err) => showAck(err instanceof ApiError && err.code === 'dependencyCycle' ? t.deps.cycle(titleOf(from), titleOf(target)) : failText(err)));
         }
         depHint.markSeen();
       }
