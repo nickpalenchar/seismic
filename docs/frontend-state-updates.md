@@ -28,7 +28,7 @@ the action, plus a full snapshot rebuild and serialisation, plus the WS push, pl
 |---|---|---|---|
 | A | REST that returns nothing, then wait for the push | card, canvas, group and dependency writes; most of `api.*` used in `App.tsx`, `detail.tsx`, `parts.tsx`, `canvases.tsx` | the next full snapshot |
 | B | REST whose response is the new view, then local `setState` | settings screens: `config.tsx` (`setView(await api.saveTheme(...))`), access, voice, demo sites | the response body; the snapshot isn't involved |
-| C | REST, then a forced full re-read | `api.act` for `message`, `answer` and `release now` calls `refreshCard`, which does `GET /project` for the whole project (`api.ts:333`, `api.ts:492`, `api.ts:700`) | a second full snapshot over HTTP, raced against the WS push with a `snapshotVersion` counter |
+| C | REST, then a forced full re-read | the former `api.act` for `message`, `answer` and `release now` (now `actCard`, answered with the card) called `refreshCard`, which does `GET /project` for the whole project (`api.ts:333`, `api.ts:492`, `api.ts:700`) | a second full snapshot over HTTP, raced against the WS push with a `snapshotVersion` counter |
 | D | Voice/text command, held for undo on the server | `api.command` → Koordinator; results come back as a `notice` with a `token`/`undoMs` (`src/server/commands.ts:499`) | a notice, then a snapshot once the delay runs out |
 | E | Polling | `config.tsx:1445, 1764, 2168, 2397, 3145`, `access.tsx:42`, `setup.tsx:442/556/927`, `folder.tsx:33`, `diff.tsx:92` (every 1–2.5 s) | each poll's response |
 | F | Client-to-server state over the WS instead of REST | `hold`, `focus`, `here`/`away`/`back` (`api.ts` ~545–600) | none (fire and forget) |
@@ -219,8 +219,9 @@ name says which wait it skips (behind other cards: possible merge conflicts, the
 connected it to), since a card started anyway may still wait for a free workstation. "Take out of
 the queue" is `POST /api/v1/cards/:cardId/dequeue`. Both answer with the card; on a plan only the
 plan card comes back, its workstreams follow with the snapshot. `/act` refuses `force` and
-`dequeue` now. Still on `/act`: the other queue actions (`reorder`, `takeWorkstation`,
-`keepWorkstation`, `arrange`), pause, resume, messages and the rest.
+`dequeue` now. The other actions followed (pause, resume, messages, the queue's `reorder`,
+`arrange` and workstation choices, proposals, landing and review), each its own `POST` under
+`/api/v1/cards/:cardId/`, so the `/act` route is gone; the UI sends them through `actCard`.
 
 Typing is not disturbed by the card coming back: the title and text fields keep a draft of their
 own, which the card they get does not overwrite (`ManualTitle` in `src/ui/detail.tsx`). Checked live

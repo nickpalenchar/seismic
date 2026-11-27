@@ -65,10 +65,11 @@ Checked in the code on 2026-11-13; counts may be off by a few. Each workstream r
   stay unchanged"): each route moves to `/api/v1/` with its UI callers, which go through
   `src/ui/clients/seismic.ts` and use the JSON a write answers with. The first is "Share on approval".
 - **Routes the owner has shaped ahead of their move** (2026-11-21):
-  - "Give to the waiting card" and its undo (`takeWorkstation`, `keepWorkstation` on `/act`, the
+  - "Give to the waiting card" and its undo (`takeWorkstation`, `keepWorkstation`, once on `/act`, the
     Koordinator's `evict` and `keep`) do not move as two actions. They split into three endpoints:
     the card requeued, its workstation freed, and the workstation assigned to the card waiting
-    longest. Their URLs and bodies are settled when they move.
+    longest. They moved as `POST /api/v1/cards/:cardId/take-workstation` and `.../keep-workstation`;
+    the three-endpoint split is still open.
   - The system-level settings went under one `settings/` resource (`/api/v1/settings/:settingName`,
     see the Router Layer in `code-organization.md`), the demo settings among them (`demo`). The
     configuration is `/api/v1/configuration`; its check (`/api/config/check`) and the demo voice's
