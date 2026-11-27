@@ -340,7 +340,7 @@ export function PhoneNavSheet({ open, onOpenChange, ...p }: MenuProps & { open: 
  * over it. Back on the main page, the focus returns to the entry that opened the page. The menu is a
  * container (`menu`), so Appearance stacks its choices in a menu under 300 px (cfgCompactFieldClass).
  * Docked, the main page keeps its height until it has slid away (`shown`), so Configure stays at its
- * foot meanwhile; and the sticky head (in the app on a Mac) and Configure cover the menu's ends, so
+ * foot meanwhile, and the other pages stick to the top of the scrolled menu as they slide in; and the sticky head (in the app on a Mac) and Configure cover the menu's ends, so
  * the scroller keeps their heights clear when it brings a focused entry into view.
  */
 function MenuBody({ floating, titlebar, phone, docked, ...p }: MenuProps & { floating?: boolean; titlebar?: boolean; phone?: boolean; docked?: boolean }) {
@@ -400,7 +400,7 @@ function MenuBody({ floating, titlebar, phone, docked, ...p }: MenuProps & { flo
    * and arrows, for the fields on the page.
    */
   const subPage = (name: typeof page, ownKeys?: boolean) => ({
-    className: pageClass(page !== name),
+    className: cn(pageClass(page !== name), docked && 'sticky top-0'),
     inert: page !== name,
     ...(floating
       ? ownKeys ? { onKeyDown: (e: React.KeyboardEvent) => { if (e.key !== 'Escape') e.stopPropagation(); } } : {}
