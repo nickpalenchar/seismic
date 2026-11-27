@@ -367,7 +367,7 @@ function RestartBlock({ view }: { view: DeveloperView | null }) {
     }
   };
   return (
-    <section className="mb-6" aria-labelledby="cfg-restart">
+    <section className="mt-6" aria-labelledby="cfg-restart">
       <h3 id="cfg-restart">{l.title}</h3>
       <p className="hint">{l.hint}</p>
       {view.restart && (
