@@ -477,7 +477,7 @@ test.skipIf(!recording)('the first turn goes to agy only once its identity is on
 test.skipIf(!recording)('an agy whose processes cannot be watched ends before any turn', async () => {
   const { records } = registry();
   
-  const orphan = `const c=require('node:child_process').spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{detached:true,stdio:'ignore'});console.log(c.pid);c.unref();`;
+  const orphan = `const c=require('node:child_process').spawn(process.execPath,['-e',${JSON.stringify(testProcessCode())}],{detached:true,stdio:'ignore'});console.log(c.pid);c.unref();`;
   const stranger = { pid: Number(spawnSync(process.execPath, ['-e', orphan], { encoding: 'utf8' }).stdout.trim()), kill: (s: NodeJS.Signals) => { try { process.kill(stranger.pid, s); } catch {  } } };
   const events: AgentEvent[] = [];
   const session = createAgyRuntime((c, a, o) => {

@@ -31,6 +31,10 @@ let warmed: number;
 
 const DELAY_MS = 200;
 
+/** The shell lines that wait for `<mark>.go`, giving up once the test's directory is gone or after 30 s, so a failed test leaves no script running. */
+const waitFor = (marks: string, mark: string) =>
+  `i=0\nwhile [ ! -e '${join(marks, `${mark}.go`)}' ]; do\n  [ -d '${marks}' ] && [ $i -lt 600 ] || exit 1\n  i=$((i + 1)); sleep 0.05\ndone`;
+
 
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'seismic-server-'));
@@ -1509,7 +1513,7 @@ describe('the Lesestand and the free clones', () => {
     
     const slow = (mark: string, then: string) => {
       const script = join(dir, `slow-${mark}`);
-      writeFileSync(script, `#!/bin/sh\ntouch '${join(marks, mark)}'\nwhile [ ! -e '${join(marks, `${mark}.go`)}' ]; do sleep 0.05; done\ntouch '${join(marks, `${mark}.done`)}'\n${then}\n`, { mode: 0o755 });
+      writeFileSync(script, `#!/bin/sh\ntouch '${join(marks, mark)}'\n${waitFor(marks, mark)}\ntouch '${join(marks, `${mark}.done`)}'\n${then}\n`, { mode: 0o755 });
       return script;
     };
     const go = (mark: string) => writeFileSync(join(marks, `${mark}.go`), '');
@@ -1575,7 +1579,7 @@ describe('freeing and discarding workstations', () => {
     
     const slow = (mark: string, then: string) => {
       const script = join(dir, `slow-${mark}`);
-      writeFileSync(script, `#!/bin/sh\ntouch '${join(marks, mark)}'\nwhile [ ! -e '${join(marks, `${mark}.go`)}' ]; do sleep 0.05; done\n${then}\n`, { mode: 0o755 });
+      writeFileSync(script, `#!/bin/sh\ntouch '${join(marks, mark)}'\n${waitFor(marks, mark)}\n${then}\n`, { mode: 0o755 });
       return script;
     };
     const go = (mark: string) => writeFileSync(join(marks, `${mark}.go`), '');
