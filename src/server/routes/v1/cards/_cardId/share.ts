@@ -14,7 +14,7 @@ export class Share extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/share';
 
   override PATCH = async (request: RouteRequest): Promise<{ card: Item }> => {
-    const project = this.getProjectRuntimeForCard(request);
+    const project = await this.getProjectRuntimeForCard(request);
     const { onApproval } = ((await request.json()) ?? {}) as { onApproval?: unknown };
     if (typeof onApproval !== 'boolean') throw new BadRequest('invalid', 'onApproval must be true or false');
     return { card: project.setShareOnApproval(request.params.cardId!, onApproval) };

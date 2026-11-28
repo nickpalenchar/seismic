@@ -60,6 +60,9 @@ which holds every table's query class and the multi-table writes.
   copy of its list.
 - Anything that writes a table without going through its repository leaves a stale cache for up to a
   minute. A table's repository therefore owns all of that table's writes before it caches.
+- Where code still writes a table through its old query class (the cards: `Store.cards`, used by the
+  board), the query class tells the repository what each write touched, so the cache stays right
+  without every call site moving at once (decided 2026-11-27). Reads there go to the database.
 - A repository wraps no query class: it is the query class, moved here as its table is converted.
   `schemas/` keeps the table definitions.
 

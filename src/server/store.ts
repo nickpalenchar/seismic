@@ -111,10 +111,10 @@ export class Store {
     this.db = client;
     this.orm = orm;
     this.database = new DatabaseProvider(orm);
-    this.cardRepository = new CardRepository(this.database, { cacheTimeToLiveMilliseconds: 0 });
+    this.cardRepository = new CardRepository(this.database);
     this.projects = new Projects(orm);
     this.canvases = new Canvases(orm);
-    this.cards = new Cards(orm);
+    this.cards = this.cardRepository.cards;
     this.ideas = new Ideas(orm);
     this.reviews = new Reviews(orm);
     this.demos = new Demos(orm);

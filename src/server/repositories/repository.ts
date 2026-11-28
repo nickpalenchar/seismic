@@ -150,6 +150,13 @@ export abstract class Repository<Record, Id extends string | number, Create exte
     }
   }
 
+  /** A write this class did not run itself (one by code that still reaches the table directly, and must say so): drops what is cached of these ids, or with `'many'` everything. */
+  protected noteWrite(ids: Id[] | 'many'): void {
+    this.writes += 2;
+    if (ids === 'many') this.evictAll();
+    else this.evict(ids);
+  }
+
   private evict(ids: Id[]): void {
     for (const id of ids) this.records.delete(String(id));
     this.results.clear();

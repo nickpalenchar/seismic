@@ -6,6 +6,6 @@ export class Ungroup extends HttpRoute {
 
   override POST = async (request: RouteRequest): Promise<void> => {
     const { cards } = await this.bodyOf(request);
-    this.projectOfCards(cards).board.group(cards, null);
+    (await this.projectOfCards(cards)).board.group(cards, null);
   };
 }

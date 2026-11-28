@@ -6,9 +6,9 @@ export class Wake extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/wake';
 
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {
-    const project = this.getProjectRuntimeForCard(request);
+    const project = await this.getProjectRuntimeForCard(request);
     const cardId = request.params.cardId!;
     await project.press(cardId, { action: 'wake' });
-    return { card: this.dependencies.cards.getCard(cardId)! };
+    return { card: project.board.card(cardId)! };
   };
 }

@@ -11,11 +11,11 @@ export class Answer extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/answer';
 
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {
-    const project = this.getProjectRuntimeForCard(request);
+    const project = await this.getProjectRuntimeForCard(request);
     const body = await this.bodyOf(request);
     if (typeof body.text !== 'string') throw new BadRequest('invalid', 'text must be a string');
     const cardId = request.params.cardId!;
     await project.press(cardId, { ...body, action: 'answer' } as CardAction);
-    return { card: this.dependencies.cards.getCard(cardId)! };
+    return { card: project.board.card(cardId)! };
   };
 }

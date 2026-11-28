@@ -10,6 +10,6 @@ export class Groups extends HttpRoute {
 
   override POST = async (request: RouteRequest): Promise<{ group: Group }> => {
     const { name, cards, hue } = await this.bodyOf(request);
-    return { group: this.projectOfCards(cards).board.createGroup(name, cards, hue) };
+    return { group: (await this.projectOfCards(cards)).board.createGroup(name, cards, hue) };
   };
 }

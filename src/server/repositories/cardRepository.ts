@@ -36,15 +36,16 @@ export interface CardQuery {
  * `CardQuery`: the `ids` (deleted and archived cards too) or the `projectId` (its open cards: not
  * deleted, not archived); one of the two is needed.
  *
- * Its cache is off (`Store` builds it with a time to live of 0) until every write to the card tables
- * goes through here: `Store.cards` and the parts' classes still write on their own, and a cached card
- * would be stale by up to a minute.
+ * `cards` is the synchronous query class that the board and `Store` still use, for reads and for
+ * writes. Every write of it tells this repository which cards it touched, and the parts are written
+ * only from here, so the cache never holds a card that a write has changed. Code that writes the card
+ * tables some other way must not.
  *
  * `insertCards` and `applyUpdate` are the synchronous core of `create` and `update`, for `Store`'s
  * transactions, where nothing can be awaited; they go when `Store` does.
  */
 export class CardRepository extends Repository<CardRecord, string, NewRow, CardUpdate, CardQuery> {
-  private readonly cards: Cards;
+  readonly cards: Cards;
   private readonly canvases: Canvases;
   private readonly ideas: Ideas;
   private readonly reviews: Reviews;
@@ -56,7 +57,7 @@ export class CardRepository extends Repository<CardRecord, string, NewRow, CardU
   constructor(database: DatabaseProvider, options?: RepositoryOptions) {
     super(database, options);
     const orm = database.orm;
-    this.cards = new Cards(orm);
+    this.cards = new Cards(orm, (touched) => this.noteWrite(touched));
     this.canvases = new Canvases(orm);
     this.ideas = new Ideas(orm);
     this.reviews = new Reviews(orm);

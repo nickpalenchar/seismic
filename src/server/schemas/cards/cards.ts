@@ -292,7 +292,11 @@ const open = (projectId: string) => and(eq(cards.projectId, projectId), isNull(c
 
 const proposed = sql`EXISTS (SELECT 1 FROM card_ideas i WHERE i.card_id = ${cards.id} AND i.proposal IS NOT NULL)`;
 
-/** The cards' queries (`Store.cards`): rows as `CardRow` has them, the card's own columns as stored. */
+/**
+ * The cards' queries (`Store.cards`): rows as `CardRow` has them, the card's own columns as stored.
+ * Each write tells `changed` which cards it touched (`'many'`: more than it can name), so the cards'
+ * repository can drop what it cached of them.
+ */
 export class Cards {
   private readonly taken;
   
@@ -303,7 +307,10 @@ export class Cards {
   private readonly reviewItems;
   private readonly reviewEvents;
 
-  constructor(private readonly db: Db) {
+  constructor(
+    private readonly db: Db,
+    private readonly changed: (cardIds: string[] | 'many') => void = () => {},
+  ) {
     this.taken = db.select({ one: sql`1` }).from(cards).where(eq(cards.short, sql.placeholder('short'))).prepare();
     this.byId = this.select(eq(cards.id, sql.placeholder('id'))).prepare();
     this.open = this.select(and(eq(cards.projectId, sql.placeholder('project')), isNull(cards.deletedAt), isNull(cards.archivedAt))).prepare();
@@ -464,7 +471,7 @@ export class Cards {
 
   /** Stores new cards, each on the canvas it names, under a code of its own (`SHORT`), without their parts in tables of their own; returns their ids. */
   insert(rows: (Omit<NewRow, 'idea'> & { canvas_id: string })[]): string[] {
-    return atomic(this.db, () =>
+    const ids = atomic(this.db, () =>
       rows.map((r) => {
         const id = crypto.randomUUID();
         
@@ -479,16 +486,20 @@ export class Cards {
         return id;
       }),
     );
+    this.changed(ids);
+    return ids;
   }
 
   update(id: string, fields: RowUpdate) {
     if (!Object.keys(fields).length) return;
     this.db.update(cards).set({ ...asStored(fields), updatedAt: now() }).where(eq(cards.id, id)).run();
+    this.changed([id]);
   }
 
   /** The card counts as changed now: a part of it in a table of its own changed. */
   touch(id: string) {
     this.db.update(cards).set({ updatedAt: now() }).where(eq(cards.id, id)).run();
+    this.changed([id]);
   }
 
   /**
@@ -502,6 +513,7 @@ export class Cards {
       .set(parentId ? { ...set, canvasId: sql`(SELECT p.canvas_id FROM cards p WHERE p.id = ${parentId})` } : set)
       .where(eq(cards.id, id))
       .run();
+    this.changed([id]);
   }
 
   /** The cards (plans with their workstreams) go onto the canvas, out of their groups, which stay on the canvas they leave. */
@@ -514,6 +526,7 @@ export class Cards {
           .where(sql`${cards.id} = ${id} OR ${cards.parentId} = ${id}`)
           .run();
     });
+    this.changed('many');
   }
 
   /** Puts the cards into the group, or with `null` into none. */
@@ -521,26 +534,30 @@ export class Cards {
     atomic(this.db, () => {
       for (const id of cardIds) this.db.update(cards).set({ groupId, updatedAt: now() }).where(eq(cards.id, id)).run();
     });
+    this.changed(cardIds);
   }
 
   /** The card goes to another project, onto its canvas `canvasId`. */
   setProject(id: string, projectId: string, canvasId: string) {
     this.db.update(cards).set({ projectId, canvasId }).where(eq(cards.id, id)).run();
+    this.changed([id]);
   }
 
   /** The cards of the group leave it. */
   ungroup(groupId: string) {
     this.db.update(cards).set({ groupId: null }).where(eq(cards.groupId, groupId)).run();
+    this.changed('many');
   }
 
   /** The project's deleted cards belong to no group: one that comes back has none any more. */
   ungroupDeleted(projectId: string) {
     this.db.update(cards).set({ groupId: null }).where(and(eq(cards.projectId, projectId), isNotNull(cards.deletedAt), isNotNull(cards.groupId))).run();
+    this.changed('many');
   }
 
   /** Deletes the owner's cards left empty (no title, text or screenshots), created before `before`; returns how many. */
   sweepUntitled(projectId: string, before: string): number {
-    return changes(
+    const swept = changes(
       this.db
       .update(cards)
       .set({ deletedAt: now() })
@@ -558,5 +575,7 @@ export class Cards {
       )
       .run(),
     );
+    if (swept) this.changed('many');
+    return swept;
   }
 }

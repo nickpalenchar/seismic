@@ -6,8 +6,8 @@ import { HttpRoute, type RouteRequest } from '../../../httpRoute';
 export class Unarchive extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/unarchive';
 
-  override POST = (request: RouteRequest): { card: Item } => {
-    const project = this.getProjectRuntimeForCard(request);
+  override POST = async (request: RouteRequest): Promise<{ card: Item }> => {
+    const project = await this.getProjectRuntimeForCard(request);
     const cardId = request.params.cardId!;
     project.board.unarchive(cardId);
     const card = project.board.item(cardId);

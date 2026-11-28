@@ -9,9 +9,9 @@ export class Dequeue extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/dequeue';
 
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {
-    const project = this.getProjectRuntimeForCard(request);
+    const project = await this.getProjectRuntimeForCard(request);
     const cardId = request.params.cardId!;
     await project.press(cardId, { action: 'dequeue' });
-    return { card: this.dependencies.cards.getCard(cardId)! };
+    return { card: project.board.card(cardId)! };
   };
 }
