@@ -39,7 +39,7 @@ test('the Mac update is the app packed beside the DMG; without its signature it 
 });
 
 test('a missing installer stops the collection', () => {
-  expect(() => collect('windows-x64', join(tmp, 'nothing'), join(tmp, 'collected-win'))).toThrow('-setup.exe');
+  expect(() => collect('linux-x64', join(tmp, 'nothing'), join(tmp, 'collected-linux'))).toThrow('.AppImage');
 });
 
 test('latest.json names each platform with a signed update, at its URL in the release', () => {
@@ -48,8 +48,8 @@ test('latest.json names each platform with a signed update, at its URL in the re
     'Seismic-macOS-arm64.app.tar.gz': 'a',
     'Seismic-macOS-arm64.app.tar.gz.sig': 'SIG-MAC\n',
     'Seismic-macOS-arm64.dmg': 'd',
-    'Seismic-Windows-x64-setup.exe': 'w',
-    'Seismic-Windows-x64-setup.exe.sig': 'SIG-WIN',
+    'Seismic-Linux-x86_64.AppImage': 'l',
+    'Seismic-Linux-x86_64.AppImage.sig': 'SIG-LINUX',
     'Seismic-Linux-aarch64.AppImage': 'unsigned',
     'seismic_arm64.deb': 'deb',
   });
@@ -58,7 +58,7 @@ test('latest.json names each platform with a signed update, at its URL in the re
     pub_date: '2026-10-08T12:00:00Z',
     platforms: {
       'darwin-aarch64': { url: 'https://github.com/someone/seismic/releases/download/v0.4.0/Seismic-macOS-arm64.app.tar.gz', signature: 'SIG-MAC' },
-      'windows-x86_64': { url: 'https://github.com/someone/seismic/releases/download/v0.4.0/Seismic-Windows-x64-setup.exe', signature: 'SIG-WIN' },
+      'linux-x86_64': { url: 'https://github.com/someone/seismic/releases/download/v0.4.0/Seismic-Linux-x86_64.AppImage', signature: 'SIG-LINUX' },
     },
   });
 });

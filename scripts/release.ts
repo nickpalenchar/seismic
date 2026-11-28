@@ -50,11 +50,6 @@ export const RELEASE: Record<string, Release> = {
     installers: [{ from: 'dmg', ends: '.dmg', name: 'Seismic-macOS-x64.dmg' }],
     update: { from: 'macos', ends: '.app.tar.gz', name: 'Seismic-macOS-x64.app.tar.gz' },
   },
-  'windows-x64': {
-    platform: 'windows-x86_64',
-    installers: [{ from: 'nsis', ends: '-setup.exe', name: 'Seismic-Windows-x64-setup.exe' }],
-    update: { from: 'nsis', ends: '-setup.exe', name: 'Seismic-Windows-x64-setup.exe' },
-  },
   'linux-x64': {
     platform: 'linux-x86_64',
     installers: [

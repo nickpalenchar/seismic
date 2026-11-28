@@ -149,12 +149,12 @@ test('without gh it says that GitHub could not be read', () => {
   ]);
 });
 
-const platforms = ['darwin-aarch64', 'darwin-x86_64', 'windows-x86_64', 'linux-x86_64', 'linux-aarch64'];
+const platforms = ['darwin-aarch64', 'darwin-x86_64', 'linux-x86_64', 'linux-aarch64'];
 const manifest = (version: string, names = platforms) =>
   JSON.stringify({ version, pub_date: '2026-10-13T10:00:00Z', platforms: Object.fromEntries(names.map((p) => [p, { url: `https://x/${p}`, signature: 's' }])) });
 
 test('a draft holding every file, and a latest.json of its version for every platform, is ready', () => {
-  expect(expectedAssets()).toHaveLength(16);
+  expect(expectedAssets()).toHaveLength(14);
   const assets = expectedAssets().map((name) => ({ name }));
   const d = draft('v0.2.0', gh([{ tag_name: 'v0.2.0', draft: true, body: '- Fit the bar', assets }], { files: { 'latest.json': manifest('0.2.0') } }));
   expect(d.problems).toEqual([]);
@@ -167,7 +167,7 @@ test('a draft with a file missing, or a latest.json without updates, is not', ()
   expect(d.problems).toEqual([
     'Missing: Seismic-macOS-x64.dmg.',
     'latest.json says version 0.1.0, not v0.2.0.',
-    'latest.json names no update for darwin-x86_64, windows-x86_64, linux-x86_64, linux-aarch64 (TAURI_SIGNING_PRIVATE_KEY?).',
+    'latest.json names no update for darwin-x86_64, linux-x86_64, linux-aarch64 (TAURI_SIGNING_PRIVATE_KEY?).',
   ]);
   expect(draft('v0.3.0', gh([])).problems).toEqual(['No release v0.3.0 (yet): has the build run finished?']);
 });
