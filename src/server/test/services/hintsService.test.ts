@@ -1,10 +1,9 @@
 import { expect, test } from 'bun:test';
 import { BadRequest } from '../../board';
-import { HintRepository } from '../../repositories/hintRepository';
 import { HintsService } from '../../services/hintsService';
 import { Store } from '../../store';
 
-const hints = () => new HintsService(new HintRepository(new Store(':memory:').database));
+const hints = () => new HintsService(new Store(':memory:').hintRepository);
 
 test('no hint is seen at first, and one marked stays seen however often it is marked', async () => {
   const service = hints();
@@ -33,7 +32,7 @@ test('a reset brings every hint back and says how many were seen', async () => {
 test('a stored id the registry no longer lists is not reported', async () => {
   const store = new Store(':memory:');
   store.db.run("INSERT INTO seen_hints (id, seen_at) VALUES ('retired-hint', '2026-11-27')");
-  const service = new HintsService(new HintRepository(store.database));
+  const service = new HintsService(store.hintRepository);
   await service.markHintSeen('cite');
   expect(await service.getSeenHints()).toEqual(['cite']);
 });

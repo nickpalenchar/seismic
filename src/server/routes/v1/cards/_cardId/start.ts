@@ -1,6 +1,7 @@
 import { BadRequest } from '../../../../board';
 import type { AgentSetting, Item } from '../../../../../core/types';
-import { HttpRoute, type RouteRequest } from '../../../httpRoute';
+import type { CardService } from '../../../../services/cardService';
+import { HttpRoute, type RouteDependencies, type RouteRequest } from '../../../httpRoute';
 
 /**
  * The owner starts the card: Seismic judges when its agent can begin (`agent`: the harness, model
@@ -11,8 +12,12 @@ import { HttpRoute, type RouteRequest } from '../../../httpRoute';
 export class Start extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/start';
 
+  constructor(dependencies: RouteDependencies, private readonly cardService: CardService) {
+    super(dependencies);
+  }
+
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {
-    const project = await this.getProjectRuntimeForCard(request);
+    const project = await this.cardService.getProjectRuntimeForCard(request.params.cardId!);
     const { agent, skipWaitForCards } = await this.bodyOf(request);
     if (skipWaitForCards !== undefined && typeof skipWaitForCards !== 'boolean') throw new BadRequest('invalid', 'skipWaitForCards must be true or false');
     const cardId = request.params.cardId!;

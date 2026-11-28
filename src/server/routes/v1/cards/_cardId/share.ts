@@ -4,7 +4,8 @@
 
 import type { CardAction, Item } from '../../../../../core/types';
 import { BadRequest } from '../../../../board';
-import { HttpRoute, type RouteRequest } from '../../../httpRoute';
+import type { CardService } from '../../../../services/cardService';
+import { HttpRoute, type RouteDependencies, type RouteRequest } from '../../../httpRoute';
 
 /**
  * The card's demo page. `PATCH` sets "Share on approval"; `POST` shares a demo now (`demo`: its number, `add`:
@@ -13,8 +14,12 @@ import { HttpRoute, type RouteRequest } from '../../../httpRoute';
 export class Share extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/share';
 
+  constructor(dependencies: RouteDependencies, private readonly cardService: CardService) {
+    super(dependencies);
+  }
+
   override PATCH = async (request: RouteRequest): Promise<{ card: Item }> => {
-    const project = await this.getProjectRuntimeForCard(request);
+    const project = await this.cardService.getProjectRuntimeForCard(request.params.cardId!);
     const { onApproval } = ((await request.json()) ?? {}) as { onApproval?: unknown };
     if (typeof onApproval !== 'boolean') throw new BadRequest('invalid', 'onApproval must be true or false');
     return { card: project.setShareOnApproval(request.params.cardId!, onApproval) };
@@ -23,12 +28,12 @@ export class Share extends HttpRoute {
     const { demo, add } = await this.bodyOf(request);
     if (demo !== undefined && !Number.isInteger(demo)) throw new BadRequest('invalid', 'demo must be a demo number');
     if (add !== undefined && typeof add !== 'boolean') throw new BadRequest('invalid', 'add must be true or false');
-    return this.runCardAction(request, { action: 'share', ...(demo === undefined ? {} : { demo: demo as number }), ...(add ? { add } : {}) } as CardAction);
+    return { card: await this.cardService.performAction(request.params.cardId!, { action: 'share', ...(demo === undefined ? {} : { demo: demo as number }), ...(add ? { add } : {}) } as CardAction) };
   };
 
   override DELETE = async (request: RouteRequest): Promise<{ card: Item }> => {
     const { demo } = await this.bodyOf(request);
     if (demo !== undefined && !Number.isInteger(demo)) throw new BadRequest('invalid', 'demo must be a demo number');
-    return this.runCardAction(request, { action: 'unshare', ...(demo === undefined ? {} : { demo: demo as number }) });
+    return { card: await this.cardService.performAction(request.params.cardId!, { action: 'unshare', ...(demo === undefined ? {} : { demo: demo as number }) }) };
   };
 }

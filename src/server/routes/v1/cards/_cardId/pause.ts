@@ -1,6 +1,7 @@
 import { BadRequest } from '../../../../board';
 import type { Item } from '../../../../../core/types';
-import { HttpRoute, type RouteRequest } from '../../../httpRoute';
+import type { CardService } from '../../../../services/cardService';
+import { HttpRoute, type RouteDependencies, type RouteRequest } from '../../../httpRoute';
 
 /**
  * The owner pauses the card's agent (`safePoint`: when its turn ends, not within it). Answered with
@@ -9,8 +10,12 @@ import { HttpRoute, type RouteRequest } from '../../../httpRoute';
 export class Pause extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/pause';
 
+  constructor(dependencies: RouteDependencies, private readonly cardService: CardService) {
+    super(dependencies);
+  }
+
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {
-    const project = await this.getProjectRuntimeForCard(request);
+    const project = await this.cardService.getProjectRuntimeForCard(request.params.cardId!);
     const { safePoint } = await this.bodyOf(request);
     if (safePoint !== undefined && typeof safePoint !== 'boolean') throw new BadRequest('invalid', 'safePoint must be true or false');
     const cardId = request.params.cardId!;

@@ -1399,7 +1399,7 @@ describe('landing approved work', () => {
     git(repo, 'fetch', '--quiet', 'origin');
     const pushing = join(dir, 'pushing');
     writeFileSync(join(origin, 'hooks/pre-receive'), `#!/bin/sh\ntouch '${pushing}'\nsleep 1\n`, { mode: 0o755 });
-    const pushed = new ProjectRuntime({ repos: [{ path: repo, clones: 2, settings: { land: 'pr', direct: true, workstations: 'clones' } }] }, { store: new Store(':memory:'), home: join(dir, 'home2'), runtime, forge: noForge });
+    const pushed = new ProjectRuntime({ repos: [{ path: repo, clones: 2, settings: { land: 'pr', direct: true, workstations: 'clones' } }] }, { store: project.dataStore, home: join(dir, 'home2'), runtime, forge: noForge });
     server.stop(true);
     server = serve([project, pushed], { transcriber: { transcribe: async () => ({ text: '', doubtful: false }) } }, 0);
     const handedOver = async (title: string) => {
@@ -1589,14 +1589,14 @@ describe('freeing and discarding workstations', () => {
     const origin = gitRepo(join(dir, 'shop'), { 'guide.md': 'Guide\n', '.gitattributes': '*.md filter=slow\n' });
     const shop = new ProjectRuntime(
       { name: 'Shop', repos: [{ path: origin, clones: 1, settings: { land: 'pr', workstations: 'clones' } }] },
-      { store: new Store(':memory:'), home: join(dir, 'home-shop'), runtime, forge: noForge },
+      { store: project.dataStore, home: join(dir, 'home-shop'), runtime, forge: noForge },
     );
     const tools = new ProjectRuntime(
       { name: 'Tools', repos: [{ path: gitRepo(join(dir, 'tools')), settings: { land: 'main', workstations: 'worktrees' } }] },
-      { store: new Store(':memory:'), home: join(dir, 'home-tools'), runtime, forge: noForge },
+      { store: project.dataStore, home: join(dir, 'home-tools'), runtime, forge: noForge },
     );
     const [clone] = shop.repos[0]!.workstations.list();
-    
+
     git(clone!.path, 'config', 'filter.slow.smudge', slow('checkout', 'cat'));
     git(clone!.path, 'config', 'filter.slow.clean', 'cat');
     git(tools.repos[0]!.ref.path, 'config', 'core.fsmonitor', slow('status', 'exit 1'));

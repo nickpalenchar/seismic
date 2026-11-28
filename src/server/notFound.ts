@@ -1,5 +1,5 @@
 
-import type { ErrorCode } from '../../core/types';
+import type { ErrorCode } from '../core/types';
 
 export class NotFound extends Error {
   constructor(

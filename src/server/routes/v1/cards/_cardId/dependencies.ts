@@ -1,12 +1,20 @@
 import type { ManualAnchor } from '../../../../../core/types';
-import { HttpRoute, type RouteRequest } from '../../../httpRoute';
+import type { CardService } from '../../../../services/cardService';
+import { HttpRoute, type RouteDependencies, type RouteRequest } from '../../../httpRoute';
 
 /** The owner draws an arrow from the card to another (`{ to, anchor? }`: the edges and place it was drawn at). */
 export class Dependencies extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/dependencies';
 
+  constructor(
+    dependencies: RouteDependencies,
+    private readonly cardService: CardService,
+  ) {
+    super(dependencies);
+  }
+
   override POST = async (request: RouteRequest): Promise<void> => {
-    const project = await this.getProjectRuntimeForCard(request);
+    const project = await this.cardService.getProjectRuntimeForCard(request.params.cardId!);
     const { to, anchor } = await this.bodyOf(request);
     project.board.connect(request.params.cardId!, String(to), false, anchor as ManualAnchor | undefined);
   };

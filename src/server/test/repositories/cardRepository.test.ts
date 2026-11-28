@@ -1,11 +1,12 @@
 import { expect, test } from 'bun:test';
 import { CardRepository } from '../../repositories/cardRepository';
+import { DatabaseProvider } from '../../repositories/databaseProvider';
 import { Store } from '../../store';
 
 function setup() {
   const store = new Store(':memory:');
   store.ensureProject('p', 'Project');
-  return { store, cards: new CardRepository(store.database) };
+  return { store, cards: store.cardRepository };
 }
 
 const newCard = { project_id: 'p', kind: 'task' as const, x: 1, y: 2, title: 'first' };
@@ -77,6 +78,12 @@ test('a card is read from the cache until a write drops it', async () => {
   expect(await store.cardRepository.find(row!.id)).toBe(first);
   store.cards.update(row!.id, { title: 'changed' });
   expect(await store.cardRepository.find(row!.id)).not.toBe(first);
+});
+
+test('there is one card repository per database: the store has it, and a second is refused', () => {
+  const { store } = setup();
+  expect(() => new CardRepository(store.database)).toThrow('CardRepository exists for this database already');
+  expect(new CardRepository(new DatabaseProvider(store.orm))).toBeInstanceOf(CardRepository);
 });
 
 test('the cards of a transaction that fails are not stored', async () => {

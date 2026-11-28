@@ -5,6 +5,7 @@ import { MAIN_CANVAS } from '../core/types';
 import { openDatabase } from './db';
 import { CardRepository } from './repositories/cardRepository';
 import { DatabaseProvider } from './repositories/databaseProvider';
+import { HintRepository } from './repositories/hintRepository';
 import { Activity } from './schemas/activity';
 import { AgentRuns } from './schemas/agentRuns';
 import { Canvases } from './schemas/canvases';
@@ -78,6 +79,7 @@ export class Store {
   readonly orm: Db;
   readonly database: DatabaseProvider;
   readonly cardRepository: CardRepository;
+  readonly hintRepository: HintRepository;
   readonly projects: Projects;
   readonly canvases: Canvases;
   readonly cards: Cards;
@@ -112,6 +114,7 @@ export class Store {
     this.orm = orm;
     this.database = new DatabaseProvider(orm);
     this.cardRepository = new CardRepository(this.database);
+    this.hintRepository = new HintRepository(this.database);
     this.projects = new Projects(orm);
     this.canvases = new Canvases(orm);
     this.cards = this.cardRepository.cards;

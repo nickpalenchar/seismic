@@ -1,10 +1,9 @@
 import { expect, test } from 'bun:test';
-import { HintRepository } from '../../repositories/hintRepository';
 import { Store } from '../../store';
 
 function setup() {
   const store = new Store(':memory:');
-  return { database: store.database, hints: new HintRepository(store.database) };
+  return { database: store.database, hints: store.hintRepository };
 }
 
 test('a transaction commits what its repository calls wrote, and settles after the commit', async () => {

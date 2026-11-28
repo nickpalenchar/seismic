@@ -63,6 +63,15 @@ which holds every table's query class and the multi-table writes.
 - Where code still writes a table through its old query class (the cards: `Store.cards`, used by the
   board), the query class tells the repository what each write touched, so the cache stays right
   without every call site moving at once (decided 2026-11-27). Reads there go to the database.
+- There is one repository of each class per database, because each holds a cache that a second would
+  leave stale. `DatabaseProvider.claim` refuses a second; `Store` builds the card and hint repositories,
+  and the server hands those to whatever needs them. Nothing calls `new CardRepository` but its owner.
+- A route is given what it needs in its own constructor, as the whole object: the card routes take
+  `private readonly cardService: CardService` and call `this.cardService.getProjectRuntimeForCard(…)`,
+  not a helper on `HttpRoute` and not a field spread onto `this`. `v1Routes` builds them with the
+  one `CardService`. This is the shape a dependency-injection container fills in later
+  (`@inject(CardService)`); routes that look no card up take `RouteDependencies` only. Decided
+  2026-11-27.
 - A repository wraps no query class: it is the query class, moved here as its table is converted.
   `schemas/` keeps the table definitions.
 

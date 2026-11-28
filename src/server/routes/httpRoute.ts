@@ -5,13 +5,12 @@
 
 
 import { BadRequest } from '../board';
-import type { CardAction, Item, ModelInfo } from '../../core/types';
+import type { ModelInfo } from '../../core/types';
 import type { Config } from '../config';
+import { NotFound } from '../notFound';
 import type { OwnerSettings } from '../ownerSettings';
 import type { ProjectRuntime } from '../project';
-import type { CardService } from '../services/cardService';
 import type { HintsService } from '../services/hintsService';
-import { NotFound } from './notFound';
 
 
 export type RouteRequest = Request & { params: Record<string, string> };
@@ -24,8 +23,6 @@ type Method = (typeof METHODS)[number];
 
 
 export interface RouteDependencies {
-  cards: CardService;
-  
   projectById: (projectId: string) => ProjectRuntime | undefined;
 
   projectOfChat: (chatId: number) => ProjectRuntime | undefined;
@@ -68,20 +65,6 @@ export abstract class HttpRoute {
 
   constructor(protected readonly dependencies: RouteDependencies) {}
 
-  /** The project of the card the URL names (`:cardId`); an unknown card is a 404, a deleted one too unless `deleted`. */
-  protected async getProjectRuntimeForCard(request: RouteRequest, options?: { deleted?: boolean }): Promise<ProjectRuntime> {
-    const project = await this.dependencies.cards.getProjectRuntimeForCard(request.params.cardId ?? '', options);
-    if (!project) throw new NotFound('unknownCard', 'unknown card');
-    return project;
-  }
-
-  /** The owner's action on the card the URL names, run as a click; answered with the card as it then stands. */
-  protected async runCardAction(request: RouteRequest, action: CardAction): Promise<{ card: Item }> {
-    const card = await this.dependencies.cards.performAction(request.params.cardId ?? '', action);
-    if (!card) throw new NotFound('unknownCard', 'unknown card');
-    return { card };
-  }
-
   /** The project the id names (`?project=`); none or an unknown one is a 404. */
   protected projectOfId(projectId: string | null): ProjectRuntime {
     const project = projectId ? this.dependencies.projectById(projectId) : undefined;
@@ -102,15 +85,6 @@ export abstract class HttpRoute {
     const id = request.params.canvasId ?? '';
     const project = this.dependencies.allProjects().find((candidate) => candidate.board.hasCanvas(id));
     if (!project) throw new NotFound('unknownCanvas', 'unknown canvas');
-    return project;
-  }
-
-  /** The project of the first of the cards (a list of card ids); none, or an unknown one, is refused. */
-  protected async projectOfCards(cards: unknown): Promise<ProjectRuntime> {
-    if (!Array.isArray(cards) || !cards.every((id) => typeof id === 'string')) throw new BadRequest('invalid', 'cards must be a list of card ids');
-    if (!cards.length) throw new BadRequest('invalid', 'a card is needed');
-    const project = await this.dependencies.cards.getProjectRuntimeForCards(cards);
-    if (!project) throw new NotFound('unknownCard', 'unknown card');
     return project;
   }
 

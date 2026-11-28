@@ -20,6 +20,10 @@ export interface RepositoryOptions {
  * or the several. This class adds the cache around them. Records are shared between callers once
  * cached, so they must be immutable.
  *
+ * There is one repository of each class per database: it holds the cache, so a second would go stale
+ * on the first one's writes. The `DatabaseProvider` refuses a second, and each owner hands its one
+ * to whoever needs it.
+ *
  * The repositories share a `DatabaseProvider`: a read or write waits while a transaction is open that
  * the caller is not in, a read inside a transaction is not cached, and a rollback drops the cache.
  *
@@ -41,6 +45,7 @@ export abstract class Repository<Record, Id extends string | number, Create exte
     protected readonly database: DatabaseProvider,
     options: RepositoryOptions = {},
   ) {
+    database.claim(new.target);
     database.onRollback(() => this.evictAll());
     const cache = {
       maxKeys: options.cacheMaxKeys ?? DEFAULT_CACHE_MAX_KEYS,

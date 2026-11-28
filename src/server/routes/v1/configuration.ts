@@ -1,7 +1,7 @@
 import type { ConfigSaved, ConfigView } from '../../../core/types';
 import type { Config } from '../../config';
 import { HttpRoute, type RouteRequest } from '../httpRoute';
-import { NotFound } from '../notFound';
+import { NotFound } from '../../notFound';
 
 /**
  * Seismic's configuration: its projects and their repositories, as the Configuration sheet shows

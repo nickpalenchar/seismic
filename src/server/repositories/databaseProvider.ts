@@ -21,7 +21,19 @@ export class DatabaseProvider {
   private open: Promise<void> | undefined;
   private readonly rollbackListeners = new Set<() => void>();
 
+  private readonly claimed = new Set<Function>();
+
   constructor(readonly orm: Db) {}
+
+  /**
+   * Makes the calling repository the one of its class for this database; a second of the same class is
+   * refused. Each keeps its own cache, so two of a kind would serve stale records after the other's
+   * writes: a repository is a singleton per database, and whoever needs it is handed that one.
+   */
+  claim(repository: Function): void {
+    if (this.claimed.has(repository)) throw new Error(`${repository.name} exists for this database already: ask for the one that does`);
+    this.claimed.add(repository);
+  }
 
   /** Whether the caller is inside a transaction of this provider: what it reads may still be rolled back, so a repository does not cache it. */
   get inTransaction(): boolean {

@@ -7,7 +7,7 @@
 
 import { type DemoSettingsView, OWNER_SETTINGS, type OwnerSetting, type OwnerSettingViews, type UsageMeterView } from '../core/types';
 import { BadRequest } from './board';
-import { NotFound } from './routes/notFound';
+import { NotFound } from './notFound';
 import {
   agentsView,
   languageView,

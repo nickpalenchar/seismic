@@ -1,6 +1,7 @@
 import { BadRequest } from '../../../../board';
 import type { CardAction, Item } from '../../../../../core/types';
-import { HttpRoute, type RouteRequest } from '../../../httpRoute';
+import type { CardService } from '../../../../services/cardService';
+import { HttpRoute, type RouteDependencies, type RouteRequest } from '../../../httpRoute';
 
 /**
  * The owner answers the question the card waits on. `text`, and `picks` (the options chosen),
@@ -10,8 +11,12 @@ import { HttpRoute, type RouteRequest } from '../../../httpRoute';
 export class Answer extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/answer';
 
+  constructor(dependencies: RouteDependencies, private readonly cardService: CardService) {
+    super(dependencies);
+  }
+
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {
-    const project = await this.getProjectRuntimeForCard(request);
+    const project = await this.cardService.getProjectRuntimeForCard(request.params.cardId!);
     const body = await this.bodyOf(request);
     if (typeof body.text !== 'string') throw new BadRequest('invalid', 'text must be a string');
     const cardId = request.params.cardId!;

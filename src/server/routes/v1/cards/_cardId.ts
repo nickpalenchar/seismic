@@ -1,6 +1,7 @@
 import { BadRequest } from '../../../board';
 import type { CardPatch, Item } from '../../../../core/types';
-import { HttpRoute, type RouteRequest } from '../../httpRoute';
+import type { CardService } from '../../../services/cardService';
+import { HttpRoute, type RouteDependencies, type RouteRequest } from '../../httpRoute';
 
 /**
  * A card: what the owner changes on it (its title, text, place, labels, a plan's fold), answered with
@@ -9,8 +10,12 @@ import { HttpRoute, type RouteRequest } from '../../httpRoute';
 export class Card extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId';
 
+  constructor(dependencies: RouteDependencies, private readonly cardService: CardService) {
+    super(dependencies);
+  }
+
   override PATCH = async (request: RouteRequest): Promise<{ card: Item }> => {
-    const project = await this.getProjectRuntimeForCard(request);
+    const project = await this.cardService.getProjectRuntimeForCard(request.params.cardId!);
     const patch = (await request.json()) as unknown;
     if (typeof patch !== 'object' || patch === null || Array.isArray(patch)) throw new BadRequest('invalid', 'the changes must be an object');
     const cardId = request.params.cardId!;
@@ -21,7 +26,7 @@ export class Card extends HttpRoute {
   };
 
   override DELETE = async (request: RouteRequest): Promise<void> => {
-    const project = await this.getProjectRuntimeForCard(request);
+    const project = await this.cardService.getProjectRuntimeForCard(request.params.cardId!);
     project.remove(request.params.cardId!);
     
     project.koordinator.noticed();
