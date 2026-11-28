@@ -1,14 +1,14 @@
 import { BadRequest } from '../../../../board';
 import type { Item } from '../../../../../core/types';
 import type { CardService } from '../../../../services/cardService';
-import { HttpRoute, type RouteDependencies, type RouteRequest } from '../../../httpRoute';
+import { HttpRoute, type RouteRequest } from '../../../httpRoute';
 
 /** A finished or stopped card (or a parked or dropped idea) taken off the project into the archive; answered with the card as the archive shows it. */
 export class Archive extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/archive';
 
-  constructor(dependencies: RouteDependencies, private readonly cardService: CardService) {
-    super(dependencies);
+  constructor(private readonly cardService: CardService) {
+    super();
   }
 
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {

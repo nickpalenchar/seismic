@@ -1,6 +1,7 @@
 import type { ModelInfo } from '../../../core/types';
 import { BadRequest } from '../../board';
-import { type AgentHarness, HttpRoute, type RouteRequest } from '../httpRoute';
+import type { AgentHarness, ConfigurationService } from '../../services/configurationService';
+import { HttpRoute, type RouteRequest } from '../httpRoute';
 
 const HARNESSES: readonly AgentHarness[] = ['codex', 'agy'];
 
@@ -12,6 +13,10 @@ const HARNESSES: readonly AgentHarness[] = ['codex', 'agy'];
 export class Agents extends HttpRoute {
   readonly path = '/api/v1/agents';
 
+  constructor(private readonly configurationService: ConfigurationService) {
+    super();
+  }
+
   override GET = async (request: RouteRequest): Promise<{ models: Partial<Record<AgentHarness, ModelInfo[]>> }> => {
     const asked = new URL(request.url).searchParams.get('models');
     const harnesses = (asked?.split(',').filter(Boolean) ?? []).map((name) => {
@@ -19,8 +24,7 @@ export class Agents extends HttpRoute {
       if (!harness) throw new BadRequest('invalid', `models names no harness with a catalog: ${name}`);
       return harness;
     });
-    const read = this.agentModels;
-    const lists = await Promise.all(harnesses.map((harness) => read(harness)));
+    const lists = await Promise.all(harnesses.map((harness) => this.configurationService.getAgentModels(harness)));
     return { models: Object.fromEntries(harnesses.map((harness, i) => [harness, lists[i]])) };
   };
 }

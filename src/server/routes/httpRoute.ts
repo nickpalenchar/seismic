@@ -1,17 +1,5 @@
-
-
-
-
-
-
 import { BadRequest } from '../board';
-import type { ModelInfo } from '../../core/types';
-import type { Config } from '../config';
 import { NotFound } from '../notFound';
-import type { OwnerSettings } from '../ownerSettings';
-import type { ProjectRuntime } from '../project';
-import type { HintsService } from '../services/hintsService';
-
 
 export type RouteRequest = Request & { params: Record<string, string> };
 
@@ -20,25 +8,6 @@ type BunHandler = (request: RouteRequest) => Promise<Response>;
 
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 type Method = (typeof METHODS)[number];
-
-
-export interface RouteDependencies {
-  projectById: (projectId: string) => ProjectRuntime | undefined;
-
-  projectOfChat: (chatId: number) => ProjectRuntime | undefined;
-
-  allProjects: () => ProjectRuntime[];
-
-  ownerSettings?: OwnerSettings;
-
-  hints: HintsService;
-  
-  configuration?: Config;
-
-  agentModels?: (harness: AgentHarness) => Promise<ModelInfo[]>;
-}
-
-export type AgentHarness = 'codex' | 'agy';
 
 /** The answer to a request: `fn`'s result as JSON, or its refusal. */
 export async function respond(fn: () => unknown | Promise<unknown>): Promise<Response> {
@@ -54,61 +23,17 @@ export async function respond(fn: () => unknown | Promise<unknown>): Promise<Res
   }
 }
 
+/**
+ * One URL and the methods that answer it. A route is given what it needs in its own constructor
+ * (the services, as whole objects); this class holds none of them.
+ */
 export abstract class HttpRoute {
-  
   abstract readonly path: string;
   GET?: Handler;
   POST?: Handler;
   PUT?: Handler;
   PATCH?: Handler;
   DELETE?: Handler;
-
-  constructor(protected readonly dependencies: RouteDependencies) {}
-
-  /** The project the id names (`?project=`); none or an unknown one is a 404. */
-  protected projectOfId(projectId: string | null): ProjectRuntime {
-    const project = projectId ? this.dependencies.projectById(projectId) : undefined;
-    if (!project) throw new NotFound('unknownProject', 'unknown project');
-    return project;
-  }
-
-  /** The project of the group the URL names (`:groupId`); an unknown group is a 404. */
-  protected projectOfGroup(request: RouteRequest): ProjectRuntime {
-    const id = request.params.groupId ?? '';
-    const project = this.dependencies.allProjects().find((candidate) => candidate.board.hasGroup(id));
-    if (!project) throw new NotFound('unknownGroup', 'unknown group');
-    return project;
-  }
-
-  /** The project of the canvas the URL names (`:canvasId`); an unknown canvas is a 404. */
-  protected projectOfCanvas(request: RouteRequest): ProjectRuntime {
-    const id = request.params.canvasId ?? '';
-    const project = this.dependencies.allProjects().find((candidate) => candidate.board.hasCanvas(id));
-    if (!project) throw new NotFound('unknownCanvas', 'unknown canvas');
-    return project;
-  }
-
-  /** The project of the chat the URL names (`:chatId`) and the chat's id; an unknown chat is a 404. */
-  protected projectOfChat(request: RouteRequest): { project: ProjectRuntime; chat: number } {
-    const chat = Number(request.params.chatId);
-    const project = Number.isSafeInteger(chat) ? this.dependencies.projectOfChat(chat) : undefined;
-    if (!project) throw new NotFound('unknownChat', 'unknown chat');
-    return { project, chat };
-  }
-
-  /** The model catalogs of the harnesses; a Seismic without a configuration of its own has none. */
-  protected get agentModels(): NonNullable<RouteDependencies['agentModels']> {
-    const models = this.dependencies.agentModels;
-    if (!models) throw new NotFound('noConfiguration', 'this Seismic keeps no settings of its own');
-    return models;
-  }
-
-  /** The owner's settings; a Seismic without a configuration of its own has none to show. */
-  protected get settings(): OwnerSettings {
-    const settings = this.dependencies.ownerSettings;
-    if (!settings) throw new NotFound('noConfiguration', 'this Seismic keeps no settings of its own');
-    return settings;
-  }
 
   /** The request's JSON object; none sent is `{}`. Anything but an object is refused. */
   protected async bodyOf(request: RouteRequest): Promise<Record<string, unknown>> {

@@ -1,6 +1,9 @@
 
 import type { CardService } from '../../services/cardService';
-import type { HttpRoute, RouteDependencies } from '../httpRoute';
+import type { ConfigurationService } from '../../services/configurationService';
+import type { HintsService } from '../../services/hintsService';
+import type { ProjectService } from '../../services/projectService';
+import type { HttpRoute } from '../httpRoute';
 import { Agents } from './agents';
 import { Card } from './cards/_cardId';
 import { Answer } from './cards/_cardId/answer';
@@ -83,9 +86,18 @@ import { HintSeen } from './hints/_hintId';
 import { Settings } from './settings';
 import { Setting } from './settings/_settingName';
 
-/** The routes, each with what it is given: those that look cards up get the `CardService` itself, in their own constructor. */
-export function v1Routes(dependencies: RouteDependencies, cardService: CardService): HttpRoute[] {
-  const cardRoutes = [Card, Undo, Name, Arrange, TakeWorkstation, KeepWorkstation, AsIdea, Release, Reorder, Unsay, Ask, Consult, PageTags, Unaccept, DismissDuplicate, ApproveMerge, Separate, Dismiss, Keep, Unbuild, StayHere, SplitOff, PlanDoc, Park, Unpark, Drop, Discard, Accept, Merge, Revise, Discuss, Build, Prototype, BuildPrototype, CodeReview, ReopenReviewItem, SkipCodeReview, StopCodeReview, EditHeld, Fold, HandOff, KeepMain, PushChanges, PushMain, Answer, Approve, Message, Pause, Resume, Snooze, StartAt, Wake, Archive, Dequeue, Restore, Share, Start, Stop, Unarchive, Dependencies, Dependency, Ungroup, Groups].map((Route) => new Route(dependencies, cardService));
-  const otherRoutes = [Chats, Chat, Open, Read, Unwait, RecentChat, Configuration, Health, Canvases, CanvasById, CanvasCards, GroupById, GroupCards, Settings, Setting, HintsRoute, HintSeen, Agents].map((Route) => new Route(dependencies));
-  return [...cardRoutes, ...otherRoutes];
+interface V1Services {
+  cardService: CardService;
+  projectService: ProjectService;
+  hintsService: HintsService;
+  configurationService: ConfigurationService;
+}
+
+/** The routes, each given the services it names in its own constructor. */
+export function v1Routes({ cardService, projectService, hintsService, configurationService }: V1Services): HttpRoute[] {
+  const withCards = [Card, Undo, Name, Arrange, TakeWorkstation, KeepWorkstation, AsIdea, Release, Reorder, Unsay, Ask, Consult, PageTags, Unaccept, DismissDuplicate, ApproveMerge, Separate, Dismiss, Keep, Unbuild, StayHere, SplitOff, PlanDoc, Park, Unpark, Drop, Discard, Accept, Merge, Revise, Discuss, Build, Prototype, BuildPrototype, CodeReview, ReopenReviewItem, SkipCodeReview, StopCodeReview, EditHeld, Fold, HandOff, KeepMain, PushChanges, PushMain, Answer, Approve, Message, Pause, Resume, Snooze, StartAt, Wake, Archive, Dequeue, Restore, Share, Start, Stop, Unarchive, Dependencies, Dependency, Ungroup, Groups].map((Route) => new Route(cardService));
+  const withProjects = [Chats, Chat, Open, Read, Unwait, RecentChat, Canvases, CanvasById, CanvasCards, GroupById, GroupCards].map((Route) => new Route(projectService));
+  const withHints = [HintsRoute, HintSeen].map((Route) => new Route(hintsService));
+  const withConfiguration = [Configuration, Settings, Setting, Agents].map((Route) => new Route(configurationService));
+  return [...withCards, ...withProjects, ...withHints, ...withConfiguration, new Health()];
 }

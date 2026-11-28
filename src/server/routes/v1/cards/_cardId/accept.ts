@@ -1,14 +1,14 @@
 import { BadRequest } from '../../../../board';
 import type { CardAction, Item } from '../../../../../core/types';
 import type { CardService } from '../../../../services/cardService';
-import { HttpRoute, type RouteDependencies, type RouteRequest } from '../../../httpRoute';
+import { HttpRoute, type RouteRequest } from '../../../httpRoute';
 
 /** The owner accepts the proposal: `start: false` only accepts it, `idea` makes it an idea, `picks` answers its questions, `agent` is the one that starts it. Answered with the card. */
 export class Accept extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/accept';
 
-  constructor(dependencies: RouteDependencies, private readonly cardService: CardService) {
-    super(dependencies);
+  constructor(private readonly cardService: CardService) {
+    super();
   }
 
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {

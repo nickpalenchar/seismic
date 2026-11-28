@@ -1,14 +1,14 @@
 import { BadRequest } from '../../../../board';
 import type { CardAction, Item } from '../../../../../core/types';
 import type { CardService } from '../../../../services/cardService';
-import { HttpRoute, type RouteDependencies, type RouteRequest } from '../../../httpRoute';
+import { HttpRoute, type RouteRequest } from '../../../httpRoute';
 
 /** The owner has the idea built (`agent`: the one that builds). Answered with the card. */
 export class Build extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/build';
 
-  constructor(dependencies: RouteDependencies, private readonly cardService: CardService) {
-    super(dependencies);
+  constructor(private readonly cardService: CardService) {
+    super();
   }
 
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {

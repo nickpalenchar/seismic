@@ -5,7 +5,7 @@
 import type { CardAction, Item } from '../../../../../core/types';
 import { BadRequest } from '../../../../board';
 import type { CardService } from '../../../../services/cardService';
-import { HttpRoute, type RouteDependencies, type RouteRequest } from '../../../httpRoute';
+import { HttpRoute, type RouteRequest } from '../../../httpRoute';
 
 /**
  * The card's demo page. `PATCH` sets "Share on approval"; `POST` shares a demo now (`demo`: its number, `add`:
@@ -14,8 +14,8 @@ import { HttpRoute, type RouteDependencies, type RouteRequest } from '../../../h
 export class Share extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/share';
 
-  constructor(dependencies: RouteDependencies, private readonly cardService: CardService) {
-    super(dependencies);
+  constructor(private readonly cardService: CardService) {
+    super();
   }
 
   override PATCH = async (request: RouteRequest): Promise<{ card: Item }> => {

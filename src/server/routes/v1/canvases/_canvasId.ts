@@ -1,4 +1,5 @@
 import type { Canvas } from '../../../../core/types';
+import type { ProjectService } from '../../../services/projectService';
 import { HttpRoute, type RouteRequest } from '../../httpRoute';
 
 /**
@@ -8,13 +9,17 @@ import { HttpRoute, type RouteRequest } from '../../httpRoute';
 export class CanvasById extends HttpRoute {
   readonly path = '/api/v1/canvases/:canvasId';
 
+  constructor(private readonly projectService: ProjectService) {
+    super();
+  }
+
   override PATCH = async (request: RouteRequest): Promise<{ canvas: Canvas }> => {
-    const project = this.projectOfCanvas(request);
+    const project = await this.projectService.getProjectRuntimeForCanvas(request.params.canvasId!);
     return { canvas: project.board.updateCanvas(request.params.canvasId!, await this.bodyOf(request)) };
   };
 
   override DELETE = async (request: RouteRequest): Promise<void> => {
-    const project = this.projectOfCanvas(request);
+    const project = await this.projectService.getProjectRuntimeForCanvas(request.params.canvasId!);
     const { moveTo, expected } = (await this.bodyOf(request)) as { moveTo?: unknown; expected?: { parked?: unknown; snoozed?: unknown } };
     project.board.deleteCanvas(request.params.canvasId!, moveTo, expected);
   };

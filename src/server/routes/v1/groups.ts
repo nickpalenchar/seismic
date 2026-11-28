@@ -1,6 +1,6 @@
 import type { Group } from '../../../core/types';
 import type { CardService } from '../../services/cardService';
-import { HttpRoute, type RouteDependencies, type RouteRequest } from '../httpRoute';
+import { HttpRoute, type RouteRequest } from '../httpRoute';
 
 /**
  * A new group with the cards in it (`{ name, cards, hue? }`; the project and canvas are the cards'),
@@ -9,8 +9,8 @@ import { HttpRoute, type RouteDependencies, type RouteRequest } from '../httpRou
 export class Groups extends HttpRoute {
   readonly path = '/api/v1/groups';
 
-  constructor(dependencies: RouteDependencies, private readonly cardService: CardService) {
-    super(dependencies);
+  constructor(private readonly cardService: CardService) {
+    super();
   }
 
   override POST = async (request: RouteRequest): Promise<{ group: Group }> => {

@@ -1,14 +1,14 @@
 import { BadRequest } from '../../../../board';
 import type { Item } from '../../../../../core/types';
 import type { CardService } from '../../../../services/cardService';
-import { HttpRoute, type RouteDependencies, type RouteRequest } from '../../../httpRoute';
+import { HttpRoute, type RouteRequest } from '../../../httpRoute';
 
 /** The owner sends the comments held back for the card's worker (`now`: at once, not after the moment given to an approval). Answered with the card. */
 export class Release extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/release';
 
-  constructor(dependencies: RouteDependencies, private readonly cardService: CardService) {
-    super(dependencies);
+  constructor(private readonly cardService: CardService) {
+    super();
   }
 
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {

@@ -1,7 +1,7 @@
 import { BadRequest } from '../../../../board';
 import type { Item } from '../../../../../core/types';
 import type { CardService } from '../../../../services/cardService';
-import { HttpRoute, type RouteDependencies, type RouteRequest } from '../../../httpRoute';
+import { HttpRoute, type RouteRequest } from '../../../httpRoute';
 
 /**
  * The owner approves the card's work (`direct`: onto main where it would go out as a pull request).
@@ -12,8 +12,8 @@ import { HttpRoute, type RouteDependencies, type RouteRequest } from '../../../h
 export class Approve extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/approve';
 
-  constructor(dependencies: RouteDependencies, private readonly cardService: CardService) {
-    super(dependencies);
+  constructor(private readonly cardService: CardService) {
+    super();
   }
 
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {

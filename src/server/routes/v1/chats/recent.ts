@@ -1,3 +1,4 @@
+import type { ProjectService } from '../../../services/projectService';
 import { HttpRoute, type RouteRequest } from '../../httpRoute';
 
 export interface RecentChatView {
@@ -11,5 +12,11 @@ export interface RecentChatView {
 export class RecentChat extends HttpRoute {
   readonly path = '/api/v1/chats/recent';
 
-  override GET = (request: RouteRequest): RecentChatView => ({ chat: this.projectOfId(new URL(request.url).searchParams.get('project')).board.recentChat() });
+  constructor(private readonly projectService: ProjectService) {
+    super();
+  }
+
+  override GET = async (request: RouteRequest): Promise<RecentChatView> => ({
+    chat: (await this.projectService.getProjectRuntime(new URL(request.url).searchParams.get('project'))).board.recentChat(),
+  });
 }

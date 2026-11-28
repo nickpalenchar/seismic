@@ -1,7 +1,7 @@
 import { BadRequest } from '../../../board';
 import type { CardPatch, Item } from '../../../../core/types';
 import type { CardService } from '../../../services/cardService';
-import { HttpRoute, type RouteDependencies, type RouteRequest } from '../../httpRoute';
+import { HttpRoute, type RouteRequest } from '../../httpRoute';
 
 /**
  * A card: what the owner changes on it (its title, text, place, labels, a plan's fold), answered with
@@ -10,8 +10,8 @@ import { HttpRoute, type RouteDependencies, type RouteRequest } from '../../http
 export class Card extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId';
 
-  constructor(dependencies: RouteDependencies, private readonly cardService: CardService) {
-    super(dependencies);
+  constructor(private readonly cardService: CardService) {
+    super();
   }
 
   override PATCH = async (request: RouteRequest): Promise<{ card: Item }> => {

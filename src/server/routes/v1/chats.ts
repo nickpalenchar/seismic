@@ -1,4 +1,5 @@
 import type { ChatElsewhere } from '../../../core/types';
+import type { ProjectService } from '../../services/projectService';
 import { HttpRoute, type RouteRequest } from '../httpRoute';
 
 /**
@@ -9,8 +10,12 @@ import { HttpRoute, type RouteRequest } from '../httpRoute';
 export class Chats extends HttpRoute {
   readonly path = '/api/v1/chats';
 
-  override GET = (): { chats: ChatElsewhere[] } => {
-    const projects = this.dependencies.allProjects();
+  constructor(private readonly projectService: ProjectService) {
+    super();
+  }
+
+  override GET = async (): Promise<{ chats: ChatElsewhere[] }> => {
+    const projects = await this.projectService.getProjectRuntimes();
     const names = new Map(projects.map((project) => [project.board.project.id, project.board.project.name]));
     const chats = (projects[0]?.board.everyChat() ?? []).flatMap((chat) => (names.has(chat.project) ? [{ ...chat, projectName: names.get(chat.project)! }] : []));
     return { chats };
@@ -18,6 +23,6 @@ export class Chats extends HttpRoute {
 
   override POST = async (request: RouteRequest): Promise<{ chat: number }> => {
     const { project } = await this.bodyOf(request);
-    return { chat: this.projectOfId(typeof project === 'string' ? project : null).board.newChat() };
+    return { chat: (await this.projectService.getProjectRuntime(typeof project === 'string' ? project : null)).board.newChat() };
   };
 }

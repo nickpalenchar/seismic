@@ -1,13 +1,13 @@
 import type { Item } from '../../../../../../core/types';
 import type { CardService } from '../../../../../services/cardService';
-import { HttpRoute, type RouteDependencies, type RouteRequest } from '../../../../httpRoute';
+import { HttpRoute, type RouteRequest } from '../../../../httpRoute';
 
 /** The owner stops the card's code review while it runs. Answered with the card. */
 export class StopCodeReview extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/code-review/stop';
 
-  constructor(dependencies: RouteDependencies, private readonly cardService: CardService) {
-    super(dependencies);
+  constructor(private readonly cardService: CardService) {
+    super();
   }
 
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => ({ card: await this.cardService.performAction(request.params.cardId!, { action: 'stopCodeReview' }) });

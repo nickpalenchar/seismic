@@ -1,4 +1,5 @@
 import type { OwnerSettingViews } from '../../../core/types';
+import type { ConfigurationService } from '../../services/configurationService';
 import { HttpRoute, type RouteRequest } from '../httpRoute';
 
 /**
@@ -9,10 +10,14 @@ import { HttpRoute, type RouteRequest } from '../httpRoute';
 export class Settings extends HttpRoute {
   readonly path = '/api/v1/settings';
 
-  override GET = (): { settings: OwnerSettingViews } => ({ settings: this.settings.all() });
+  constructor(private readonly configurationService: ConfigurationService) {
+    super();
+  }
+
+  override GET = async (): Promise<{ settings: OwnerSettingViews }> => ({ settings: (await this.configurationService.getOwnerSettings()).all() });
 
   override PATCH = async (request: RouteRequest): Promise<{ settings: OwnerSettingViews }> => {
-    const settings = this.settings;
+    const settings = await this.configurationService.getOwnerSettings();
     return { settings: settings.patch(await this.bodyOf(request)) };
   };
 }

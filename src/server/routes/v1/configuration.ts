@@ -1,7 +1,6 @@
 import type { ConfigSaved, ConfigView } from '../../../core/types';
-import type { Config } from '../../config';
+import type { ConfigurationService } from '../../services/configurationService';
 import { HttpRoute, type RouteRequest } from '../httpRoute';
-import { NotFound } from '../../notFound';
 
 /**
  * Seismic's configuration: its projects and their repositories, as the Configuration sheet shows
@@ -12,17 +11,15 @@ import { NotFound } from '../../notFound';
 export class Configuration extends HttpRoute {
   readonly path = '/api/v1/configuration';
 
-  override GET = (): { configuration: ConfigView } => ({ configuration: this.config().view() });
+  constructor(private readonly configurationService: ConfigurationService) {
+    super();
+  }
+
+  override GET = async (): Promise<{ configuration: ConfigView }> => ({ configuration: (await this.configurationService.getConfig()).view() });
 
   override PUT = async (request: RouteRequest): Promise<{ saved: ConfigSaved; configuration: ConfigView }> => {
-    const config = this.config();
+    const config = await this.configurationService.getConfig();
     const saved = await config.save(await request.json());
     return { saved, configuration: config.view() };
   };
-
-  private config(): Config {
-    const config = this.dependencies.configuration;
-    if (!config) throw new NotFound('noConfiguration', 'this Seismic runs without a configuration of its own');
-    return config;
-  }
 }

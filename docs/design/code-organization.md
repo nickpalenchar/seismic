@@ -68,10 +68,12 @@ which holds every table's query class and the multi-table writes.
   and the server hands those to whatever needs them. Nothing calls `new CardRepository` but its owner.
 - A route is given what it needs in its own constructor, as the whole object: the card routes take
   `private readonly cardService: CardService` and call `this.cardService.getProjectRuntimeForCard(…)`,
-  not a helper on `HttpRoute` and not a field spread onto `this`. `v1Routes` builds them with the
-  one `CardService`. This is the shape a dependency-injection container fills in later
-  (`@inject(CardService)`); routes that look no card up take `RouteDependencies` only. Decided
-  2026-11-27.
+  not a helper on `HttpRoute` and not a field spread onto `this`. `HttpRoute` has no constructor and
+  holds no service: the card routes take `CardService`, the routes on a project, group, canvas or chat
+  `ProjectService`, the hint routes `HintsService`, the settings, configuration and agent routes
+  `ConfigurationService`. A service refuses an unknown thing with `NotFound` itself. `v1Routes` builds
+  every route with the one service it names. This is the shape a dependency-injection container
+  fills in later (`@inject(CardService)`). Decided 2026-11-27.
 - A repository wraps no query class: it is the query class, moved here as its table is converted.
   `schemas/` keeps the table definitions.
 

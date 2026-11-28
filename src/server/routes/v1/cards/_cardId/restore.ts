@@ -1,14 +1,14 @@
 import { BadRequest } from '../../../../board';
 import type { Item } from '../../../../../core/types';
 import type { CardService } from '../../../../services/cardService';
-import { HttpRoute, type RouteDependencies, type RouteRequest } from '../../../httpRoute';
+import { HttpRoute, type RouteRequest } from '../../../httpRoute';
 
 /** A deleted card brought back (the undo of its deletion), with its workstation where that is still free; answered with the card. */
 export class Restore extends HttpRoute {
   readonly path = '/api/v1/cards/:cardId/restore';
 
-  constructor(dependencies: RouteDependencies, private readonly cardService: CardService) {
-    super(dependencies);
+  constructor(private readonly cardService: CardService) {
+    super();
   }
 
   override POST = async (request: RouteRequest): Promise<{ card: Item }> => {

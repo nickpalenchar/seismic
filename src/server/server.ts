@@ -13,6 +13,8 @@ import { bunRoutes, respond } from './routes/httpRoute';
 import { v1Routes } from './routes/v1';
 import { OwnerSettings } from './ownerSettings';
 import { CardService } from './services/cardService';
+import { ConfigurationService } from './services/configurationService';
+import { ProjectService } from './services/projectService';
 import { HintsService } from './services/hintsService';
 import { type Dropped, findDropped, localImage } from './files';
 import type { ProjectRuntime } from './project';
@@ -487,7 +489,12 @@ export function serve(
       ...extensionRoutes,
       ...uiRoutes(development),
       
-      ...bunRoutes(v1Routes({ projectById: (id) => byId.get(id), projectOfChat, allProjects: () => projects.all(), ownerSettings, hints: new HintsService(access.store.hintRepository), configuration: config, ...(config ? { agentModels: async (harness) => (offersCatalog(config, harness, machine) ? (harness === 'codex' ? codexModels() : agyModels()) : []) } : {}) }, cardService)),
+      ...bunRoutes(v1Routes({
+        cardService,
+        projectService: new ProjectService((id) => byId.get(id), () => projects.all(), projectOfChat),
+        hintsService: new HintsService(access.store.hintRepository),
+        configurationService: new ConfigurationService(config, ownerSettings, config ? async (harness) => (offersCatalog(config, harness, machine) ? (harness === 'codex' ? codexModels() : agyModels()) : []) : undefined),
+      })),
       
       '/login': { GET: (req, srv) => access.loginRoute(req, srv) },
       
