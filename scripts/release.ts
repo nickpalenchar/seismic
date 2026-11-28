@@ -201,10 +201,9 @@ export function check(cwd: string, tag: string): string | null {
 
 
 export const INSTALL =
-  'The Mac apps are signed and notarised. The Windows installer and the Linux packages are not signed: ' +
-  'SmartScreen warns about the installer ("More info", then "Run anyway"). Every file\'s SHA-256 is in ' +
-  '`SHA256SUMS`: `sha256sum --check --ignore-missing SHA256SUMS` beside the download, or ' +
-  '`Get-FileHash Seismic-Windows-x64-setup.exe` in PowerShell.';
+  'The Mac apps are signed and notarised. The Linux packages are not signed. Every file\'s SHA-256 is in ' +
+  '`SHA256SUMS`: `sha256sum --check --ignore-missing SHA256SUMS` beside the download. ' +
+  'There is no Windows build for now.';
 
 
 const COMMITS_LISTED = 300;

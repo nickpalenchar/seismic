@@ -5,8 +5,8 @@ must keep are in [`docs/design.md`](design.md) (Constraints).
 
 The app is downloaded from the GitHub releases of `nickpalenchar/seismic`; the live seismic.im links
 the newest one (it is built from the separate `seismic-site` repository, not from `site/` here,
-which stays unpublished). The Mac apps are signed with a Developer ID and notarised; the Windows
-installer and the Linux packages are not signed, and the release lists the SHA-256 of every file
+which stays unpublished). The Mac apps are signed with a Developer ID and notarised; the Linux
+packages are not signed (there is no Windows build for now), and the release lists the SHA-256 of every file
 in `SHA256SUMS`. Every version has a section in [`CHANGELOG.md`](../CHANGELOG.md), which is the
 start of its release notes and what installed apps show of the update.
 
@@ -181,11 +181,14 @@ APPLE_NOTARY_KEY_ID=XXXXXXXXXX APPLE_NOTARY_ISSUER=<issuer, team key only> \
 bun run build:app
 ```
 
-## Windows and Linux
+## Linux
 
-Not signed. SmartScreen warns about the Windows installer until it has a reputation ("More
-info", then "Run anyway"); the release notes say so and how to check a download against
-`SHA256SUMS`.
+Not signed; the release notes say how to check a download against `SHA256SUMS`.
+
+Windows is not built for now: its WebView2 app check (`scripts/check-app-desks.ts`) failed on
+`v0.2.0-rc.3`. To bring it back, restore the `windows-x64` entries in the matrix of
+`.github/workflows/build.yml` and in `RELEASE` (`scripts/release.ts`), and the SmartScreen note in
+`INSTALL`.
 
 ## Publishing the docs
 
